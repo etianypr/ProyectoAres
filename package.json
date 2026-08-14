@@ -1,0 +1,37 @@
+{
+  "name": "ares-encomiendas",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "node --import ./pruebas/registrar.mjs --test \"pruebas/*.test.mjs\"",
+    "test:base": "node --env-file=.env.local --import ./pruebas/registrar.mjs pruebas/base.mjs",
+    "test:esquema": "node --env-file=.env.local pruebas/esquema.mjs",
+    "migrar": "node --env-file=.env.migracion scripts/migrar-datos.mjs"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.12.0",
+    "@supabase/supabase-js": "^2.108.2",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.21.0",
+    "mapbox-gl": "^3.27.0",
+    "next": "16.2.9",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "tailwind-merge": "^3.6.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.9",
+    "fake-indexeddb": "^6.2.5",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

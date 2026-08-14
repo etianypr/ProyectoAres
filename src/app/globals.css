@@ -1,0 +1,226 @@
+@import "tailwindcss";
+
+:root {
+  /* Sistema de Diseño · Pucarani (azul · v3) */
+
+  /* Marca — azul de flota, con el dorado como acento de énfasis */
+  --brand: #0c3f9b;
+  --brand-dark: #072c6e;
+  --brand-soft: #e8eefa;
+  --brand-foreground: #ffffff;
+  --accent: #fbc412;
+  /* Tinta sobre el dorado: el amarillo no admite texto blanco ni negro puro,
+     así que el par accent/accent-ink va siempre junto. */
+  --accent-ink: #6b4a00;
+  --accent-soft: #fff3cf;
+
+  /* Base — neutros con una pizca de azul, para que compongan con la marca */
+  --background: #eff1f5;
+  --foreground: #0f1626;
+  --card: #ffffff;
+  --separator: #ced5e0;
+  --border: #ced5e0;
+  /* Línea INTERNA: la que separa la cabecera de una tarjeta de su cuerpo, o
+     una fila de la siguiente. Más clara que --border a propósito — el borde
+     que dibuja el contorno de una caja tiene que pesar más que las líneas de
+     adentro, o la caja deja de leerse como una unidad. */
+  --divider: #e7ebf2;
+  --muted: #5c667a;
+
+  /* Estado — el color comunica significado */
+  --ok: #0f6b45;
+  --ok-bg: #e3f1ea;
+  --warn: #b04a00;
+  --warn-bg: #fceade;
+  --danger: #b3261e;
+  --danger-bg: #fbe7e4;
+  --info: #0c3f9b;
+  --info-bg: #e8eefa;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-border: var(--border);
+  --color-separator: var(--separator);
+  --color-divider: var(--divider);
+  --color-muted: var(--muted);
+
+  --color-brand: var(--brand);
+  --color-brand-dark: var(--brand-dark);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+
+  --color-ok: var(--ok);
+  --color-ok-bg: var(--ok-bg);
+  --color-warn: var(--warn);
+  --color-warn-bg: var(--warn-bg);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+
+  /* Las tres familias del sistema: título, texto y cifras. Se declaran acá y
+     se resuelven en layout.tsx; mientras no estén cargadas, cada regla que
+     las usa lleva su propia cadena de respaldo (system-ui / monospace). */
+  --font-sans: var(--font-texto);
+  --font-mono: var(--font-cifras);
+
+  /* Sombras del sistema. La "soft" no es una sombra sino un contorno de 1px:
+     en fondos claros pesa menos que un difuminado y mantiene el borde nítido. */
+  --shadow-soft: 0 0 0 1px var(--border);
+  --shadow-card: 0 1px 2px rgba(15, 22, 38, 0.06),
+    0 10px 30px rgba(15, 22, 38, 0.1);
+
+  /* Animaciones del sistema: rápidas y con curva suave (nada "rebotón").
+     La curva 0.16,1,0.3,1 desacelera al final — se siente de producto. */
+  --ease-suave: cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-fade-in: fade-in 0.2s ease-out both;
+  --animate-scale-in: scale-in 0.24s var(--ease-suave) both;
+  --animate-expand: expand 0.28s var(--ease-suave) both;
+  --animate-page: page-in 0.22s ease-out both;
+  --animate-slide-up: slide-up 0.4s var(--ease-suave) both;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.965) translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes expand {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
+/* La transición de página es solo opacidad: al cambiar de sección el layout
+   ya se mueve solo, y sumarle desplazamiento daba sensación de "doble viaje". */
+@keyframes page-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Entrada de los hijos de una rejilla (KPIs, listas cortas). Todos a la vez y
+   muy corta: escalonarla competía con la transición de página. */
+.stagger-in > * {
+  animation: fade-in 0.18s ease-out both;
+}
+
+* {
+  border-color: var(--border);
+}
+
+/* Accesibilidad: si el sistema pide menos movimiento, las animaciones
+   se vuelven instantáneas (el contenido aparece igual, sin viaje). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Títulos: ancho ligeramente expandido y apretados de tracking, para que un
+   encabezado corto ocupe con presencia sin subir el tamaño. */
+.tipo-titulo {
+  font-family: var(--font-titulo), ui-sans-serif, system-ui, sans-serif;
+  font-variation-settings: "wdth" 112;
+  letter-spacing: -0.015em;
+  font-weight: 700;
+}
+
+/* Rótulo: la etiqueta chica en versalitas que encabeza un bloque o una
+   columna. Va suelta de tracking porque en mayúsculas todo se apelmaza. */
+.rotulo {
+  font-family: var(--font-titulo), ui-sans-serif, system-ui, sans-serif;
+  font-variation-settings: "wdth" 105;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  font-weight: 600;
+}
+
+/* Cifras: tabulares, para que montos y totales alineen columna a columna
+   y no "bailen" al actualizarse. */
+.cifra {
+  font-family: var(--font-cifras), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Barrita dorada de acento bajo un título de sección. */
+.barra {
+  display: block;
+  width: 26px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+/* Patente: se lee como una placa, que es como la nombra el chofer. */
+.placa {
+  font-family: var(--font-cifras), ui-monospace, monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--card);
+  padding: 1px 6px;
+}
+
+/* Flecha propia para los <select> (la nativa varía por navegador). */
+.ui-select {
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235c667a' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.65rem center;
+  background-size: 1rem;
+}
+
+/* El icono nativo del calendario en <input type="date">, más discreto. */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0.45;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+input[type="date"]:hover::-webkit-calendar-picker-indicator {
+  opacity: 0.8;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-texto), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2 {
+  font-family: var(--font-titulo), ui-sans-serif, system-ui, sans-serif;
+  font-variation-settings: "wdth" 112;
+  letter-spacing: -0.015em;
+}
+
+/* Detalles de marca: el cursor de texto y la selección usan el azul.
+   Pequeño, pero se nota que "todo es de la misma app". */
+input,
+textarea,
+select {
+  caret-color: var(--brand);
+}
+::selection {
+  background: var(--brand-soft);
+  color: var(--brand-dark);
+}
+
+/* Estados de impresión para los PDF/Excel se generan aparte; aquí solo UI. */
