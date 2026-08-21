@@ -1,20 +1,53 @@
 @import "tailwindcss";
 
 :root {
-  /* Sistema de Diseño · Pucarani (azul · v3) */
+  /* Sistema de Diseño · ARES Encomiendas (naranja · v4) */
 
-  /* Marca — azul de flota, con el dorado como acento de énfasis */
-  --brand: #0c3f9b;
-  --brand-dark: #072c6e;
-  --brand-soft: #e8eefa;
+  /* ------------------------------------------------------------------------
+     EL AZUL DEJÓ DE SER LA MARCA
+
+     La v3 era azul de flota, heredada del sistema de gestión general del que
+     salió este proyecto. ARES Encomiendas es otro producto, y su identidad es
+     naranja. El azul no desapareció: quedó como el estado "info", que es lo
+     único que de verdad necesitaba ser azul.
+
+     Cada número de abajo es un contraste MEDIDO (WCAG 2.1), no elegido a ojo.
+     Importa más que en una app de escritorio: esto se mira desde un teléfono, a
+     pleno sol de Arica, mientras se maneja.
+     ------------------------------------------------------------------------ */
+
+  /* Marca — naranja. 5.18:1 con texto blanco encima, y los mismos 5.18:1
+     usándolo como texto sobre tarjeta blanca: pasa AA en los dos sentidos, que
+     es lo que hace que sirva igual para un botón lleno y para un enlace.
+
+     Se descartó el naranja más vivo (#ea580c): con texto blanco da 3.56:1 y no
+     alcanza AA para texto normal. Se veía mejor en el monitor y peor en la
+     camioneta. */
+  --brand: #c2410c;
+  --brand-dark: #9a3412;
+  /* Fondo suave de marca. Con --brand como texto encima da 4.69:1 (AA). */
+  --brand-soft: #fff1e8;
   --brand-foreground: #ffffff;
+
+  /* El halo de foco y la sombra de los botones de marca. Estaban escritos a
+     mano en cinco archivos, y con un valor turquesa que venía de una marca
+     ANTERIOR a la azul: los anillos de foco no eran del color de la marca
+     desde hacía dos identidades. Ahora salen de acá. */
+  --brand-ring: rgba(194, 65, 12, 0.2);
+  --brand-shadow: rgba(154, 52, 18, 0.3);
+  --brand-shadow-alta: rgba(154, 52, 18, 0.28);
+
+  /* Acento de énfasis. Se conserva el dorado: con el naranja compone igual que
+     con el azul, y es lo bastante más claro para no confundirse con él. */
   --accent: #fbc412;
   /* Tinta sobre el dorado: el amarillo no admite texto blanco ni negro puro,
      así que el par accent/accent-ink va siempre junto. */
   --accent-ink: #6b4a00;
   --accent-soft: #fff3cf;
 
-  /* Base — neutros con una pizca de azul, para que compongan con la marca */
+  /* Base — neutros con una pizca de azul, que es lo que los deja fríos al lado
+     del naranja. Un gris cálido junto a un naranja cálido se lee como si toda
+     la pantalla estuviera teñida. */
   --background: #eff1f5;
   --foreground: #0f1626;
   --card: #ffffff;
@@ -25,15 +58,35 @@
      que dibuja el contorno de una caja tiene que pesar más que las líneas de
      adentro, o la caja deja de leerse como una unidad. */
   --divider: #e7ebf2;
+  /* 5.11:1 sobre --background. */
   --muted: #5c667a;
 
-  /* Estado — el color comunica significado */
+  /* ------------------------------------------------------------------------
+     ESTADO — y por qué "warn" tuvo que moverse
+
+     El aviso era #b04a00, un naranja quemado. Con la marca en azul se leía como
+     advertencia; con la marca en naranja quedaba a 8 grados de tono del color
+     de los botones, o sea que una advertencia y una acción principal se veían
+     casi iguales. Eso es exactamente lo que la constitución prohíbe: un estado
+     que no se distingue.
+
+     Se movió a un ámbar oscuro, a 23 grados de la marca, y de paso subió el
+     contraste (4.97:1 → 6.26:1 sobre su propio fondo).
+
+     Y el color nunca es lo único: cada estado de esta app lleva además su icono
+     y su texto. Las advertencias de la ruta llevan triángulo, los rechazos
+     llevan el círculo tachado, las entregas el tilde.
+     ------------------------------------------------------------------------ */
+  /* 5.62:1 sobre --ok-bg */
   --ok: #0f6b45;
   --ok-bg: #e3f1ea;
-  --warn: #b04a00;
-  --warn-bg: #fceade;
+  /* 6.26:1 sobre --warn-bg */
+  --warn: #7a5200;
+  --warn-bg: #fdf3d9;
+  /* 5.49:1 sobre --danger-bg */
   --danger: #b3261e;
   --danger-bg: #fbe7e4;
+  /* El azul de la v3, ahora en su único lugar honesto. 8.20:1 sobre --info-bg */
   --info: #0c3f9b;
   --info-bg: #e8eefa;
 }
@@ -51,6 +104,8 @@
   --color-brand-dark: var(--brand-dark);
   --color-brand-soft: var(--brand-soft);
   --color-brand-foreground: var(--brand-foreground);
+  --color-brand-ring: var(--brand-ring);
+  --color-brand-shadow: var(--brand-shadow);
   --color-accent: var(--accent);
   --color-accent-ink: var(--accent-ink);
   --color-accent-soft: var(--accent-soft);

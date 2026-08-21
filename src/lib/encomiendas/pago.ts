@@ -26,6 +26,7 @@ import { VALOR_APROXIMADO_PEDIDO } from "./config";
 import type {
   EncomiendaActividadOrigen,
   EncomiendaActividadTipo,
+  EncomiendaMotivoNoEntrega,
   EncomiendaPago,
   EncomiendaTipoPago,
 } from "@/types/db";
@@ -40,6 +41,31 @@ import type {
 export type ConteoDia = {
   entregados: number;
   omitidos: number;
+};
+
+/** POR QUÉ no se entregó, desglosado. Es lo que el jefe necesita para no
+ *  confundir un rechazo con un "no estaba" (FR-021).
+ *
+ *  Va SEPARADO de ConteoDia y no adentro, y eso es a propósito: ConteoDia es lo
+ *  que entra en la cuenta del pago, y esto no entra en ninguna cuenta. Si
+ *  estuvieran juntos, el día que alguien agregue un motivo nuevo tendría que
+ *  pensar si afecta la liquidación. Separados, la respuesta es siempre no.
+ *
+ *  `sinMotivo` son las omisiones registradas antes de que la app preguntara por
+ *  qué (ver la migración 0003). No se les inventa un motivo: "no se sabe" es un
+ *  dato más honesto que uno elegido a dedo. */
+export type ConteoMotivos = {
+  personaNoEncontrada: number;
+  sinRespuesta: number;
+  rechazos: number;
+  sinMotivo: number;
+};
+
+export const MOTIVOS_CERO: ConteoMotivos = {
+  personaNoEncontrada: 0,
+  sinRespuesta: 0,
+  rechazos: 0,
+  sinMotivo: 0,
 };
 
 /** Los números que definen cuánto vale un día.
@@ -166,11 +192,52 @@ export function contarActividad(eventos: { tipo: EncomiendaActividadTipo }[]): C
   };
 }
 
+/** Cuenta los motivos de no entrega de un conjunto de eventos.
+ *
+ *  Solo mira las omisiones: una entrega con motivo sería un error de datos (la
+ *  base lo impide con un check, ver la 0003) y contarla acá lo taparía. */
+export function contarMotivos(
+  eventos: { tipo: EncomiendaActividadTipo; motivo?: EncomiendaMotivoNoEntrega | null }[],
+): ConteoMotivos {
+  const conteo = { ...MOTIVOS_CERO };
+
+  for (const e of eventos) {
+    if (e.tipo !== "omision") continue;
+    switch (e.motivo) {
+      case "persona_no_encontrada":
+        conteo.personaNoEncontrada++;
+        break;
+      case "sin_respuesta":
+        conteo.sinRespuesta++;
+        break;
+      case "rechazo":
+        conteo.rechazos++;
+        break;
+      default:
+        // null, undefined, o un valor que la base todavía no conocía. No se
+        // reparte entre los otros tres: se cuenta como lo que es.
+        conteo.sinMotivo++;
+    }
+  }
+
+  return conteo;
+}
+
+/** Cuántas de las no entregas se pueden volver a intentar. El rechazo es el
+ *  único que no (FR-012), así que esto es lo que el jefe usa para saber cuánto
+ *  vuelve mañana a la camioneta. */
+export function reintentables(motivos: ConteoMotivos): number {
+  return motivos.personaNoEncontrada + motivos.sinRespuesta + motivos.sinMotivo;
+}
+
 export type EventoActividad = {
   chofer_id: string | null;
   fecha: string;
   tipo: EncomiendaActividadTipo;
   origen: EncomiendaActividadOrigen;
+  /** Opcional a propósito: las pantallas que solo liquidan no necesitan pedir
+   *  esta columna, y las filas anteriores a la 0003 no la tienen. */
+  motivo?: EncomiendaMotivoNoEntrega | null;
 };
 
 export type DiaActividad<T extends EventoActividad> = {
@@ -179,6 +246,8 @@ export type DiaActividad<T extends EventoActividad> = {
   choferId: string | null;
   fecha: string;
   conteo: ConteoDia;
+  /** Por qué no se entregó lo que no se entregó. No entra en el pago. */
+  motivos: ConteoMotivos;
   /** Los eventos crudos del día, para las pantallas que muestran horas. */
   eventos: T[];
   /** Cuántos de esos eventos los cargó la oficina a mano (0028). 0 = día
@@ -207,6 +276,7 @@ export function agruparPorDia<T extends EventoActividad>(eventos: T[]): DiaActiv
         choferId: evento.chofer_id,
         fecha: evento.fecha,
         conteo: { entregados: 0, omitidos: 0 },
+        motivos: { ...MOTIVOS_CERO },
         eventos: [],
         manuales: 0,
       };
@@ -214,7 +284,24 @@ export function agruparPorDia<T extends EventoActividad>(eventos: T[]): DiaActiv
     }
     dia.eventos.push(evento);
     if (evento.tipo === "entrega") dia.conteo.entregados++;
-    if (evento.tipo === "omision") dia.conteo.omitidos++;
+    if (evento.tipo === "omision") {
+      dia.conteo.omitidos++;
+      // El desglose se arma acá y no con un segundo recorrido: es el mismo bucle
+      // y así no hay forma de que los totales y el desglose discrepen.
+      switch (evento.motivo) {
+        case "persona_no_encontrada":
+          dia.motivos.personaNoEncontrada++;
+          break;
+        case "sin_respuesta":
+          dia.motivos.sinRespuesta++;
+          break;
+        case "rechazo":
+          dia.motivos.rechazos++;
+          break;
+        default:
+          dia.motivos.sinMotivo++;
+      }
+    }
     if (evento.origen === "manual") dia.manuales++;
   }
 

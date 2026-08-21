@@ -1,0 +1,24 @@
+RESPALDO DE LA FLOTA DE REPARTO
+Generado: 2026-08-15T08:48:51.001Z
+Origen:   https://liiaivvmnwifnflnlvoi.supabase.co
+
+Qué hay acá:
+
+  vehiculos-encomiendas.{json,csv}  1 ficha(s) de vehículo con
+      marca, modelo, año, kilometraje y los tres vencimientos (revisión
+      técnica, SOAP, permiso de circulación).
+      Patentes: VKPW-81
+
+  gastos-vehiculos.{json,csv}       0 gasto(s) imputado(s) a esas
+      patentes. Total: $0
+
+Por qué está en archivos y no en la base de Ares:
+
+  Ares no gestiona flota. Su esquema no tiene tabla de vehículos y ninguna
+  pantalla los muestra, así que estos datos no tenían dónde entrar. Se
+  guardaron acá para no perderlos al cortar el acceso a la base anterior.
+
+  Si más adelante Ares necesita llevar la flota, estos archivos son el
+  punto de partida: no hay que volver a pedirle nada al sistema viejo.
+
+Los CSV llevan BOM para que Excel en Windows muestre bien los acentos.

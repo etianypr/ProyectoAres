@@ -9,16 +9,40 @@
 // abierta tapa tres cuartos de la pantalla, y lo que hay que ver justo ahora es
 // el mapa con la ruta propuesta. La hoja se cierra sola al aparecer esto (ver
 // BottomSheet, prop "senalCerrar").
+//
+// ----------------------------------------------------------------------------
+// LA COMPARACIÓN SOLO APARECE CUANDO HAY ALGO QUE COMPARAR
+//
+// El documento principal es explícito: una sola ruta cuando es claramente la
+// mejor, y hasta tres solo cuando las diferencias son útiles. Eso ya lo decidió
+// el cálculo (ver elegirUtiles en generar-ruta.ts); acá la regla se traduce en
+// una condición sola — con una alternativa no se dibuja ningún selector.
+//
+// Es la diferencia entre ayudar y estorbar. Un chofer con treinta pedidos y el
+// motor andando no quiere elegir entre tres opciones que valen lo mismo; quiere
+// que le digan por dónde arrancar.
 
 import { useState } from "react";
-import { Check, CloudOff, MapPinOff, PackageCheck, Route, X } from "lucide-react";
+import {
+  AlertTriangle,
+  Ban,
+  Check,
+  Clock,
+  CloudOff,
+  MapPinOff,
+  PackageCheck,
+  Phone,
+  Route,
+  X,
+} from "lucide-react";
 import { formatDistancia, formatDuracion } from "@/lib/format";
-import type { PropuestaRuta } from "@/lib/encomiendas/local/generar-ruta";
+import { bloquePorId } from "@/lib/encomiendas/config";
+import type { EstrategiaRuta, PropuestaRuta } from "@/lib/encomiendas/local/generar-ruta";
 
 // Mismas medidas que los botones de la tarjeta de la parada activa (ver
 // ruta-conductor.tsx): 48 px de alto, para el pulgar y sin mirar mucho.
 const BOTON_PRINCIPAL =
-  "flex h-12 items-center justify-center gap-2 rounded-full bg-brand text-[15px] font-semibold text-brand-foreground shadow-[0_1px_2px_rgba(11,93,86,0.3)] transition-transform active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50";
+  "flex h-12 items-center justify-center gap-2 rounded-full bg-brand text-[15px] font-semibold text-brand-foreground shadow-[0_1px_2px_var(--brand-shadow)] transition-transform active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50";
 
 function Aviso({ icono, children }: { icono: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -32,15 +56,32 @@ function Aviso({ icono, children }: { icono: React.ReactNode; children: React.Re
 export function VistaPreviaRuta({
   propuesta,
   onUsar,
+  onElegir,
   onDescartar,
 }: {
   propuesta: PropuestaRuta;
   /** Guarda la ruta en el teléfono (ver confirmarRutaLocal). */
   onUsar: () => Promise<void>;
+  /** Cambia a otra alternativa. Pide su trazado, así que tarda un momento. */
+  onElegir: (estrategia: EstrategiaRuta) => Promise<void>;
   onDescartar: () => void;
 }) {
   const [guardando, setGuardando] = useState(false);
+  const [cambiando, setCambiando] = useState<EstrategiaRuta | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  async function elegir(estrategia: EstrategiaRuta) {
+    if (estrategia === propuesta.elegida) return;
+    setError(null);
+    setCambiando(estrategia);
+    try {
+      await onElegir(estrategia);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo calcular esa ruta.");
+    } finally {
+      setCambiando(null);
+    }
+  }
 
   async function usar() {
     setError(null);
@@ -54,7 +95,22 @@ export function VistaPreviaRuta({
     }
   }
 
-  const { paradas, distanciaM, duracionS, sinUbicar, sinTrazado, cerradas } = propuesta;
+  const {
+    paradas,
+    distanciaM,
+    duracionS,
+    sinUbicar,
+    rechazados,
+    sinTrazado,
+    cerradas,
+    alternativas,
+    elegida,
+  } = propuesta;
+
+  const actual = alternativas.find((a) => a.estrategia === elegida) ?? alternativas[0];
+  // Con una sola no hay nada que comparar, y es el caso normal: si nadie eligió
+  // horario, las tres estrategias dan el mismo orden.
+  const hayQueComparar = alternativas.length > 1;
 
   // Los números arrancan DESPUÉS de las paradas ya cerradas hoy, que al guardar
   // quedan primero (ver guardarRuta): así el "5" de esta lista es el mismo "5"
@@ -94,6 +150,87 @@ export function VistaPreviaRuta({
         </div>
       ) : null}
 
+      {/* La comparación. Cada botón dice lo que el chofer necesita para decidir:
+          cuánto se maneja, cuántos clientes ya confirmaron y a cuántos se les
+          llegaría fuera de su horario. */}
+      {hayQueComparar ? (
+        <div className="mt-2.5 shrink-0">
+          <div className="grid gap-1.5">
+            {alternativas.map((a) => {
+              const puesta = a.estrategia === elegida;
+              return (
+                <button
+                  key={a.estrategia}
+                  type="button"
+                  onClick={() => void elegir(a.estrategia)}
+                  disabled={guardando || cambiando != null}
+                  aria-pressed={puesta}
+                  className={[
+                    "flex items-start gap-2 rounded-xl border px-3 py-2 text-left transition-colors disabled:opacity-60",
+                    puesta
+                      ? "border-brand bg-brand-soft"
+                      : "border-separator bg-card active:bg-background",
+                  ].join(" ")}
+                >
+                  {/* El estado "puesta" no se distingue solo por el color: lleva
+                      su tilde. Es lo que pide la constitución para cualquier
+                      estado, y acá además se mira a pleno sol. */}
+                  <span
+                    className={[
+                      "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border",
+                      puesta ? "border-brand bg-brand" : "border-separator",
+                    ].join(" ")}
+                  >
+                    {puesta ? <Check className="h-3 w-3 text-brand-foreground" /> : null}
+                  </span>
+
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-baseline gap-1.5">
+                      <span className="truncate text-sm font-semibold leading-tight">
+                        {a.titulo}
+                      </span>
+                      <span className="shrink-0 text-xs font-medium tabular-nums text-muted">
+                        {formatDistancia(a.metrosEstimados)}
+                      </span>
+                      {cambiando === a.estrategia ? (
+                        <span className="shrink-0 text-xs text-muted">calculando…</span>
+                      ) : null}
+                    </span>
+                    <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted">
+                      <span>{a.paradas.length === 1 ? "1 parada" : `${a.paradas.length} paradas`}</span>
+                      {a.confirmados > 0 ? (
+                        <span className="flex items-center gap-0.5 text-ok">
+                          <Check className="h-3 w-3" />
+                          {a.confirmados} confirmado{a.confirmados === 1 ? "" : "s"}
+                        </span>
+                      ) : null}
+                      {a.pendientesDeContacto > 0 ? (
+                        <span className="flex items-center gap-0.5">
+                          <Phone className="h-3 w-3" />
+                          {a.pendientesDeContacto} por llamar
+                        </span>
+                      ) : null}
+                      {a.bloquesIncumplidos > 0 ? (
+                        <span className="flex items-center gap-0.5 font-semibold text-warn">
+                          <Clock className="h-3 w-3" />
+                          {a.bloquesIncumplidos} fuera de horario
+                        </span>
+                      ) : a.bloquesCumplidos > 0 ? (
+                        <span className="flex items-center gap-0.5 text-ok">
+                          <Clock className="h-3 w-3" />
+                          {a.bloquesCumplidos} en horario
+                        </span>
+                      ) : null}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-1 px-1 text-[11px] text-muted">{actual.motivo}</p>
+        </div>
+      ) : null}
+
       {/* El orden es lo que el chofer viene a revisar: se puede desplazar, pero
           sin comerse la pantalla — el mapa de atrás también es parte de esto. */}
       <ol className="mt-3 min-h-0 max-h-[17vh] flex-1 overflow-y-auto rounded-2xl bg-background">
@@ -109,6 +246,26 @@ export function VistaPreviaRuta({
               <span className="block truncate font-medium leading-tight">{p.nombre}</span>
               <span className="block truncate text-xs text-muted">{p.direccion}</span>
             </span>
+            {/* Qué contestó este receptor. Es la mitad del valor de haberle
+                avisado: sin esto, el chofer llega a la puerta sin saber si lo
+                están esperando. Cada estado lleva icono Y texto, no solo
+                color. */}
+            {p.bloqueHorarioId ? (
+              <span className="flex shrink-0 items-center gap-1 rounded-full bg-brand-soft px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-brand">
+                <Clock className="h-3 w-3" />
+                {bloquePorId(p.bloqueHorarioId)?.etiqueta ?? p.bloqueHorarioId}
+              </span>
+            ) : p.disponibilidad === "confirmado" ? (
+              <span className="flex shrink-0 items-center gap-1 rounded-full bg-ok-bg px-1.5 py-0.5 text-[10px] font-semibold text-ok">
+                <Check className="h-3 w-3" />
+                confirmó
+              </span>
+            ) : (
+              <span className="flex shrink-0 items-center gap-1 rounded-full bg-background px-1.5 py-0.5 text-[10px] font-semibold text-muted">
+                <Phone className="h-3 w-3" />
+                por llamar
+              </span>
+            )}
           </li>
         ))}
       </ol>
@@ -130,6 +287,27 @@ export function VistaPreviaRuta({
             ? "1 pedido quedó afuera porque su dirección no se pudo ubicar en el mapa."
             : `${sinUbicar.length} pedidos quedaron afuera porque su dirección no se pudo ubicar en el mapa.`}{" "}
           Siguen pendientes: corrige la dirección y vuelve a armar la ruta.
+        </Aviso>
+      ) : null}
+
+      {/* Los rechazados van APARTE de los que no se pudieron ubicar: el motivo
+          por el que están fuera es distinto y lo que hay que hacer con ellos
+          también. Uno se corrige, el otro se registra y se informa. */}
+      {rechazados.length > 0 ? (
+        <Aviso icono={<Ban className="h-3.5 w-3.5" />}>
+          {rechazados.length === 1
+            ? `${rechazados[0].nombre} rechazó la entrega por WhatsApp: queda fuera de la ruta.`
+            : `${rechazados.length} clientes rechazaron la entrega por WhatsApp: quedan fuera de la ruta.`}{" "}
+          Regístralo antes de cerrar la jornada para que el jefe lo sepa.
+        </Aviso>
+      ) : null}
+
+      {actual.bloquesIncumplidos > 0 ? (
+        <Aviso icono={<AlertTriangle className="h-3.5 w-3.5" />}>
+          {actual.llegariaTardeA.length === 1
+            ? `Con este orden llegarías fuera del horario que eligió ${actual.llegariaTardeA[0]}.`
+            : `Con este orden llegarías fuera de horario a ${actual.llegariaTardeA.length} clientes: ${actual.llegariaTardeA.join(", ")}.`}{" "}
+          Conviene llamarlos.
         </Aviso>
       ) : null}
 

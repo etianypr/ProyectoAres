@@ -1,0 +1,19 @@
+[
+  {
+    "empresa_id": "e35b4dcd-ed64-46ea-9b14-c13d46fac237",
+    "patente": "VKPW-81",
+    "marca": "Dahijatsu",
+    "modelo": "Hijet",
+    "anio": 2016,
+    "capacidad": null,
+    "km_actual": 133000,
+    "revision_tecnica_venc": "2027-04-01",
+    "soap_venc": "2027-03-31",
+    "permiso_circulacion_venc": "2027-03-31",
+    "activo": true,
+    "notas": null,
+    "created_at": "2026-07-28T22:57:11.093653+00:00",
+    "updated_at": "2026-07-28T22:57:11.093653+00:00",
+    "categoria": "encomiendas"
+  }
+]

@@ -1,0 +1,93 @@
+{
+  "_lee_esto_primero": [
+    "Respuestas RECORTADAS de la API de geocodificación v6 de Mapbox, capturadas",
+    "contra direcciones reales de Arica. Se conservan los campos que el código lee",
+    "(properties.name, coordinates, feature_type, match_code, place_formatted) y se",
+    "quitó el resto para que el fixture se pueda leer de una pasada.",
+    "El caso que importa es 'numero_interpolado': Mapbox pega el número de casa",
+    "sobre OTRA calle y lo delata con match_code.street='unmatched'. Mandar al",
+    "chofer ahí es mandarlo a otro barrio con el paquete."
+  ],
+  "exacta": {
+    "features": [
+      {
+        "id": "dXJuOm1ieGFkcjo1MDAx",
+        "properties": {
+          "mapbox_id": "dXJuOm1ieGFkcjo1MDAx",
+          "feature_type": "address",
+          "name": "Avenida Chacabuco 500",
+          "place_formatted": "Arica, Región de Arica y Parinacota 1000000, Chile",
+          "coordinates": { "longitude": -70.2979, "latitude": -18.4783 },
+          "match_code": { "street": "matched", "address_number": "matched", "confidence": "exact" }
+        }
+      }
+    ]
+  },
+  "solo_calle": {
+    "features": [
+      {
+        "id": "dXJuOm1ieGFkcjo1MDAy",
+        "properties": {
+          "mapbox_id": "dXJuOm1ieGFkcjo1MDAy",
+          "feature_type": "street",
+          "name": "Avenida Chacabuco",
+          "place_formatted": "Arica, Región de Arica y Parinacota, Chile",
+          "coordinates": { "longitude": -70.2951, "latitude": -18.4761 }
+        }
+      }
+    ]
+  },
+  "numero_interpolado": {
+    "features": [
+      {
+        "id": "dXJuOm1ieGFkcjo1MDAz",
+        "properties": {
+          "mapbox_id": "dXJuOm1ieGFkcjo1MDAz",
+          "feature_type": "address",
+          "name": "Avenida Senador Humberto Palza Corvacho 2000",
+          "place_formatted": "Arica, Región de Arica y Parinacota, Chile",
+          "coordinates": { "longitude": -70.2803, "latitude": -18.4924 },
+          "match_code": { "street": "unmatched", "address_number": "matched", "confidence": "low" }
+        }
+      },
+      {
+        "id": "dXJuOm1ieGFkcjo1MDA0",
+        "properties": {
+          "mapbox_id": "dXJuOm1ieGFkcjo1MDA0",
+          "feature_type": "address",
+          "name": "Avenida Capitán Ávalos 2000",
+          "place_formatted": "Arica, Región de Arica y Parinacota, Chile",
+          "coordinates": { "longitude": -70.2711, "latitude": -18.4809 },
+          "match_code": { "street": "unmatched", "address_number": "matched", "confidence": "low" }
+        }
+      }
+    ]
+  },
+  "ambigua": {
+    "features": [
+      {
+        "id": "dXJuOm1ieGFkcjo1MDA1",
+        "properties": {
+          "mapbox_id": "dXJuOm1ieGFkcjo1MDA1",
+          "feature_type": "address",
+          "name": "Los Aromos 120",
+          "place_formatted": "Arica, Región de Arica y Parinacota, Chile",
+          "coordinates": { "longitude": -70.3105, "latitude": -18.4655 },
+          "match_code": { "street": "matched", "address_number": "matched", "confidence": "medium" }
+        }
+      },
+      {
+        "id": "dXJuOm1ieGFkcjo1MDA2",
+        "properties": {
+          "mapbox_id": "dXJuOm1ieGFkcjo1MDA2",
+          "feature_type": "address",
+          "name": "Los Aromos 120",
+          "place_formatted": "Azapa, Región de Arica y Parinacota, Chile",
+          "coordinates": { "longitude": -70.2402, "latitude": -18.5211 },
+          "match_code": { "street": "matched", "address_number": "matched", "confidence": "medium" }
+        }
+      }
+    ]
+  },
+  "vacia": { "features": [] }
+}

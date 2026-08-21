@@ -49,7 +49,9 @@ export default async function EncomiendasDiaPage({
     // eso vive en encomienda_jornadas.
     supabase
       .from("encomienda_actividad")
-      .select("id, chofer_id, fecha, tipo, origen, chofer:choferes(id,nombre)")
+      // `motivo` (0003): por qué no se entregó. Es lo que permite distinguir un
+      // rechazo —que no hay que reintentar— de un "no estaba" (FR-021).
+      .select("id, chofer_id, fecha, tipo, origen, motivo, chofer:choferes(id,nombre)")
       .eq("fecha", fecha)
       .returns<Fila[]>(),
     supabase.from("encomienda_pagos").select("*").eq("fecha", fecha),

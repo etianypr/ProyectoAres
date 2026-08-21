@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { s, sReq } from "@/lib/form-helpers";
+import { BLOQUES_HORARIOS } from "@/lib/encomiendas/config";
 
 export type FormState = { error?: string; ok?: boolean };
 
@@ -39,5 +40,51 @@ export async function guardarEmpresa(
 
   revalidatePath("/configuracion");
   revalidatePath("/");
+  return { ok: true };
+}
+
+/** Guarda cuáles bloques horarios se le ofrecen al receptor (FR-010).
+ *
+ *  Dos cosas que parecen detalles y no lo son:
+ *
+ *  · Se guardan solo los ids que EXISTEN en el código. Un id inventado (un
+ *    formulario manipulado, un bloque retirado en una versión anterior) llegaría
+ *    a un receptor dentro del payload de un botón, y su respuesta volvería con un
+ *    id que el webhook no reconoce: esa respuesta se perdería en silencio.
+ *
+ *  · Se guarda un arreglo VACÍO cuando no se marcó ninguno, y no null. null
+ *    significa "nunca se configuró, ofrecé los seis"; el arreglo vacío significa
+ *    "el jefe decidió no ofrecer horarios". Confundirlos haría que desmarcar todo
+ *    volviera a ofrecer los seis, que es exactamente lo contrario de lo que el
+ *    jefe pidió. */
+export async function guardarBloquesHorarios(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const id = s(formData.get("empresa_id"));
+  if (!id) {
+    return { error: "Primero hay que guardar los datos de la empresa." };
+  }
+
+  const validos = new Set(BLOQUES_HORARIOS.map((b) => b.id));
+  const elegidos = formData
+    .getAll("bloques")
+    .map(String)
+    .filter((v) => validos.has(v));
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("empresa")
+    .update({
+      bloques_horarios_activos: elegidos,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+
+  if (error) {
+    return { error: `No se pudieron guardar los horarios: ${error.message}` };
+  }
+
+  revalidatePath("/configuracion");
   return { ok: true };
 }

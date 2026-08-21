@@ -54,6 +54,7 @@ for (const [tabla, deberia] of [
   ["encomienda_reglas_pago", true],
   ["encomienda_periodos_facturacion", true],
   ["encomienda_ingresos_reales", true],
+  ["encomienda_whatsapp_correlaciones", true],
   // Datos personales de destinatarios: nunca deben existir en esta base. Si
   // aparecen, alguien corrió acá una migración vieja del sistema del que se
   // separó este proyecto, o restauró un respaldo que no corresponde.
@@ -169,6 +170,26 @@ if (errCron) {
 } else if (!cron[0].active) {
   mal("'encomienda-cerrar-jornadas' está programado pero INACTIVO");
 } else ok(`cierre automático programado (${cron[0].schedule})`);
+
+// El barrido de correlaciones de WhatsApp es lo que garantiza el tope de 72
+// horas de retención. Si no está programado, una jornada que nunca se cierra
+// deja sus correlaciones vivas para siempre — y eso es incumplir la política de
+// datos que documenta el producto, no solo dejar basura.
+const { data: cronWsp, error: errCronWsp } = await db
+  .schema("cron")
+  .from("job")
+  .select("jobname, schedule, active")
+  .eq("jobname", "encomienda-limpiar-correlaciones");
+if (errCronWsp) {
+  console.log(`  (no se pudo leer cron.job: ${errCronWsp.message} — comprobalo en el panel)`);
+} else if (!cronWsp?.length) {
+  mal(
+    "el trabajo 'encomienda-limpiar-correlaciones' no está programado: " +
+      "las correlaciones de WhatsApp no se borrarían nunca (migración 0003)",
+  );
+} else if (!cronWsp[0].active) {
+  mal("'encomienda-limpiar-correlaciones' está programado pero INACTIVO");
+} else ok(`limpieza de correlaciones programada (${cronWsp[0].schedule})`);
 
 // ---------------------------------------------------------------------------
 console.log("\n=== 5. Valores fuera de los check de la base ===");
@@ -306,7 +327,92 @@ for (const d of agruparPorDia(actividad ?? [])) {
 }
 
 // ---------------------------------------------------------------------------
-console.log("\n=== 10. RLS: sin sesión no se ve nada ===");
+console.log("\n=== 10. WhatsApp: la correlación no es un registro de destinatarios ===");
+//
+// Esta sección es el guardia del principio V de la constitución. La tabla
+// encomienda_whatsapp_correlaciones es la ÚNICA excepción que esta feature pidió
+// al "no custodiar datos de destinatarios", y se aprobó porque está recortada a
+// identificadores opacos. Si alguien le agrega el teléfono o el nombre "para
+// depurar más fácil", esa aprobación deja de valer — y hay que enterarse acá y
+// no en una auditoría.
+{
+  const { data: correlaciones, error: errCorr } = await db
+    .from("encomienda_whatsapp_correlaciones")
+    .select("*");
+
+  if (errCorr) {
+    mal(`encomienda_whatsapp_correlaciones: ${errCorr.message}`);
+  } else {
+    // (a) Ninguna columna puede parecerse a un dato personal. Se mira una fila
+    //     real; si la tabla está vacía se comprueba contra el tipo, que es lo
+    //     que el código da por hecho de todos modos.
+    const PROHIBIDAS = [
+      "telefono", "phone", "phone_hash", "telefono_hash",
+      "nombre", "name", "direccion", "address", "lat", "lng",
+      "mensaje", "cuerpo", "body", "texto", "conversacion", "orden",
+    ];
+    const columnas = correlaciones?.length ? Object.keys(correlaciones[0]) : [];
+    const filtradas = columnas.filter((c) => PROHIBIDAS.includes(c));
+    if (filtradas.length) {
+      mal(
+        `¡encomienda_whatsapp_correlaciones tiene columnas de datos personales: ${filtradas.join(", ")}! ` +
+          "La excepción aprobada en la 0003 no las incluye",
+      );
+    } else if (columnas.length) {
+      ok(`correlaciones: ${columnas.length} columnas, ninguna con datos del receptor`);
+    } else {
+      ok("correlaciones: tabla vacía (nada que revisar hoy)");
+    }
+
+    // (b) La retención de 72 horas se está cumpliendo de verdad. Es el número
+    //     que el documento principal le promete al lector, así que se mide
+    //     contra las filas que hay, no contra la intención del cron.
+    const limite = Date.now() - 72 * 3600 * 1000;
+    const viejas = (correlaciones ?? []).filter((c) => new Date(c.created_at).getTime() < limite);
+    if (viejas.length) {
+      mal(
+        `${viejas.length} correlación(es) con más de 72 horas: la limpieza no está corriendo ` +
+          "y se está incumpliendo la retención documentada",
+      );
+    } else ok(`retención respetada (${correlaciones?.length ?? 0} correlación(es) en vuelo)`);
+
+    // (c) Una respuesta ya aplicada no tiene por qué seguir ahí: el teléfono
+    //     confirmó, la fila sobra. No es una falla si el barrido todavía no
+    //     pasó, pero acumular muchas quiere decir que nadie la está borrando.
+    const aplicadas = (correlaciones ?? []).filter((c) => c.aplicada_en);
+    if (aplicadas.length > 20) {
+      mal(`${aplicadas.length} correlaciones ya aplicadas siguen en la base: la limpieza no está borrando`);
+    } else ok(`${aplicadas.length} correlación(es) aplicada(s) esperando el barrido`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+console.log("\n=== 11. Motivo de no entrega ===");
+{
+  const { data: conMotivo, error: errMotivo } = await db
+    .from("encomienda_actividad")
+    .select("tipo, motivo")
+    .not("motivo", "is", null);
+
+  if (errMotivo) {
+    mal(`encomienda_actividad.motivo: ${errMotivo.message} — falta correr la migración 0003`);
+  } else {
+    const MOTIVOS = ["persona_no_encontrada", "sin_respuesta", "rechazo"];
+    // Un motivo en una entrega significa que el check de la 0003 no está puesto,
+    // y que el panel va a mostrar un motivo sobre una entrega exitosa.
+    const malPuestos = (conMotivo ?? []).filter(
+      (a) => a.tipo !== "omision" || !MOTIVOS.includes(a.motivo),
+    );
+    if (malPuestos.length) mal(`${malPuestos.length} evento(s) con un motivo imposible`);
+    else ok(`${conMotivo?.length ?? 0} omisión(es) con motivo, todas válidas`);
+
+    const rechazos = (conMotivo ?? []).filter((a) => a.motivo === "rechazo").length;
+    console.log(`  ·     ${rechazos} rechazo(s) registrado(s) — no se reintentan (FR-012)`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+console.log("\n=== 12. RLS: sin sesión no se ve nada ===");
 if (anon) {
   const publico = createClient(url, anon, { auth: { persistSession: false } });
   for (const tabla of [
@@ -315,6 +421,7 @@ if (anon) {
     "encomienda_pagos",
     "encomienda_reglas_pago",
     "encomienda_ingresos_reales",
+    "encomienda_whatsapp_correlaciones",
     "choferes",
   ]) {
     const { data, error } = await publico.from(tabla).select("*").limit(1);

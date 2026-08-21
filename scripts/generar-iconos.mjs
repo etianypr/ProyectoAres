@@ -16,8 +16,17 @@ const RAIZ = process.cwd();
 const PUBLIC = path.join(RAIZ, "public");
 const ORIGEN = path.join(PUBLIC, "logo.png");
 
-// Paleta real del logo (muestreada de public/logo.png). El azul coincide con
-// --brand de src/app/globals.css.
+// Paleta real del logo (muestreada de public/logo.png).
+//
+// ⚠️ ESTE AZUL YA NO ES EL COLOR DE MARCA. La identidad de ARES Encomiendas es
+// naranja (--brand en globals.css); este azul es el del LOGO DE LA EMPRESA, que
+// es un activo de marca y no se recolorea desde un script.
+//
+// O sea que los íconos de la pantalla de inicio siguen siendo azules a
+// propósito: son el logo, no el tema de la app. Lo que sí acompaña al naranja es
+// el chrome (theme_color del manifest) y el favicon dibujado a mano
+// (src/app/icon.svg). Si algún día hay un logo naranja, se reemplaza
+// public/logo.png y se vuelve a correr esto.
 const AZUL = [12, 63, 155];
 const AMARILLO = [251, 196, 18];
 const BLANCO = [255, 255, 255];

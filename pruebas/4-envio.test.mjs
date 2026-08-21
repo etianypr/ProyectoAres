@@ -64,15 +64,83 @@ test("manda los eventos con las columnas exactas de encomienda_actividad", async
   assert.equal(tabla, "encomienda_actividad");
   assert.deepEqual(opciones, { onConflict: "id", ignoreDuplicates: true });
   for (const f of filas) {
-    assert.deepEqual(Object.keys(f).sort(), ["chofer_id", "fecha", "hora", "id", "tipo"]);
+    // "motivo" se sumó con la asistencia de ruta (migración 0003): dice por qué
+    // no se entregó, en tres valores fijos. Sigue sin ser un dato personal.
+    assert.deepEqual(
+      Object.keys(f).sort(),
+      ["chofer_id", "fecha", "hora", "id", "motivo", "tipo"],
+    );
     assert.ok(!("origen" in f), "no debe mandar 'origen': la base pone 'app' por defecto");
     assert.ok(!("choferId" in f), "quedó el nombre del dominio local en vez de la columna");
     assert.equal(f.fecha, HOY);
     assert.equal(f.chofer_id, CHOFER);
     assert.match(f.hora, /^\d{4}-\d{2}-\d{2}T/);
     assert.ok(["entrega", "omision", "llamada"].includes(f.tipo));
+    // Una entrega no lleva motivo, y va como null explícito y no undefined: la
+    // columna existe y PostgREST reclamaría una fila a la que le falta.
+    if (f.tipo === "entrega") assert.equal(f.motivo, null);
   }
   assert.equal((await leerCola()).length, 0, "no vació la cola después de confirmar");
+});
+
+test("una omisión viaja con su motivo, y el jefe puede distinguir los tres", async () => {
+  // Es lo único nuevo que esta feature le agrega a lo que sale del teléfono, y es
+  // lo que hace que un rechazo no se confunda con un "no estaba" (FR-021).
+  const casos = [
+    ["persona_no_encontrada", "persona_no_encontrada"],
+    ["entrega_sin_respuesta", "sin_respuesta"],
+    ["rechazo", "rechazo"],
+  ];
+
+  for (const [resultado, motivoEsperado] of casos) {
+    const p = await guardarPedido({
+      nombre: "D",
+      telefono: "+56911111111",
+      direccion: "Calle 1",
+      lat: -18.47,
+      lng: -70.29,
+      notas: null,
+    });
+    await guardarRuta({
+      fecha: HOY,
+      pedidoIdsEnOrden: [p.id],
+      geometria: null,
+      distanciaM: null,
+      duracionS: null,
+    });
+    await marcarEntrega({ fecha: HOY, pedidoId: p.id, choferId: CHOFER }, resultado);
+
+    espia.llamadas = [];
+    await enviarActividadPendiente();
+
+    const filas = espia.llamadas[0].filas;
+    const fila = filas.find((f) => f.tipo === "omision");
+    assert.ok(fila, `${resultado} no salió como omisión`);
+    assert.equal(fila.motivo, motivoEsperado, `${resultado} viajó con el motivo equivocado`);
+  }
+});
+
+test("un evento encolado ANTES de esta versión sale con motivo null", async () => {
+  // Hay teléfonos con eventos ya en la cola, sin el campo. Mandarlos con
+  // undefined haría que PostgREST reclamara la columna y la cola no se vaciaría
+  // nunca: el chofer perdería esas entregas.
+  const { STORES, escribir } = await import("@/lib/encomiendas/local/idb");
+  await escribir([STORES.cola], ({ guardar }) =>
+    guardar(STORES.cola, {
+      id: "00000000-0000-7000-8000-0000000000aa",
+      choferId: CHOFER,
+      fecha: HOY,
+      tipo: "omision",
+      hora: "2026-08-06T12:00:00.000Z",
+    }),
+  );
+
+  await enviarActividadPendiente();
+
+  const fila = espia.llamadas[0].filas[0];
+  assert.equal(fila.motivo, null);
+  assert.ok("motivo" in fila, "la fila salió sin la columna motivo");
+  assert.equal((await leerCola()).length, 0, "no se pudo vaciar la cola de un evento viejo");
 });
 
 test("si el servidor falla, LANZA y la cola queda intacta", async () => {

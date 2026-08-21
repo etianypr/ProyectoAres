@@ -24,7 +24,12 @@ const NOMBRE_BASE = "pucarani-encomiendas";
 // Subir la versión SOLO al agregar o quitar un store (o un índice). Cambiar la
 // forma de los objetos guardados dentro de un store no la necesita —IndexedDB
 // no valida campos—, pero sí obliga a tolerar objetos viejos al leer.
-const VERSION = 1;
+//
+// v2: se agregó el store "whatsapp" (coordinación del aviso de disponibilidad).
+// Los campos nuevos del pedido —disponibilidad, bloque horario, estado del
+// aviso— NO necesitaron subir la versión; se leen con valores por defecto
+// cuando el objeto guardado viene de la v1 (ver alDia() en almacen.ts).
+const VERSION = 2;
 
 export const STORES = {
   /** Pedidos cargados por el chofer. Clave: id (UUIDv7 del teléfono). Los ya
@@ -36,6 +41,17 @@ export const STORES = {
    *  MISMO id que va a encomienda_actividad, que es lo que hace que reenviar
    *  no duplique el conteo. */
   cola: "cola",
+  /** Coordinación del aviso de WhatsApp: una fila por pedido, con el
+   *  identificador de correlación, el estado del mensaje y qué respuestas ya se
+   *  aplicaron. Clave: pedidoId.
+   *
+   *  Va en un store aparte y no dentro del pedido porque son dos cosas con
+   *  dueños distintos: el pedido lo edita el chofer, esto lo escribe la
+   *  sincronización con el servidor. Mezclados, guardar una respuesta que llegó
+   *  mientras el chofer corregía un teléfono pisaba una de las dos cosas — el
+   *  mismo problema que ya costó coordenadas perdidas (ver la fila de
+   *  almacen.ts). */
+  whatsapp: "whatsapp",
 } as const;
 
 export type Store = (typeof STORES)[keyof typeof STORES];
@@ -81,6 +97,9 @@ function abrir(): Promise<IDBDatabase> {
       }
       if (!base.objectStoreNames.contains(STORES.cola)) {
         base.createObjectStore(STORES.cola, { keyPath: "id" });
+      }
+      if (!base.objectStoreNames.contains(STORES.whatsapp)) {
+        base.createObjectStore(STORES.whatsapp, { keyPath: "pedidoId" });
       }
     };
 

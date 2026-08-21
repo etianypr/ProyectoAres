@@ -37,6 +37,11 @@ export interface Empresa {
   email: string | null;
   logo_url: string | null;
   representante: string | null;
+  /** Ids de los bloques horarios que se le ofrecen al receptor por WhatsApp
+   *  (FR-010). null = los seis por defecto, y no "ninguno": una empresa que
+   *  nunca abrió esa pantalla tiene que ofrecer los seis del documento
+   *  principal. Los tramos son constantes del código; acá se elige cuáles. */
+  bloques_horarios_activos: string[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -84,6 +89,30 @@ export const ENCOMIENDA_ACTIVIDAD_TIPOS = {
 } as const;
 export type EncomiendaActividadTipo = keyof typeof ENCOMIENDA_ACTIVIDAD_TIPOS;
 
+// Por qué no se entregó. Es lo único nuevo que esta feature agrega a lo que sale
+// del teléfono, y son tres etiquetas fijas: no dicen quién era el receptor ni
+// dónde vivía.
+//
+// Los nombres son los MISMOS que en el dominio local del teléfono y que en el
+// check de la columna (ver MOTIVOS_NO_ENTREGA en lib/encomiendas/config.ts y la
+// migración 0003). Definirlos una cuarta vez acá es lo que evita que el panel
+// muestre "undefined" el día que alguien agregue un motivo.
+export const ENCOMIENDA_MOTIVOS_NO_ENTREGA = {
+  persona_no_encontrada: "Persona no encontrada",
+  sin_respuesta: "Sin respuesta",
+  rechazo: "Rechazo",
+} as const;
+export type EncomiendaMotivoNoEntrega = keyof typeof ENCOMIENDA_MOTIVOS_NO_ENTREGA;
+
+/** El único motivo que NO se puede reintentar otro día. Se saca de acá y no se
+ *  escribe en cada pantalla porque es una regla del producto (FR-012), no una
+ *  decisión de presentación. */
+export function motivoReintentable(motivo: EncomiendaMotivoNoEntrega | null): boolean {
+  // null es una omisión registrada antes de que la app preguntara el motivo: se
+  // trata como reintentable, que es lo que era cuando se registró.
+  return motivo !== "rechazo";
+}
+
 // De dónde salió el evento. 'app' es el default en la base: la app del conductor
 // no manda esta columna.
 export const ENCOMIENDA_ACTIVIDAD_ORIGENES = {
@@ -104,6 +133,14 @@ export interface EncomiendaActividad {
    *  siguiente en UTC y el pago se movería de día. */
   fecha: string;
   tipo: EncomiendaActividadTipo;
+  /** Por qué no se entregó. Solo en las filas de tipo 'omision', y solo en las
+   *  que la app registró desde esta feature: null en las anteriores, cuando el
+   *  botón era uno solo y no preguntaba el motivo.
+   *
+   *  NO entra en el cálculo del pago. La base cuenta por `tipo` ('entrega' suma,
+   *  'omision' no) y esta columna es solo para que el jefe pueda distinguir los
+   *  tres casos — sobre todo el rechazo, que no hay que volver a intentar. */
+  motivo: EncomiendaMotivoNoEntrega | null;
   /** Cuándo ocurrió según el teléfono — puede ser bastante anterior a
    *  created_at si se marcó sin señal. En las filas de origen 'manual' es de
    *  relleno (mediodía UTC del día cargado): nadie sabe la hora real. */
@@ -113,6 +150,60 @@ export interface EncomiendaActividad {
   /** 'app' = lo envió el teléfono del conductor · 'manual' = lo cargó la
    *  oficina. Los dos cuentan igual para el pago. */
   origen: EncomiendaActividadOrigen;
+}
+
+// ----------------------------------------------------------------------------
+// Coordinación de WhatsApp
+// ----------------------------------------------------------------------------
+
+/** Una fila TEMPORAL que existe solo para que la respuesta del receptor pueda
+ *  volver al teléfono que la necesita.
+ *
+ *  Hace falta porque las dos puntas no se pueden hablar: el receptor contesta
+ *  tocando un botón, eso llega a un webhook (o sea al servidor), y el pedido vive
+ *  en el IndexedDB del teléfono. El servidor no tiene los pedidos, así que sin
+ *  esta fila no sabría a cuál corresponde la respuesta ni a quién mandársela.
+ *
+ *  ES LA ÚNICA EXCEPCIÓN al principio de no custodiar datos de destinatarios, y
+ *  está recortada hasta donde se pudo: no guarda nombre, teléfono, hash del
+ *  teléfono, dirección, cuerpo de conversación ni orden de paradas. El nombre y
+ *  el teléfono los manda el teléfono del conductor en el cuerpo del POST de
+ *  envío, se usan para armar la llamada a Meta y no se persisten.
+ *
+ *  Se borra al cerrar la jornada, y como máximo 72 horas después de crearse si
+ *  la jornada nunca se cierra. Ver la migración 0003 y la Decisión 7 de
+ *  specs/001-asistencia-ruta-entrega/research.md. */
+export interface EncomiendaWhatsappCorrelacion {
+  /** Aleatorio. Es lo único nuestro que Meta llega a ver: viaja dentro del
+   *  payload del botón y vuelve con la respuesta. */
+  correlation_id: string;
+  empresa_id: string;
+  chofer_id: string;
+  /** El id que el TELÉFONO le puso al pedido (UUIDv7). No hay ninguna fila en
+   *  toda la base que lo asocie a una persona. */
+  pedido_id_local: string;
+  /** Día de trabajo, para que el cierre de la jornada borre las de ese día. */
+  fecha: string;
+  /** wamid del aviso saliente. Segunda vía para resolver una respuesta cuando
+   *  el payload del botón no viene. */
+  external_message_id: string | null;
+  /** Del MENSAJE, no de la entrega: 'fallido' es que WhatsApp no lo pudo dejar,
+   *  nunca que el receptor haya rechazado el pedido. */
+  estado: "pendiente" | "enviado" | "entregado" | "leido" | "respondido" | "fallido";
+  /** Qué botón tocó. Tres valores fijos; si escribe texto libre no se guarda. */
+  respuesta_accion: "CONFIRMAR" | "RECHAZAR" | "HORARIO" | null;
+  /** Id del bloque horario elegido ('08-10'). Configuración de la empresa. */
+  respuesta_bloque_id: string | null;
+  /** wamid de la RESPUESTA. Único en la base: es lo que hace idempotente al
+   *  webhook cuando Meta reintenta el mismo evento. */
+  respuesta_mensaje_id: string | null;
+  respuesta_recibida_en: string | null;
+  /** Cuándo el teléfono confirmó haberla escrito en IndexedDB. Mientras sea
+   *  null, la respuesta vuelve a bajar en cada consulta. */
+  aplicada_en: string | null;
+  /** Tope duro de retención: created_at + 72 h. */
+  expira_en: string;
+  created_at: string;
 }
 
 export const ENCOMIENDA_TIPO_PAGO = {

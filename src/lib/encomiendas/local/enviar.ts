@@ -5,6 +5,15 @@
 // teléfono y no sale nunca; por acá salen solo los eventos de actividad, que no
 // llevan un dato personal: quién, qué día, qué pasó y a qué hora.
 //
+// Desde la asistencia de ruta sale UNA cosa más: el `motivo` de una no entrega,
+// en tres valores fijos (persona_no_encontrada, sin_respuesta, rechazo). Sigue
+// sin ser un dato personal — es una etiqueta operativa, no dice quién era el
+// receptor ni dónde vivía— y es lo que le permite al jefe distinguir un rechazo,
+// que no hay que reintentar, de un "no estaba" que sí (FR-021).
+//
+// NO entra en el cálculo del pago. La base cuenta por `tipo`: 'entrega' suma y
+// 'omision' no, sin mirar el motivo (ver la 0003 y su verificación).
+//
 // Trabajar sin señal no es un caso especial acá, es lo normal: marcar una
 // entrega SIEMPRE escribe primero en el teléfono (ver almacen.marcarEntrega) y
 // el envío es un intento aparte que puede fallar y reintentarse cuantas veces
@@ -33,6 +42,11 @@ function aFila(e: EventoCola) {
     fecha: e.fecha,
     tipo: e.tipo,
     hora: e.hora,
+    // Solo en las omisiones, y solo cuando lo hay: los eventos que quedaron en la
+    // cola de un teléfono ANTES de esta versión no tienen motivo, y mandarlos con
+    // `undefined` haría que PostgREST reclamara la columna. Con null explícito
+    // quedan como lo que son: una omisión de la que nadie preguntó el motivo.
+    motivo: e.motivo ?? null,
   };
 }
 
@@ -133,19 +147,28 @@ export function useEnvioActividad(
     void (async () => {
       try {
         // Se vacía por lotes hasta que no quede nada.
+        let quedaron = 0;
         for (;;) {
           const { enviados, pendientes: restantes } = await enviarActividadPendiente();
           setPendientes(restantes);
           setError(null);
+          quedaron = restantes;
           if (enviados === 0 || restantes === 0) break;
         }
-        // DESPUÉS de los eventos, no antes: cerrar la jornada es lo que hace
-        // que el servidor cuente el día, y tiene que contar con todo lo que el
-        // teléfono tenía guardado. Al revés, un cierre que llega antes que las
-        // últimas entregas valoraría el día a medias — se arreglaría solo
-        // cuando llegaran (el trigger recalcula un día ya cerrado), pero por un
-        // rato el panel mostraría una liquidación corta.
-        await sincronizarJornada(choferId, fecha);
+
+        // DESPUÉS de los eventos, y SOLO si no quedó ninguno. Cerrar la jornada es
+        // lo que hace que el servidor cuente el día, así que tiene que contar con
+        // todo lo que el teléfono tenía guardado.
+        //
+        // Antes esto se mandaba siempre, aunque la cola hubiera quedado a medias
+        // —el bucle corta también cuando un lote no entra entero—. El trigger
+        // recalcula un día ya cerrado, así que el número terminaba bien; pero
+        // mientras tanto el panel del jefe mostraba una liquidación corta, y eso
+        // es lo que un conductor ve como plata que le faltan.
+        //
+        // Si quedó algo, el reintento del minuto siguiente vuelve a pasar por acá
+        // y cierra entonces.
+        if (quedaron === 0) await sincronizarJornada(choferId, fecha);
       } catch (e) {
         setError(e instanceof Error ? e.message : "No se pudo enviar la actividad.");
         // El contador tiene que seguir a la vista aunque el envío falle: es la

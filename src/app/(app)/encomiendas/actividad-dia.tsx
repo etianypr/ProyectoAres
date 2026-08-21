@@ -9,7 +9,7 @@
 // Desde la oficina no había forma de que una ruta generada acá le llegara.
 
 import { useState, useTransition } from "react";
-import { Clock, Wallet, Truck, Trash2 } from "lucide-react";
+import { Ban, Clock, Wallet, Truck, Trash2 } from "lucide-react";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,9 @@ import { Field } from "@/components/ui/label";
 import { formatCLP, formatNumber, formatTime } from "@/lib/format";
 import {
   calcularPagoDia,
+  contarMotivos,
   ingresoEstimado,
+  reintentables,
   tarifaDelDia,
   valorPedido,
   type ConteoDia,
@@ -32,12 +34,14 @@ import {
   type ValoresTarifa,
 } from "./campos-tarifa";
 import { eliminarDiaManual, repreciarDia, repreciarDiaConTarifa } from "./actions";
-import type {
-  EncomiendaActividadOrigen,
-  EncomiendaActividadTipo,
-  EncomiendaJornada,
-  EncomiendaPago,
-  EncomiendaReglaPago,
+import {
+  ENCOMIENDA_MOTIVOS_NO_ENTREGA,
+  type EncomiendaActividadOrigen,
+  type EncomiendaActividadTipo,
+  type EncomiendaJornada,
+  type EncomiendaMotivoNoEntrega,
+  type EncomiendaPago,
+  type EncomiendaReglaPago,
 } from "@/types/db";
 
 export type EventoDia = {
@@ -45,6 +49,9 @@ export type EventoDia = {
   tipo: EncomiendaActividadTipo;
   /** 'app' = lo mandó el teléfono · 'manual' = lo cargó la oficina (0028). */
   origen: EncomiendaActividadOrigen;
+  /** Por qué no se entregó. null en las entregas, en las llamadas, y en las
+   *  omisiones registradas antes de que la app preguntara el motivo. */
+  motivo?: EncomiendaMotivoNoEntrega | null;
 };
 
 // Acá vivían PRESENTACION (el ícono y la etiqueta de cada tipo de evento) y
@@ -98,6 +105,10 @@ export function ActividadDia({
 
   const entregados = eventos.filter((e) => e.tipo === "entrega").length;
   const omitidos = eventos.filter((e) => e.tipo === "omision").length;
+  // El desglose no entra en ninguna cuenta de plata: es para que el jefe sepa
+  // qué vuelve mañana a la camioneta y qué hay que informar como rechazo.
+  const motivos = contarMotivos(eventos);
+  const vuelven = reintentables(motivos);
 
   const delTelefono = eventos.filter((e) => e.origen === "app");
   const enCursoJornada = jornada != null && jornada.cerrada_en == null;
@@ -133,6 +144,76 @@ export function ActividadDia({
             <p className="text-xs text-muted">Ingresos del día</p>
           </div>
         </div>
+
+        {/* Por qué no se entregó. Un "3 no entregados" no le sirve a nadie: lo
+            que el jefe necesita saber es cuántos vuelven mañana y cuántos hay
+            que informar como rechazo definitivo (FR-021).
+
+            Los rechazos van con icono, texto y color: la constitución pide que
+            un estado no dependa solo del color, y este es el estado que más
+            caro sale confundir — reintentar un pedido que el cliente ya rechazó
+            es un viaje perdido. */}
+        {omitidos > 0 ? (
+          <div className="rounded-xl border border-separator bg-background px-4 py-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+              Por qué no se entregaron
+            </p>
+            <ul className="mt-2 grid gap-1.5">
+              {[
+                {
+                  clave: "persona_no_encontrada" as const,
+                  n: motivos.personaNoEncontrada,
+                  vuelve: true,
+                },
+                { clave: "sin_respuesta" as const, n: motivos.sinRespuesta, vuelve: true },
+                { clave: "rechazo" as const, n: motivos.rechazos, vuelve: false },
+              ]
+                .filter((x) => x.n > 0)
+                .map((x) => (
+                  <li key={x.clave} className="flex items-center gap-2 text-sm">
+                    {x.vuelve ? (
+                      <Clock className="h-3.5 w-3.5 shrink-0 text-muted" />
+                    ) : (
+                      <Ban className="h-3.5 w-3.5 shrink-0 text-danger" />
+                    )}
+                    <span className="w-6 shrink-0 text-right font-semibold tabular-nums">
+                      {x.n}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      {ENCOMIENDA_MOTIVOS_NO_ENTREGA[x.clave]}
+                    </span>
+                    {x.vuelve ? (
+                      <Badge tone="gray">Se reintenta</Badge>
+                    ) : (
+                      <Badge tone="red">No se reintenta</Badge>
+                    )}
+                  </li>
+                ))}
+
+              {/* Las omisiones de la versión anterior de la app. No se les
+                  inventa un motivo: "no se sabe" es más honesto que uno elegido
+                  a dedo, y saber que existen explica por qué los números no
+                  cuadran con el desglose. */}
+              {motivos.sinMotivo > 0 ? (
+                <li className="flex items-center gap-2 text-sm text-muted">
+                  <Clock className="h-3.5 w-3.5 shrink-0" />
+                  <span className="w-6 shrink-0 text-right font-semibold tabular-nums">
+                    {motivos.sinMotivo}
+                  </span>
+                  <span className="min-w-0 flex-1">Sin motivo registrado</span>
+                  <Badge tone="gray">Se reintenta</Badge>
+                </li>
+              ) : null}
+            </ul>
+
+            <p className="mt-2.5 text-xs text-muted">
+              {motivos.rechazos > 0
+                ? `${vuelven === 1 ? "1 pedido vuelve" : `${vuelven} pedidos vuelven`} a intentarse. ` +
+                  `${motivos.rechazos === 1 ? "1 rechazo" : `${motivos.rechazos} rechazos`} para informar en la central.`
+                : `${vuelven === 1 ? "1 pedido vuelve" : `Los ${vuelven} vuelven`} a intentarse otro día.`}
+            </p>
+          </div>
+        ) : null}
 
         {manuales.length > 0 ? (
           <div className="rounded-xl border border-[#ece8f8] bg-[#faf9fe] px-4 py-3">

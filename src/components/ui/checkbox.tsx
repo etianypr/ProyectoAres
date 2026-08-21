@@ -30,7 +30,7 @@ export const Checkbox = React.forwardRef<
         // Marcada: se rellena con el color de marca y el borde acompaña.
         "checked:border-brand checked:bg-brand checked:hover:border-brand",
         // Mismo halo de foco que los campos de texto (ver inputClass).
-        "focus-visible:border-brand focus-visible:shadow-[0_0_0_3.5px_rgba(15,118,110,0.18)]",
+        "focus-visible:border-brand focus-visible:shadow-[0_0_0_3.5px_var(--brand-ring)]",
         "disabled:cursor-not-allowed disabled:bg-background disabled:opacity-60",
         className,
       )}

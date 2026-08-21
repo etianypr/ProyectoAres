@@ -49,6 +49,7 @@ const TABLAS = {
   EncomiendaPago: "encomienda_pagos",
   EncomiendaPeriodoFacturacion: "encomienda_periodos_facturacion",
   EncomiendaIngresoReal: "encomienda_ingresos_reales",
+  EncomiendaWhatsappCorrelacion: "encomienda_whatsapp_correlaciones",
 };
 
 // Tablas que el código usa pero que no tienen una interfaz propia. Hoy ninguna.

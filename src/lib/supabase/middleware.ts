@@ -59,6 +59,20 @@ export async function updateSession(request: NextRequest) {
     path === "/api/whatsapp/webhook";
 
   if (!user && !isPublic) {
+    // Una ruta de API no se redirige al login: se le contesta 401.
+    //
+    // El teléfono del conductor consulta /api/whatsapp/* con fetch. Un 307 hacia
+    // /login lo sigue solo, recibe el HTML de la pantalla de login y trata de
+    // parsearlo como JSON: el error que ve el chofer es "Unexpected token <",
+    // que no le dice que se le venció la sesión. Con un 401 y un cuerpo JSON, la
+    // app puede decir "volvé a entrar" y no perder lo que tenía guardado.
+    if (path.startsWith("/api/")) {
+      return NextResponse.json(
+        { error: "Sesión vencida. Volvé a entrar a la app." },
+        { status: 401 },
+      );
+    }
+
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("redirect", path);

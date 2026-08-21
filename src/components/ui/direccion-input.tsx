@@ -12,6 +12,25 @@
 // Elegir una sugerencia no es obligatorio: si el chofer escribe a mano y guarda,
 // todo sigue funcionando como antes (se geocodifica el texto al guardar). Sin
 // señal o sin token de Mapbox simplemente no aparecen sugerencias.
+//
+// ----------------------------------------------------------------------------
+// CADA RENGLÓN DICE CUÁNTO CONFIAR EN ÉL
+//
+// La lista no es solo un menú de opciones: es la única oportunidad de ver que
+// una coincidencia es mala ANTES de salir con el paquete. Por eso cada renglón
+// muestra de dónde salió, si el número coincide y qué precisión tiene:
+//
+//   sin número   es la calle, no la puerta: la parada queda a mitad de cuadra.
+//   otro número  el proveedor encontró la calle pero NO ese número, y devolvió
+//                otro. Es el caso más peligroso de todos, porque el renglón se
+//                ve perfectamente normal: dice la calle correcta y un número.
+//   poco preciso el resultado es un barrio o una ciudad, no un domicilio.
+//   OSM/Mapbox   de qué proveedor salió. Sirve para comprobar que una corrección
+//                hecha en OpenStreetMap ya está llegando a la app (Mapbox tarda
+//                lo suyo en incorporarlas, ver lib/geocoding.ts).
+//
+// Ninguna de esas marcas bloquea nada. El chofer conoce Arica mejor que los dos
+// proveedores juntos; lo que no puede es no enterarse.
 
 import { useEffect, useRef, useState } from "react";
 import { Check, Loader2, MapPin, SearchX } from "lucide-react";
@@ -39,6 +58,23 @@ const MIN_CARACTERES = 3;
 // cerrara en el blur, el toque caería en el vacío y no elegiría nada.
 const MS_CIERRE_TRAS_BLUR = 150;
 
+/** Las marcas que le corresponden a una sugerencia, de la más grave a la menos.
+ *
+ *  Se calculan acá y no dentro del JSX para que el orden sea explícito: si un
+ *  resultado tiene dos problemas, el chofer tiene que leer primero el que lo
+ *  manda a otra cuadra. */
+function marcasDe(s: SugerenciaDireccion): { texto: string; grave: boolean }[] {
+  const marcas: { texto: string; grave: boolean }[] = [];
+
+  // El más peligroso primero: el renglón se ve normal —calle correcta, un número
+  // ahí puesto— y sin embargo ese número no existe en esa calle.
+  if (s.coincideNumero === false) marcas.push({ texto: "otro número", grave: true });
+  if (s.soloCalle) marcas.push({ texto: "sin número", grave: false });
+  if (s.confianza === "baja") marcas.push({ texto: "poco preciso", grave: false });
+
+  return marcas;
+}
+
 export function DireccionInput({
   value,
   onChange,
@@ -46,6 +82,13 @@ export function DireccionInput({
   /** Se muestra cuando el texto actual corresponde a una sugerencia elegida:
    *  es la señal de "esta dirección está confirmada en el mapa". */
   confirmada = false,
+  /** Si se pasa, cuando ninguna búsqueda encuentra la dirección aparece la
+   *  opción de darla por buena tal como está escrita.
+   *
+   *  Existe para que quedarse con el texto a mano sea una DECISIÓN y no lo que
+   *  pasa por defecto cuando nadie eligió nada. La diferencia importa: un pedido
+   *  que nadie confirmó tiene que llegar advertido a la ruta. */
+  onConfirmarManual,
   id,
   name,
   placeholder = "Calle y número",
@@ -58,6 +101,7 @@ export function DireccionInput({
    *  la ruta a la puerta que el chofer vio en la lista. */
   onSeleccionar?: (sugerencia: SugerenciaDireccion) => void;
   confirmada?: boolean;
+  onConfirmarManual?: (texto: string) => void;
   id?: string;
   /** Para formularios que se envían con FormData (ver empresa-form). */
   name?: string;
@@ -261,23 +305,28 @@ export function DireccionInput({
                   </span>
                   <span className="flex items-center gap-1.5 text-xs text-muted">
                     {s.detalle ? <span className="min-w-0 truncate">{s.detalle}</span> : null}
-                    {/* Marca de dónde salió: es lo que permite comprobar de un
-                        vistazo que una corrección hecha en OpenStreetMap ya
-                        está llegando a la app (ver lib/geocoding.ts). */}
-                    {s.fuente === "osm" ? (
-                      <span className="shrink-0 rounded bg-background px-1 text-[10px] font-semibold tracking-wide text-muted">
-                        OSM
-                      </span>
-                    ) : null}
+                    {/* De qué proveedor salió, en los DOS casos y no solo en
+                        OSM: saber que una dirección la resolvió Mapbox y la otra
+                        OpenStreetMap es lo que explica por qué una trae número y
+                        la otra no. */}
+                    <span className="shrink-0 rounded bg-background px-1 text-[10px] font-semibold uppercase tracking-wide text-muted">
+                      {s.fuente === "osm" ? "OSM" : "Mapbox"}
+                    </span>
                   </span>
                 </span>
-                {/* Una calle sin número deja la parada a mitad de cuadra: mejor
-                    decirlo en la lista que descubrirlo manejando. */}
-                {s.soloCalle ? (
-                  <span className="mt-0.5 shrink-0 rounded-full bg-warn-bg px-1.5 py-0.5 text-[10px] font-semibold text-warn">
-                    sin número
+                {/* Las marcas de calidad. Van a la derecha, donde el pulgar no
+                    las tapa al recorrer la lista. */}
+                {marcasDe(s).map((m) => (
+                  <span
+                    key={m.texto}
+                    className={cn(
+                      "mt-0.5 shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
+                      m.grave ? "bg-danger-bg text-danger" : "bg-warn-bg text-warn",
+                    )}
+                  >
+                    {m.texto}
                   </span>
-                ) : null}
+                ))}
               </button>
             </li>
           ))}
@@ -287,9 +336,38 @@ export function DireccionInput({
           ) : null}
 
           {sinResultados ? (
-            <li className="flex items-center gap-2 px-3 py-2.5 text-xs text-muted">
-              <SearchX className="h-3.5 w-3.5 shrink-0" />
-              No encontramos esa dirección. Puedes guardarla igual y corregirla después.
+            <li>
+              <p className="flex items-center gap-2 px-3 py-2.5 text-xs text-muted">
+                <SearchX className="h-3.5 w-3.5 shrink-0" />
+                No encontramos esa dirección.
+              </p>
+              {onConfirmarManual ? (
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    onConfirmarManual(consulta);
+                    setTextoElegido(consulta);
+                    setAbierta(false);
+                    inputRef.current?.blur();
+                  }}
+                  className="flex w-full items-start gap-2 border-t border-separator px-3 py-2.5 text-left transition-colors active:bg-background"
+                >
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-warn" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium leading-tight">
+                      Usar &laquo;{consulta}&raquo; tal como está
+                    </span>
+                    <span className="block text-xs text-muted">
+                      Se guarda sin ubicar en el mapa: hay que marcar el punto a mano.
+                    </span>
+                  </span>
+                </button>
+              ) : (
+                <p className="px-3 pb-2.5 text-xs text-muted">
+                  Puedes guardarla igual y corregirla después.
+                </p>
+              )}
             </li>
           ) : null}
         </ul>

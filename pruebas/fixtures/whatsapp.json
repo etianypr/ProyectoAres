@@ -1,0 +1,248 @@
+{
+  "_lee_esto_primero": [
+    "Cuerpos de la Cloud API de Meta, recortados a lo que el código lee.",
+    "envio_ok es lo que contesta POST /{phone_number_id}/messages: de ahí sale el",
+    "wamid, que es la única forma de empatar después un estado de mensaje con la",
+    "correlación que lo originó.",
+    "Los webhooks vienen con la envoltura entry[].changes[].value completa a",
+    "propósito: si el código asume una forma más plana, un cambio de Meta lo rompe",
+    "en producción y no en las pruebas.",
+    "El payload de los botones lleva CONFIRMAR/RECHAZAR/HORARIO_<id> seguido del",
+    "correlation_id: eso es lo que el servidor resuelve, y es lo único nuestro que",
+    "Meta llega a ver (ver contracts/whatsapp.md)."
+  ],
+  "envio_ok": {
+    "messaging_product": "whatsapp",
+    "contacts": [{ "input": "+56912340001", "wa_id": "56912340001" }],
+    "messages": [{ "id": "wamid.TEST0001", "message_status": "accepted" }]
+  },
+  "envio_error_plantilla": {
+    "error": {
+      "message": "(#132001) Template name does not exist in the translation",
+      "type": "OAuthException",
+      "code": 132001,
+      "error_subcode": 2494010,
+      "fbtrace_id": "AbCdEf"
+    }
+  },
+  "envio_error_limite": {
+    "error": {
+      "message": "(#130429) Rate limit hit",
+      "type": "OAuthException",
+      "code": 130429,
+      "fbtrace_id": "GhIjKl"
+    }
+  },
+  "estado_enviado": {
+    "object": "whatsapp_business_account",
+    "entry": [
+      {
+        "id": "WABA_1",
+        "changes": [
+          {
+            "field": "messages",
+            "value": {
+              "messaging_product": "whatsapp",
+              "metadata": { "display_phone_number": "56900000000", "phone_number_id": "PNID_1" },
+              "statuses": [
+                {
+                  "id": "wamid.TEST0001",
+                  "status": "sent",
+                  "timestamp": "1786000000",
+                  "recipient_id": "56912340001"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "estado_fallido": {
+    "object": "whatsapp_business_account",
+    "entry": [
+      {
+        "id": "WABA_1",
+        "changes": [
+          {
+            "field": "messages",
+            "value": {
+              "messaging_product": "whatsapp",
+              "metadata": { "display_phone_number": "56900000000", "phone_number_id": "PNID_1" },
+              "statuses": [
+                {
+                  "id": "wamid.TEST0001",
+                  "status": "failed",
+                  "timestamp": "1786000060",
+                  "recipient_id": "56912340001",
+                  "errors": [
+                    {
+                      "code": 131026,
+                      "title": "Message undeliverable",
+                      "message": "Receiver is incapable of receiving this message"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "respuesta_confirmar": {
+    "object": "whatsapp_business_account",
+    "entry": [
+      {
+        "id": "WABA_1",
+        "changes": [
+          {
+            "field": "messages",
+            "value": {
+              "messaging_product": "whatsapp",
+              "metadata": { "display_phone_number": "56900000000", "phone_number_id": "PNID_1" },
+              "messages": [
+                {
+                  "from": "56912340001",
+                  "id": "wamid.RESP0001",
+                  "timestamp": "1786000300",
+                  "type": "button",
+                  "context": { "from": "56900000000", "id": "wamid.TEST0001" },
+                  "button": { "payload": "CONFIRMAR:corr-0001", "text": "Sí, podré recibirlo" }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "respuesta_rechazar": {
+    "object": "whatsapp_business_account",
+    "entry": [
+      {
+        "id": "WABA_1",
+        "changes": [
+          {
+            "field": "messages",
+            "value": {
+              "messaging_product": "whatsapp",
+              "metadata": { "display_phone_number": "56900000000", "phone_number_id": "PNID_1" },
+              "messages": [
+                {
+                  "from": "56912340002",
+                  "id": "wamid.RESP0002",
+                  "timestamp": "1786000400",
+                  "type": "button",
+                  "context": { "from": "56900000000", "id": "wamid.TEST0002" },
+                  "button": { "payload": "RECHAZAR:corr-0002", "text": "No podré recibirlo" }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "respuesta_horario_lista": {
+    "object": "whatsapp_business_account",
+    "entry": [
+      {
+        "id": "WABA_1",
+        "changes": [
+          {
+            "field": "messages",
+            "value": {
+              "messaging_product": "whatsapp",
+              "metadata": { "display_phone_number": "56900000000", "phone_number_id": "PNID_1" },
+              "messages": [
+                {
+                  "from": "56912340003",
+                  "id": "wamid.RESP0003",
+                  "timestamp": "1786000500",
+                  "type": "interactive",
+                  "context": { "from": "56900000000", "id": "wamid.TEST0003" },
+                  "interactive": {
+                    "type": "list_reply",
+                    "list_reply": {
+                      "id": "HORARIO_18-20:corr-0003",
+                      "title": "18:00 - 20:00",
+                      "description": "Bloque de la tarde"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "respuesta_texto_libre": {
+    "object": "whatsapp_business_account",
+    "entry": [
+      {
+        "id": "WABA_1",
+        "changes": [
+          {
+            "field": "messages",
+            "value": {
+              "messaging_product": "whatsapp",
+              "metadata": { "display_phone_number": "56900000000", "phone_number_id": "PNID_1" },
+              "messages": [
+                {
+                  "from": "56912340004",
+                  "id": "wamid.RESP0004",
+                  "timestamp": "1786000600",
+                  "type": "text",
+                  "context": { "from": "56900000000", "id": "wamid.TEST0004" },
+                  "text": { "body": "puede ser mañana temprano?" }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "respuesta_sin_contexto": {
+    "object": "whatsapp_business_account",
+    "entry": [
+      {
+        "id": "WABA_1",
+        "changes": [
+          {
+            "field": "messages",
+            "value": {
+              "messaging_product": "whatsapp",
+              "metadata": { "display_phone_number": "56900000000", "phone_number_id": "PNID_1" },
+              "messages": [
+                {
+                  "from": "56912340005",
+                  "id": "wamid.RESP0005",
+                  "timestamp": "1786000700",
+                  "type": "button",
+                  "button": { "payload": "CONFIRMAR:corr-0005", "text": "Sí, podré recibirlo" }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "evento_de_otro_campo": {
+    "object": "whatsapp_business_account",
+    "entry": [
+      {
+        "id": "WABA_1",
+        "changes": [
+          {
+            "field": "message_template_status_update",
+            "value": { "event": "APPROVED", "message_template_name": "aviso_encomienda" }
+          }
+        ]
+      }
+    ]
+  }
+}

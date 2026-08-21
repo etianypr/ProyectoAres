@@ -1,0 +1,61 @@
+{
+  "_lee_esto_primero": [
+    "Respuestas de Nominatim en formato jsonv2 (el que llama 'category' a lo que el",
+    "formato viejo llamaba 'class'). OSM en Arica casi no tiene números de casa,",
+    "pero sí los nombres de calle correctos y los puntos de interés: por eso las",
+    "sugerencias se muestran juntas con las de Mapbox en vez de elegir un proveedor.",
+    "'punto_interes' comprueba que un terminal NO se marque como 'solo calle': ese",
+    "punto ES el destino, no una cuadra sin número."
+  ],
+  "calle_sin_numero": [
+    {
+      "place_id": 1001,
+      "osm_type": "way",
+      "osm_id": 24680,
+      "lat": "-18.4772",
+      "lon": "-70.2963",
+      "category": "highway",
+      "name": "Avenida Chacabuco",
+      "display_name": "Avenida Chacabuco, Arica, Chile",
+      "address": { "road": "Avenida Chacabuco", "city": "Arica" }
+    }
+  ],
+  "con_numero": [
+    {
+      "place_id": 1002,
+      "osm_type": "node",
+      "osm_id": 13579,
+      "lat": "-18.4691",
+      "lon": "-70.3012",
+      "category": "place",
+      "display_name": "1749, Quinsachata, Arica, Chile",
+      "address": { "road": "Quinsachata", "house_number": "1749", "suburb": "Cerro La Cruz", "city": "Arica" }
+    }
+  ],
+  "punto_interes": [
+    {
+      "place_id": 1003,
+      "osm_type": "way",
+      "osm_id": 97531,
+      "lat": "-18.4809",
+      "lon": "-70.3081",
+      "category": "amenity",
+      "name": "Terminal Rodoviario de Arica",
+      "display_name": "Terminal Rodoviario de Arica, Avenida Diego Portales, Arica, Chile",
+      "address": { "road": "Avenida Diego Portales", "suburb": "Centro", "city": "Arica" }
+    }
+  ],
+  "tramos_repetidos": [
+    {
+      "place_id": 1004, "osm_type": "way", "osm_id": 111, "lat": "-18.4801", "lon": "-70.3050",
+      "category": "highway", "name": "Avenida Diego Portales",
+      "address": { "road": "Avenida Diego Portales", "city": "Arica" }
+    },
+    {
+      "place_id": 1005, "osm_type": "way", "osm_id": 112, "lat": "-18.4830", "lon": "-70.3070",
+      "category": "highway", "name": "Avenida Diego Portales",
+      "address": { "road": "Avenida Diego Portales", "city": "Arica" }
+    }
+  ],
+  "vacia": []
+}

@@ -38,6 +38,7 @@ El dominio `*.ngrok-free.app` ya está permitido en `next.config.ts`.
 | `npm run test:base` | el esquema de encomiendas contra la base real (solo lectura) |
 | `npm run test:esquema` | el esquema completo contra los tipos de `src/types/db.ts` |
 | `npm run migrar` | traslado de datos desde el sistema anterior (ver abajo) |
+| `npm run respaldo` | guarda la flota de reparto en `respaldo/` (solo lectura) |
 
 ## Cómo está armado
 
@@ -106,6 +107,22 @@ hacer a mano después:
   Supabase. Llegan con su ficha y su correo pero sin cuenta: hay que invitarlos de
   nuevo desde Conductores → "Invitar". Sin eso no pueden salir a repartir.
 - **Los datos de la empresa** (nombre, RUT, dirección). Se cargan en Configuración.
+
+### La flota quedó en archivos, no en la base
+
+`npm run respaldo` (solo `ORIGEN_*`, solo lectura) guarda en `respaldo/` la ficha de
+la camioneta de reparto y sus gastos, en JSON y CSV.
+
+Va aparte del traslado normal porque **ares no gestiona flota**: no hay tabla de
+vehículos ni pantalla que los muestre, así que no había dónde ponerlos. En vez de
+levantar un módulo entero por una patente, el dato se guarda tal cual antes de
+perder el acceso a la base anterior. Si algún día hace falta, ahí está.
+
+Ya corrido: `VKPW-81`, Daihatsu Hijet 2016, 133.000 km, sin gastos imputados.
+
+Clientes no se trajo ninguno, y no es un olvido: en la base anterior había **un
+solo cliente** y era de la operación portuaria, no del reparto. El mandante de
+encomiendas nunca estuvo cargado como cliente.
 
 ## Contacto con el mundo
 

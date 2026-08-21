@@ -16,6 +16,11 @@
 
 import { uuidv7 } from "@/lib/uuid";
 import {
+  esReintentable,
+  type Disponibilidad,
+  type MotivoNoEntrega,
+} from "@/lib/encomiendas/config";
+import {
   STORES,
   INDICE_PEDIDO_ESTADO,
   contarPorIndice,
@@ -65,11 +70,18 @@ function enFila<T>(trabajo: () => Promise<T>): Promise<T> {
 // Formas guardadas
 // ----------------------------------------------------------------------------
 
-/** Un pedido tiene solo dos estados, igual que en el servidor (ver 0018 y
- *  ENCOMIENDA_ESTADOS): omitir NO lo cierra, lo deja pendiente para
- *  reintentarlo otro día. Es lo que hace que los pendientes se arrastren de una
- *  jornada a la siguiente. */
-export type EstadoPedidoLocal = "pendiente" | "entregado";
+/** No encontrar a la persona NO cierra el pedido: lo deja pendiente para
+ *  reintentarlo otro día, y es lo que hace que los pendientes se arrastren de
+ *  una jornada a la siguiente.
+ *
+ *  "rechazado" es el tercero y el único que se agregó en esta feature. Es un
+ *  cierre, igual que "entregado", pero por el motivo opuesto: el receptor dijo
+ *  que no lo recibe. Existe como ESTADO DEL PEDIDO —y no solo como resultado de
+ *  una parada— porque lo que la constitución exige (principio II, FR-012) es que
+ *  no vuelva a proponerse en una ruta futura, y de eso ya se encarga el filtro
+ *  de pendientes que existía. Deducirlo recorriendo las paradas de todas las
+ *  rutas anteriores sería caro y se rompería el día que alguien olvidara mirar. */
+export type EstadoPedidoLocal = "pendiente" | "entregado" | "rechazado";
 
 export type PedidoLocal = {
   /** UUIDv7 generado en el teléfono. */
@@ -83,12 +95,65 @@ export type PedidoLocal = {
   lng: number | null;
   notas: string | null;
   estado: EstadoPedidoLocal;
+  /** Qué contestó el receptor al aviso de WhatsApp. Es una dimensión APARTE del
+   *  resultado del reparto: confirmar por WhatsApp y después no estar en la casa
+   *  son dos hechos distintos, y mezclarlos es justo lo que el principio II de
+   *  la constitución prohibe. */
+  disponibilidad: Disponibilidad;
+  /** El bloque que eligió el receptor, si eligió uno. Solo tiene valor cuando
+   *  `disponibilidad` es "horario_indicado". */
+  bloqueHorarioId: string | null;
   /** ISO. Sirve para ordenar la lista y para ver cuánto lleva sin entregarse. */
   cargadoEn: string;
 };
 
 export type EstadoLlamadaLocal = "pendiente" | "contesto" | "no_contesto";
-export type EstadoEntregaLocal = "pendiente" | "entregado" | "omitido";
+
+/** Cómo terminó el intento de entrega. Los cuatro resultados que el producto
+ *  pide distinguir (FR-018) más el heredado.
+ *
+ *  "omitido" es de la versión anterior, cuando la app tenía un solo botón de
+ *  "no se pudo entregar" y no preguntaba por qué. Sigue en el tipo porque hay
+ *  jornadas guardadas en teléfonos con ese valor y leerlas no puede reventar;
+ *  ningún código nuevo lo escribe. En el panel aparece como no entregado sin
+ *  motivo registrado, que es exactamente lo que se sabe de él. */
+export type EstadoEntregaLocal =
+  | "pendiente"
+  | "entregado"
+  | "persona_no_encontrada"
+  | "entrega_sin_respuesta"
+  | "rechazo"
+  | "omitido";
+
+/** Los resultados que el chofer puede elegir hoy. Excluye "pendiente" (no es un
+ *  resultado) y el heredado "omitido". */
+export type ResultadoEntrega = Exclude<EstadoEntregaLocal, "pendiente" | "omitido">;
+
+/** El motivo no personal que viaja al servidor con el evento de omisión, para
+ *  que el jefe pueda distinguir los tres casos (FR-021). Una entrega no tiene
+ *  motivo, y el heredado "omitido" tampoco: nadie lo preguntó en su momento e
+ *  inventarlo ahora sería peor que dejarlo en blanco. */
+export function motivoDeEntrega(resultado: EstadoEntregaLocal): MotivoNoEntrega | null {
+  switch (resultado) {
+    case "persona_no_encontrada":
+      return "persona_no_encontrada";
+    case "entrega_sin_respuesta":
+      return "sin_respuesta";
+    case "rechazo":
+      return "rechazo";
+    default:
+      return null;
+  }
+}
+
+/** ¿Se puede volver a intentar otro día? Derivado, nunca guardado: guardarlo
+ *  sería un segundo lugar donde la regla puede quedar desactualizada. */
+export function paradaReintentable(entrega: EstadoEntregaLocal): boolean {
+  if (entrega === "entregado" || entrega === "pendiente") return false;
+  const motivo = motivoDeEntrega(entrega);
+  // El heredado "omitido" no tiene motivo y siempre fue reintentable.
+  return motivo ? esReintentable(motivo) : true;
+}
 
 /** Cómo le fue a un pedido DENTRO de un día concreto. Vive en la ruta y no en
  *  el pedido porque el mismo pedido puede pasar por varios días (omitido hoy,
@@ -122,6 +187,19 @@ export type RutaLocal = {
    *  el servidor porque el cierre puede ocurrir sin señal, igual que todo lo
    *  demás en esta app. */
   cerradaEn: string | null;
+  /** Qué quedó fuera o dudoso al armar esta ruta: pedidos sin ubicar, sin
+   *  trazado, con un bloque horario que no se pudo respetar. Se guarda con la
+   *  ruta —y no solo se muestra en la previsualización— porque el chofer las
+   *  necesita en terreno, horas después de haber confirmado. */
+  advertencias: string[];
+  /** Cuántas propuestas se compararon para llegar a esta (1 a 3). Es lo que
+   *  distingue "no había alternativa útil" de "el chofer eligió entre tres"
+   *  cuando después hay que entender por qué salió este orden. */
+  propuestasComparadas: number;
+  /** Huella de la disponibilidad con la que se calculó. Si llegan respuestas
+   *  nuevas después, cambia, y la pantalla puede ofrecer rehacer la ruta en vez
+   *  de dejar al chofer con un orden que ignora lo que el receptor contestó. */
+  versionDisponibilidad: string | null;
 };
 
 /** Evento esperando salir a encomienda_actividad. Los nombres son los del
@@ -132,6 +210,11 @@ export type EventoCola = {
   choferId: string;
   fecha: string;
   tipo: "entrega" | "omision" | "llamada";
+  /** Por qué no se entregó. Solo en los eventos de omisión, y solo en los que
+   *  la app genera desde esta versión: es una etiqueta de tres valores, sin
+   *  ningún dato del receptor (ver MOTIVOS_NO_ENTREGA). Es lo único nuevo que
+   *  esta feature le agrega a lo que sale del teléfono. */
+  motivo?: MotivoNoEntrega | null;
   /** ISO. Cuándo ocurrió de verdad, que puede ser mucho antes de poder
    *  enviarlo. */
   hora: string;
@@ -148,16 +231,57 @@ export type EventoCola = {
 };
 
 // ----------------------------------------------------------------------------
+// Leer lo guardado por una versión anterior
+// ----------------------------------------------------------------------------
+//
+// IndexedDB no valida campos: un pedido guardado por la versión anterior de la
+// app sigue ahí tal como se escribió, sin `disponibilidad` ni `bloqueHorarioId`,
+// y una ruta anterior no tiene `advertencias`. Leer eso y usarlo directo deja
+// `undefined` corriendo por la pantalla hasta que algo explota lejos de acá.
+//
+// Se normaliza EN LA LECTURA y no con una migración que reescriba todo al abrir
+// la base: una migración así corre en el arranque, con el chofer esperando la
+// pantalla, y puede fallar a mitad. Estas dos funciones son baratas y no pueden
+// fallar.
+
+function alDia(pedido: PedidoLocal): PedidoLocal {
+  return {
+    ...pedido,
+    disponibilidad: pedido.disponibilidad ?? "pendiente_respuesta",
+    bloqueHorarioId: pedido.bloqueHorarioId ?? null,
+  };
+}
+
+function rutaAlDia(ruta: RutaLocal): RutaLocal {
+  return {
+    ...ruta,
+    advertencias: ruta.advertencias ?? [],
+    propuestasComparadas: ruta.propuestasComparadas ?? 1,
+    versionDisponibilidad: ruta.versionDisponibilidad ?? null,
+  };
+}
+
+// ----------------------------------------------------------------------------
 // Pedidos
 // ----------------------------------------------------------------------------
 
 export async function leerPedidos(): Promise<PedidoLocal[]> {
   const pedidos = await leerTodos<PedidoLocal>(STORES.pedidos);
-  return pedidos.sort((a, b) => b.cargadoEn.localeCompare(a.cargadoEn));
+  return pedidos.map(alDia).sort((a, b) => b.cargadoEn.localeCompare(a.cargadoEn));
+}
+
+async function leerPedido(id: string): Promise<PedidoLocal | null> {
+  const pedido = await leerUno<PedidoLocal>(STORES.pedidos, id);
+  return pedido ? alDia(pedido) : null;
 }
 
 /** Los que todavía hay que entregar, incluidos los arrastrados de días
- *  anteriores. Es la entrada para armar la ruta. */
+ *  anteriores. Es la entrada para armar la ruta.
+ *
+ *  Un pedido rechazado NO está acá, y eso es el cumplimiento de FR-012: el
+ *  filtro es el mismo de siempre —solo los "pendiente"— y "rechazado" es un
+ *  cierre, así que queda fuera sin que haya que acordarse de excluirlo en cada
+ *  lugar que arma una ruta. */
 export async function pedidosPendientes(): Promise<PedidoLocal[]> {
   const pedidos = await leerPedidos();
   return pedidos.filter((p) => p.estado === "pendiente");
@@ -175,7 +299,7 @@ export type DatosPedido = {
 /** Crea (sin id) o actualiza (con id) un pedido. Devuelve el guardado. */
 export function guardarPedido(datos: DatosPedido, id?: string): Promise<PedidoLocal> {
   return enFila(async () => {
-    const anterior = id ? await leerUno<PedidoLocal>(STORES.pedidos, id) : null;
+    const anterior = id ? await leerPedido(id) : null;
 
     const pedido: PedidoLocal = {
       ...datos,
@@ -183,6 +307,12 @@ export function guardarPedido(datos: DatosPedido, id?: string): Promise<PedidoLo
       // Editar un pedido no lo reabre ni lo cierra: el estado solo cambia al
       // marcar la entrega.
       estado: anterior?.estado ?? "pendiente",
+      // Corregir un teléfono o una dirección tampoco borra lo que el receptor
+      // ya contestó. Si el chofer cambia el número porque el anterior estaba
+      // mal, esa respuesta era de otra persona y hay que descartarla — pero eso
+      // lo decide reiniciarDisponibilidad(), no un guardado cualquiera.
+      disponibilidad: anterior?.disponibilidad ?? "pendiente_respuesta",
+      bloqueHorarioId: anterior?.bloqueHorarioId ?? null,
       cargadoEn: anterior?.cargadoEn ?? new Date().toISOString(),
     };
 
@@ -225,9 +355,7 @@ export function fijarCoordenadas(
 ): Promise<void> {
   if (coordenadas.length === 0) return Promise.resolve();
   return enFila(async () => {
-    const actuales = await Promise.all(
-      coordenadas.map((c) => leerUno<PedidoLocal>(STORES.pedidos, c.id)),
-    );
+    const actuales = await Promise.all(coordenadas.map((c) => leerPedido(c.id)));
 
     await escribir([STORES.pedidos], ({ guardar }) => {
       actuales.forEach((pedido, i) => {
@@ -258,8 +386,9 @@ export function borrarPedido(id: string, fecha: string): Promise<void> {
 // Ruta del día
 // ----------------------------------------------------------------------------
 
-export function leerRuta(fecha: string): Promise<RutaLocal | null> {
-  return leerUno<RutaLocal>(STORES.rutas, fecha);
+export async function leerRuta(fecha: string): Promise<RutaLocal | null> {
+  const ruta = await leerUno<RutaLocal>(STORES.rutas, fecha);
+  return ruta ? rutaAlDia(ruta) : null;
 }
 
 /** Cuántos quedan por entregar. Pasa por el índice: la pantalla de inicio lo
@@ -275,6 +404,12 @@ export type EntradaRuta = {
   geometria: [number, number][] | null;
   distanciaM: number | null;
   duracionS: number | null;
+  /** Lo que quedó fuera o dudoso. Ver RutaLocal.advertencias. */
+  advertencias?: string[];
+  /** Entre 1 y 3. Ver RutaLocal.propuestasComparadas. */
+  propuestasComparadas?: number;
+  /** Ver RutaLocal.versionDisponibilidad. */
+  versionDisponibilidad?: string | null;
 };
 
 // Guarda la ruta del día conservando SIEMPRE lo que ya se cerró en la jornada:
@@ -324,6 +459,11 @@ export function guardarRuta(entrada: EntradaRuta): Promise<RutaLocal> {
       // no estaba terminada. El servidor la vuelve a valorar cuando se cierre
       // otra vez (0032).
       cerradaEn: null,
+      // Las advertencias son de ESTE cálculo y reemplazan a las anteriores: una
+      // dirección que el chofer ya corrigió no puede seguir avisando.
+      advertencias: entrada.advertencias ?? [],
+      propuestasComparadas: entrada.propuestasComparadas ?? 1,
+      versionDisponibilidad: entrada.versionDisponibilidad ?? null,
     };
 
     await escribir([STORES.rutas], ({ guardar }) => guardar(STORES.rutas, ruta));
@@ -372,8 +512,13 @@ function evento(
   fecha: string,
   tipo: EventoCola["tipo"],
   hora: string,
+  motivo: MotivoNoEntrega | null = null,
 ): EventoCola {
-  return { id: uuidv7(), choferId, fecha, tipo, hora };
+  // El motivo se omite en vez de guardarse como null cuando no hay: así una
+  // entrega y una llamada quedan con la misma forma exacta que tenían antes de
+  // esta feature, y un evento viejo que sigue en la cola de un teléfono no se
+  // distingue de uno nuevo.
+  return { id: uuidv7(), choferId, fecha, tipo, hora, ...(motivo ? { motivo } : {}) };
 }
 
 export type Marca = {
@@ -381,6 +526,20 @@ export type Marca = {
   pedidoId: string;
   choferId: string;
 };
+
+/** A qué estado deja al PEDIDO un resultado de entrega. Está en una función y
+ *  no escrito dos veces porque hay dos puertas que cierran un pedido
+ *  —marcarEntrega y registrarRechazo— y si discreparan, un rechazo entrado por
+ *  una de las dos volvería a aparecer mañana. */
+function conEstadoDeResultado(
+  pedido: PedidoLocal,
+  resultado: Exclude<EstadoEntregaLocal, "pendiente">,
+): PedidoLocal {
+  if (resultado === "entregado") return { ...pedido, estado: "entregado" };
+  if (resultado === "rechazo") return { ...pedido, estado: "rechazado" };
+  // No encontrada, sin respuesta y la omisión heredada: sigue pendiente.
+  return pedido;
+}
 
 /** Registra el resultado de llamar al destinatario. No suma ni resta entregas:
  *  solo prueba que el chofer está trabajando (ver esPrimeraAccion). */
@@ -411,9 +570,20 @@ export function marcarLlamada(
   });
 }
 
-/** Cierra una parada. "entregado" cierra también el pedido; "omitido" lo deja
- *  pendiente para reintentarlo otro día (igual que el trigger del servidor en
- *  la 0018). El evento para el servidor sale en la misma transacción. */
+/** Cierra una parada.
+ *
+ *  Qué le pasa al PEDIDO depende del resultado, y son tres caminos distintos:
+ *
+ *   · "entregado"             → el pedido se cierra. No vuelve.
+ *   · "rechazo"               → el pedido se cierra también, pero como rechazado.
+ *                               Es la mitad local de FR-012: al no quedar
+ *                               "pendiente", ninguna ruta futura lo puede volver
+ *                               a proponer, y no hay que acordarse de excluirlo.
+ *   · no encontrada / sin respuesta → el pedido SIGUE pendiente y se arrastra al
+ *                               día siguiente, igual que la omisión de antes.
+ *
+ *  El evento para el servidor sale en la misma transacción, con el motivo no
+ *  personal que necesita el panel del jefe. */
 export function marcarEntrega(
   { fecha, pedidoId, choferId }: Marca,
   resultado: Exclude<EstadoEntregaLocal, "pendiente">,
@@ -423,10 +593,7 @@ export function marcarEntrega(
   retenerMs = 0,
 ): Promise<string | null> {
   return enFila(async () => {
-    const [ruta, pedido] = await Promise.all([
-      leerRuta(fecha),
-      leerUno<PedidoLocal>(STORES.pedidos, pedidoId),
-    ]);
+    const [ruta, pedido] = await Promise.all([leerRuta(fecha), leerPedido(pedidoId)]);
     if (!ruta) throw new Error("No hay una ruta para ese día.");
     if (!pedido) throw new Error("Ese pedido ya no existe en este teléfono.");
     const parada = ruta.paradas.find((p) => p.pedidoId === pedidoId);
@@ -448,11 +615,16 @@ export function marcarEntrega(
         p.pedidoId === pedidoId ? { ...p, entrega: resultado, horaEntrega: hora } : p,
       ),
     };
-    const pedidoActualizado: PedidoLocal =
-      resultado === "entregado" ? { ...pedido, estado: "entregado" } : pedido;
+    const pedidoActualizado = conEstadoDeResultado(pedido, resultado);
 
     const registro: EventoCola = {
-      ...evento(choferId, fecha, resultado === "entregado" ? "entrega" : "omision", hora),
+      ...evento(
+        choferId,
+        fecha,
+        resultado === "entregado" ? "entrega" : "omision",
+        hora,
+        motivoDeEntrega(resultado),
+      ),
       ...(retenerMs > 0
         ? { retenidoHasta: new Date(Date.now() + retenerMs).toISOString() }
         : {}),
@@ -482,7 +654,7 @@ export function deshacerEntrega(
   return enFila(async () => {
     const [ruta, pedido, enCola] = await Promise.all([
       leerRuta(fecha),
-      leerUno<PedidoLocal>(STORES.pedidos, pedidoId),
+      leerPedido(pedidoId),
       leerUno<EventoCola>(STORES.cola, eventoId),
     ]);
     if (!ruta || !pedido || !enCola) return false;
@@ -535,6 +707,310 @@ export function moverAlFinal({
 
     await escribir([STORES.rutas], ({ guardar }) => guardar(STORES.rutas, actualizada));
   });
+}
+
+// ----------------------------------------------------------------------------
+// Disponibilidad del receptor
+// ----------------------------------------------------------------------------
+//
+// Lo que el receptor contesta por WhatsApp entra por acá, y entra desde AFUERA:
+// la respuesta llega al servidor y el teléfono la baja después (ver
+// ./whatsapp.ts y la Decisión 7 de research.md). Eso hace que estas escrituras
+// tengan un problema que las demás no tienen: pueden llegar dos veces, tarde, o
+// en distinto orden del que el receptor las tocó.
+//
+// Las tres reglas que sostienen eso:
+//
+//  1. IDEMPOTENCIA POR MENSAJE. Cada respuesta trae el id del mensaje de
+//     WhatsApp que la originó, y ese id queda anotado en el store `whatsapp`.
+//     Volver a bajar la misma respuesta —porque la confirmación al servidor se
+//     cortó— no la aplica de nuevo.
+//  2. UN RECHAZO NO SE REABRE SOLO. Es la regla del producto (FR-012) llevada al
+//     dominio: si el receptor dijo que no, ninguna respuesta posterior que llegue
+//     por el mismo canal lo vuelve a poner disponible. Solo una acción explícita
+//     del chofer puede.
+//  3. "NO RESPONDIÓ" NO PISA UNA RESPUESTA. La marca de sin respuesta la pone el
+//     teléfono al aproximarse a la parada; si mientras tanto había llegado un
+//     "sí", el "sí" gana. Al revés, el chofer llamaría a alguien que ya contestó.
+
+/** Coordinación del aviso de WhatsApp de UN pedido. Vive en su propio store
+ *  porque la escribe la sincronización, no el chofer (ver STORES.whatsapp). */
+export type CoordinacionWhatsApp = {
+  /** Clave del store. */
+  pedidoId: string;
+  /** El identificador opaco que viaja a Meta y vuelve en la respuesta. null
+   *  hasta que el aviso se manda por primera vez. */
+  correlationId: string | null;
+  /** wamid del aviso saliente, para empatar los estados del mensaje. */
+  mensajeId: string | null;
+  /** Del MENSAJE, no de la entrega: "fallido" quiere decir que WhatsApp no lo
+   *  pudo dejar, no que el receptor haya rechazado nada (ver el contrato). */
+  estado: "pendiente" | "enviado" | "entregado" | "leido" | "respondido" | "fallido";
+  /** ISO del último envío. */
+  enviadoEn: string | null;
+  /** Mostrable al chofer, con el botón de reintentar al lado. */
+  ultimoError: string | null;
+  /** Cuántas veces se intentó mandar el aviso. Frena el reintento automático
+   *  eterno cuando el número simplemente no tiene WhatsApp. */
+  intentos: number;
+  /** Si ya se le mandó la lista de bloques horarios. Es un segundo mensaje
+   *  saliente, distinto del aviso, y puede fallar por su cuenta (ver la
+   *  Decisión 8 de research.md). */
+  horariosEnviados: boolean;
+  /** Ids de mensaje de respuesta ya aplicados. La clave de la regla 1. */
+  respuestasAplicadas: string[];
+};
+
+function coordinacionVacia(pedidoId: string): CoordinacionWhatsApp {
+  return {
+    pedidoId,
+    correlationId: null,
+    mensajeId: null,
+    estado: "pendiente",
+    enviadoEn: null,
+    ultimoError: null,
+    intentos: 0,
+    horariosEnviados: false,
+    respuestasAplicadas: [],
+  };
+}
+
+async function leerCoordinacion(pedidoId: string): Promise<CoordinacionWhatsApp> {
+  const guardada = await leerUno<CoordinacionWhatsApp>(STORES.whatsapp, pedidoId);
+  // Se completa contra la vacía y no se devuelve tal cual: una fila escrita por
+  // una versión anterior puede no tener los campos nuevos.
+  return guardada ? { ...coordinacionVacia(pedidoId), ...guardada } : coordinacionVacia(pedidoId);
+}
+
+export async function leerCoordinaciones(): Promise<CoordinacionWhatsApp[]> {
+  const filas = await leerTodos<CoordinacionWhatsApp>(STORES.whatsapp);
+  return filas.map((f) => ({ ...coordinacionVacia(f.pedidoId), ...f }));
+}
+
+/** Lo que el receptor puede contestar. Es exactamente el contrato de
+ *  contracts/local-domain.md: una de cuatro, y el bloque solo viene con la que
+ *  lo necesita. */
+export type RespuestaDisponibilidad =
+  | { tipo: "confirmado" }
+  | { tipo: "horario_indicado"; bloqueHorarioId: string }
+  | { tipo: "rechazado" }
+  | { tipo: "disponibilidad_sin_respuesta" };
+
+/** Anota que el aviso salió. `correlationId` y `mensajeId` los devuelve el
+ *  servidor; se guardan para poder empatar después el estado del mensaje y para
+ *  no volver a mandar el aviso del mismo pedido. */
+export function registrarEnvioWhatsapp({
+  pedidoId,
+  correlationId,
+  mensajeId,
+}: {
+  pedidoId: string;
+  correlationId: string;
+  mensajeId: string | null;
+}): Promise<CoordinacionWhatsApp> {
+  return enFila(async () => {
+    const previa = await leerCoordinacion(pedidoId);
+    const coordinacion: CoordinacionWhatsApp = {
+      ...previa,
+      correlationId,
+      mensajeId,
+      estado: "enviado",
+      enviadoEn: new Date().toISOString(),
+      ultimoError: null,
+      intentos: previa.intentos + 1,
+    };
+    await escribir([STORES.whatsapp], ({ guardar }) => guardar(STORES.whatsapp, coordinacion));
+    return coordinacion;
+  });
+}
+
+/** Anota que el aviso NO se pudo mandar. Cuenta el intento igual: es lo que
+ *  frena el reintento eterno de un número que no tiene WhatsApp. */
+export function registrarFalloWhatsapp(pedidoId: string, error: string): Promise<void> {
+  return enFila(async () => {
+    const previa = await leerCoordinacion(pedidoId);
+    await escribir([STORES.whatsapp], ({ guardar }) =>
+      guardar(STORES.whatsapp, {
+        ...previa,
+        estado: "fallido",
+        ultimoError: error,
+        intentos: previa.intentos + 1,
+      }),
+    );
+  });
+}
+
+/** Anota que ya se le mandó la lista de bloques horarios, para no repetirla. */
+export function marcarHorariosEnviados(pedidoId: string): Promise<void> {
+  return enFila(async () => {
+    const previa = await leerCoordinacion(pedidoId);
+    await escribir([STORES.whatsapp], ({ guardar }) =>
+      guardar(STORES.whatsapp, { ...previa, horariosEnviados: true }),
+    );
+  });
+}
+
+const ORDEN_ESTADO_MENSAJE: CoordinacionWhatsApp["estado"][] = [
+  "pendiente",
+  "enviado",
+  "entregado",
+  "leido",
+  "respondido",
+];
+
+/** Anota un estado del MENSAJE (enviado, entregado, leído, fallido). Nunca toca
+ *  la disponibilidad: un mensaje que no se pudo entregar deja al pedido
+ *  pendiente de contacto, no rechazado ni sin respuesta — es una regla explícita
+ *  del contrato de WhatsApp. */
+export function registrarEstadoMensaje(
+  pedidoId: string,
+  estado: CoordinacionWhatsApp["estado"],
+  error: string | null = null,
+): Promise<void> {
+  return enFila(async () => {
+    const previa = await leerCoordinacion(pedidoId);
+    // Meta no garantiza el orden de los webhooks: un "sent" que llega después
+    // del "delivered" no puede hacer retroceder el estado.
+    const retrocede =
+      estado !== "fallido" &&
+      previa.estado !== "fallido" &&
+      ORDEN_ESTADO_MENSAJE.indexOf(estado) < ORDEN_ESTADO_MENSAJE.indexOf(previa.estado);
+
+    await escribir([STORES.whatsapp], ({ guardar }) =>
+      guardar(STORES.whatsapp, {
+        ...previa,
+        estado: retrocede ? previa.estado : estado,
+        ultimoError: error,
+      }),
+    );
+  });
+}
+
+/** Aplica una respuesta del receptor. Devuelve si CAMBIÓ algo: false significa
+ *  que ya estaba aplicada o que una de las tres reglas de arriba la descartó, y
+ *  en los dos casos el llamador puede confirmarla al servidor igual (ya está
+ *  resuelta).
+ *
+ *  El pedido y la coordinación se escriben en la MISMA transacción: si quedara
+ *  la respuesta anotada como aplicada sin el pedido actualizado, esa respuesta
+ *  no volvería a bajar nunca y el receptor habría contestado al vacío. */
+export function registrarDisponibilidad(
+  pedidoId: string,
+  respuesta: RespuestaDisponibilidad,
+  /** Id del mensaje de WhatsApp que trajo la respuesta. null cuando el origen es
+   *  local (el chofer marcando "no respondió" al aproximarse): no hay nada que
+   *  deduplicar porque no puede llegar dos veces desde afuera. */
+  mensajeId: string | null = null,
+): Promise<boolean> {
+  return enFila(async () => {
+    const [pedido, coordinacion] = await Promise.all([
+      leerPedido(pedidoId),
+      leerCoordinacion(pedidoId),
+    ]);
+    // El chofer pudo borrar el pedido mientras la respuesta viajaba.
+    if (!pedido) return false;
+
+    // Regla 1: idempotencia por mensaje.
+    if (mensajeId && coordinacion.respuestasAplicadas.includes(mensajeId)) return false;
+
+    const yaAplicadas = mensajeId
+      ? [...coordinacion.respuestasAplicadas, mensajeId]
+      : coordinacion.respuestasAplicadas;
+
+    // Regla 2: un rechazo no se reabre por una respuesta que llega después.
+    // Regla 3: "no respondió" no pisa una respuesta de verdad.
+    const bloqueado =
+      (pedido.disponibilidad === "rechazado" && respuesta.tipo !== "rechazado") ||
+      (respuesta.tipo === "disponibilidad_sin_respuesta" &&
+        pedido.disponibilidad !== "pendiente_respuesta");
+
+    if (bloqueado) {
+      // Se anota el mensaje como visto de todos modos: si no, cada consulta al
+      // servidor lo volvería a bajar y a descartar, para siempre.
+      if (mensajeId) {
+        await escribir([STORES.whatsapp], ({ guardar }) =>
+          guardar(STORES.whatsapp, { ...coordinacion, respuestasAplicadas: yaAplicadas }),
+        );
+      }
+      return false;
+    }
+
+    const actualizado: PedidoLocal = {
+      ...pedido,
+      disponibilidad: respuesta.tipo,
+      // El bloque se limpia con cualquier otra respuesta: si el receptor había
+      // elegido 18:00-20:00 y después contesta que no lo recibe, dejar el bloque
+      // puesto haría que la ruta siguiera ordenando por una ventana que ya no
+      // significa nada.
+      bloqueHorarioId: respuesta.tipo === "horario_indicado" ? respuesta.bloqueHorarioId : null,
+    };
+
+    await escribir([STORES.pedidos, STORES.whatsapp], ({ guardar }) => {
+      guardar(STORES.pedidos, actualizado);
+      guardar(STORES.whatsapp, {
+        ...coordinacion,
+        estado: "respondido",
+        respuestasAplicadas: yaAplicadas,
+      });
+    });
+    return true;
+  });
+}
+
+/** Vuelve la disponibilidad a cero y borra la coordinación. Es la única forma de
+ *  reabrir un rechazo, y existe para un caso concreto: el chofer se dio cuenta de
+ *  que el teléfono estaba mal escrito. Esa respuesta era de otra persona, así que
+ *  no puede quedar pegada al pedido ni el pedido puede quedar cerrado por ella. */
+export function reiniciarDisponibilidad(pedidoId: string): Promise<void> {
+  return enFila(async () => {
+    const pedido = await leerPedido(pedidoId);
+    if (!pedido) return;
+
+    await escribir([STORES.pedidos, STORES.whatsapp], ({ guardar, borrar }) => {
+      guardar(STORES.pedidos, {
+        ...pedido,
+        disponibilidad: "pendiente_respuesta",
+        bloqueHorarioId: null,
+        // Un pedido que se había cerrado por rechazo vuelve a la ruta. Uno ya
+        // entregado NO se reabre: la entrega ocurrió y está contada.
+        estado: pedido.estado === "rechazado" ? "pendiente" : pedido.estado,
+      });
+      borrar(STORES.whatsapp, pedidoId);
+    });
+  });
+}
+
+/** Cierra un pedido como rechazado SIN que tenga una parada en la ruta del día.
+ *
+ *  Hace falta porque un rechazo puede llegar por WhatsApp antes de que el pedido
+ *  entre en una ruta: ahí no hay parada que marcar, pero el jefe igual tiene que
+ *  contarlo (FR-021) y el pedido tiene que dejar de proponerse (FR-012). El
+ *  evento y el cierre salen en la misma transacción, igual que en marcarEntrega.
+ *
+ *  Idempotente: si el pedido ya está cerrado devuelve null y no encola nada. */
+export function registrarRechazo({ fecha, pedidoId, choferId }: Marca): Promise<string | null> {
+  return enFila(async () => {
+    const pedido = await leerPedido(pedidoId);
+    if (!pedido) throw new Error("Ese pedido ya no existe en este teléfono.");
+    if (pedido.estado !== "pendiente") return null;
+
+    const hora = new Date().toISOString();
+    const registro = evento(choferId, fecha, "omision", hora, "rechazo");
+
+    await escribir([STORES.pedidos, STORES.cola], ({ guardar }) => {
+      guardar(STORES.pedidos, { ...pedido, estado: "rechazado" });
+      guardar(STORES.cola, registro);
+    });
+    return registro.id;
+  });
+}
+
+/** Los pedidos que el receptor rechazó por WhatsApp y que todavía nadie
+ *  registró. Son los que hay que sacar de la ruta y mostrarle al chofer para que
+ *  los cierre antes de terminar la jornada. */
+export async function rechazadosSinRegistrar(): Promise<PedidoLocal[]> {
+  const pedidos = await leerPedidos();
+  return pedidos.filter((p) => p.estado === "pendiente" && p.disponibilidad === "rechazado");
 }
 
 // ----------------------------------------------------------------------------

@@ -27,7 +27,10 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#0c3f9b",
+  // El mismo naranja que --brand en globals.css. Es la barra de estado del
+  // teléfono con la PWA instalada: si no coincide con la cabecera de la app, se
+  // ve una franja de otro color arriba de la pantalla.
+  themeColor: "#c2410c",
 };
 
 export default async function ConductorLayout({ children }: { children: React.ReactNode }) {

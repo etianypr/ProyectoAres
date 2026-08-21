@@ -7,7 +7,7 @@ import { Kpi } from "@/components/ui/kpi";
 import { Vacio } from "@/components/ui/vacio";
 import { ErrorDatos } from "@/components/ui/error-datos";
 import { buttonClass } from "@/components/ui/button";
-import { Package, CalendarRange, Truck, Wallet, CircleDollarSign, Pencil } from "lucide-react";
+import { Ban, Package, CalendarRange, Truck, Wallet, CircleDollarSign, Pencil } from "lucide-react";
 import { formatCLP, formatDate, formatNumber, formatTime, hoyChile, sumarDias } from "@/lib/format";
 import { getPeriodo, rangoPeriodo, etiquetaPeriodo } from "@/lib/periodo";
 import {
@@ -15,6 +15,7 @@ import {
   tarifaDelDia,
   valorPedido,
   type ConteoDia,
+  type ConteoMotivos,
   type EventoActividad,
 } from "@/lib/encomiendas/pago";
 import {
@@ -51,6 +52,9 @@ type Dia = {
   choferId: string | null;
   choferNombre: string;
   conteo: ConteoDia;
+  /** Por qué no se entregó lo que no se entregó. NO entra en ninguna cuenta de
+   *  plata: el pago se calcula desde `conteo`, que solo cuenta por tipo. */
+  motivos: ConteoMotivos;
   /** Las cifras que la base congeló para este día (0031): ingreso estimado y
    *  desglose del pago. Esta pantalla NO las recalcula — lee lo que se escribió
    *  cuando el día se registró, que es lo que hace que cambiar la regla de pago
@@ -125,7 +129,7 @@ export default async function EncomiendasPage() {
   ] = await Promise.all([
     supabase
       .from("encomienda_actividad")
-      .select("chofer_id, fecha, tipo, origen, chofer:choferes(id,nombre)")
+      .select("chofer_id, fecha, tipo, origen, motivo, chofer:choferes(id,nombre)")
       .gte("fecha", desde)
       .lte("fecha", hasta)
       .returns<EventoFila[]>(),
@@ -227,6 +231,7 @@ export default async function EncomiendasPage() {
     choferId: d.choferId,
     choferNombre: d.eventos[0]?.chofer?.nombre ?? "Conductor eliminado",
     conteo: d.conteo,
+    motivos: d.motivos,
     cifras: pagos.find((p) => p.fecha === d.fecha && p.chofer_id === d.choferId) ?? null,
     jornada: jornadas.find((j) => j.fecha === d.fecha && j.chofer_id === d.choferId) ?? null,
     manuales: d.manuales,
@@ -239,6 +244,10 @@ export default async function EncomiendasPage() {
   // es "cuántos días hubo reparto".
   const diasCalendario = new Set(dias.map((d) => d.fecha)).size;
   const totalEntregados = dias.reduce((a, d) => a + d.conteo.entregados, 0);
+  // Los rechazos del periodo. Se cuentan aparte de las no entregas porque son la
+  // única categoría que NO vuelve a intentarse (FR-012): para la central son
+  // paquetes que hay que devolver, no reparto pendiente.
+  const totalRechazos = dias.reduce((a, d) => a + d.motivos.rechazos, 0);
   const totalIngresos = dias.reduce((a, d) => a + (d.cifras?.ingresos_totales ?? 0), 0);
   const totalPago = dias.reduce((a, d) => a + (d.cifras?.pago_total ?? 0), 0);
   const promedioDia = diasCalendario > 0 ? totalEntregados / diasCalendario : 0;
@@ -408,7 +417,10 @@ export default async function EncomiendasPage() {
         </div>
       ) : null}
 
-      <div className="stagger-in grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {/* Cinco tarjetas, no cuatro: se sumó la de rechazos. En pantallas anchas
+          entran en una fila; en dos columnas la última queda sola, y está bien
+          que sea esa — es la que hay que mirar aparte. */}
+      <div className="stagger-in grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <Kpi
           label="Ingresos estimados"
           value={formatCLP(totalIngresos)}
@@ -441,6 +453,23 @@ export default async function EncomiendasPage() {
           }
           icon={Package}
           tint="bg-brand-soft text-brand"
+        />
+        {/* Los rechazos como cifra propia del periodo, y no escondidos dentro de
+            "no entregados". Es el número que la central necesita: son paquetes
+            que hay que devolver, no reparto que quedó pendiente. Y es el único
+            que no vuelve a intentarse (FR-012, FR-021). */}
+        <Kpi
+          label="Rechazos"
+          value={formatNumber(totalRechazos)}
+          valueClass={totalRechazos > 0 ? "text-danger" : undefined}
+          sub={
+            totalRechazos === 0
+              ? "Ningún cliente rechazó su encomienda"
+              : "No se reintentan: hay que devolverlos"
+          }
+          subClass={totalRechazos > 0 ? "text-danger" : "text-muted"}
+          icon={Ban}
+          tint="bg-danger-bg text-danger"
         />
         <Kpi
           label="Días trabajados"
@@ -533,6 +562,7 @@ export default async function EncomiendasPage() {
                     <th className="px-4 py-2.5 font-medium">Jornada</th>
                     <th className="px-4 py-2.5 text-right font-medium">Entregados</th>
                     <th className="px-4 py-2.5 text-right font-medium">No entreg.</th>
+                    <th className="px-4 py-2.5 text-right font-medium">Rechazos</th>
                     <th className="px-4 py-2.5 text-right font-medium">Ingresos</th>
                     <th className="px-4 py-2.5 text-right font-medium">A pagar</th>
                     <th className="px-4 py-2.5 font-medium">Origen</th>
@@ -573,6 +603,24 @@ export default async function EncomiendasPage() {
                         </td>
                         <td className="px-4 py-3 text-right tabular-nums text-muted">
                           {d.conteo.omitidos > 0 ? formatNumber(d.conteo.omitidos) : "—"}
+                        </td>
+                        {/* Los rechazos, aparte de las demás no entregas: son
+                            los que NO vuelven a intentarse, así que para la
+                            central son paquetes que hay que devolver y no
+                            reparto pendiente (FR-021).
+
+                            Con icono además del color: la constitución pide que
+                            un estado no se distinga solo por el color, y este es
+                            el que más caro sale confundir. */}
+                        <td className="px-4 py-3 text-right tabular-nums">
+                          {d.motivos.rechazos > 0 ? (
+                            <span className="inline-flex items-center gap-1 font-semibold text-danger">
+                              <Ban className="h-3.5 w-3.5" />
+                              {formatNumber(d.motivos.rechazos)}
+                            </span>
+                          ) : (
+                            <span className="text-muted">—</span>
+                          )}
                         </td>
                         {/* Un guion y no un $0: que un día no tenga cifras no
                             significa que no valga nada, significa que no se
