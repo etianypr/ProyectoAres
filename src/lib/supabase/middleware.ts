@@ -6,9 +6,37 @@ import { NextResponse, type NextRequest } from "next/server";
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
+  // Sin URL ni llave no hay nada que consultar: createServerClient tira una
+  // excepción y, como esto corre en el proxy, Next contesta 404 en TODAS las
+  // rutas. El error de verdad (falta .env.local) queda enterrado en la consola.
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !anonKey) {
+    const faltan = [
+      !url && "NEXT_PUBLIC_SUPABASE_URL",
+      !anonKey && "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    ]
+      .filter(Boolean)
+      .join(" y ");
+    const aviso =
+      `Falta ${faltan} en el entorno. Copiá .env.example como .env.local y ` +
+      "completá los datos del proyecto Supabase de ares (Project Settings > API).";
+
+    // En producción NO se deja pasar: sin sesión que verificar, seguir sería
+    // abrir el panel de la oficina entero sin login.
+    if (process.env.NODE_ENV === "production") {
+      return new NextResponse(aviso, { status: 500 });
+    }
+
+    // En desarrollo la app arranca y cada pantalla muestra su propio error de
+    // datos, que es lo que documenta el README.
+    console.error(`[ares] ${aviso}`);
+    return supabaseResponse;
+  }
+
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    url,
+    anonKey,
     {
       cookies: {
         getAll() {
