@@ -1,0 +1,345 @@
+{
+ "_lee_esto_primero": [
+  "Respuesta REAL de OpenRouteService (/v2/directions/driving-car/geojson),",
+  "capturada el 2026-08-24 sobre el MISMO tramo de Arica que fixtures/tramo-arica.json",
+  "usa para Mapbox: de Quinsachata al final del recorrido. Se conservan solo los",
+  "campos que lee lib/geo/openrouteservice.ts.",
+  "",
+  "Comparado con Mapbox sobre el mismo origen y destino: ORS traza 3418 m en 58",
+  "puntos y Mapbox 3612 m en 121. No es un error de ninguno de los dos: eligen",
+  "caminos distintos y muestrean el trazado distinto.",
+  "",
+  "OJO con las instrucciones: ORS las redacta en castellano, pero para el perfil",
+  "driving-car dice \"Camina hacia el noroeste\". Es otra razón de que la",
+  "navegación del chofer siga saliendo de Mapbox, que dice \"Conduzca\"."
+ ],
+ "features": [
+  {
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      -70.290018,
+      -18.471251
+     ],
+     [
+      -70.290216,
+      -18.471091
+     ],
+     [
+      -70.290424,
+      -18.470923
+     ],
+     [
+      -70.290986,
+      -18.470463
+     ],
+     [
+      -70.291121,
+      -18.470617
+     ],
+     [
+      -70.291268,
+      -18.470785
+     ],
+     [
+      -70.29147,
+      -18.471015
+     ],
+     [
+      -70.291566,
+      -18.471124
+     ],
+     [
+      -70.291845,
+      -18.471443
+     ],
+     [
+      -70.292269,
+      -18.471927
+     ],
+     [
+      -70.292707,
+      -18.471582
+     ],
+     [
+      -70.293061,
+      -18.471302
+     ],
+     [
+      -70.293377,
+      -18.471051
+     ],
+     [
+      -70.293419,
+      -18.471018
+     ],
+     [
+      -70.293773,
+      -18.470737
+     ],
+     [
+      -70.294151,
+      -18.470437
+     ],
+     [
+      -70.294904,
+      -18.469841
+     ],
+     [
+      -70.295402,
+      -18.469446
+     ],
+     [
+      -70.295492,
+      -18.469374
+     ],
+     [
+      -70.295897,
+      -18.469849
+     ],
+     [
+      -70.296007,
+      -18.469978
+     ],
+     [
+      -70.296702,
+      -18.469435
+     ],
+     [
+      -70.297447,
+      -18.468845
+     ],
+     [
+      -70.299059,
+      -18.467577
+     ],
+     [
+      -70.300704,
+      -18.466283
+     ],
+     [
+      -70.300822,
+      -18.466191
+     ],
+     [
+      -70.30266,
+      -18.468304
+     ],
+     [
+      -70.30289,
+      -18.468574
+     ],
+     [
+      -70.303914,
+      -18.469744
+     ],
+     [
+      -70.304126,
+      -18.469986
+     ],
+     [
+      -70.304648,
+      -18.470591
+     ],
+     [
+      -70.304922,
+      -18.470931
+     ],
+     [
+      -70.305057,
+      -18.471084
+     ],
+     [
+      -70.305459,
+      -18.471584
+     ],
+     [
+      -70.305539,
+      -18.471676
+     ],
+     [
+      -70.306028,
+      -18.472235
+     ],
+     [
+      -70.306134,
+      -18.47236
+     ],
+     [
+      -70.306419,
+      -18.472701
+     ],
+     [
+      -70.306506,
+      -18.472808
+     ],
+     [
+      -70.306536,
+      -18.472839
+     ],
+     [
+      -70.306708,
+      -18.47303
+     ],
+     [
+      -70.306923,
+      -18.473273
+     ],
+     [
+      -70.307077,
+      -18.473462
+     ],
+     [
+      -70.307158,
+      -18.473558
+     ],
+     [
+      -70.308042,
+      -18.474555
+     ],
+     [
+      -70.308204,
+      -18.474738
+     ],
+     [
+      -70.308882,
+      -18.475516
+     ],
+     [
+      -70.309088,
+      -18.475748
+     ],
+     [
+      -70.309225,
+      -18.475898
+     ],
+     [
+      -70.309666,
+      -18.476381
+     ],
+     [
+      -70.310057,
+      -18.476783
+     ],
+     [
+      -70.310672,
+      -18.477395
+     ],
+     [
+      -70.310773,
+      -18.477491
+     ],
+     [
+      -70.311327,
+      -18.478051
+     ],
+     [
+      -70.311878,
+      -18.478581
+     ],
+     [
+      -70.311986,
+      -18.478484
+     ],
+     [
+      -70.312333,
+      -18.478174
+     ],
+     [
+      -70.312408,
+      -18.478107
+     ]
+    ]
+   },
+   "properties": {
+    "summary": {
+     "distance": 3418.1,
+     "duration": 323.4
+    },
+    "way_points": [
+     0,
+     57
+    ],
+    "segments": [
+     {
+      "steps": [
+       {
+        "instruction": "Camina hacia el noroeste en Quinsachata",
+        "distance": 134.6,
+        "duration": 19.4,
+        "way_points": [
+         0,
+         3
+        ]
+       },
+       {
+        "instruction": "Gire a la izquierda a Chapiquiña",
+        "distance": 211.7,
+        "duration": 16.9,
+        "way_points": [
+         3,
+         9
+        ]
+       },
+       {
+        "instruction": "Gire a la derecha a Avenida Loa",
+        "distance": 442.9,
+        "duration": 39.9,
+        "way_points": [
+         9,
+         18
+        ]
+       },
+       {
+        "instruction": "Gire a la izquierda a Avenida Alejandro Azola",
+        "distance": 86.3,
+        "duration": 6.9,
+        "way_points": [
+         18,
+         20
+        ]
+       },
+       {
+        "instruction": "Gire a la derecha a Colo Colo",
+        "distance": 659.7,
+        "duration": 52.8,
+        "way_points": [
+         20,
+         25
+        ]
+       },
+       {
+        "instruction": "Gire a la izquierda a Avenida Santa María",
+        "distance": 1805.9,
+        "duration": 181.4,
+        "way_points": [
+         25,
+         54
+        ]
+       },
+       {
+        "instruction": "Gire a la derecha a Doctor Juan Noé",
+        "distance": 77.1,
+        "duration": 6.2,
+        "way_points": [
+         54,
+         57
+        ]
+       },
+       {
+        "instruction": "Llegar a Doctor Juan Noé, es recto",
+        "distance": 0,
+        "duration": 0,
+        "way_points": [
+         57,
+         57
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ]
+}

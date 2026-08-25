@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "ares-geo": {
+      "command": "node",
+      "args": [
+        "--env-file-if-exists=.env.local",
+        "--import",
+        "./mcp/registrar.mjs",
+        "mcp/servidor.ts"
+      ]
+    }
+  }
+}
