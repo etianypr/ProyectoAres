@@ -139,6 +139,10 @@
   --animate-expand: expand 0.28s var(--ease-suave) both;
   --animate-page: page-in 0.22s ease-out both;
   --animate-slide-up: slide-up 0.4s var(--ease-suave) both;
+  /* Los avisos que caen desde el borde de arriba. Más corta que slide-up: entra
+     en la franja que el conductor ya está mirando, no hay que llevarle la vista
+     hasta ahí. */
+  --animate-slide-down: slide-down 0.28s var(--ease-suave) both;
 }
 
 @keyframes fade-in {
@@ -161,6 +165,10 @@
 }
 @keyframes slide-up {
   from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-16px); }
   to { opacity: 1; transform: none; }
 }
 
