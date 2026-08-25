@@ -73,7 +73,7 @@ import { usePantallaEncendida } from "./use-pantalla-encendida";
 import { usePuntoEnRuta } from "./use-punto-en-ruta";
 import { useVozNavegacion } from "./use-voz";
 import { useBrujula } from "./use-brujula";
-import { InstruccionNavegacion } from "./instruccion-navegacion";
+import { CAJA_CARRIL, InstruccionNavegacion } from "./instruccion-navegacion";
 import { PedidoFormLocal } from "./pedido-form-local";
 import { GenerarRutaLocal } from "./generar-ruta-local";
 import { VistaPreviaRuta } from "./vista-previa-ruta";
@@ -861,6 +861,35 @@ export function PantallaEncomiendas({
   };
   const porcentaje = paradas.length > 0 ? Math.round((entregadas / paradas.length) * 100) : 0;
 
+  // Cómo va la jornada, para el carril de arriba del mapa: entregadas sobre el
+  // total, y las que no se pudieron entregar solo si hay alguna. Lo que falta no
+  // se escribe — es la resta, y una cifra más es una cifra que hay que descartar
+  // antes de leer la que importa.
+  //
+  // Vive arriba y no en la hoja porque es el único dato que el chofer quiere de
+  // reojo, manejando, sin abrir nada. Y se dibuja SIEMPRE que haya ruta, con
+  // maniobra o sin ella: la versión anterior se escondía justo cuando había
+  // navegación, o sea justo cuando el chofer no puede abrir la hoja para
+  // buscarlo.
+  //
+  // En columna y no en fila: así ocupa el alto que el cartel ya tiene y no le
+  // roba ancho al nombre de la calle, que es lo único que se lee de un vistazo.
+  const resumenJornada =
+    hayRuta && !propuesta ? (
+      <div className="flex shrink-0 flex-col items-end gap-0.5 text-xs font-semibold leading-tight">
+        <span className="flex items-center gap-1 tabular-nums text-ok">
+          <Check className="h-3.5 w-3.5 shrink-0" />
+          {entregadas}/{paradas.length}
+        </span>
+        {omitidas > 0 ? (
+          <span className="flex items-center gap-1 tabular-nums text-danger">
+            <X className="h-3.5 w-3.5 shrink-0" />
+            {omitidas}
+          </span>
+        ) : null}
+      </div>
+    ) : null;
+
   // Todo lo que la pantalla le tiene que decir al chofer, en una sola lista y en
   // un solo lugar: cae desde el borde de arriba (ver PilaAvisos). El nombre no es
   // "avisos" porque en este archivo eso ya son los avisos de WhatsApp que salen
@@ -1208,39 +1237,10 @@ export function PantallaEncomiendas({
 
       <PilaAvisos avisos={avisosEnPantalla} onAltura={setAltoAvisos} />
 
-      {/* Cómo va la jornada, en el medio del borde de arriba: entregadas sobre el
-          total, y las que no se pudieron entregar solo si hay alguna.
-          Acá arriba y no adentro de la hoja porque es el único dato que el chofer
-          quiere de reojo, manejando, sin abrir nada. Y en el medio porque los dos
-          costados ya tienen dueño: la flecha de volver a la izquierda y los
-          botones del mapa a la derecha.
-          Con el cartel de navegación puesto no se dibuja: ahí el medio de la
-          pantalla es la maniobra que viene, y dos cosas peleando por esa franja
-          es lo mismo que ninguna. */}
-      {hayRuta && !propuesta && !navegacion.paso ? (
-        <div
-          className="pointer-events-none absolute left-1/2 z-10 -translate-x-1/2 transition-[top] duration-200"
-          style={{ top: (altoAvisos || 0) + 16 }}
-        >
-          <div className="flex items-center gap-2.5 rounded-full bg-white/95 px-3.5 py-1.5 text-xs font-semibold shadow-md backdrop-blur">
-            <span className="flex items-center gap-1 tabular-nums text-ok">
-              <Check className="h-3.5 w-3.5 shrink-0" />
-              {entregadas} de {paradas.length}
-            </span>
-            {omitidas > 0 ? (
-              <span className="flex items-center gap-1 tabular-nums text-danger">
-                <X className="h-3.5 w-3.5 shrink-0" />
-                {omitidas}
-              </span>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
-
-      {/* La flecha de volver, el cartel de navegación y los avisos del GPS. Se
-          corren para abajo lo que ocupen los avisos, en vez de quedar tapados por
-          ellos: el cartel de navegación es lo que el chofer está leyendo para
-          saber dónde doblar. */}
+      {/* La flecha de volver, el cartel de navegación con el resumen adentro, y
+          los avisos del GPS. Se corren para abajo lo que ocupen los avisos, en
+          vez de quedar tapados por ellos: el cartel de navegación es lo que el
+          chofer está leyendo para saber dónde doblar. */}
       <div
         className="absolute inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] z-10 flex flex-col gap-2 transition-[margin-top] duration-200"
         style={{ marginTop: altoAvisos }}
@@ -1258,7 +1258,14 @@ export function PantallaEncomiendas({
               paso={navegacion.paso}
               siguiente={navegacion.siguiente}
               metros={navegacion.metrosAManiobra}
+              resumen={resumenJornada}
             />
+          ) : resumenJornada ? (
+            // Sin maniobra queda el mismo cartel, en el mismo lugar, con el
+            // resumen solo. Pegado a la derecha (ml-auto) para que no se mueva
+            // de costado cuando la navegación aparece o se corta: el número
+            // termina siempre en el mismo borde.
+            <div className={cn(CAJA_CARRIL, "ml-auto")}>{resumenJornada}</div>
           ) : null}
         </div>
 
@@ -1577,10 +1584,11 @@ export function PantallaEncomiendas({
         <Seccion titulo="Tu jornada">
           <div className="space-y-2">
             {/* Los tres contadores grandes (entregadas / sin entregar /
-                pendientes) se fueron: eso mismo está arriba, en el medio del
-                borde, y es lo que se mira de reojo manejando. Acá abajo queda
-                solo lo que hay que leer parado: por qué no se entregó cada una,
-                por qué el día no se cerró, y qué falta enviar. */}
+                pendientes) se fueron: eso mismo está arriba en el carril, dentro
+                del cartel de navegación, y es lo que se mira de reojo manejando.
+                Acá abajo queda solo lo que hay que leer parado: por qué no se
+                entregó cada una, por qué el día no se cerró, y qué falta
+                enviar. */}
 
             {/* El desglose de las no entregadas. Un "3 sin entregar" no le sirve
                 a nadie: lo que hay que saber es cuántas se reintentan y cuántas
