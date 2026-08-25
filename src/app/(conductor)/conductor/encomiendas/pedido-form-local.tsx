@@ -33,7 +33,7 @@
 //    cualquier texto, y sin consultar la red.
 
 import { useMemo, useState } from "react";
-import { AlertTriangle, Check, Save, SearchX } from "lucide-react";
+import { AlertTriangle, Check, Save, SearchX, StickyNote } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { DireccionInput } from "@/components/ui/direccion-input";
 import { MapaPunto } from "@/components/ui/mapa-punto";
@@ -101,6 +101,9 @@ export function PedidoFormLocal({
   // sabiendo que no se pudo ubicar. Se guarda el TEXTO y no un booleano para que
   // seguir escribiendo invalide la decisión sola.
   const [aceptadaAMano, setAceptadaAMano] = useState<string | null>(null);
+  // La nota, plegada mientras no haya una. Ver dónde se dibuja: es lo que hace
+  // que el botón de guardar entre en la pantalla sin deslizar.
+  const [notasAbiertas, setNotasAbiertas] = useState(Boolean(pedido?.notas));
 
   function set(campo: keyof typeof VACIO, valor: string) {
     setCampos((c) => ({ ...c, [campo]: valor }));
@@ -193,6 +196,9 @@ export function PedidoFormLocal({
     setCampos(VACIO);
     setElegida(null);
     setAceptadaAMano(null);
+    // El siguiente de la tanda arranca plegado otra vez: la nota del anterior
+    // no dice nada sobre si este va a llevar una.
+    setNotasAbiertas(false);
     setAviso(avisoFinal);
     // La advertencia va con el aviso de guardado: quien contiene el formulario
     // solo confirma "agregado" cuando NO hay nada que leer. Un cartel verde que
@@ -346,8 +352,19 @@ export function PedidoFormLocal({
   }
 
   return (
-    <form onSubmit={onSubmit}>
-      <div className="grid gap-4">
+    // Columna de alto completo: los campos arriba y el botón de guardar clavado
+    // abajo. El scroll —si hace falta— es del bloque de campos, NO del
+    // formulario entero, que es lo que hacía que "Guardar pedido" quedara
+    // debajo del borde y hubiera que deslizar para llegar a él con el pedido ya
+    // escrito. Un formulario que se llena treinta veces al día no puede pedir
+    // un gesto extra para cerrarse.
+    <form onSubmit={onSubmit} className="flex h-full min-h-0 flex-col">
+      {/* gap-3 y no gap-4: veinte píxeles repartidos en cinco huecos son la
+          diferencia entre que los campos entren de una o no.
+          content-start porque una rejilla que scrollea estira sus filas para
+          llenar el hueco cuando sobra alto, y los campos se irían separando
+          solos en un teléfono grande. */}
+      <div className="grid min-h-0 flex-1 content-start gap-3 overflow-y-auto px-4 pt-3">
         <Field label="Nombre del destinatario" htmlFor="pl_nombre">
           <Input
             id="pl_nombre"
@@ -456,15 +473,38 @@ export function PedidoFormLocal({
             cuadra, y entró desde "Sin ubicar — toca para corregir". */}
         <MarcarAqui onUsar={(m) => void usarMarca(m)} deshabilitado={guardando} />
 
-        <Field label="Notas" htmlFor="pl_notas">
-          <Textarea
-            id="pl_notas"
-            placeholder="Opcional — depto, timbre, seña de la casa"
-            value={campos.notas}
-            onChange={(e) => set("notas", e.target.value)}
-            enterKeyHint="done"
-          />
-        </Field>
+        {/* La nota es opcional y la mayoría de los pedidos no lleva ninguna,
+            pero el recuadro ocupaba lo mismo estuviera vacío o no: cien píxeles
+            que empujaban el botón de guardar fuera de la pantalla en todos los
+            pedidos, para servir a unos pocos.
+            Plegada es un renglón. Se abre tocándola —y con el cursor ya
+            adentro, porque quien la toca es porque va a escribir— y se queda
+            abierta sola cuando el pedido que se está corrigiendo ya tenía una:
+            ahí esconderla sería esconder un dato escrito. */}
+        {notasAbiertas ? (
+          <Field label="Notas" htmlFor="pl_notas">
+            <Textarea
+              id="pl_notas"
+              placeholder="Depto, timbre, seña de la casa"
+              value={campos.notas}
+              onChange={(e) => set("notas", e.target.value)}
+              enterKeyHint="done"
+              // Solo cuando la abrió el chofer. Editando un pedido que ya traía
+              // nota, robarle el foco al primer campo sería empezar por el final.
+              autoFocus={!pedido?.notas}
+              rows={2}
+            />
+          </Field>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setNotasAbiertas(true)}
+            className="flex items-center gap-2 rounded-xl border border-dashed border-separator px-3 py-2.5 text-sm font-medium text-muted active:bg-background"
+          >
+            <StickyNote className="h-4 w-4 shrink-0 text-brand" />
+            Agregar una nota
+          </button>
+        )}
 
         {/* La dirección quedó en duda: acá se resuelve, y no se guarda nada
             hasta que el chofer decida. */}
@@ -560,10 +600,13 @@ export function PedidoFormLocal({
           camioneta—. Para salir sin guardar está la flecha de arriba: un
           "Cancelar" al lado era un segundo camino para lo mismo, comiéndose
           medio ancho.
+          Clavado abajo y fuera del scroll: antes vivía al final de los campos y
+          había que deslizar para alcanzarlo, con el pedido ya escrito. Es el
+          gesto que sobra treinta veces al día.
           La confirmación de guardado ya no va acá sino asomando desde abajo (ver
           VistaPedido en pantalla.tsx): en el borde de la pantalla no empuja el
           formulario que el chofer ya está volviendo a llenar. */}
-      <div className="mt-5">
+      <div className="shrink-0 border-t border-divider px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
         <Button type="submit" size="lg" disabled={guardando} className="w-full">
           <Save className="h-4 w-4" />
           {guardando ? "Guardando…" : editando ? "Guardar cambios" : "Guardar pedido"}

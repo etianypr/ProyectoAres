@@ -293,7 +293,10 @@ function VistaPedido({
         </button>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-8 pt-3">
+      {/* Sin scroll ni padding propios: los pone el formulario, que necesita
+          repartirlos él para dejar el botón de guardar clavado abajo y que solo
+          scrollee la parte de los campos. */}
+      <div className="min-h-0 flex-1">
         <PedidoFormLocal pedido={pedido} onGuardado={onGuardado} />
       </div>
     </>
