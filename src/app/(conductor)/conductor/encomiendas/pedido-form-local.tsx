@@ -23,15 +23,26 @@
 //    La escapatoria existe igual ("Guardar sin ubicar"): el pedido se guarda con
 //    una advertencia visible y el chofer lo corrige después. Lo que no puede
 //    pasar es que entre a una ruta como si estuviera confirmado.
+//
+// 3. CUANDO NINGÚN MAPA SABE, SABE EL CHOFER. En Arica las casas no tienen
+//    numeración y está medido: de 23 direcciones reales, Mapbox tiene la puerta
+//    exacta en 2 (npm run sondear). Por eso "Estoy en la puerta" está siempre a
+//    la vista, no escondido detrás de un error — el momento en que se usa es
+//    justamente cuando no hay ningún error en pantalla. Y por eso el campo de
+//    dirección acepta un Plus Code: dictado por teléfono ubica mejor que
+//    cualquier texto, y sin consultar la red.
 
 import { useMemo, useState } from "react";
-import { AlertTriangle, Check, MapPin, Save, SearchX } from "lucide-react";
+import { AlertTriangle, Check, Save, SearchX } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { DireccionInput } from "@/components/ui/direccion-input";
+import { MapaPunto } from "@/components/ui/mapa-punto";
+import { MarcarAqui } from "./marcar-aqui";
+import { entraSolo, type Marca } from "@/lib/geo/marcar";
 import { Textarea } from "@/components/ui/textarea";
 import { Field } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { ubicarDireccion, type SugerenciaDireccion } from "@/lib/geocoding";
+import { ubicarDireccion, NOMBRE_FUENTE, type SugerenciaDireccion } from "@/lib/geocoding";
 import { normalizarTelefono } from "@/lib/telefono";
 import {
   guardarPedido,
@@ -57,12 +68,18 @@ type PorResolver = {
 export function PedidoFormLocal({
   pedido,
   onGuardado,
-  onCancelar,
 }: {
   /** Pedido a editar. Sin esto es uno nuevo. */
   pedido?: PedidoLocal;
-  onGuardado: () => void;
-  onCancelar?: () => void;
+  /** Guardado. Recibe la advertencia que quedó del guardado, o null si no hubo
+   *  ninguna: es lo que le permite a quien contiene el formulario confirmar el
+   *  "agregado" sin taparle al chofer un aviso que sí tiene que leer.
+   *
+   *  No hay onCancelar: para salir está la flecha de la vista que lo contiene
+   *  (ver VistaPedido en pantalla.tsx). Un botón "Cancelar" al lado del de
+   *  guardar era un segundo camino para lo mismo, ocupando la mitad del ancho
+   *  que le hacía falta al único botón que importa. */
+  onGuardado: (aviso?: string | null) => void;
 }) {
   const editando = pedido != null;
   const [campos, setCampos] = useState(
@@ -79,7 +96,6 @@ export function PedidoFormLocal({
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
-  const [listo, setListo] = useState(false);
   const [porResolver, setPorResolver] = useState<PorResolver | null>(null);
   // Texto que el chofer dio por bueno a mano desde la lista de sugerencias,
   // sabiendo que no se pudo ubicar. Se guarda el TEXTO y no un booleano para que
@@ -88,7 +104,6 @@ export function PedidoFormLocal({
 
   function set(campo: keyof typeof VACIO, valor: string) {
     setCampos((c) => ({ ...c, [campo]: valor }));
-    setListo(false);
     // Cambiar cualquier campo invalida la duda anterior: si tocó la dirección
     // hay que volver a buscarla, y si tocó otra cosa la lista de candidatos ya
     // se mostró y no tiene por qué quedar colgada.
@@ -97,6 +112,23 @@ export function PedidoFormLocal({
 
   const direccionEscrita = campos.direccion.trim();
   const direccionConfirmada = elegida != null && elegida.texto === direccionEscrita;
+
+  // El punto que se le muestra al chofer debajo del campo (ver mapa-punto.tsx).
+  // Mismo orden que al guardar: primero lo que eligió de la lista, y si no tocó
+  // la dirección de un pedido guardado, lo que ese pedido ya tenía.
+  //
+  // Solo cuando el texto CORRESPONDE a esas coordenadas: en cuanto empieza a
+  // escribir otra dirección, el mapa de la anterior desaparece. Dejarlo puesto
+  // sería mostrarle la esquina equivocada justo cuando la está corrigiendo.
+  const puntoPreview =
+    direccionConfirmada && elegida
+      ? { lat: elegida.lat, lng: elegida.lng }
+      : editando &&
+          pedido.direccion === direccionEscrita &&
+          pedido.lat != null &&
+          pedido.lng != null
+        ? { lat: pedido.lat, lng: pedido.lng }
+        : null;
 
   // Se recalcula en cada tecla y no en el blur: el chofer ve el número tomando
   // forma mientras escribe, que es la señal de que no hace falta el "+569".
@@ -113,8 +145,9 @@ export function PedidoFormLocal({
     pedido.telefono !== (telefono.ok ? telefono.telefono.e164 : campos.telefono.trim());
 
   /** El guardado en sí, con las coordenadas ya decididas. Está aparte porque hay
-   *  tres caminos que llegan hasta acá: el normal, elegir un candidato de la
-   *  lista de dudas, y "guardar sin ubicar". */
+   *  CUATRO caminos que llegan hasta acá: el normal, elegir un candidato de la
+   *  lista de dudas, "guardar sin ubicar", y el chofer marcando la puerta con el
+   *  GPS estando parado en ella (ver usarMarca y marcar-aqui.tsx). */
   async function guardar(coord: { lat: number | null; lng: number | null }, avisoFinal: string | null) {
     const nombre = campos.nombre.trim();
     const direccion = campos.direccion.trim();
@@ -161,17 +194,63 @@ export function PedidoFormLocal({
     setElegida(null);
     setAceptadaAMano(null);
     setAviso(avisoFinal);
-    setListo(true);
-    onGuardado();
+    // La advertencia va con el aviso de guardado: quien contiene el formulario
+    // solo confirma "agregado" cuando NO hay nada que leer. Un cartel verde que
+    // se va solo, tapando un "se guardó sin ubicar", sería peor que no decir
+    // nada.
+    onGuardado(avisoFinal);
+  }
+
+  /** Lo que falta para poder guardar, o null si está todo.
+   *
+   *  Vive aparte porque hay DOS caminos que escriben un pedido: el botón de
+   *  guardar y "Estoy en la puerta", que está siempre a la vista y por lo tanto
+   *  se puede tocar con el formulario a medio llenar. Escrito dos veces, uno de
+   *  los dos se iba a quedar atrás. */
+  function loQueFalta(): string | null {
+    if (!campos.nombre.trim()) return "El nombre del destinatario es obligatorio.";
+    if (!campos.telefono.trim()) return "El teléfono es obligatorio.";
+    if (!campos.direccion.trim()) return "La dirección es obligatoria.";
+    return null;
+  }
+
+  /** El chofer confirmó el punto que le dio el GPS estando en la puerta.
+   *
+   *  Se guarda derecho, sin consultar a ningún proveedor: no hay nada que
+   *  buscar, ya está ubicado. El aviso lleva el Plus Code porque es lo que hace
+   *  que esta casa no se tenga que volver a buscar nunca. */
+  async function usarMarca(marca: Marca) {
+    const falta = loQueFalta();
+    if (falta) return setError(falta);
+
+    setError(null);
+    setGuardando(true);
+    try {
+      const avisoTelefono = telefono.ok ? telefono.aviso : `Teléfono sin normalizar: ${telefono.motivo}`;
+      await guardar(
+        { lat: marca.lat, lng: marca.lng },
+        [
+          entraSolo(marca)
+            ? `Ubicación marcada con el GPS (±${marca.precisionM} m).`
+            : `Ubicación marcada con el GPS. ${marca.texto}`,
+          marca.codigo ? `Plus Code: ${marca.codigo}` : null,
+          avisoTelefono,
+        ]
+          .filter(Boolean)
+          .join(" ") || null,
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo guardar en el teléfono.");
+    } finally {
+      setGuardando(false);
+    }
   }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const nombre = campos.nombre.trim();
+    const falta = loQueFalta();
+    if (falta) return setError(falta);
     const direccion = campos.direccion.trim();
-    if (!nombre) return setError("El nombre del destinatario es obligatorio.");
-    if (!campos.telefono.trim()) return setError("El teléfono es obligatorio.");
-    if (!direccion) return setError("La dirección es obligatoria.");
 
     setError(null);
     setAviso(null);
@@ -212,9 +291,12 @@ export function PedidoFormLocal({
       const ubicacion = await ubicarDireccion(direccion);
 
       if (ubicacion.elegida) {
+        // La advertencia viaja CON el guardado y va primero. Una ubicación
+        // aproximada (la puerta interpolada) se guarda igual, pero callarlo
+        // sería guardar una coordenada que nadie sabe que es aproximada.
         await guardar(
           { lat: ubicacion.elegida.lat, lng: ubicacion.elegida.lng },
-          avisoTelefono,
+          [ubicacion.advertencia, avisoTelefono].filter(Boolean).join(" ") || null,
         );
         return;
       }
@@ -343,15 +425,11 @@ export function PedidoFormLocal({
           ) : null}
         </Field>
 
-        <Field
-          label="Dirección"
-          htmlFor="pl_direccion"
-          hint={
-            direccionConfirmada
-              ? undefined
-              : "Escribe y elige una de las direcciones que aparecen: así queda ubicada en el mapa."
-          }
-        >
+        {/* Sin descripción debajo y sin el "ubicada en el mapa" de antes: los dos
+            decían en palabras lo que el mapa de abajo ya muestra. Lo que falta o
+            lo que está mal lo dice ese mismo espacio —que ahora está reservado
+            desde el principio—, del tamaño que se merece. */}
+        <Field label="Dirección" htmlFor="pl_direccion">
           <DireccionInput
             id="pl_direccion"
             value={campos.direccion}
@@ -361,25 +439,22 @@ export function PedidoFormLocal({
               setAceptadaAMano(null);
             }}
             confirmada={direccionConfirmada}
+            punto={puntoPreview}
+            reservarMapa
             onConfirmarManual={(texto) => {
               setAceptadaAMano(texto);
               setElegida(null);
               setPorResolver(null);
             }}
           />
-          {direccionConfirmada ? (
-            <p className="mt-1 flex items-center gap-1 text-xs text-ok">
-              <MapPin className="h-3 w-3" />
-              Ubicada en el mapa
-            </p>
-          ) : null}
-          {!direccionConfirmada && aceptadaAMano === direccionEscrita && direccionEscrita ? (
-            <p className="mt-1 flex items-start gap-1 text-xs text-warn">
-              <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
-              <span>Sin ubicar en el mapa. No va a entrar en la ruta hasta que marques el punto.</span>
-            </p>
-          ) : null}
         </Field>
+
+        {/* El último recurso, y en Arica el más confiable: el chofer parado en
+            la puerta. Va acá, pegado a la dirección y NO escondido detrás de un
+            error, porque el momento en que se usa es justamente cuando no hay
+            ningún error en pantalla — llegó, la dirección lo dejó a media
+            cuadra, y entró desde "Sin ubicar — toca para corregir". */}
+        <MarcarAqui onUsar={(m) => void usarMarca(m)} deshabilitado={guardando} />
 
         <Field label="Notas" htmlFor="pl_notas">
           <Textarea
@@ -408,17 +483,38 @@ export function PedidoFormLocal({
                       type="button"
                       disabled={guardando}
                       onClick={() => void elegirCandidato(s)}
-                      className="flex w-full items-start gap-2 rounded-lg bg-white px-3 py-2.5 text-left transition-colors active:bg-background disabled:opacity-60"
+                      className="flex w-full items-center gap-2.5 rounded-lg bg-white px-2.5 py-2 text-left transition-colors active:bg-background disabled:opacity-60"
                     >
-                      <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
+                      {/* La estampilla de cada opción. Es lo que hace elegible
+                          una lista donde dos renglones dicen exactamente lo
+                          mismo: "Los Aromos 120" de la ciudad y el del valle de
+                          Azapa se leen igual y están a nueve kilómetros.
+
+                          Cuesta una petición a Mapbox por opción, y solo cuando
+                          la dirección salió dudosa. Al lado de salir con el
+                          paquete hacia el valle equivocado, no es nada. */}
+                      <MapaPunto
+                        lat={s.lat}
+                        lng={s.lng}
+                        etiqueta={s.direccion}
+                        // 96 px y no menos: por debajo de eso la atribución de
+                        // Mapbox —que viene dibujada en la imagen y no se
+                        // puede sacar— se come un tercio de la estampilla y no
+                        // queda mapa que mirar.
+                        alto={96}
+                        ancho={96}
+                        // Más lejos que la tira de abajo del campo: acá no hay
+                        // que ver la esquina sino EN QUÉ PARTE DE LA CIUDAD cae
+                        // cada opción, que es lo que las distingue.
+                        zoom={13}
+                        className="w-24 shrink-0"
+                      />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-medium leading-tight">
                           {s.direccion}
                         </span>
                         <span className="block truncate text-xs text-muted">
-                          {[s.detalle, s.fuente === "osm" ? "OSM" : "Mapbox"]
-                            .filter(Boolean)
-                            .join(" · ")}
+                          {[s.detalle, NOMBRE_FUENTE[s.fuente]].filter(Boolean).join(" · ")}
                         </span>
                       </span>
                       {s.soloCalle ? (
@@ -458,30 +554,17 @@ export function PedidoFormLocal({
         ) : null}
       </div>
 
-      {/* Guardar contra el borde derecho y Cancelar a su izquierda: el pulgar
-          del chofer cae en esa esquina, y es el mismo orden que el resto de los
-          diálogos del sistema (ver el modal de "Agregar día" en el panel).
-          El aviso de guardado se va al otro extremo con mr-auto, así no empuja
-          los botones ni les cambia el lugar de un guardado al siguiente. */}
-      <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
-        {listo && !aviso ? (
-          <span className="mr-auto flex items-center gap-1 text-sm text-ok">
-            <Check className="h-4 w-4" />
-            Agregado — listo para el siguiente
-          </span>
-        ) : null}
-        {onCancelar ? (
-          <button
-            type="button"
-            onClick={onCancelar}
-            // Con padding y no como texto suelto: en el teléfono tiene que ser
-            // tan tocable como el botón que tiene al lado.
-            className="rounded-full px-3 py-2 text-sm text-muted transition-colors hover:text-foreground active:bg-background"
-          >
-            Cancelar
-          </button>
-        ) : null}
-        <Button type="submit" disabled={guardando}>
+      {/* Un solo botón y a todo el ancho. Es el único que importa en esta
+          pantalla, y de ancho completo se aprieta con el pulgar sin mirar y sin
+          apuntar —que es como se cargan treinta pedidos parado al lado de la
+          camioneta—. Para salir sin guardar está la flecha de arriba: un
+          "Cancelar" al lado era un segundo camino para lo mismo, comiéndose
+          medio ancho.
+          La confirmación de guardado ya no va acá sino asomando desde abajo (ver
+          VistaPedido en pantalla.tsx): en el borde de la pantalla no empuja el
+          formulario que el chofer ya está volviendo a llenar. */}
+      <div className="mt-5">
+        <Button type="submit" size="lg" disabled={guardando} className="w-full">
           <Save className="h-4 w-4" />
           {guardando ? "Guardando…" : editando ? "Guardar cambios" : "Guardar pedido"}
         </Button>
