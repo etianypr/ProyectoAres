@@ -35,7 +35,6 @@ import {
   LocateFixed,
   MapPin,
   MapPinOff,
-  MessageCircle,
   MessageCircleOff,
   PackageCheck,
   Phone,
@@ -852,26 +851,6 @@ export function PantallaEncomiendas({
   // Desglose por motivo: es lo que el jefe va a ver en el panel, así que el
   // chofer tiene que poder comprobarlo antes de que llegue allá. Sobre todo los
   // rechazos, que son los que no se reintentan.
-  // Cómo va el aviso de WhatsApp de cada pedido de la ruta. Es el estado del
-  // MENSAJE, no de la entrega: "fallido" quiere decir que WhatsApp no lo pudo
-  // dejar, nunca que el cliente haya rechazado nada.
-  const avisos = paradas.reduce(
-    (acum, parada) => {
-      const c = jornada.whatsapp.get(parada.pedido.id);
-      if (!c || c.estado === "pendiente") acum.sinMandar.push(parada);
-      else if (c.estado === "fallido") acum.fallidos.push(parada);
-      else if (parada.pedido.disponibilidad === "pendiente_respuesta") acum.sinRespuesta++;
-      else acum.respondidos++;
-      return acum;
-    },
-    {
-      sinMandar: [] as ParadaVista[],
-      fallidos: [] as ParadaVista[],
-      sinRespuesta: 0,
-      respondidos: 0,
-    },
-  );
-
   const porMotivo = {
     noEncontrada: paradas.filter((p) => p.entrega === "persona_no_encontrada").length,
     sinRespuesta: paradas.filter((p) => p.entrega === "entrega_sin_respuesta").length,
@@ -1585,124 +1564,23 @@ export function PantallaEncomiendas({
           </Seccion>
         ) : null}
 
-        {/* Cómo van los avisos de WhatsApp.
-            Existe por el principio IV de la constitución: un proveedor externo
-            que falla no puede dejar al conductor sin saber qué pasó ni qué hacer.
-            Acá se ve el estado de los avisos y, si alguno no salió, el botón para
-            reintentarlo — y si tampoco así, queda claro que hay que llamar. */}
-        {hayRuta ? (
-          <Seccion titulo="Avisos por WhatsApp">
-            <div className="space-y-2">
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { n: avisos.respondidos, t: "Respondieron", c: "text-ok" },
-                  { n: avisos.sinRespuesta, t: "Sin responder", c: "text-foreground" },
-                  {
-                    n: avisos.fallidos.length + avisos.sinMandar.length,
-                    t: "Sin avisar",
-                    c: avisos.fallidos.length > 0 ? "text-warn" : "text-muted",
-                  },
-                ].map((x) => (
-                  <div key={x.t} className="rounded-2xl bg-card px-3 py-2.5 text-center shadow-soft">
-                    <p className={cn("text-xl font-semibold tabular-nums", x.c)}>{x.n}</p>
-                    <p className="text-[11px] text-muted">{x.t}</p>
-                  </div>
-                ))}
-              </div>
-
-              {/* El error general del canal: sin señal, sesión vencida, WhatsApp
-                  sin configurar. No es una alarma —el sondeo reintenta solo—
-                  pero el chofer tiene que poder verlo para no quedarse esperando
-                  respuestas que no van a llegar. */}
-              {jornada.errorWhatsapp ? (
-                <div className="flex items-start gap-2.5 rounded-2xl bg-warn-bg px-3.5 py-3 text-sm text-warn">
-                  <MessageCircleOff className="mt-0.5 h-4 w-4 shrink-0" />
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium">No se pudo usar WhatsApp</p>
-                    <p className="mt-0.5 text-xs">{jornada.errorWhatsapp}</p>
-                    <p className="mt-0.5 text-xs">
-                      Se reintenta solo. Mientras tanto, llama a los clientes que no
-                      respondieron.
-                    </p>
-                  </div>
-                </div>
-              ) : null}
-
-              {/* Los que quedaron sin aviso, uno por uno y con su reintento. De a
-                  uno y no "reintentar todos": si un número está mal escrito, va a
-                  fallar siempre, y el chofer necesita ver CUÁL para corregirlo. */}
-              {avisos.fallidos.length > 0 ? (
-                <ul className="overflow-hidden rounded-2xl bg-card shadow-soft">
-                  {avisos.fallidos.map((parada, i) => {
-                    const c = jornada.whatsapp.get(parada.pedido.id);
-                    return (
-                      <li
-                        key={parada.pedido.id}
-                        className={cn(
-                          "flex items-center gap-3 px-3.5 py-3 text-sm",
-                          i > 0 && "border-t border-divider",
-                        )}
-                      >
-                        <MessageCircleOff className="h-4 w-4 shrink-0 text-warn" />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate font-medium leading-tight">
-                            {parada.pedido.nombre}
-                          </p>
-                          <p className="truncate text-xs text-muted">
-                            {c?.ultimoError ?? "No se pudo mandar el aviso."}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          disabled={jornada.avisando}
-                          onClick={() => void jornada.reintentarAviso(parada.pedido.id)}
-                          aria-label={`Reintentar el aviso de ${parada.pedido.nombre}`}
-                          className="flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-separator px-3 text-xs font-semibold text-brand transition-transform active:scale-[0.97] disabled:opacity-50"
-                        >
-                          <RotateCw className={cn("h-3.5 w-3.5", jornada.avisando && "animate-spin")} />
-                          Reintentar
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : null}
-
-              {avisos.sinMandar.length > 0 ? (
-                <button
-                  type="button"
-                  disabled={jornada.avisando}
-                  onClick={() =>
-                    void jornada.avisarPedidos(avisos.sinMandar.map((p) => p.pedido.id))
-                  }
-                  className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-separator bg-card py-3.5 text-sm font-semibold text-brand transition-colors active:bg-brand-soft disabled:opacity-50"
-                >
-                  <MessageCircle className="h-4 w-4" />
-                  {jornada.avisando
-                    ? "Avisando…"
-                    : avisos.sinMandar.length === 1
-                      ? "Avisar a 1 cliente"
-                      : `Avisar a ${avisos.sinMandar.length} clientes`}
-                </button>
-              ) : null}
-            </div>
-          </Seccion>
-        ) : null}
+        {/* Acá había una sección "Avisos por WhatsApp": tres contadores, la lista
+            de los que no salieron y un botón de reintentar por pedido.
+            Se fue completa. El estado de un mensaje saliente no es una decisión
+            del chofer —lo único que él hace con esa información es llamar, y eso
+            ya se lo dice la propia parada con el icono del teléfono—, y el
+            reintento ahora corre solo en el sondeo (ver sincronizarWhatsapp).
+            De todo eso queda visible una sola cosa, y arriba con los demás
+            avisos: que el canal está caído, porque mientras lo esté no van a
+            llegar respuestas y esperarlas sí cambia lo que el chofer hace. */}
 
         <Seccion titulo="Tu jornada">
           <div className="space-y-2">
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { n: entregadas, t: "Entregadas", c: "text-ok" },
-                { n: omitidas, t: "Sin entregar", c: "text-danger" },
-                { n: paradas.length - entregadas - omitidas, t: "Pendientes", c: "text-foreground" },
-              ].map((x) => (
-                <div key={x.t} className="rounded-2xl bg-card px-3 py-2.5 text-center shadow-soft">
-                  <p className={cn("text-xl font-semibold tabular-nums", x.c)}>{x.n}</p>
-                  <p className="text-[11px] text-muted">{x.t}</p>
-                </div>
-              ))}
-            </div>
+            {/* Los tres contadores grandes (entregadas / sin entregar /
+                pendientes) se fueron: eso mismo está arriba, en el medio del
+                borde, y es lo que se mira de reojo manejando. Acá abajo queda
+                solo lo que hay que leer parado: por qué no se entregó cada una,
+                por qué el día no se cerró, y qué falta enviar. */}
 
             {/* El desglose de las no entregadas. Un "3 sin entregar" no le sirve
                 a nadie: lo que hay que saber es cuántas se reintentan y cuántas

@@ -102,8 +102,6 @@ export type Jornada = {
   /** Manda el aviso a los pedidos que entraron en la ruta y todavía no lo
    *  tienen. Se llama al confirmar una ruta (FR-007). */
   avisarPedidos: (pedidoIds: string[]) => Promise<void>;
-  /** Reintento manual de un aviso que falló. */
-  reintentarAviso: (pedidoId: string) => Promise<void>;
   marcarLlamada: (pedidoId: string, resultado: "contesto" | "no_contesto") => Promise<void>;
   /** Cierra una parada con uno de los cuatro resultados y devuelve el
    *  identificador para deshacerla, o null si ya estaba cerrada (o si el toque
@@ -440,24 +438,21 @@ export function useJornada({
     [pedidos, fecha, recargar],
   );
 
-  const reintentarAviso = useCallback(
-    async (pedidoId: string) => {
-      const pedido = pedidos.find((p) => p.id === pedidoId);
-      if (!pedido) return;
-      setAvisando(true);
-      try {
-        const fallo = await pedirAviso(pedido, fecha);
-        setErrorWhatsapp(fallo?.error ?? null);
-        await recargar();
-      } finally {
-        setAvisando(false);
-      }
-    },
-    [pedidos, fecha, recargar],
-  );
-
-  /** Baja las respuestas, las aplica y manda las listas de horarios que hagan
-   *  falta. Es el paso 3-5 del flujo descrito en local/whatsapp.ts. */
+  /** Baja las respuestas, las aplica, manda las listas de horarios que hagan
+   *  falta y reintenta los avisos que no salieron. Es el paso 3-5 del flujo
+   *  descrito en local/whatsapp.ts.
+   *
+   *  El reintento vive ACÁ y no en un botón porque el estado de los avisos no es
+   *  trabajo del chofer: él ve, por parada, si al receptor hay que llamarlo
+   *  (ParadaVista.hayQueContactar), y que el mensaje saliera al primer intento o
+   *  al tercero no cambia nada de lo que hace en la puerta. Antes había una
+   *  sección entera con contadores y un botón de reintentar por pedido, y lo que
+   *  el chofer hacía con eso era tocar reintentar hasta que el número cambiara de
+   *  color.
+   *
+   *  No insiste para siempre: `pedidosSinAviso` descarta los que ya tienen aviso
+   *  —al receptor no le puede llegar dos veces— y los que agotaron los intentos
+   *  (MAX_INTENTOS_AVISO), que es el caso del número mal escrito. */
   const sincronizarWhatsapp = useCallback(async () => {
     if (whatsappEnVueloRef.current) return;
     whatsappEnVueloRef.current = true;
@@ -477,7 +472,27 @@ export function useJornada({
         }
       }
 
-      if (r.aplicadas > 0 || r.pedirHorarios.length > 0) await recargar();
+      // Los avisos que quedaron sin salir. La ruta se lee del teléfono en vez de
+      // usar el estado del hook para no meter `ruta` en las dependencias: sería
+      // reiniciar el sondeo con cada recarga.
+      const ruta = await leerRuta(fecha);
+      const faltantes = ruta
+        ? await pedidosSinAviso(ruta.paradas.map((parada) => parada.pedidoId))
+        : [];
+      if (faltantes.length > 0) {
+        const guardados = await leerPedidos();
+        const porId = new Map(guardados.map((p) => [p.id, p] as const));
+        // De a uno y en serie, por lo mismo que avisarPedidos: son consultas que
+        // a su vez llaman a Meta.
+        for (const id of faltantes) {
+          const pedido = porId.get(id);
+          if (pedido) await pedirAviso(pedido, fecha);
+        }
+      }
+
+      if (r.aplicadas > 0 || r.pedirHorarios.length > 0 || faltantes.length > 0) {
+        await recargar();
+      }
     } finally {
       whatsappEnVueloRef.current = false;
     }
@@ -593,7 +608,6 @@ export function useJornada({
     errorWhatsapp,
     avisando,
     avisarPedidos,
-    reintentarAviso,
     marcarLlamada: onLlamada,
     marcarEntrega: onEntrega,
     registrarRechazoSuelto: onRechazoSuelto,
