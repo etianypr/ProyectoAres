@@ -204,6 +204,11 @@ async function reintentarUbicar(
     const r = await ubicarDireccion(pedido.direccion);
     if (r.elegida) {
       encontradas.push({ id: pedido.id, lat: r.elegida.lat, lng: r.elegida.lng });
+      // Entró a la ruta, pero puede haber entrado con la puerta interpolada
+      // (tipo "aproximada"): se avisa igual. Un pedido que entra con una
+      // coordenada aproximada y sin decirlo es el chofer buscando el número a
+      // pie en la cuadra, sin saber por qué.
+      if (r.advertencia) advertencias.push(`${pedido.nombre}: ${r.advertencia}`);
       continue;
     }
     // Sin ubicación confirmada. La advertencia nombra al destinatario porque es

@@ -42,6 +42,10 @@
 // Para quedar del lado limpio hay que activar "permanent geocoding" en la
 // cuenta y agregarle "permanent=true" a la consulta; queda anotado acá para
 // cuando la cuenta pase a plan pago.
+// El tercer camino, y el único que no le pregunta a nadie: un Plus Code se
+// resuelve con aritmética. Ver el bloque de más abajo y lib/geo/plus-code.ts.
+import { resolverPlusCode } from "@/lib/geo/plus-code";
+
 const MAPBOX_GEOCODE = "https://api.mapbox.com/search/geocode/v6/forward";
 
 // La empresa reparte en Arica: el recuadro ACOTA la búsqueda a la ciudad y su
@@ -133,6 +137,10 @@ export type Confianza =
 export type TipoUbicacion =
   /** Una sola coincidencia y con número: se puede usar sin preguntar. */
   | "exacta"
+  /** La calle es la correcta y el número cae en su cuadra, pero la puerta exacta
+   *  no está en los datos del proveedor: la posición es INTERPOLADA. Se usa —el
+   *  chofer llega a la cuadra— con la advertencia a la vista. */
+  | "aproximada"
   /** Varias coincidencias plausibles y separadas: TIENE que elegir el chofer. */
   | "ambigua"
   /** Se encontró la calle pero no el número. */
@@ -218,7 +226,21 @@ export type SugerenciaDireccion = {
   /** De dónde salió. Se muestra en la lista: es lo que le permite a la empresa
    *  ver que una corrección que hizo en OpenStreetMap ya está llegando a la app
    *  (Mapbox tarda lo suyo en incorporarlas, ver la cabecera). */
-  fuente: "mapbox" | "osm";
+  fuente: Fuente;
+};
+
+export type Fuente = "mapbox" | "osm" | "plus_code";
+
+/** Cómo se llama cada fuente en pantalla.
+ *
+ *  Es un Record sobre la unión a propósito, y no un `=== "osm" ? … : "Mapbox"`
+ *  escrito en cada pantalla: así estaba antes, en dos archivos, y el `else`
+ *  etiquetaba como "Mapbox" cualquier fuente nueva. Con esto, agregar una
+ *  fuente sin ponerle nombre no compila. */
+export const NOMBRE_FUENTE: Record<Fuente, string> = {
+  mapbox: "Mapbox",
+  osm: "OSM",
+  plus_code: "Plus Code",
 };
 
 type FeatureV6 = {
@@ -289,7 +311,13 @@ function aSugerencia(f: FeatureV6): SugerenciaDireccion[] {
       lng,
       soloCalle,
       confianza: confianzaMapbox(p),
-      coincideNumero: numero == null ? null : numero === "matched",
+      // "plausible" NO es false. Mapbox devolvió el número que se le pidió —lo
+      // que no tiene es la puerta— y marcarlo como false le pinta al chofer la
+      // marca grave "otro número" (ver direccion-input) sobre una dirección que
+      // está bien escrita, y además dispara la búsqueda cara de
+      // completarNumeroEnCalles() para nada. null es lo que corresponde: el
+      // proveedor no lo confirma.
+      coincideNumero: numero == null || numero === "plausible" ? null : numero === "matched",
       fuente: "mapbox",
     },
   ];
@@ -299,25 +327,36 @@ function aSugerencia(f: FeatureV6): SugerenciaDireccion[] {
  *
  *  Se mira el TIPO de resultado y no solo el `confidence`: un barrio con
  *  confianza "exact" sigue siendo un barrio, y entregar en el centroide de un
- *  barrio no es entregar. */
+ *  barrio no es entregar.
+ *
+ *  ⚠️ Y NO se decide por `confidence`. Esto se aprendió caro: Mapbox recalibró
+ *  esa cifra y hoy contesta "low" para PRÁCTICAMENTE TODA dirección de Arica
+ *  —medido, 23 de 23— porque la consulta no trae código postal, comuna ni
+ *  región, y esos componentes pesan aunque nadie los haya pedido. Como acá
+ *  "low" devolvía "baja", ubicarDireccion() dejaba `elegida` en null SIEMPRE y
+ *  ningún pedido entraba a la ruta: el chofer veía "confírmala antes de salir"
+ *  en cada dirección. Las pruebas seguían en verde porque los fixtures se
+ *  habían capturado antes del cambio, que es exactamente el agujero que avisa
+ *  pruebas/README.md.
+ *
+ *  Lo que sí siguió siendo confiable —verificado contra la API viva— son los
+ *  COMPONENTES: dicen cosa por cosa qué se pudo hacer coincidir. Se decide con
+ *  esos, y `confidence` no se lee. */
 function confianzaMapbox(p: NonNullable<FeatureV6["properties"]>): Confianza {
   if (p.feature_type === "neighborhood" || p.feature_type === "place") return "baja";
   if (p.feature_type === "street") return "aproximada";
 
-  // Una dirección con número: manda lo que diga el proveedor de su propia
-  // coincidencia. Sin match_code (pasa en algunos resultados) no se asume lo
-  // mejor: queda como aproximada, que es lo que se sabe.
-  switch (p.match_code?.confidence) {
-    case "exact":
-    case "high":
-      return p.match_code?.address_number === "matched" ? "exacta" : "aproximada";
-    case "medium":
-      return "aproximada";
-    case "low":
-      return "baja";
-    default:
-      return "aproximada";
-  }
+  // Acá ya no llega ningún street "unmatched": aSugerencia() los descarta antes
+  // (ver el comentario de la interpolación allá arriba). Así que la calle es la
+  // correcta y lo único en juego es la PUERTA:
+  //
+  //   "matched"    la puerta existe en los datos de Mapbox.
+  //   "plausible"  el número cae en el rango de la cuadra pero la puerta no
+  //                está: la posición es INTERPOLADA. Sirve para llegar a la
+  //                cuadra, no a la puerta — que es la definición de
+  //                "aproximada".
+  //   sin dato     no se asume lo mejor: aproximada, que es lo que se sabe.
+  return p.match_code?.address_number === "matched" ? "exacta" : "aproximada";
 }
 
 /** Una fila de Nominatim en formato jsonv2 (que llama "category" a lo que el
@@ -391,10 +430,72 @@ function aSugerenciaOsm(f: FilaOsm): SugerenciaDireccion[] {
 // "senal" corta la consulta cuando el chofer siguió escribiendo. Una consulta
 // cancelada devuelve lista vacía, así que el llamador debe descartar la
 // respuesta —no vaciar lo que ya mostraba— si su propia señal quedó abortada.
+// ---------------------------------------------------------------------------
+// Plus Codes: el camino corto
+// ---------------------------------------------------------------------------
+//
+// Un Plus Code YA ES la ubicación. No hay nada que buscar, nada que consultar y
+// nada sobre lo que dudar: se resuelve con aritmética, sin red, sin API key y
+// siempre igual (ver lib/geo/plus-code.ts).
+//
+// Que esto exista en el campo de dirección es la respuesta al problema de fondo
+// de Arica, y está medido: de 23 direcciones reales, Mapbox tiene la puerta
+// exacta en 2 y estima el resto (npm run sondear). Para una casa sin número, un
+// código dictado por teléfono —"GMCP+MX"— ubica mejor que cualquier dirección
+// escrita, y ubica igual de bien mañana.
+//
+// Por eso corta antes que los proveedores en los tres caminos de entrada: no
+// tiene sentido preguntarle a Mapbox por algo que ya sabemos.
+
+/** Un código con este recuadro o menos apunta a la puerta. Diez dígitos dan
+ *  ~14 m; once, ~3 m. Por encima de esto ya es la cuadra o el barrio y hay que
+ *  decirlo. */
+const METROS_PUERTA = 20;
+
+/** ¿Lo escrito es un Plus Code? Se pregunta antes de normalizar: la
+ *  normalización está pensada para direcciones y no tiene por qué respetar un
+ *  código. */
+export function esPlusCode(texto: string): boolean {
+  return resolverPlusCode(texto) !== null;
+}
+
+/** El Plus Code escrito, ya como sugerencia, con el tamaño de su recuadro al
+ *  lado: eso último no entra en SugerenciaDireccion y hace falta para poder
+ *  decirle al chofer CUÁNTO cubre un código impreciso. null si no era código. */
+function comoPlusCode(
+  texto: string,
+): { sugerencia: SugerenciaDireccion; precisionMetros: number } | null {
+  const r = resolverPlusCode(texto);
+  if (!r) return null;
+
+  const sugerencia: SugerenciaDireccion = {
+    id: `plus:${r.codigoCompleto}`,
+    // Se guarda el código COMPLETO y no lo que se escribió: un código corto no
+    // significa nada sin saber respecto de dónde se leyó, y lo que queda
+    // guardado en el pedido tiene que valerse solo.
+    direccion: r.codigoCompleto,
+    detalle: `Plus Code · ±${r.precisionMetros} m`,
+    lat: r.lat,
+    lng: r.lng,
+    soloCalle: false,
+    confianza: r.precisionMetros <= METROS_PUERTA ? "exacta" : "aproximada",
+    // No hay número de casa en juego: no es que no coincida, es que no aplica.
+    coincideNumero: null,
+    fuente: "plus_code",
+  };
+
+  return { sugerencia, precisionMetros: r.precisionMetros };
+}
+
 export async function sugerirDirecciones(
   texto: string,
   senal?: AbortSignal,
 ): Promise<SugerenciaDireccion[]> {
+  // Un código no se le pregunta a ningún proveedor. Sale de acá sin tocar la
+  // red, así que la sugerencia aparece mientras el chofer todavía escribe.
+  const codigo = comoPlusCode(texto);
+  if (codigo) return [codigo.sugerencia];
+
   // El largo mínimo se mide sobre lo ESCRITO y no sobre lo normalizado: si no,
   // escribir "Av." (que normaliza a "avenida") disparaba una consulta por una
   // abreviatura sola.
@@ -437,6 +538,10 @@ export async function sugerirEnOsm(
   texto: string,
   senal?: AbortSignal,
 ): Promise<SugerenciaDireccion[]> {
+  // Los dos proveedores se consultan en paralelo desde la misma pantalla (ver
+  // direccion-input): si el código ya salió por el otro lado, preguntar acá
+  // sería gastar el turno de OpenStreetMap para traer ruido.
+  if (esPlusCode(texto)) return [];
   if (texto.trim().length < MIN_CARACTERES) return [];
   const q = normalizarConsulta(texto);
   if (!q) return [];
@@ -492,6 +597,248 @@ export function combinarSugerencias(
     return !yaEstan.some((otra) => otra === clave || otra.startsWith(`${clave} `));
   });
   return [...deMapbox, ...extras];
+}
+
+// ----------------------------------------------------------------------------
+// El número que quedó colgando: "Linderos 3536"
+// ----------------------------------------------------------------------------
+//
+// Caso medido en la operación, y de los que más tiempo hacen perder: la calle se
+// llama "Avenida Linderos Poniente" y en la boleta dice "Linderos 3536". Los dos
+// proveedores contestan la CALLE marcada "sin número" —el 3536 se pierde— y la
+// puerta aparece recién si el chofer escribe el nombre largo entero. Treinta
+// veces al día eso son tres palabras de más cada vez, o un pedido sin ubicar.
+//
+// La regla es simple y es la que pidió la operación: si TODO lo que escribió
+// aparece, como palabra completa, en el nombre de una calle, entonces esa es la
+// calle que tenía en la cabeza — y el número que puso al final hay que buscarlo
+// ahí. Se toma el nombre OFICIAL de esa calle, se le pega el número, y se vuelve
+// a preguntar:
+//
+//   escribe          "Linderos 3536"
+//   contestan        "Avenida Linderos Poniente"   (sin número)
+//                    "Avenida Linderos Oriente"    (sin número)
+//   se pregunta      "Avenida Linderos Poniente 3536"
+//                    "Avenida Linderos Oriente 3536"
+//   queda            la o las que EXISTEN con ese número
+//
+// Tres cosas que esto NO hace, a propósito:
+//
+//   · no elige. Si el 3536 existe en las dos, salen las dos y elige el chofer.
+//     Poniente y Oriente son avenidas distintas, no dos formas de escribir la
+//     misma (principio IV: la ambigüedad se muestra, no se resuelve sola).
+//   · no deja la que no sirve. Si el número existe en una sola, la otra SALE de
+//     la lista: con el número escrito, una calle que no lo tiene dejó de ser una
+//     opción, y ofrecerla —encima marcada "sin número"— es ofrecer justo la
+//     equivocada.
+//   · no adivina con palabras a medias. "Linder" no dispara nada: la palabra
+//     tiene que estar entera. Es lo único que separa "es esta calle" de "se
+//     parece a esta calle", que es el error que ya conocemos (ver más arriba el
+//     número interpolado sobre otra calle).
+
+/** Palabras que no distinguen una calle de otra: si lo único que coincide es
+ *  "avenida" o "los", no coincidió nada.
+ *
+ *  OJO con lo que NO está en esta lista. "poniente", "oriente", "norte" y "sur"
+ *  SÍ distinguen —son justamente lo que separa Linderos Poniente de Linderos
+ *  Oriente—, así que escribir "Linderos Poniente" tiene que dejar la otra
+ *  afuera. "San" y "Santa" tampoco están: San Marcos y Marcos Sanhueza son dos
+ *  calles distintas de Arica. */
+const PALABRAS_GENERICAS = new Set([
+  "avenida",
+  "av",
+  "calle",
+  "pasaje",
+  "pje",
+  "psje",
+  "callejon",
+  "camino",
+  "poblacion",
+  "villa",
+  "condominio",
+  "sector",
+  "el",
+  "la",
+  "los",
+  "las",
+  "de",
+  "del",
+  "y",
+]);
+
+/** Las palabras de un texto, sin tildes y sin puntuación. */
+function palabrasDe(texto: string): string[] {
+  return normalizar(texto)
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter(Boolean);
+}
+
+/** ¿Es esta calle la que se escribió? Lo es cuando TODAS las palabras que
+ *  distinguen lo escrito están, enteras, en el nombre de la calle.
+ *
+ *  Se exige "todas" y no "alguna" para que escribir más sea siempre acotar más:
+ *  "Linderos" acepta las dos avenidas, "Linderos Poniente" solo una. */
+function esLaCalleEscrita(escrito: string, nombreCalle: string): boolean {
+  const buscadas = palabrasDe(escrito).filter((p) => !PALABRAS_GENERICAS.has(p));
+  if (buscadas.length === 0) return false;
+  const enLaCalle = new Set(palabrasDe(nombreCalle));
+  return buscadas.every((p) => enLaCalle.has(p));
+}
+
+/** Parte "Avenida Linderos Poniente 3536" en calle y número. null cuando el
+ *  texto no termina en un número: ahí no hay ninguna puerta que buscar. */
+function partirCalleYNumero(texto: string): { calle: string; numero: string } | null {
+  // El `[^\d\s]` obliga a que la calle termine en algo que no sea un dígito: sin
+  // eso, "21 de Mayo 500" se partía como calle "21 de" y número "Mayo 500".
+  const m = /^(.*[^\d\s])\s+(\d{1,6})$/.exec(texto.trim());
+  return m ? { calle: m[1].trim(), numero: m[2] } : null;
+}
+
+/** El nombre de calle de un candidato, para volver a preguntar por ella.
+ *
+ *  Una calle sola YA es su nombre. Una puerta con OTRO número ("Avenida Linderos
+ *  Poniente 4200" cuando se pidió el 3536) lo trae pegado atrás y hay que
+ *  sacárselo: esa es la misma calle, y es el otro síntoma del mismo problema.
+ *  Una puerta cuyo número SÍ coincide no se toca — ya está resuelta. */
+function nombreDeCalleDe(c: SugerenciaDireccion): string | null {
+  if (c.soloCalle) return c.direccion.trim();
+  if (c.coincideNumero === false) return partirCalleYNumero(c.direccion)?.calle ?? null;
+  return null;
+}
+
+/** Cuántas calles se prueban con el número. Dos es el caso real (Linderos
+ *  Poniente y Oriente) y la tercera es margen; más que eso ya no es "la calle
+ *  que el chofer tenía en la cabeza" y son consultas que se pagan. */
+const MAX_CALLES_A_PROBAR = 3;
+
+/** Lo ya preguntado, mientras dure la pantalla. Escribiendo el número dígito a
+ *  dígito la misma consulta vuelve a caer, y cada una se paga. */
+const MAX_RECORDADAS = 60;
+const yaPreguntado = new Map<string, SugerenciaDireccion[]>();
+
+function recordar(clave: string, puertas: SugerenciaDireccion[]): void {
+  if (yaPreguntado.size >= MAX_RECORDADAS) {
+    const masVieja = yaPreguntado.keys().next();
+    if (!masVieja.done) yaPreguntado.delete(masVieja.value);
+  }
+  yaPreguntado.set(clave, puertas);
+}
+
+/** Le pregunta a Mapbox por una puerta concreta —y solo a Mapbox: los números de
+ *  casa de Arica los tiene él (ver la cabecera del archivo)—.
+ *
+ *  Devuelve null cuando no se pudo preguntar (sin señal, sin token, o el chofer
+ *  siguió escribiendo). No es lo mismo que "ese número no existe ahí", y
+ *  confundirlos borraría de la lista la única calle correcta por un corte de
+ *  señal. */
+async function puertaEnCalle(
+  calle: string,
+  numero: string,
+  senal?: AbortSignal,
+): Promise<SugerenciaDireccion[] | null> {
+  const consulta = `${calle} ${numero}`;
+  const clave = normalizar(consulta);
+  const recordada = yaPreguntado.get(clave);
+  if (recordada) return recordada;
+
+  // autocomplete=false: esta consulta la armamos nosotros y está completa, no es
+  // un prefijo a medio teclear.
+  const url = urlMapbox(consulta, { limit: "2", autocomplete: "false" });
+  if (!url) return null;
+
+  try {
+    const res = await fetch(url, { signal: senal });
+    if (!res.ok) return null;
+    const datos = (await res.json()) as { features?: FeatureV6[] };
+    const puertas = (datos.features ?? [])
+      .flatMap(aSugerencia)
+      // El número tiene que ser EL QUE SE PIDIÓ y la calle, la que se preguntó.
+      // Sin estos dos filtros volvemos al error de siempre: Mapbox interpola el
+      // 3536 donde le parece y contesta con cara de resultado bueno.
+      .filter((s) => s.coincideNumero === true && esLaCalleEscrita(calle, s.direccion));
+    recordar(clave, puertas);
+    return puertas;
+  } catch {
+    return null;
+  }
+}
+
+export type PuertasEnCalles = {
+  /** Las puertas que existen con ese número. Vacío si ninguna. */
+  puertas: SugerenciaDireccion[];
+  /** Las calles que se probaron y NO tienen ese número: las que el chofer
+   *  descartó sin saberlo al escribirlo. */
+  sinEseNumero: string[];
+};
+
+/** Busca el número escrito en las calles que se llaman como lo escrito.
+ *
+ *  Nunca lanza y no consulta nada cuando no hace falta: si el texto no termina
+ *  en un número, o si alguien ya devolvió la puerta con ESE número, sale sin
+ *  gastar una sola petición. Ese es el camino normal. */
+export async function completarNumeroEnCalles(
+  texto: string,
+  candidatos: SugerenciaDireccion[],
+  senal?: AbortSignal,
+): Promise<PuertasEnCalles> {
+  const nada: PuertasEnCalles = { puertas: [], sinEseNumero: [] };
+
+  const partido = partirCalleYNumero(normalizarConsulta(texto));
+  if (!partido) return nada;
+  if (candidatos.some((c) => c.coincideNumero === true)) return nada;
+
+  const calles: string[] = [];
+  for (const c of candidatos) {
+    const nombre = nombreDeCalleDe(c);
+    if (!nombre || !esLaCalleEscrita(partido.calle, nombre)) continue;
+    // La misma calle traída por los dos proveedores se pregunta una vez.
+    if (calles.some((otra) => normalizar(otra) === normalizar(nombre))) continue;
+    calles.push(nombre);
+    if (calles.length === MAX_CALLES_A_PROBAR) break;
+  }
+  if (calles.length === 0) return nada;
+
+  const respuestas = await Promise.all(
+    calles.map((calle) => puertaEnCalle(calle, partido.numero, senal)),
+  );
+
+  const puertas: SugerenciaDireccion[] = [];
+  const sinEseNumero: string[] = [];
+  const vistas = new Set<string>();
+
+  respuestas.forEach((deEstaCalle, i) => {
+    if (deEstaCalle == null) return; // no se pudo preguntar: no se descarta nada
+    if (deEstaCalle.length === 0) {
+      sinEseNumero.push(calles[i]);
+      return;
+    }
+    for (const p of deEstaCalle) {
+      const clave = normalizar(p.direccion);
+      if (vistas.has(clave)) continue;
+      vistas.add(clave);
+      puertas.push(p);
+    }
+  });
+
+  return { puertas, sinEseNumero };
+}
+
+/** Mete las puertas encontradas arriba de la lista y saca las calles que no
+ *  tienen ese número.
+ *
+ *  Si no apareció NINGUNA puerta no se saca nada: quedarse sin lista es peor que
+ *  una lista imperfecta. */
+export function aplicarPuertas(
+  lista: SugerenciaDireccion[],
+  { puertas, sinEseNumero }: PuertasEnCalles,
+): SugerenciaDireccion[] {
+  if (puertas.length === 0) return lista;
+  const descartadas = new Set(sinEseNumero.map(normalizar));
+  const resto = lista.filter((s) => !descartadas.has(normalizar(s.direccion)));
+  // combinarSugerencias hace justo lo que hace falta acá: las puertas primero, y
+  // de lo demás saca la calle sola cuyo nombre es el principio de una puerta ya
+  // encontrada (ver su comentario).
+  return combinarSugerencias(puertas, resto);
 }
 
 // Se piden VARIOS candidatos y no uno solo (antes era limit=1). Con uno solo no
@@ -576,6 +923,24 @@ export type ResultadoUbicacion = {
  *  listas para poder detectar que dos lugares distintos responden al mismo
  *  texto. Mapbox va primero porque tiene los números de casa (ver la cabecera). */
 export async function ubicarDireccion(direccion: string): Promise<ResultadoUbicacion> {
+  // Un Plus Code no tiene ambigüedad que resolver: ES la ubicación. Se contesta
+  // sin consultar a nadie, y por eso va antes que todo lo demás.
+  const codigo = comoPlusCode(direccion);
+  if (codigo) {
+    const alaPuerta = codigo.sugerencia.confianza === "exacta";
+    return {
+      tipo: alaPuerta ? "exacta" : "aproximada",
+      candidatos: [codigo.sugerencia],
+      elegida: codigo.sugerencia,
+      // Un código de pocos dígitos cubre media cuadra o el barrio entero. Se usa
+      // igual —es lo que hay— pero con el tamaño a la vista, porque es la
+      // diferencia entre llegar a la puerta y llegar a la esquina.
+      advertencia: alaPuerta
+        ? null
+        : `Ese Plus Code cubre unos ${Math.round(codigo.precisionMetros)} m: apunta a la zona, no a la puerta.`,
+    };
+  }
+
   const q = normalizarConsulta(direccion);
   if (!q) {
     return { tipo: "no_encontrada", candidatos: [], elegida: null, advertencia: "La dirección está vacía." };
@@ -585,7 +950,14 @@ export async function ubicarDireccion(direccion: string): Promise<ResultadoUbica
   // espaciado que pide OpenStreetMap lo garantiza su propia fila de turnos (ver
   // la cabecera), no una espera acá.
   const [deMapbox, deOsm] = await Promise.all([conMapbox(q), conNominatim(q)]);
-  const candidatos = combinarSugerencias(deMapbox, deOsm);
+  const primeraVuelta = combinarSugerencias(deMapbox, deOsm);
+
+  // El número que quedó colgando de un nombre de calle a medias ("Linderos
+  // 3536"). Va acá y no adentro de cada proveedor porque necesita las DOS
+  // listas: OSM es el que tiene los nombres de calle correctos y Mapbox el que
+  // tiene los números de casa.
+  const completadas = await completarNumeroEnCalles(q, primeraVuelta);
+  const candidatos = aplicarPuertas(primeraVuelta, completadas);
 
   if (candidatos.length === 0) {
     return {
@@ -594,6 +966,21 @@ export async function ubicarDireccion(direccion: string): Promise<ResultadoUbica
       elegida: null,
       advertencia:
         "No encontramos esa dirección en el mapa. Revísala o marca el punto a mano.",
+    };
+  }
+
+  // Ese número existe en más de una calle que se llama como lo escrito: el
+  // "Linderos 3536" que está en Linderos Poniente Y en Linderos Oriente. Acá la
+  // aplicación no elige, aunque las dos coincidencias sean exactas y estén
+  // lejísimo una de otra — son dos avenidas distintas y el único que sabe cuál
+  // es el chofer.
+  if (completadas.puertas.length > 1) {
+    return {
+      tipo: "ambigua",
+      candidatos,
+      elegida: null,
+      advertencia:
+        "Ese número existe en más de una calle que se llama así. Elige en cuál es.",
     };
   }
 
@@ -617,14 +1004,32 @@ export async function ubicarDireccion(direccion: string): Promise<ResultadoUbica
     };
   }
 
-  if (mejor.soloCalle || mejor.confianza !== "exacta") {
+  // Solo la CALLE: no hay número que valga y no hay nada que interpolar. Sigue
+  // sin elegirse sola.
+  if (mejor.soloCalle) {
     return {
-      tipo: mejor.soloCalle ? "solo_calle" : "ambigua",
+      tipo: "solo_calle",
       candidatos,
       elegida: null,
-      advertencia: mejor.soloCalle
-        ? "Encontramos la calle pero no el número: la parada queda a mitad de cuadra. Revisa el número o marca el punto."
-        : "La ubicación encontrada no es exacta. Confírmala antes de salir.",
+      advertencia:
+        "Encontramos la calle pero no el número: la parada queda a mitad de cuadra. Revisa el número o marca el punto.",
+    };
+  }
+
+  // La puerta está INTERPOLADA: calle correcta, número dentro de su cuadra,
+  // pero el proveedor no tiene esa puerta. Entra a la ruta CON la advertencia a
+  // la vista, y esto es una decisión medida y no una comodidad: Mapbox contesta
+  // "plausible" en 10 de cada 23 direcciones de Arica. Dejarlas todas fuera es
+  // lo que estuvo pasando —el chofer confirmaba a mano ruta por ruta— y nadie
+  // confirma media ruta: se sale igual, o no se sale. Llegar a la cuadra
+  // correcta con el cartel puesto es mejor que no llegar.
+  if (mejor.confianza !== "exacta") {
+    return {
+      tipo: "aproximada",
+      candidatos,
+      elegida: mejor,
+      advertencia:
+        "La ubicación es aproximada: llegas a la cuadra, no a la puerta. Confirma el número al llegar.",
     };
   }
 
