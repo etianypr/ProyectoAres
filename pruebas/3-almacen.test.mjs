@@ -16,6 +16,9 @@ const {
   agregarFaltantes,
   fijarCoordenadas,
   borrarPedido,
+  restaurarPedido,
+  registrarEnvioWhatsapp,
+  leerCoordinaciones,
   guardarRuta,
   leerRuta,
   marcarLlamada,
@@ -29,12 +32,14 @@ const CHOFER = "11111111-1111-7111-8111-111111111111";
 
 async function limpiar() {
   // Borra la base entre pruebas para que cada una arranque de cero.
-  const { pedidos, rutas, cola } = await import("@/lib/encomiendas/local/idb").then((m) => m.STORES);
+  const { pedidos, rutas, cola, whatsapp } = await import("@/lib/encomiendas/local/idb").then(
+    (m) => m.STORES,
+  );
   const idb = await import("@/lib/encomiendas/local/idb");
-  for (const store of [pedidos, rutas, cola]) {
+  for (const store of [pedidos, rutas, cola, whatsapp]) {
     const todo = await idb.leerTodos(store);
     await idb.escribir([store], ({ borrar }) => {
-      for (const fila of todo) borrar(store, fila.id ?? fila.fecha);
+      for (const fila of todo) borrar(store, fila.id ?? fila.fecha ?? fila.pedidoId);
     });
   }
 }
@@ -133,6 +138,97 @@ test("borrarPedido no borra los eventos ya contados", async () => {
   assert.equal((await leerCola()).length, 1);
   await borrarPedido(id, HOY);
   assert.equal((await leerCola()).length, 1, "se perdió una entrega ya hecha del sueldo del chofer");
+});
+
+// Eliminar deslizando la fila (ver components/encomiendas/fila-deslizable.tsx)
+// tiene que poder deshacerse: el chofer escribió esa dirección y ese teléfono a
+// mano, y no están en ningún otro lado. Lo que se prueba acá es el recibo.
+test("borrarPedido devuelve el recibo con el lugar que ocupaba en la ruta", async () => {
+  const ids = await cargar(3);
+  await guardarRuta({ fecha: HOY, pedidoIdsEnOrden: ids, geometria: null, distanciaM: null, duracionS: null });
+
+  const recibo = await borrarPedido(ids[1], HOY);
+  assert.equal(recibo.pedido.id, ids[1]);
+  assert.equal(recibo.posicion, 1);
+  assert.equal(recibo.parada.pedidoId, ids[1]);
+});
+
+test("restaurarPedido lo devuelve al MISMO lugar de la ruta, no al final", async () => {
+  const ids = await cargar(4);
+  await guardarRuta({ fecha: HOY, pedidoIdsEnOrden: ids, geometria: null, distanciaM: null, duracionS: null });
+
+  const recibo = await borrarPedido(ids[1], HOY);
+  await restaurarPedido(recibo, HOY);
+
+  const ruta = await leerRuta(HOY);
+  assert.deepEqual(ruta.paradas.map((p) => p.pedidoId), ids, "la parada volvió en otro orden");
+  assert.equal((await leerPedidos()).length, 4);
+});
+
+test("restaurarPedido conserva lo que ya se había marcado en esa parada", async () => {
+  const ids = await cargar(2);
+  await guardarRuta({ fecha: HOY, pedidoIdsEnOrden: ids, geometria: null, distanciaM: null, duracionS: null });
+  await marcarLlamada({ fecha: HOY, pedidoId: ids[0], choferId: CHOFER }, "no_contesto");
+
+  const recibo = await borrarPedido(ids[0], HOY);
+  await restaurarPedido(recibo, HOY);
+
+  const ruta = await leerRuta(HOY);
+  assert.equal(ruta.paradas[0].llamada, "no_contesto");
+});
+
+test("restaurarPedido dos veces deja UNA sola parada", async () => {
+  // El aviso de "Deshacer" vive sobre el mapa y se puede tocar dos veces antes
+  // de que la pantalla se rehaga. Duplicado, el chofer iría dos veces al mismo
+  // domicilio.
+  const ids = await cargar(2);
+  await guardarRuta({ fecha: HOY, pedidoIdsEnOrden: ids, geometria: null, distanciaM: null, duracionS: null });
+
+  const recibo = await borrarPedido(ids[0], HOY);
+  await restaurarPedido(recibo, HOY);
+  await restaurarPedido(recibo, HOY);
+
+  const ruta = await leerRuta(HOY);
+  assert.deepEqual(ruta.paradas.map((p) => p.pedidoId), ids);
+});
+
+test("borrarPedido de uno que ya no está no lanza y devuelve null", async () => {
+  const [id] = await cargar(1);
+  assert.ok(await borrarPedido(id, HOY));
+  assert.equal(await borrarPedido(id, HOY), null, "dos gestos sobre la misma fila no son un error");
+});
+
+test("borrarPedido se lleva la coordinación de WhatsApp, y restaurar la devuelve", async () => {
+  // Si la coordinación quedara, el store iría acumulando filas de pedidos que ya
+  // no existen. Y si se perdiera al restaurar, al receptor le llegaría el mismo
+  // aviso dos veces.
+  const [id] = await cargar(1);
+  await registrarEnvioWhatsapp({ pedidoId: id, correlationId: "corr-1", mensajeId: "wamid.1" });
+
+  const recibo = await borrarPedido(id, HOY);
+  assert.equal((await leerCoordinaciones()).length, 0);
+  assert.equal(recibo.whatsapp.correlationId, "corr-1");
+
+  await restaurarPedido(recibo, HOY);
+  const [coordinacion] = await leerCoordinaciones();
+  assert.equal(coordinacion.correlationId, "corr-1");
+  assert.equal(coordinacion.estado, "enviado");
+});
+
+test("borrarPedido de un pedido fuera de la ruta no toca la ruta del día", async () => {
+  const ids = await cargar(3);
+  await guardarRuta({
+    fecha: HOY,
+    pedidoIdsEnOrden: [ids[0], ids[1]],
+    geometria: null,
+    distanciaM: null,
+    duracionS: null,
+  });
+
+  const recibo = await borrarPedido(ids[2], HOY);
+  assert.equal(recibo.parada, null);
+  const ruta = await leerRuta(HOY);
+  assert.deepEqual(ruta.paradas.map((p) => p.pedidoId), [ids[0], ids[1]]);
 });
 
 // ----------------------------------------------------------- ruta del día

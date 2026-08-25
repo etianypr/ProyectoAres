@@ -11,6 +11,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  borrarPedido,
   cerrarRuta,
   deshacerEntrega,
   leerCoordinaciones,
@@ -21,10 +22,12 @@ import {
   moverAlFinal,
   registrarDisponibilidad,
   registrarRechazo,
+  restaurarPedido,
   rutaTerminada,
   type CoordinacionWhatsApp,
   type EstadoEntregaLocal,
   type EstadoLlamadaLocal,
+  type PedidoEliminado,
   type PedidoLocal,
   type ResultadoEntrega,
   type RutaLocal,
@@ -126,6 +129,20 @@ export type Jornada = {
   /** La parada sigue pendiente pero pasa a ser la última: el chofer va a
    *  reintentarla al terminar el resto. */
   dejarParaElFinal: (pedidoId: string) => Promise<void>;
+  /** Saca un pedido del teléfono —esté en la ruta o fuera de ella— y devuelve el
+   *  recibo para volver a ponerlo, o null si ya no estaba.
+   *
+   *  A diferencia de marcar una entrega, esto NO se retiene: se escribe de una,
+   *  y arrepentirse es restaurar (ver restaurar). Retenerlo dejaría la pantalla
+   *  mostrando ocho segundos un pedido que el chofer ya vio salir volando, y la
+   *  ruta contándolo.
+   *
+   *  Nada de esto sale al servidor: los pedidos del día viven solo en el
+   *  teléfono, y los eventos ya marcados se quedan en la cola tal como estaban
+   *  (ver borrarPedido). */
+  eliminarPedido: (pedidoId: string) => Promise<PedidoEliminado | null>;
+  /** Vuelve a poner lo que devolvió eliminarPedido, parada y lugar incluidos. */
+  restaurar: (eliminado: PedidoEliminado) => Promise<void>;
   /** Vencida la ventana de deshacer: cierra la jornada si ya no queda nada
    *  pendiente y manda lo que estaba retenido. */
   confirmar: () => Promise<void>;
@@ -360,6 +377,28 @@ export function useJornada({
     [fecha, recargar, unaSolaVez],
   );
 
+  const onEliminarPedido = useCallback(
+    (pedidoId: string) =>
+      unaSolaVez(`eliminar:${pedidoId}`, async () => {
+        const eliminado = await borrarPedido(pedidoId, fecha);
+        await recargar();
+        return eliminado;
+      }),
+    [fecha, recargar, unaSolaVez],
+  );
+
+  const onRestaurar = useCallback(
+    async (eliminado: PedidoEliminado) => {
+      // La clave lleva el id del pedido y no del recibo: lo que hay que evitar
+      // es que dos toques en "Deshacer" metan la parada dos veces en la ruta.
+      await unaSolaVez(`restaurar:${eliminado.pedido.id}`, async () => {
+        await restaurarPedido(eliminado, fecha);
+        await recargar();
+      });
+    },
+    [fecha, recargar, unaSolaVez],
+  );
+
   // ------------------------------------------------------------------------
   // WhatsApp
   // ------------------------------------------------------------------------
@@ -563,6 +602,8 @@ export function useJornada({
     motivoNoCerrar,
     deshacer: onDeshacer,
     dejarParaElFinal: onDejarParaElFinal,
+    eliminarPedido: onEliminarPedido,
+    restaurar: onRestaurar,
     confirmar,
   };
 }

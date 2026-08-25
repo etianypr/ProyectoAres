@@ -366,18 +366,81 @@ export function fijarCoordenadas(
   });
 }
 
-/** Borra un pedido y lo saca de la ruta del día si estaba ahí. No toca eventos
- *  ya enviados: si se entregó, esa entrega ya está contada y así debe quedar. */
-export function borrarPedido(id: string, fecha: string): Promise<void> {
+/** Todo lo que se le quitó al teléfono al eliminar un pedido, en una sola pieza.
+ *  Es lo que hace que "Deshacer" pueda existir: sin esto, eliminar es definitivo
+ *  y el chofer perdería la dirección y el teléfono del receptor —que escribió a
+ *  mano— por un roce en la pantalla.
+ *
+ *  Se guarda en memoria y no en la base: si la app se cierra durante la ventana
+ *  para deshacer, el recibo se pierde y la eliminación queda firme. Es el fallo
+ *  que corresponde — lo contrario, un pedido que reaparece solo al día siguiente,
+ *  es el que no se puede explicar. */
+export type PedidoEliminado = {
+  pedido: PedidoLocal;
+  /** La parada que tenía en la ruta del día, o null si estaba fuera de ella. */
+  parada: ParadaLocal | null;
+  /** En qué lugar de la ruta estaba. Restaurar la pone de vuelta AHÍ y no al
+   *  final: el chofer eliminó por error, no reordenó. */
+  posicion: number;
+  /** La coordinación de WhatsApp, para no volver a avisarle a alguien que ya fue
+   *  avisado si el pedido se restaura. */
+  whatsapp: CoordinacionWhatsApp | null;
+};
+
+/** Elimina un pedido del teléfono y lo saca de la ruta del día si estaba ahí.
+ *  Devuelve el recibo para restaurarlo (ver restaurarPedido), o null si ya no
+ *  existía — dos toques en el mismo botón no son un error.
+ *
+ *  No toca la cola de eventos: lo que ya se marcó de este pedido está contado y
+ *  así debe quedar. Los eventos no llevan el id del pedido (ver EventoCola), así
+ *  que no queda nada apuntando a un pedido que no existe. */
+export function borrarPedido(id: string, fecha: string): Promise<PedidoEliminado | null> {
+  return enFila(async () => {
+    const pedido = await leerUno<PedidoLocal>(STORES.pedidos, id);
+    if (!pedido) return null;
+
+    const ruta = await leerUno<RutaLocal>(STORES.rutas, fecha);
+    const posicion = ruta ? ruta.paradas.findIndex((p) => p.pedidoId === id) : -1;
+    const parada = ruta && posicion >= 0 ? ruta.paradas[posicion] : null;
+    const rutaSinPedido =
+      ruta && parada ? { ...ruta, paradas: ruta.paradas.filter((p) => p.pedidoId !== id) } : null;
+
+    const whatsapp = await leerUno<CoordinacionWhatsApp>(STORES.whatsapp, id);
+
+    await escribir([STORES.pedidos, STORES.rutas, STORES.whatsapp], ({ guardar, borrar }) => {
+      borrar(STORES.pedidos, id);
+      // La coordinación se va con el pedido: si se quedara, el store de WhatsApp
+      // acumularía filas de pedidos que ya no existen, día tras día.
+      if (whatsapp) borrar(STORES.whatsapp, id);
+      if (rutaSinPedido) guardar(STORES.rutas, rutaSinPedido);
+    });
+
+    return { pedido: alDia(pedido), parada, posicion: Math.max(posicion, 0), whatsapp };
+  });
+}
+
+/** Vuelve a poner un pedido eliminado tal como estaba, parada incluida.
+ *
+ *  Idempotente: restaurar dos veces el mismo recibo deja una sola parada. Hace
+ *  falta porque el aviso de "Deshacer" vive sobre el mapa y se puede tocar dos
+ *  veces antes de que la pantalla se rehaga. */
+export function restaurarPedido(eliminado: PedidoEliminado, fecha: string): Promise<void> {
+  const { pedido, parada, posicion, whatsapp } = eliminado;
   return enFila(async () => {
     const ruta = await leerUno<RutaLocal>(STORES.rutas, fecha);
-    const rutaSinPedido = ruta
-      ? { ...ruta, paradas: ruta.paradas.filter((p) => p.pedidoId !== id) }
-      : null;
+    let rutaConPedido: RutaLocal | null = null;
+    if (ruta && parada && !ruta.paradas.some((p) => p.pedidoId === pedido.id)) {
+      const paradas = [...ruta.paradas];
+      // Acotado al largo actual: mientras el aviso estaba a la vista pudieron
+      // eliminarse otras paradas, y en ese caso el lugar que le toca es el final.
+      paradas.splice(Math.min(posicion, paradas.length), 0, parada);
+      rutaConPedido = { ...ruta, paradas };
+    }
 
-    await escribir([STORES.pedidos, STORES.rutas], ({ guardar, borrar }) => {
-      borrar(STORES.pedidos, id);
-      if (rutaSinPedido) guardar(STORES.rutas, rutaSinPedido);
+    await escribir([STORES.pedidos, STORES.rutas, STORES.whatsapp], ({ guardar }) => {
+      guardar(STORES.pedidos, pedido);
+      if (whatsapp) guardar(STORES.whatsapp, whatsapp);
+      if (rutaConPedido) guardar(STORES.rutas, rutaConPedido);
     });
   });
 }
