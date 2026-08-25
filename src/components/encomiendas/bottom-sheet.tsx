@@ -4,6 +4,13 @@ import { useEffect, useRef, useState } from "react";
 
 const ALTURA_VH = 78; // alto total de la hoja abierta, en % del viewport
 
+// Con una vista abierta adentro (el formulario de un pedido) la hoja sube más:
+// ahí hay campos, un desplegable de direcciones y una vista previa de mapa, y
+// con el teclado abierto los 78 no alcanzan. No llega a 100 a propósito — la
+// franja de mapa que queda arriba es lo que dice que esto sigue siendo la misma
+// hoja sobre el mapa y no otra pantalla.
+const ALTURA_VH_VISTA = 92;
+
 // Mientras no se haya podido medir la cabecera (primer dibujado, antes de que
 // exista el elemento). Es un valor de arranque, no el que manda.
 const ALTO_CABECERA_INICIAL = 96;
@@ -26,14 +33,31 @@ function clamp(n: number, min: number, max: number) {
 //
 // De ahí que el alto cerrado no sea un número fijo: se mide la cabecera, porque
 // cambia según el paso (un botón, dos, o el aviso de ruta completa).
+//
+// Y de ahí también la prop "vista": lo que antes se abría como una pantalla
+// aparte encima de todo —el formulario de un pedido— ahora entra ACÁ, sobre el
+// contenido de la hoja y debajo de la misma cabecera. Nada de lo que el chofer
+// hace se va a otro lugar: la hoja es el único sitio donde pasan las cosas.
 export function BottomSheet({
   cabecera,
+  vista,
   senalCerrar,
   onAlturaCerrada,
   children,
 }: {
   /** Lo que se ve siempre, cerrada o abierta. Arrastra la hoja. */
   cabecera: React.ReactNode;
+  /** Una vista que se pone ENCIMA del contenido, dentro de la misma hoja: el
+   *  formulario de un pedido. Mientras está, la hoja se abre sola y sube más.
+   *
+   *  Va encima y no en lugar del contenido —que queda montado debajo— por dos
+   *  razones: volver deja la lista donde estaba, con su scroll y todo, y la
+   *  cabecera sigue siendo la parada activa, así que cargando pedidos igual se
+   *  puede llamar o marcar una entrega sin cerrar nada.
+   *
+   *  La hoja se sigue arrastrando: bajarla con la vista abierta deja la parada
+   *  activa a la vista y el formulario esperando abajo, tal como quedó. */
+  vista?: React.ReactNode;
   /** Cuando este valor CAMBIA (y no es null), la hoja se cierra sola. Lo usa la
    *  pantalla cuando lo importante pasa a ser el mapa y no el contenido de la
    *  hoja — al aparecer la ruta propuesta, por ejemplo. */
@@ -94,7 +118,17 @@ export function BottomSheet({
     if (senalCerrar != null) setExpandido(false);
   }
 
-  const altoSheet = Math.round(altoVentana * (ALTURA_VH / 100));
+  // Abrir una vista abre la hoja. Ajustado durante el render y no en un efecto,
+  // por lo mismo que la señal de cerrar: el formulario tiene que aparecer con la
+  // hoja ya arriba, sin un cuadro intermedio con la hoja abajo.
+  const hayVista = vista != null;
+  const [vistaAplicada, setVistaAplicada] = useState(hayVista);
+  if (hayVista !== vistaAplicada) {
+    setVistaAplicada(hayVista);
+    if (hayVista) setExpandido(true);
+  }
+
+  const altoSheet = Math.round(altoVentana * ((hayVista ? ALTURA_VH_VISTA : ALTURA_VH) / 100));
   const colapsadoTranslate = Math.max(altoSheet - altoCabecera, 0);
 
   function onPointerDown(e: React.PointerEvent) {
@@ -158,11 +192,25 @@ export function BottomSheet({
         >
           <div className="h-1.5 w-10 rounded-full bg-separator" />
         </div>
-        <div className="px-4 pb-3">{cabecera}</div>
+        {/* El aire de abajo no es decorativo: con la hoja cerrada, este bloque
+            queda al ras del borde inferior de la pantalla, así que lo último que
+            hay acá —los botones de la parada— terminaba pegado al borde y, en un
+            teléfono con barra de gestos, debajo de ella. De ahí el piso por
+            safe-area, y los 20 px de base para que tampoco quede apretado en los
+            que no la tienen.
+            Va DENTRO de lo que mide cabeceraRef, así que el alto cerrado y los
+            botones flotantes del mapa se corren solos. */}
+        <div className="px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">{cabecera}</div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto border-t border-divider px-4 pb-8 pt-3">
-        {children}
+      <div className="relative min-h-0 flex-1 border-t border-divider">
+        <div className="h-full overflow-y-auto px-4 pb-8 pt-3">{children}</div>
+        {/* La vista tapa el contenido, no lo desmonta: al volver, la lista de
+            pedidos está donde el chofer la dejó. Opaca y con su propio scroll
+            adentro. */}
+        {vista ? (
+          <div className="absolute inset-0 z-10 flex flex-col bg-white">{vista}</div>
+        ) : null}
       </div>
     </div>
   );
