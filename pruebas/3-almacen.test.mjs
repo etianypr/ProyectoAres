@@ -23,6 +23,8 @@ const {
   leerRuta,
   marcarLlamada,
   marcarEntrega,
+  cerrarRuta,
+  leerDias,
   leerCola,
   quitarDeCola,
 } = almacen;
@@ -301,6 +303,55 @@ test("cada día tiene su propia ruta y no se pisan", async () => {
   assert.equal((await leerRuta("2026-08-05")).paradas.length, 2);
   assert.equal((await leerRuta(HOY)).paradas.length, 1);
   assert.equal(await leerRuta("2026-01-01"), null);
+});
+
+// La lista de días del menú lateral. Es lo único que el chofer tiene para
+// comprobar lo que hizo: el detalle pedido por pedido lo mira la oficina.
+test("leerDias devuelve los días del más nuevo al más viejo", async () => {
+  const ids = await cargar(2);
+  await guardarRuta({ fecha: "2026-08-04", pedidoIdsEnOrden: ids, geometria: null, distanciaM: null, duracionS: null });
+  await guardarRuta({ fecha: HOY, pedidoIdsEnOrden: ids, geometria: null, distanciaM: null, duracionS: null });
+  await guardarRuta({ fecha: "2026-08-05", pedidoIdsEnOrden: ids, geometria: null, distanciaM: null, duracionS: null });
+
+  const dias = await leerDias();
+  assert.deepEqual(
+    dias.map((d) => d.fecha),
+    [HOY, "2026-08-05", "2026-08-04"],
+    "el día de hoy tiene que quedar arriba de todo",
+  );
+});
+
+test("leerDias cuenta las no entregadas POR DESCARTE, no enumerando los motivos", async () => {
+  // Enumerar los cuatro valores es lo que deja el contador en cero el día que
+  // aparece un motivo nuevo. Acá se marca uno de cada uno para que la prueba
+  // falle si alguien vuelve al filtro por lista.
+  const ids = await cargar(4);
+  await guardarRuta({ fecha: HOY, pedidoIdsEnOrden: ids, geometria: null, distanciaM: null, duracionS: null });
+  await marcarEntrega({ fecha: HOY, pedidoId: ids[0], choferId: CHOFER }, "entregado");
+  await marcarEntrega({ fecha: HOY, pedidoId: ids[1], choferId: CHOFER }, "persona_no_encontrada");
+  await marcarEntrega({ fecha: HOY, pedidoId: ids[2], choferId: CHOFER }, "rechazo");
+
+  const [dia] = await leerDias();
+  assert.equal(dia.paradas, 4);
+  assert.equal(dia.entregadas, 1);
+  assert.equal(dia.omitidas, 2, "la pendiente no es una no entregada");
+});
+
+test("leerDias distingue un día cerrado de uno que quedó abierto", async () => {
+  // Un día sin cerrar es lo único que este resumen tiene que poder gritar: el
+  // servidor no valora la jornada mientras cerradaEn sea null.
+  const ids = await cargar(1);
+  await guardarRuta({ fecha: HOY, pedidoIdsEnOrden: ids, geometria: null, distanciaM: null, duracionS: null });
+  assert.equal((await leerDias())[0].cerradaEn, null);
+
+  await marcarEntrega({ fecha: HOY, pedidoId: ids[0], choferId: CHOFER }, "entregado");
+  await cerrarRuta(HOY);
+  assert.ok((await leerDias())[0].cerradaEn, "la jornada cerrada tiene que traer la hora");
+});
+
+test("un día sin ruta armada no aparece en la lista", async () => {
+  await cargar(2);
+  assert.deepEqual(await leerDias(), [], "sin ruta no hubo jornada que resumir");
 });
 
 // ------------------------------------------------- marcar en terreno (plata)

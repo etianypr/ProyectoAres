@@ -454,6 +454,45 @@ export async function leerRuta(fecha: string): Promise<RutaLocal | null> {
   return ruta ? rutaAlDia(ruta) : null;
 }
 
+/** Un día ya trabajado, resumido en las tres cifras que se leen de un vistazo.
+ *
+ *  Es lo que llena la lista de días del menú lateral. Solo cifras: los pedidos
+ *  de un día pasado —nombres, teléfonos, direcciones— no hacen falta para
+ *  decir cómo salió, y no tenerlos a mano es también no poder mostrarlos por
+ *  error en una pantalla que se abre con el teléfono desbloqueado. */
+export type DiaJornada = {
+  fecha: string;
+  paradas: number;
+  entregadas: number;
+  /** Cerradas sin entregar: no estaba, sin respuesta, rechazo, y la omisión
+   *  heredada. Por descarte y no enumerando los valores, por lo mismo que en la
+   *  pantalla: enumerarlos deja el contador en cero el día que aparece uno
+   *  nuevo. */
+  omitidas: number;
+  /** null = ese día quedó abierto. Pasa cuando el chofer cerró la app sin
+   *  marcar la última parada, y es justamente lo que hay que poder ver. */
+  cerradaEn: string | null;
+};
+
+/** Los días que este teléfono tiene guardados, del más nuevo al más viejo.
+ *
+ *  Sale del store de rutas, que es lo único con una fila por día. Un día sin
+ *  ruta armada no aparece: no hubo jornada que resumir. */
+export async function leerDias(): Promise<DiaJornada[]> {
+  const rutas = await leerTodos<RutaLocal>(STORES.rutas);
+  return rutas
+    .map((ruta) => ({
+      fecha: ruta.fecha,
+      paradas: ruta.paradas.length,
+      entregadas: ruta.paradas.filter((p) => p.entrega === "entregado").length,
+      omitidas: ruta.paradas.filter(
+        (p) => p.entrega !== "pendiente" && p.entrega !== "entregado",
+      ).length,
+      cerradaEn: ruta.cerradaEn,
+    }))
+    .sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
+}
+
 /** Cuántos quedan por entregar. Pasa por el índice: la pantalla de inicio lo
  *  consulta para decidir si ofrece armar la ruta, y no necesita las filas. */
 export function contarPendientes(): Promise<number> {
