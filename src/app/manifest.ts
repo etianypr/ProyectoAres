@@ -16,7 +16,11 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Conductor — Encomiendas",
     short_name: "Conductor",
     description: "Herramientas de trabajo del conductor",
-    start_url: "/conductor",
+    // Directo al reparto, que es lo único que hace esta app. /conductor
+    // reenvía igual, pero abrir desde el ícono no tiene por qué gastar un
+    // salto: el scope sigue siendo /conductor para que la PWA no se salga de
+    // la app al navegar.
+    start_url: "/conductor/encomiendas",
     scope: "/conductor",
     display: "standalone",
     // El naranja de --brand. background_color es lo que el sistema pinta

@@ -61,7 +61,7 @@ export async function exigirSesion(): Promise<Sesion> {
 // SEGUNDA visita — con la cookie ya puesta — caía directo en el panel admin.
 export async function exigirPanel(): Promise<Sesion> {
   const sesion = await exigirSesion();
-  if (sesion.rol === "chofer") redirect("/conductor");
+  if (sesion.rol === "chofer") redirect(inicioSegunRol("chofer"));
   return sesion;
 }
 
@@ -74,7 +74,12 @@ export async function exigirConductor(): Promise<Sesion> {
   return sesion;
 }
 
-/** Ruta de inicio de cada rol: a dónde mandar a alguien recién autenticado. */
+/** Ruta de inicio de cada rol: a dónde mandar a alguien recién autenticado.
+ *
+ *  El chofer entra derecho al reparto y no a /conductor: esa página ya no es un
+ *  menú, solo reenvía acá, y pasar por ella es un salto de servidor que se
+ *  siente al abrir la app con señal mala. /conductor sigue existiendo para las
+ *  cuentas sin ficha vinculada. */
 export function inicioSegunRol(rol: RolUsuario | null | undefined): string {
-  return rol === "chofer" ? "/conductor" : "/";
+  return rol === "chofer" ? "/conductor/encomiendas" : "/";
 }

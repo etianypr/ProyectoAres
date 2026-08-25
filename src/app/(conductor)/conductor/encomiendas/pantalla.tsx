@@ -24,7 +24,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import Link from "next/link";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -33,6 +32,7 @@ import {
   Clock,
   CloudOff,
   LocateFixed,
+  LogOut,
   MapPin,
   MapPinOff,
   MessageCircleOff,
@@ -54,10 +54,14 @@ import { PilaAvisos, type Aviso } from "@/components/encomiendas/avisos";
 import { FilaDeslizable } from "@/components/encomiendas/fila-deslizable";
 import { Seccion } from "@/components/encomiendas/seccion";
 import {
+  leerDias,
   leerRuta,
+  type DiaJornada,
   type PedidoEliminado,
   type PedidoLocal,
 } from "@/lib/encomiendas/local/almacen";
+import { BotonMenu, MenuLateral } from "@/components/encomiendas/menu-lateral";
+import { logout } from "@/app/login/actions";
 import { bloquePorId } from "@/lib/encomiendas/config";
 import {
   confirmarRutaLocal,
@@ -319,6 +323,10 @@ export function PantallaEncomiendas({
   const [formPedido, setFormPedido] = useState<"nuevo" | PedidoLocal | null>(null);
   const [propuesta, setPropuesta] = useState<PropuestaRuta | null>(null);
   const [alturaCerrada, setAlturaCerrada] = useState(140);
+  // El cajón de la izquierda y los días que muestra. Los días se leen al abrir,
+  // no al montar (ver BotonMenu más abajo).
+  const [menuAbierto, setMenuAbierto] = useState(false);
+  const [dias, setDias] = useState<DiaJornada[]>([]);
   // Cuánto ocupan los avisos de arriba. Lo informa la propia pila: cambia con
   // cuántos hay y con el largo del mensaje de un fallo.
   const [altoAvisos, setAltoAvisos] = useState(0);
@@ -824,9 +832,25 @@ export function PantallaEncomiendas({
       <div className="flex min-h-dvh flex-col items-center justify-center p-6 text-center">
         <p className="text-lg font-semibold">No se pudo abrir tu ruta</p>
         <p className="mx-auto mt-1 max-w-xs text-sm text-muted">{jornada.error}</p>
-        <Link href="/conductor" className="mt-4 text-sm text-brand hover:underline">
-          Volver al inicio
-        </Link>
+        {/* Acá había un "Volver al inicio" al hub. Ahora el hub reenvía a esta
+            misma pantalla, así que ese link era un rebote infinito justo para
+            el chofer que ya no puede trabajar. Las dos salidas reales son
+            volver a intentar —el fallo suele ser el almacén del teléfono, que
+            a veces anda al recargar— y salir de la sesión. */}
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="mt-4 flex items-center gap-2 rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-white"
+        >
+          <RotateCw className="h-4 w-4" />
+          Reintentar
+        </button>
+        <form action={logout} className="mt-6">
+          <button type="submit" className="flex items-center gap-2 text-sm text-muted">
+            <LogOut className="h-4 w-4" />
+            Cerrar sesión
+          </button>
+        </form>
       </div>
     );
   }
@@ -1237,6 +1261,16 @@ export function PantallaEncomiendas({
 
       <PilaAvisos avisos={avisosEnPantalla} onAltura={setAltoAvisos} />
 
+      {menuAbierto ? (
+        <MenuLateral
+          nombreChofer={nombreChofer}
+          dias={dias}
+          fechaActiva={fecha}
+          onCerrar={() => setMenuAbierto(false)}
+          logout={logout}
+        />
+      ) : null}
+
       {/* La flecha de volver, el cartel de navegación con el resumen adentro, y
           los avisos del GPS. Se corren para abajo lo que ocupen los avisos, en
           vez de quedar tapados por ellos: el cartel de navegación es lo que el
@@ -1246,13 +1280,19 @@ export function PantallaEncomiendas({
         style={{ marginTop: altoAvisos }}
       >
         <div className="flex items-center gap-2">
-          <Link
-            href="/conductor"
-            aria-label="Volver al inicio"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white shadow-md"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
+          {/* Donde estaba la flecha de volver. Se fue con el hub: entrar ya no
+              pasa por un menú, así que no hay nada atrás. Lo que el hub sí
+              guardaba —quién está y cómo cerrar sesión— vive ahora acá adentro,
+              junto con los días. */}
+          <BotonMenu
+            onAbrir={() => {
+              setMenuAbierto(true);
+              // Se leen al abrir y no al montar: es una consulta al teléfono que
+              // no hace falta para repartir, y así la lista está fresca aunque
+              // el día se haya cerrado con el menú ya usado antes.
+              void leerDias().then(setDias);
+            }}
+          />
           {navegacion.paso && !propuesta ? (
             <InstruccionNavegacion
               paso={navegacion.paso}
