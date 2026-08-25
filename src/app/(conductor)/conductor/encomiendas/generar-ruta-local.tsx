@@ -79,7 +79,9 @@ export function GenerarRutaLocal({
   // armaba siempre desde la dirección de la empresa. Se fue: ahora el punto de
   // partida por defecto es la ubicación del chofer, y una ruta que se calcula
   // sola no puede pedir permiso de GPS sin que nadie lo haya pedido. El botón de
-  // armar está a la vista en la cabecera de la hoja, que es un toque.
+  // armar está a la vista en la cabecera de la hoja, que es un toque — salvo
+  // mientras se carga un pedido, que ahí la cabecera pasa a ser el contador de
+  // pendientes (ver pantalla.tsx).
 
   function onClick() {
     setError(null);
