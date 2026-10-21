@@ -16,6 +16,7 @@ import { crearResolve } from "./resolver-ts.mjs";
 const DOBLES = {
   "@/lib/supabase/client": new URL("./dobles/supabase-client.mjs", import.meta.url).href,
   "next/headers": new URL("./dobles/next-headers.mjs", import.meta.url).href,
+  "server-only": new URL("./dobles/server-only.mjs", import.meta.url).href,
 };
 
 export const resolve = crearResolve(DOBLES);

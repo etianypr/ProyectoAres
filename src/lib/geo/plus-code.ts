@@ -20,16 +20,9 @@
 //                            que hay que aceptarla: se recupera contra el
 //                            centro de Arica salvo que llegue otra referencia.
 import { OpenLocationCode } from "open-location-code";
-import type { Coordenada } from "@/lib/geocoding";
+import { CENTRO_ARICA, METROS_POR_GRADO_LAT, type Coordenada, type Recuadro } from "./coordenada";
 
 const olc = new OpenLocationCode();
-
-/** Referencia por defecto para los códigos CORTOS. Es el centro de Arica: la
- *  recuperación busca el código completo MÁS CERCANO a este punto, así que un
- *  código corto dictado por teléfono cae donde tiene que caer. */
-export const CENTRO_ARICA: Coordenada = { lat: -18.4783, lng: -70.3126 };
-
-export type Recuadro = { sur: number; oeste: number; norte: number; este: number };
 
 export type PlusCodeResuelto = {
   /** Centro del recuadro. Es la coordenada que usa la ruta. */
@@ -59,12 +52,12 @@ function limpiar(codigo: string): string {
 /** Lado mayor del recuadro en metros.
  *
  *  A esta escala —decenas de metros— la Tierra es plana y un grado de latitud
- *  mide 111.320 m; el mismo criterio que ya usa metrosEntre() en lib/geocoding.
+ *  mide METROS_POR_GRADO_LAT (ver geo/coordenada).
  *  El meridiano se encoge con el coseno de la latitud. */
 function ladoMayorMetros(r: Recuadro): number {
-  const alto = (r.norte - r.sur) * 111_320;
+  const alto = (r.norte - r.sur) * METROS_POR_GRADO_LAT;
   const latMedia = ((r.norte + r.sur) / 2) * (Math.PI / 180);
-  const ancho = (r.este - r.oeste) * 111_320 * Math.cos(latMedia);
+  const ancho = (r.este - r.oeste) * METROS_POR_GRADO_LAT * Math.cos(latMedia);
   return Math.round(Math.max(alto, ancho) * 10) / 10;
 }
 

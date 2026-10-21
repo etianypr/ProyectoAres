@@ -12,7 +12,7 @@
 // hora es ahora.
 //
 // No se tocan los timers (setTimeout y compañía). El código que importa acá no
-// espera: compara marcas ISO contra "ahora" (ver leerCola en almacen.ts). Fingir
+// espera: compara marcas ISO contra "ahora" (ver leerCola en almacen/cola.ts). Fingir
 // timers además rompería el `await` de las transacciones de IndexedDB.
 
 const DateReal = globalThis.Date;

@@ -1,2 +1,0 @@
-﻿empresa_id,patente,marca,modelo,anio,capacidad,km_actual,revision_tecnica_venc,soap_venc,permiso_circulacion_venc,activo,notas,created_at,updated_at,categoria
-e35b4dcd-ed64-46ea-9b14-c13d46fac237,VKPW-81,Dahijatsu,Hijet,2016,,133000,2027-04-01,2027-03-31,2027-03-31,true,,2026-07-28T22:57:11.093653+00:00,2026-07-28T22:57:11.093653+00:00,encomiendas

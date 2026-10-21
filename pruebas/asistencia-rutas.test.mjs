@@ -5,7 +5,7 @@
 // verifica es lo que el documento principal pide y que la distancia sola no
 // puede dar:
 //
-//  · un rechazo no vuelve a proponerse (FR-012);
+//  · un pedido cerrado no vuelve a proponerse;
 //  · los bloques horarios que eligieron los receptores pesan en el orden;
 //  · se muestra UNA ruta cuando comparar no aporta, y hasta TRES cuando sí;
 //  · mostrar tres opciones no cuesta tres veces más en consultas.
@@ -19,7 +19,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 const almacen = await import("@/lib/encomiendas/local/almacen");
-const { guardarPedido, registrarDisponibilidad, marcarEntrega, guardarRuta, leerRuta } = almacen;
+const { guardarPedido, registrarDisponibilidad, marcarResultado, guardarRuta, leerRuta, leerPedidos } =
+  almacen;
 
 const generar = await import("@/lib/encomiendas/local/generar-ruta");
 const { calcularRutaLocal, confirmarRutaLocal, elegirAlternativa } = generar;
@@ -38,7 +39,6 @@ const CLAVE = {
   [idb.STORES.pedidos]: (f) => f.id,
   [idb.STORES.rutas]: (f) => f.fecha,
   [idb.STORES.cola]: (f) => f.id,
-  [idb.STORES.whatsapp]: (f) => f.pedidoId,
 };
 
 async function limpiar() {
@@ -164,7 +164,7 @@ async function pedidoAKm(nombre, km, extra = {}) {
     lat: BASE.lat - km * GRADOS_POR_KM,
     lng: BASE.lng,
     notas: null,
-  });
+  }, HOY);
   if (extra.bloque) {
     await registrarDisponibilidad(
       p.id,
@@ -173,7 +173,7 @@ async function pedidoAKm(nombre, km, extra = {}) {
     );
   }
   if (extra.disponibilidad === "confirmado") {
-    await registrarDisponibilidad(p.id, { tipo: "confirmado" }, `wamid.${p.id}`);
+    await registrarDisponibilidad(p.id, { tipo: "confirmado" }, `wamid.${p.id}`, CHOFER);
   }
   return p;
 }
@@ -202,11 +202,11 @@ async function pedidoA(n, extra = {}) {
     lat: BASE.lat - n * 0.004,
     lng: BASE.lng,
     notas: null,
-  });
+  }, HOY);
   if (extra.disponibilidad === "confirmado") {
-    await registrarDisponibilidad(p.id, { tipo: "confirmado" }, `wamid.${p.id}`);
-  } else if (extra.disponibilidad === "rechazado") {
-    await registrarDisponibilidad(p.id, { tipo: "rechazado" }, `wamid.${p.id}`);
+    await registrarDisponibilidad(p.id, { tipo: "confirmado" }, `wamid.${p.id}`, CHOFER);
+  } else if (extra.disponibilidad === "manana") {
+    await registrarDisponibilidad(p.id, { tipo: "manana" }, `wamid.${p.id}`, CHOFER);
   } else if (extra.bloque) {
     await registrarDisponibilidad(
       p.id,
@@ -254,81 +254,64 @@ test("el trazado trae distancia y duración", async () => {
 });
 
 // ===========================================================================
-// FR-012: un rechazo no vuelve
+// "Mañana": cerrado como no entregado antes de armar la ruta (specs 010 y 012)
 // ===========================================================================
 
-test("un pedido rechazado por WhatsApp NO entra en la ruta", async () => {
+test("un pedido que pidió mañana NO entra en la ruta", async () => {
   await pedidoA(1);
-  await pedidoA(2, { disponibilidad: "rechazado" });
+  await pedidoA(2, { disponibilidad: "manana" });
   await pedidoA(3);
 
   const p = await calcularRutaLocal(HOY, inicioDe());
 
   assert.deepEqual(nombres(p.paradas), ["Cliente 1", "Cliente 3"]);
-  assert.deepEqual(nombres(p.rechazados), ["Cliente 2"]);
-  // Y no se confunde con los que no se pudieron ubicar: el motivo es distinto y
-  // lo que el chofer tiene que hacer también.
+  // Ya está cerrado (no entregado): no es un problema de dirección.
   assert.deepEqual(p.sinUbicar, []);
 });
 
-test("el rechazo queda advertido para que el chofer lo registre", async () => {
-  await pedidoA(1);
-  await pedidoA(2, { disponibilidad: "rechazado" });
+test("si todos pidieron mañana, no hay nada que rutear", async () => {
+  await pedidoA(1, { disponibilidad: "manana" });
+  await pedidoA(2, { disponibilidad: "manana" });
 
-  const p = await calcularRutaLocal(HOY, inicioDe());
-  const aviso = p.advertencias.find((a) => a.includes("Cliente 2"));
-
-  assert.ok(aviso, "el rechazo no dejó advertencia");
-  assert.match(aviso, /rechaz/i);
-  assert.match(aviso, /jornada|regist/i, "la advertencia no dice qué hacer");
+  await assert.rejects(() => calcularRutaLocal(HOY, inicioDe()), /No hay pedidos pendientes/i);
 });
 
-test("si TODO lo pendiente está rechazado, se explica ese caso y no otro", async () => {
-  await pedidoA(1, { disponibilidad: "rechazado" });
-  await pedidoA(2, { disponibilidad: "rechazado" });
-
-  await assert.rejects(
-    () => calcularRutaLocal(HOY, inicioDe()),
-    /rechazados por sus clientes/i,
-    "dijo que no se pudieron ubicar, que es otro problema",
-  );
-});
-
-test("un pedido ya cerrado como rechazado tampoco reaparece", async () => {
-  // Es la otra mitad de FR-012: marcarlo rechazado en terreno lo saca de los
-  // pendientes, así que ninguna ruta futura lo puede proponer.
+test("un pedido tachado no reaparece al rehacer la ruta", async () => {
+  // Marcarlo no entregado en terreno lo saca de los pendientes, así que rehacer
+  // la ruta no lo puede volver a proponer.
   const a = await pedidoA(1);
   const b = await pedidoA(2);
   await guardarRuta({
     fecha: HOY,
     pedidoIdsEnOrden: [a.id, b.id],
-    geometria: null,
+    trazado: null,
     distanciaM: null,
     duracionS: null,
   });
-  await marcarEntrega({ fecha: HOY, pedidoId: b.id, choferId: CHOFER }, "rechazo");
+  await marcarResultado({ fecha: HOY, pedidoId: b.id, choferId: CHOFER }, "no_entregado");
 
-  // Otro día: el rechazado no puede volver.
-  const p = await calcularRutaLocal("2026-08-21", inicioDe());
+  const p = await calcularRutaLocal(HOY, inicioDe());
   assert.deepEqual(nombres(p.paradas), ["Cliente 1"]);
 });
 
-test("una persona no encontrada SÍ vuelve al día siguiente", async () => {
-  // La contracara: no encontrarla no es un rechazo, y ese paquete hay que
-  // volver a intentarlo.
+test("nada pasa al día siguiente: lo no entregado se tacha", async () => {
+  // Specs 009 y 012: si el paquete vuelve a salir otro día, se escanea de nuevo.
+  // Si el registro de hoy apareciera mañana, el conductor lo tendría dos veces.
   const a = await pedidoA(1);
   const b = await pedidoA(2);
   await guardarRuta({
     fecha: HOY,
     pedidoIdsEnOrden: [a.id, b.id],
-    geometria: null,
+    trazado: null,
     distanciaM: null,
     duracionS: null,
   });
-  await marcarEntrega({ fecha: HOY, pedidoId: b.id, choferId: CHOFER }, "persona_no_encontrada");
+  await marcarResultado({ fecha: HOY, pedidoId: b.id, choferId: CHOFER }, "no_entregado");
 
-  const p = await calcularRutaLocal("2026-08-21", inicioDe());
-  assert.deepEqual(nombres(p.paradas).sort(), ["Cliente 1", "Cliente 2"]);
+  // Hoy: lo cerrado no se vuelve a rutear.
+  assert.deepEqual(nombres((await calcularRutaLocal(HOY, inicioDe())).paradas), ["Cliente 1"]);
+  // Mañana: no hay nada de hoy.
+  await assert.rejects(() => calcularRutaLocal("2026-08-21", inicioDe()), /No hay pedidos pendientes/i);
 });
 
 // ===========================================================================
@@ -338,9 +321,10 @@ test("una persona no encontrada SÍ vuelve al día siguiente", async () => {
 test("si la ruta más corta ya cumple todos los horarios, NO se ofrece otra", async (t) => {
   // Esto es lo que el documento principal pide primero: una sola ruta cuando es
   // claramente la mejor. Reordenar para "respetar horarios" que la ruta corta ya
-  // respeta no aporta nada y solo agrega una decisión antes de salir.
+  // respeta no aporta nada y solo agrega una decisión antes de salir. A las
+  // 12:00 el bloque 12-14 está abierto: ir primero a "Cerca" lo cumple.
   t.after(reloj.descongelar);
-  aLaHora(8, 0);
+  aLaHora(12, 0);
 
   await pedidoAKm("Cerca", 1, { bloque: "12-14" });
   await pedidoAKm("Media", 2);
@@ -377,7 +361,7 @@ test("cuando la ruta corta se pasa del horario, gana la que lo respeta", async (
   const corta = p.alternativas.find((a) => a.estrategia === "corta");
   assert.ok(corta, "no se ofreció la más corta como alternativa");
   assert.equal(corta.bloquesIncumplidos, 1);
-  assert.deepEqual(corta.llegariaTardeA, ["Temprano"]);
+  assert.deepEqual(corta.fueraDeHorario, ["Temprano"]);
   assert.ok(
     corta.metrosEstimados < p.alternativas[0].metrosEstimados,
     "la más corta tendría que ser más corta",
@@ -461,7 +445,7 @@ test("un bloque que ya pasó no hace reordenar la ruta al vacío", async (t) => 
   );
 });
 
-test("cada alternativa informa cuántos bloques cumple y a quién le llega tarde", async () => {
+test("cada alternativa informa cuántos bloques cumple y a quién no", async () => {
   await pedidoA(1);
   await pedidoA(2, { bloque: "08-10" });
 
@@ -470,11 +454,11 @@ test("cada alternativa informa cuántos bloques cumple y a quién le llega tarde
   for (const a of p.alternativas) {
     assert.equal(typeof a.bloquesCumplidos, "number");
     assert.equal(typeof a.bloquesIncumplidos, "number");
-    assert.ok(Array.isArray(a.llegariaTardeA));
+    assert.ok(Array.isArray(a.fueraDeHorario));
     // La suma tiene que ser la cantidad de paradas con bloque.
     const conBloque = a.paradas.filter((x) => x.bloqueHorarioId).length;
     assert.equal(a.bloquesCumplidos + a.bloquesIncumplidos, conBloque);
-    assert.equal(a.llegariaTardeA.length, a.bloquesIncumplidos);
+    assert.equal(a.fueraDeHorario.length, a.bloquesIncumplidos);
   }
 });
 
@@ -492,7 +476,7 @@ test("el mismo pedido cumple o no según la hora a la que se mire", async (t) =>
   aLaHora(15, 0);
   const tarde = await calcularRutaLocal(HOY, inicioDe());
   assert.equal(tarde.alternativas[0].bloquesIncumplidos, 1, "a las 15:00 ya no se alcanza");
-  assert.deepEqual(tarde.alternativas[0].llegariaTardeA, ["Con bloque"]);
+  assert.deepEqual(tarde.alternativas[0].fueraDeHorario, ["Con bloque"]);
   assert.ok(
     tarde.advertencias.some((x) => x.includes("Con bloque")),
     "no se advirtió que se llega fuera de horario",
@@ -634,7 +618,7 @@ test("sin trazado la ruta sirve igual: quedan el orden y los puntos", async () =
   const p = await calcularRutaLocal(HOY, inicioDe());
 
   assert.equal(p.sinTrazado, true);
-  assert.equal(p.geometria, null);
+  assert.equal(p.trazado, null);
   assert.equal(p.paradas.length, 3, "sin trazado se perdieron las paradas");
   assert.ok(
     p.advertencias.some((a) => /trazado/i.test(a)),
@@ -673,28 +657,11 @@ test("confirmar guarda las paradas, las advertencias y cuántas se comparó", as
 
   const ruta = await leerRuta(HOY);
   assert.deepEqual(
-    ruta.paradas.map((x) => x.pedidoId),
+    ruta.orden,
     p.paradas.map((x) => x.id),
   );
   assert.deepEqual(ruta.advertencias, p.advertencias);
   assert.equal(ruta.propuestasComparadas, p.alternativas.length);
-  assert.ok(ruta.versionDisponibilidad, "no se guardó con qué disponibilidad se calculó");
-});
-
-test("la versión de disponibilidad cambia si llega una respuesta nueva", async () => {
-  // Es lo que le permite a la pantalla ofrecer rehacer la ruta en vez de dejar
-  // al chofer con un orden que ignora lo que el receptor contestó.
-  const a = await pedidoA(1);
-  await pedidoA(2);
-
-  await confirmarRutaLocal(await calcularRutaLocal(HOY, inicioDe()));
-  const antes = (await leerRuta(HOY)).versionDisponibilidad;
-
-  await registrarDisponibilidad(a.id, { tipo: "confirmado" }, "wamid.nueva");
-  await confirmarRutaLocal(await calcularRutaLocal(HOY, inicioDe()));
-  const despues = (await leerRuta(HOY)).versionDisponibilidad;
-
-  assert.notEqual(antes, despues);
 });
 
 test("rehacer la ruta conserva lo que ya se cerró hoy", async () => {
@@ -703,11 +670,11 @@ test("rehacer la ruta conserva lo que ya se cerró hoy", async () => {
   await guardarRuta({
     fecha: HOY,
     pedidoIdsEnOrden: [a.id, b.id],
-    geometria: null,
+    trazado: null,
     distanciaM: null,
     duracionS: null,
   });
-  await marcarEntrega({ fecha: HOY, pedidoId: a.id, choferId: CHOFER }, "entregado");
+  await marcarResultado({ fecha: HOY, pedidoId: a.id, choferId: CHOFER }, "entregado");
 
   // Entra un pedido nuevo y se rehace.
   await pedidoA(3);
@@ -715,10 +682,9 @@ test("rehacer la ruta conserva lo que ya se cerró hoy", async () => {
   await confirmarRutaLocal(p);
 
   const ruta = await leerRuta(HOY);
-  const entregada = ruta.paradas.find((x) => x.pedidoId === a.id);
-  assert.ok(entregada, "se perdió la parada ya entregada");
-  assert.equal(entregada.entrega, "entregado");
-  assert.equal(ruta.paradas[0].pedidoId, a.id, "lo cerrado tiene que quedar primero");
+  assert.equal(ruta.orden[0], a.id, "lo cerrado tiene que quedar primero");
+  const entregada = (await leerPedidos(HOY)).find((x) => x.id === a.id);
+  assert.equal(entregada.resultado, "entregado");
   // Y la entregada no se vuelve a rutear.
   assert.ok(!p.paradas.some((x) => x.id === a.id));
   assert.equal(p.cerradas, 1);

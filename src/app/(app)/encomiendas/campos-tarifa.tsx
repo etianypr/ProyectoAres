@@ -18,14 +18,14 @@ import { Input } from "@/components/ui/input";
 import { MoneyInput } from "@/components/ui/money-input";
 import { Select } from "@/components/ui/select";
 import { Field } from "@/components/ui/label";
-import type { TarifaPago } from "@/lib/encomiendas/pago";
-import { ENCOMIENDA_TIPO_PAGO, type EncomiendaTipoPago } from "@/types/db";
+import type { Tarifa } from "@/lib/encomiendas/pago";
+import { TIPOS_PAGO, type TipoPago } from "@/lib/encomiendas/catalogos";
 
 /** Lo que hay TECLEADO en el formulario: texto, no números. Los montos van en
  *  crudo (solo dígitos), que es lo que entrega MoneyInput y lo que el servidor
  *  espera leer con num(). */
 export type ValoresTarifa = {
-  tipo_pago: EncomiendaTipoPago;
+  tipo_pago: TipoPago;
   valor_pedido: string;
   valor_pago: string;
   monto_dia: string;
@@ -37,7 +37,7 @@ export type ValoresTarifa = {
  *  día ya tiene congelada—. Casi siempre se cambia UNA cosa, así que arrancar
  *  en blanco es la forma más fácil de guardar una tarifa distinta a la que se
  *  quería. */
-export function valoresDeTarifa(tarifa: TarifaPago | null): ValoresTarifa {
+export function valoresDeTarifa(tarifa: Tarifa | null): ValoresTarifa {
   if (!tarifa) {
     return {
       tipo_pago: "porcentaje",
@@ -66,7 +66,7 @@ export function valoresDeTarifa(tarifa: TarifaPago | null): ValoresTarifa {
  *  guardar. Tiene que leer los mismos textos igual que leerTarifa() en el
  *  servidor, o la vista previa mostraría una cifra distinta de la que se
  *  guarda: los montos son dígitos crudos y el porcentaje admite coma o punto. */
-export function tarifaDeValores(v: ValoresTarifa): TarifaPago {
+export function tarifaDeValores(v: ValoresTarifa): Tarifa {
   const entero = (texto: string) => {
     const n = Math.trunc(Number(texto.replace(/\D/g, "")));
     return Number.isFinite(n) ? n : 0;
@@ -134,9 +134,9 @@ export function CamposTarifa({
           id="tipo_pago"
           name="tipo_pago"
           value={valores.tipo_pago}
-          onChange={(e) => set("tipo_pago", e.target.value as EncomiendaTipoPago)}
+          onChange={(e) => set("tipo_pago", e.target.value as TipoPago)}
         >
-          {Object.entries(ENCOMIENDA_TIPO_PAGO).map(([value, label]) => (
+          {Object.entries(TIPOS_PAGO).map(([value, label]) => (
             <option key={value} value={value}>
               {label}
             </option>

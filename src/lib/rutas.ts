@@ -15,7 +15,15 @@
 // avisos de voz con la distancia calculada ("En 300 metros, gire a la derecha
 // hacia Vicuña Mackenna"). Con OSRM había que traducir a mano su vocabulario de
 // maniobras y no había voz posible.
-import type { Coordenada } from "./geocoding";
+import {
+  METROS_POR_GRADO_LAT,
+  deLngLat,
+  distanciaMetros,
+  rumboEntre,
+  type Coordenada,
+  type PuntoLngLat,
+  type Trazado,
+} from "@/lib/geo/coordenada";
 
 const DIRECTIONS = "https://api.mapbox.com/directions/v5/mapbox";
 const MATRIX = "https://api.mapbox.com/directions-matrix/v1/mapbox";
@@ -26,36 +34,9 @@ const MATRIX = "https://api.mapbox.com/directions-matrix/v1/mapbox";
 const PERFIL = "driving-traffic";
 
 // Verificado contra la API: 25 puntos devuelve 200 y 26 devuelve 422, tanto en
-// "driving" como en "driving-traffic". Una jornada de 30 paradas más la base son
+// "driving" como en "driving-traffic". Un día de 30 paradas más la base son
 // 31 puntos, así que el trazado del día SIEMPRE hay que pedirlo por tramos.
 const MAX_PUNTOS_POR_CONSULTA = 25;
-
-// Distancia en línea recta entre dos puntos, en metros. Vive acá y se exporta
-// porque la usan también los hooks del chofer (ver use-navegacion y
-// use-ubicacion-actual): antes estaba escrita tres veces, idéntica.
-export function distanciaMetros(a: Coordenada, b: Coordenada): number {
-  const R = 6371000;
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const dLat = toRad(b.lat - a.lat);
-  const dLng = toRad(b.lng - a.lng);
-  const lat1 = toRad(a.lat);
-  const lat2 = toRad(b.lat);
-  const h =
-    Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(h));
-}
-
-// Rumbo de A hacia B, en grados horarios desde el norte.
-export function rumboEntre(a: Coordenada, b: Coordenada): number {
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const toDeg = (r: number) => (r * 180) / Math.PI;
-  const dLng = toRad(b.lng - a.lng);
-  const lat1 = toRad(a.lat);
-  const lat2 = toRad(b.lat);
-  const y = Math.sin(dLng) * Math.cos(lat2);
-  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
-  return (toDeg(Math.atan2(y, x)) + 360) % 360;
-}
 
 /** Índice del punto del trazado más cercano a una posición. */
 function indiceMasCercano(posicion: Coordenada, puntos: Coordenada[]): number {
@@ -71,10 +52,6 @@ function indiceMasCercano(posicion: Coordenada, puntos: Coordenada[]): number {
   return masCerca;
 }
 
-function aCoordenadas(geometria: [number, number][]): Coordenada[] {
-  return geometria.map(([lng, lat]) => ({ lat, lng }));
-}
-
 // Hacia dónde sigue el camino que el chofer está recorriendo: se mira un punto
 // del trazado unos metros más adelante y se devuelve el rumbo hacia ahí.
 //
@@ -84,7 +61,7 @@ function aCoordenadas(geometria: [number, number][]): Coordenada[] {
 // orientar la vista incluso estando detenido en un semáforo.
 export function rumboDelCamino(
   posicion: Coordenada,
-  geometria: [number, number][],
+  trazado: Trazado,
   metrosAdelante = 45,
   /** Desde qué vértice mirar hacia adelante. Se le pasa el que ya emparejó el
    *  pegado del punto (ver ajustarATrazado): sin él se busca el más cercano de
@@ -92,8 +69,8 @@ export function rumboDelCamino(
    *  hacer que el rumbo salga de la pasada equivocada. */
   desdeIndice?: number,
 ): number | null {
-  if (geometria.length < 2) return null;
-  const puntos = aCoordenadas(geometria);
+  if (trazado.length < 2) return null;
+  const puntos = trazado.map(deLngLat);
 
   // El trazado se pidió desde una posición anterior, así que primero hay que
   // ubicar por qué parte de él va el chofer ahora.
@@ -132,32 +109,31 @@ type Proyeccion = { indice: number; t: number; metros: number };
  *  toda la vida. */
 function proyectarEnRango(
   p: Coordenada,
-  geometria: [number, number][],
+  trazado: Trazado,
   desde: number,
   hasta: number,
 ): Proyeccion | null {
-  if (geometria.length === 0) return null;
+  if (trazado.length === 0) return null;
 
   // A metros planos alrededor de p: a esta escala (cientos de metros) la
   // curvatura de la Tierra no se nota y la cuenta es la de geometría del liceo.
-  const M_POR_GRADO_LAT = 111_320;
-  const mPorGradoLng = M_POR_GRADO_LAT * Math.cos((p.lat * Math.PI) / 180);
-  const x = ([lng]: [number, number]) => (lng - p.lng) * mPorGradoLng;
-  const y = ([, lat]: [number, number]) => (lat - p.lat) * M_POR_GRADO_LAT;
+  const mPorGradoLng = METROS_POR_GRADO_LAT * Math.cos((p.lat * Math.PI) / 180);
+  const x = ([lng]: PuntoLngLat) => (lng - p.lng) * mPorGradoLng;
+  const y = ([, lat]: PuntoLngLat) => (lat - p.lat) * METROS_POR_GRADO_LAT;
 
-  if (geometria.length === 1) {
-    return { indice: 0, t: 0, metros: Math.hypot(x(geometria[0]), y(geometria[0])) };
+  if (trazado.length === 1) {
+    return { indice: 0, t: 0, metros: Math.hypot(x(trazado[0]), y(trazado[0])) };
   }
 
-  const primero = Math.max(0, Math.min(desde, geometria.length - 2));
-  const ultimo = Math.max(primero + 1, Math.min(hasta, geometria.length - 1));
+  const primero = Math.max(0, Math.min(desde, trazado.length - 2));
+  const ultimo = Math.max(primero + 1, Math.min(hasta, trazado.length - 1));
 
   let mejor: Proyeccion = { indice: primero, t: 0, metros: Infinity };
   for (let i = primero; i < ultimo; i++) {
-    const ax = x(geometria[i]);
-    const ay = y(geometria[i]);
-    const dx = x(geometria[i + 1]) - ax;
-    const dy = y(geometria[i + 1]) - ay;
+    const ax = x(trazado[i]);
+    const ay = y(trazado[i]);
+    const dx = x(trazado[i + 1]) - ax;
+    const dy = y(trazado[i + 1]) - ay;
     const largo2 = dx * dx + dy * dy;
 
     // Proyección de p (que está en el origen) sobre el segmento, recortada a
@@ -169,8 +145,8 @@ function proyectarEnRango(
   return mejor;
 }
 
-function proyectarEnTrazado(p: Coordenada, geometria: [number, number][]): Proyeccion | null {
-  return proyectarEnRango(p, geometria, 0, geometria.length - 1);
+function proyectarEnTrazado(p: Coordenada, trazado: Trazado): Proyeccion | null {
+  return proyectarEnRango(p, trazado, 0, trazado.length - 1);
 }
 
 // Cuánto se apartó una posición del trazado, en metros. Se mide contra el
@@ -179,8 +155,8 @@ function proyectarEnTrazado(p: Coordenada, geometria: [number, number][]): Proye
 // de esa recta daba "200 m de desvío" y habría hecho recalcular la ruta sin
 // motivo. Es lo que decide si el chofer sigue el camino o se salió (ver
 // use-navegacion).
-export function distanciaAPolilinea(p: Coordenada, geometria: [number, number][]): number {
-  return proyectarEnTrazado(p, geometria)?.metros ?? Infinity;
+export function distanciaAPolilinea(p: Coordenada, trazado: Trazado): number {
+  return proyectarEnTrazado(p, trazado)?.metros ?? Infinity;
 }
 
 // ----------------------------------------------------------------------------
@@ -250,12 +226,12 @@ export type OpcionesPegado = {
 };
 
 /** Cuántos vértices hay que retroceder desde `indice` para juntar `metros`. */
-function retroceder(geometria: [number, number][], indice: number, metros: number): number {
+function retroceder(trazado: Trazado, indice: number, metros: number): number {
   let acumulado = 0;
   let i = indice;
   while (i > 0 && acumulado < metros) {
-    const [lngA, latA] = geometria[i - 1];
-    const [lngB, latB] = geometria[i];
+    const [lngA, latA] = trazado[i - 1];
+    const [lngB, latB] = trazado[i];
     acumulado += distanciaMetros({ lat: latA, lng: lngA }, { lat: latB, lng: lngB });
     i--;
   }
@@ -263,12 +239,12 @@ function retroceder(geometria: [number, number][], indice: number, metros: numbe
 }
 
 /** Cuántos vértices hay que avanzar desde `indice` para juntar `metros`. */
-function avanzar(geometria: [number, number][], indice: number, metros: number): number {
+function avanzar(trazado: Trazado, indice: number, metros: number): number {
   let acumulado = 0;
   let i = indice;
-  while (i < geometria.length - 1 && acumulado < metros) {
-    const [lngA, latA] = geometria[i];
-    const [lngB, latB] = geometria[i + 1];
+  while (i < trazado.length - 1 && acumulado < metros) {
+    const [lngA, latA] = trazado[i];
+    const [lngB, latB] = trazado[i + 1];
     acumulado += distanciaMetros({ lat: latA, lng: lngA }, { lat: latB, lng: lngB });
     i++;
   }
@@ -277,10 +253,10 @@ function avanzar(geometria: [number, number][], indice: number, metros: number):
 
 export function ajustarATrazado(
   posicion: Coordenada,
-  geometria: [number, number][],
+  trazado: Trazado,
   opciones: OpcionesPegado = {},
 ): PosicionPegada | null {
-  if (geometria.length < 2) return null;
+  if (trazado.length < 2) return null;
 
   const {
     desdeIndice = 0,
@@ -289,12 +265,12 @@ export function ajustarATrazado(
     holguraAtrasM = HOLGURA_ATRAS_M,
   } = opciones;
 
-  const partida = Math.max(0, Math.min(desdeIndice, geometria.length - 2));
+  const partida = Math.max(0, Math.min(desdeIndice, trazado.length - 2));
   const enVentana = proyectarEnRango(
     posicion,
-    geometria,
-    retroceder(geometria, partida, holguraAtrasM),
-    avanzar(geometria, partida, ventanaM),
+    trazado,
+    retroceder(trazado, partida, holguraAtrasM),
+    avanzar(trazado, partida, ventanaM),
   );
 
   // La ventana es una preferencia, no una cárcel. Si adentro no hay nada cerca,
@@ -310,14 +286,14 @@ export function ajustarATrazado(
   const proyeccion =
     enVentana && enVentana.metros <= toleranciaM
       ? enVentana
-      : proyectarEnTrazado(posicion, geometria);
+      : proyectarEnTrazado(posicion, trazado);
 
   if (!proyeccion || proyeccion.metros > toleranciaM) return null;
 
   // El punto exacto dentro del segmento. A esta escala —dos vértices a decenas
   // de metros— interpolar en grados y no en metros no cambia nada medible.
-  const [lngA, latA] = geometria[proyeccion.indice];
-  const [lngB, latB] = geometria[proyeccion.indice + 1];
+  const [lngA, latA] = trazado[proyeccion.indice];
+  const [lngB, latB] = trazado[proyeccion.indice + 1];
   return {
     lat: latA + (latB - latA) * proyeccion.t,
     lng: lngA + (lngB - lngA) * proyeccion.t,
@@ -334,11 +310,11 @@ export function ajustarATrazado(
  *  con el mapa girado e inclinado, esa cola apunta hacia atrás y se lee como un
  *  camino que hay que tomar. */
 export function recortarTrazado(
-  geometria: [number, number][],
+  trazado: Trazado,
   pegado: PosicionPegada,
-): [number, number][] {
-  if (geometria.length < 2) return geometria;
-  return [[pegado.lng, pegado.lat], ...geometria.slice(pegado.indice + 1)];
+): Trazado {
+  if (trazado.length < 2) return trazado;
+  return [[pegado.lng, pegado.lat], ...trazado.slice(pegado.indice + 1)];
 }
 
 // Metros que faltan hasta el final de un trazado, SIGUIENDO el camino y no en
@@ -353,12 +329,12 @@ export function recortarTrazado(
 // 100 m MÁS que antes de arrancar, y recién al pasar la mitad pegaba un salto
 // hacia abajo. Con los avisos de voz atados a esta distancia, además, sonaban
 // tarde.
-export function metrosRestantes(posicion: Coordenada, geometria: [number, number][]): number {
-  if (geometria.length === 0) return 0;
-  const puntos = aCoordenadas(geometria);
+export function metrosRestantes(posicion: Coordenada, trazado: Trazado): number {
+  if (trazado.length === 0) return 0;
+  const puntos = trazado.map(deLngLat);
   if (puntos.length === 1) return Math.round(distanciaMetros(posicion, puntos[0]));
 
-  const proyeccion = proyectarEnTrazado(posicion, geometria);
+  const proyeccion = proyectarEnTrazado(posicion, trazado);
   if (!proyeccion) return 0;
 
   // Lo que queda del segmento en curso, más los siguientes enteros.
@@ -412,7 +388,7 @@ const EPSILON = 1e-6;
 /** Hasta este tamaño se resuelve exacto. El límite lo pone la memoria: la tabla
  *  es 2^(n-1) × (n-1) números, o sea ~850 KB con 14 puntos y 4 MB con 16. En el
  *  teléfono de un chofer no conviene pedir más, y 14 puntos son 13 paradas: la
- *  jornada corta real. */
+ *  día corto real. */
 const MAX_EXACTO = 14;
 
 /** Cuántas paradas seguidas prueba mover el Or-opt. Más de 3 casi no encuentra
@@ -689,7 +665,7 @@ function mejorarLocal(inicial: number[], costo: Costo): number[] {
 // poco más allá. En cuál de esos mínimos cae depende del arranque, así que
 // tocando un poco el algoritmo se puede salir MEJOR en promedio y PEOR en
 // algunos casos sueltos — medido contra la versión anterior, hasta 5,7% peor en
-// una de cada treinta jornadas. Que la ruta de un día concreto empeore no es un
+// una de cada treinta días. Que la ruta de un día concreto empeore no es un
 // costo aceptable, aunque el promedio mejore.
 //
 // El "double bridge" es la sacudida clásica para esto: corta la ruta en cuatro
@@ -704,13 +680,13 @@ function mejorarLocal(inicial: number[], costo: Costo): number[] {
 
 /** Cuántas sacudidas, según el tamaño. Una mejora local cuesta del orden de n²,
  *  así que el número se escala al revés para que el trabajo total quede parejo
- *  —unas décimas de segundo— en vez de dispararse en las jornadas grandes, que
+ *  —unas décimas de segundo— en vez de dispararse en los días grandes, que
  *  son justo las que corren en el teléfono del chofer. */
 function sacudidasPara(n: number): number {
   return Math.max(20, Math.min(200, Math.round(60_000 / (n * n))));
 }
 
-/** Números al azar reproducibles: la misma jornada tiene que dar siempre la
+/** Números al azar reproducibles: el mismo día tiene que dar siempre la
  *  misma ruta, o el chofer regenera y le cambia el orden sin motivo. */
 function alAzar(semilla: number): () => number {
   let s = semilla >>> 0;
@@ -757,10 +733,10 @@ function mejorDeVariosArranques(arranques: number[][], costo: Costo): number[] {
   }
 
   // La semilla sale del COSTO del mejor orden, no del tamaño: sembrarla solo
-  // con n le daba a todas las jornadas de 20 paradas exactamente la misma
-  // secuencia de sacudidas, y con una mala racha fija había jornadas que se
+  // con n le daba a todos los días de 20 paradas exactamente la misma
+  // secuencia de sacudidas, y con una mala racha fija había días que se
   // quedaban clavadas en un valle malo. Sigue siendo reproducible —el mismo
-  // día da siempre la misma ruta— pero cada jornada explora distinto.
+  // día da siempre la misma ruta— pero cada día explora distinto.
   const azar = alAzar(Math.round(mejorCosto) * 31 + mejor.length);
   const sacudidas = sacudidasPara(mejor.length);
   for (let i = 0; i < sacudidas; i++) {
@@ -782,7 +758,7 @@ function mejorDeVariosArranques(arranques: number[][], costo: Costo): number[] {
 // deja de ser el que parece bueno mirando el mapa en línea recta y pasa a ser
 // el que de verdad se maneja menos. Es una diferencia grande: dos paradas a
 // tres cuadras en línea recta pueden estar a quince por calle si en el medio
-// hay sentidos únicos, una quebrada o la costanera. Medido sobre jornadas de 9
+// hay sentidos únicos, una quebrada o la costanera. Medido sobre días de 9
 // paradas en Arica, ordenar por calle ahorra del orden de un kilómetro por día.
 //
 // Sin matriz (más de 25 puntos, o la API no respondió) se cae a la línea recta,
@@ -852,7 +828,7 @@ function urlDirections(puntos: Coordenada[], params: Record<string, string>): st
     // puede perfectamente devolverse— eso no es una restricción real: es una
     // vuelta a la manzana regalada en cada entrega.
     //
-    // Medido sobre 25 jornadas de Arica: con el default, 18 de 25 rutas salían
+    // Medido sobre 25 días de Arica: con el default, 18 de 25 rutas salían
     // más largas, hasta 1.448 m de más en una ruta de solo 4 paradas.
     continue_straight: "false",
     access_token: token,
@@ -863,7 +839,7 @@ function urlDirections(puntos: Coordenada[], params: Record<string, string>): st
 
 // Límite verificado contra la API: el perfil "driving" acepta 25 coordenadas
 // (26 devuelve 422) y "driving-traffic" solo 10. Se usa "driving" a propósito:
-// con 25 paradas entra una jornada completa en UNA consulta, y para decidir el
+// con 25 paradas entra un día completo en UNA consulta, y para decidir el
 // ORDEN de las paradas las velocidades de tráfico del momento no ayudan —el
 // chofer va a pasar por ahí dentro de tres horas, no ahora.
 const MAX_PUNTOS_MATRIZ = 25;
@@ -912,7 +888,7 @@ function enTramos(puntos: Coordenada[], max: number): Coordenada[][] {
 
 export type RutaCalles = {
   /** [lng, lat] por punto — formato GeoJSON. */
-  geometria: [number, number][];
+  trazado: Trazado;
   distanciaM: number;
   duracionS: number;
 };
@@ -925,12 +901,12 @@ export async function obtenerRutaCalles(
 ): Promise<RutaCalles | null> {
   if (puntosOrdenados.length < 2) return null;
 
-  const geometria: [number, number][] = [];
+  const trazado: Trazado = [];
   let distanciaM = 0;
   let duracionS = 0;
 
   for (const tramo of enTramos(puntosOrdenados, MAX_PUNTOS_POR_CONSULTA)) {
-    let ruta: { geometry: { coordinates: [number, number][] }; distance: number; duration: number };
+    let ruta: { geometry: { coordinates: Trazado }; distance: number; duration: number };
     try {
       const res = await fetch(urlDirections(tramo, {}));
       if (!res.ok) return null;
@@ -946,13 +922,13 @@ export async function obtenerRutaCalles(
     // se corta en el medio de la ciudad y parece la ruta completa.
     const coords = ruta.geometry.coordinates;
     // El primer punto de cada tramo posterior es el último del anterior.
-    geometria.push(...(geometria.length === 0 ? coords : coords.slice(1)));
+    trazado.push(...(trazado.length === 0 ? coords : coords.slice(1)));
     distanciaM += ruta.distance;
     duracionS += ruta.duration;
   }
 
   return {
-    geometria,
+    trazado,
     distanciaM: Math.round(distanciaM),
     duracionS: Math.round(duracionS),
   };
@@ -982,7 +958,7 @@ export type PasoNavegacion = {
   modificador: string | null;
   /** Trazado de ESTE paso, que termina justo en la maniobra. Con esto se sabe
    *  cuántos metros faltan para el giro sin volver a consultar la API. */
-  geometria: [number, number][];
+  trazado: Trazado;
   /** Avisos de voz de este paso, del más lejano al más cercano. */
   avisos: AvisoVoz[];
 };
@@ -990,7 +966,7 @@ export type PasoNavegacion = {
 type PasoCrudo = {
   maneuver?: { type?: string; modifier?: string; instruction?: string };
   distance?: number;
-  geometry?: { coordinates?: [number, number][] };
+  geometry?: { coordinates?: Trazado };
   bannerInstructions?: { primary?: { text?: string } }[];
   voiceInstructions?: { announcement?: string; distanceAlongGeometry?: number }[];
 };
@@ -1021,7 +997,7 @@ export async function obtenerNavegacion(
    *  sentido va: en una avenida dividida puede engancharlo en la calzada de
    *  enfrente y devolver una ruta que arranca dando toda la vuelta. */
   rumbo?: number | null,
-): Promise<{ pasos: PasoNavegacion[]; geometria: [number, number][] } | null> {
+): Promise<{ pasos: PasoNavegacion[]; trazado: Trazado } | null> {
   const comunes = {
     steps: "true",
     language: "es",
@@ -1039,7 +1015,7 @@ export async function obtenerNavegacion(
     grados == null ? null : { ...comunes, bearings: `${grados},${TOLERANCIA_RUMBO};` };
 
   let ruta:
-    | { geometry?: { coordinates?: [number, number][] }; legs?: { steps?: PasoCrudo[] }[] }
+    | { geometry?: { coordinates?: Trazado }; legs?: { steps?: PasoCrudo[] }[] }
     | undefined;
   try {
     let res = conRumbo ? await fetch(urlDirections([origen, destino], conRumbo)) : null;
@@ -1066,13 +1042,13 @@ export async function obtenerNavegacion(
       distanciaM: Math.round(p.distance ?? 0),
       tipo: p.maneuver?.type ?? "continue",
       modificador: p.maneuver?.modifier ?? null,
-      geometria: p.geometry?.coordinates ?? [],
+      trazado: p.geometry?.coordinates ?? [],
       avisos: (p.voiceInstructions ?? [])
         .filter((a) => a.announcement)
         .map((a) => ({ texto: a.announcement!, aMetros: Math.round(a.distanceAlongGeometry ?? 0) }))
         // Del más lejano al más cercano, que es el orden en que se van diciendo.
         .sort((a, b) => b.aMetros - a.aMetros),
     })),
-    geometria: ruta?.geometry?.coordinates ?? [],
+    trazado: ruta?.geometry?.coordinates ?? [],
   };
 }

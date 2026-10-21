@@ -17,6 +17,7 @@
 import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import { CENTRO_ARICA, aLngLat, type Trazado } from "@/lib/geo/coordenada";
 
 export type PuntoMapa = {
   id: string;
@@ -96,9 +97,6 @@ function apagarVerdeDelTrafico(mapa: mapboxgl.Map): void {
   }
 }
 
-// Arica, como centro de respaldo cuando todavía no hay ni paradas ni
-// ubicación GPS (recién montado el mapa, o permiso de ubicación pendiente).
-const CENTRO_ARICA: [number, number] = [-70.3126, -18.4783];
 
 // Zoom e inclinación al ENTRAR a modo navegación — nivel calle y vista
 // inclinada, como Google Maps/Waze al arrancar un viaje. La inclinación es lo
@@ -228,10 +226,10 @@ function colorPunto(p: PuntoMapa, previa: boolean): string {
 type LineaGeoJSON = {
   type: "Feature";
   properties: Record<string, never>;
-  geometry: { type: "LineString"; coordinates: [number, number][] };
+  geometry: { type: "LineString"; coordinates: Trazado };
 };
 
-function linea(coordenadas?: [number, number][] | null): LineaGeoJSON {
+function linea(coordenadas?: Trazado | null): LineaGeoJSON {
   return {
     type: "Feature",
     properties: {},
@@ -346,7 +344,7 @@ function elementoUbicacion(): HTMLElement {
  *  vista de manejo. */
 export type PreviaRuta = {
   puntos: PuntoMapa[];
-  geometria: [number, number][] | null;
+  trazado: Trazado | null;
 };
 
 export function RutaMapa({
@@ -355,7 +353,7 @@ export function RutaMapa({
   rumbo,
   rumboBrujula,
   claveDestino,
-  geometria,
+  trazado,
   geometriaNavegacion,
   previa,
   siguiendo,
@@ -381,11 +379,11 @@ export function RutaMapa({
   claveDestino?: string | null;
   /** Trazado de la ruta completa del día ([lng, lat] por punto). Se dibuja
    *  apagado, como referencia. */
-  geometria?: [number, number][] | null;
+  trazado?: Trazado | null;
   /** Trazado desde la posición actual hasta la parada activa (ver
    *  useNavegacion): esta es la línea que el chofer tiene que seguir ahora,
    *  así que va destacada por encima de la anterior. */
-  geometriaNavegacion?: [number, number][] | null;
+  geometriaNavegacion?: Trazado | null;
   /** Ruta propuesta a la vista (ver PreviaRuta). Reemplaza los marcadores de la
    *  ruta del día mientras está puesta. */
   previa?: PreviaRuta | null;
@@ -443,7 +441,8 @@ export function RutaMapa({
     const mapa = new mapboxgl.Map({
       container: contenedor,
       style: ESTILO,
-      center: CENTRO_ARICA,
+      // Respaldo hasta que haya paradas o GPS.
+      center: aLngLat(CENTRO_ARICA),
       zoom: 13,
       // Los controles por defecto no se montan: en el celular se hace zoom
       // con los dedos, y la esquina de arriba a la izquierda la ocupan el
@@ -581,8 +580,8 @@ export function RutaMapa({
   useEffect(() => {
     const mapa = mapaRef.current;
     if (!mapa || !mapaListo) return;
-    (mapa.getSource(FUENTE_DIA) as mapboxgl.GeoJSONSource | undefined)?.setData(linea(geometria));
-  }, [geometria, mapaListo]);
+    (mapa.getSource(FUENTE_DIA) as mapboxgl.GeoJSONSource | undefined)?.setData(linea(trazado));
+  }, [trazado, mapaListo]);
 
   useEffect(() => {
     const mapa = mapaRef.current;
@@ -596,7 +595,7 @@ export function RutaMapa({
     const mapa = mapaRef.current;
     if (!mapa || !mapaListo) return;
     (mapa.getSource(FUENTE_PREVIA) as mapboxgl.GeoJSONSource | undefined)?.setData(
-      linea(previa?.geometria),
+      linea(previa?.trazado),
     );
   }, [previa, mapaListo]);
 
@@ -605,7 +604,7 @@ export function RutaMapa({
   //
   // El relleno es parejo y chico. Antes se reservaba el 48% de abajo porque el
   // mapa iba a pantalla completa y el panel de la propuesta le tapaba la mitad;
-  // ahora la propuesta se mira en la jornada, donde el mapa es una tarjeta de
+  // ahora la propuesta se mira en el día, donde el mapa es una tarjeta de
   // 224 px y el panel está fuera de él (ver pantalla.tsx). Con aquel relleno, en
   // una tarjeta de ese alto quedaban 70 px para dibujar y la ruta salía
   // ilegible de lo alejada.
@@ -614,7 +613,7 @@ export function RutaMapa({
     if (!mapa || !mapaListo || !previa) return;
 
     const limites = new mapboxgl.LngLatBounds();
-    for (const c of previa.geometria ?? []) limites.extend(c);
+    for (const c of previa.trazado ?? []) limites.extend(c);
     for (const p of previa.puntos) limites.extend([p.lng, p.lat]);
     if (limites.isEmpty()) return;
 
@@ -696,7 +695,7 @@ export function RutaMapa({
     }
     if (gestoRef.current) return;
 
-    const centro: [number, number] = [miUbicacion.lng, miUbicacion.lat];
+    const centro = aLngLat(miUbicacion);
 
     // Acomodarse al camino, que pasa en tres momentos y con una sola condición:
     //
@@ -754,7 +753,7 @@ export function RutaMapa({
     const mapa = mapaRef.current;
     if (!mapa || !mapaListo || !miUbicacion) return;
 
-    const centro: [number, number] = [miUbicacion.lng, miUbicacion.lat];
+    const centro = aLngLat(miUbicacion);
 
     if (!marcadorUbicacionRef.current) {
       marcadorUbicacionRef.current = new mapboxgl.Marker({

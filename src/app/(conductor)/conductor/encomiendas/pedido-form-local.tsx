@@ -47,7 +47,7 @@ import { normalizarTelefono } from "@/lib/telefono";
 import {
   guardarPedido,
   reiniciarDisponibilidad,
-  type PedidoLocal,
+  type Pedido,
 } from "@/lib/encomiendas/local/almacen";
 
 const VACIO = { nombre: "", telefono: "", direccion: "", notas: "" };
@@ -67,10 +67,13 @@ type PorResolver = {
 
 export function PedidoFormLocal({
   pedido,
+  fecha,
   onGuardado,
 }: {
   /** Pedido a editar. Sin esto es uno nuevo. */
-  pedido?: PedidoLocal;
+  pedido?: Pedido;
+  /** Día de trabajo al que pertenece un pedido nuevo. */
+  fecha: string;
   /** Guardado. Recibe la advertencia que quedó del guardado, o null si no hubo
    *  ninguna: es lo que le permite a quien contiene el formulario confirmar el
    *  "agregado" sin taparle al chofer un aviso que sí tiene que leer.
@@ -160,9 +163,8 @@ export function PedidoFormLocal({
     // CAMBIÓ EL NÚMERO: lo que había contestado ese WhatsApp era de OTRA persona.
     //
     // Es el caso concreto para el que existe reiniciarDisponibilidad, y hay que
-    // hacerlo antes de guardar. Si no, un pedido cerrado por un rechazo que en
-    // realidad era de un desconocido quedaría cerrado para siempre, y el paquete
-    // no se entregaría nunca sin que nadie sepa por qué.
+    // hacerlo antes de guardar: esa respuesta no puede quedar pegada al pedido, y
+    // el aviso tiene que poder salir de nuevo al número correcto.
     //
     // Solo cuando el número cambia de verdad: corregir la dirección o agregar una
     // nota no invalida nada de lo que el receptor contestó.
@@ -181,6 +183,7 @@ export function PedidoFormLocal({
         lng: coord.lng,
         notas: campos.notas.trim() || null,
       },
+      fecha,
       pedido?.id,
     );
 
@@ -429,14 +432,12 @@ export function PedidoFormLocal({
             </p>
           ) : null}
           {/* Cambiar el número descarta lo que había contestado el anterior, y el
-              chofer tiene que saberlo antes de guardar: si el pedido estaba
-              cerrado por un rechazo, vuelve a la ruta. */}
+              conductor tiene que saberlo antes de guardar. */}
           {numeroCambiado ? (
             <p className="mt-1 flex items-start gap-1 text-xs text-warn">
               <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
               <span>
-                Es otro número: se descarta lo que había contestado el anterior
-                {pedido.estado === "rechazado" ? " y el pedido vuelve a la ruta" : ""}.
+                Es otro número: se descarta lo que había contestado el anterior.
               </span>
             </p>
           ) : null}

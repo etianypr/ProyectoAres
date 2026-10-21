@@ -11,9 +11,7 @@
     "test:base": "node --env-file=.env.local --import ./pruebas/registrar.mjs pruebas/base.mjs",
     "test:esquema": "node --env-file=.env.local pruebas/esquema.mjs",
     "mcp": "node --env-file-if-exists=.env.local --import ./mcp/registrar.mjs mcp/servidor.ts",
-    "sondear": "node --env-file=.env.local scripts/sondear-proveedores.mjs",
-    "migrar": "node --env-file=.env.migracion scripts/migrar-datos.mjs",
-    "respaldo": "node --env-file=.env.migracion scripts/respaldo-flota.mjs"
+    "sondear": "node --env-file=.env.local scripts/sondear-proveedores.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
@@ -21,9 +19,11 @@
     "clsx": "^2.1.1",
     "lucide-react": "^1.21.0",
     "mapbox-gl": "^3.27.0",
-    "next": "16.2.9",
+    "next": "16.4.2",
+    "open-location-code": "^1.0.3",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "server-only": "^0.0.1",
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
@@ -33,9 +33,9 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.2.9",
+    "eslint-config-next": "16.4.2",
     "fake-indexeddb": "^6.2.5",
-    "open-location-code": "^1.0.3",
+    "sharp": "^0.35.5",
     "tailwindcss": "^4",
     "typescript": "^5",
     "zod": "^4.4.3"

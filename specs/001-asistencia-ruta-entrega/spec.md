@@ -4,7 +4,7 @@
 
 **Created**: 2026-08-20
 
-**Status**: Draft
+**Status**: Implementada (2026-08). 44/49 tareas; 5 bloqueadas por requerir teléfono, base real o medición en terreno (ver `tasks.md`). Histórica: el comportamiento vigente está en `docs/`.
 
 **Input**: User description: "Asistir al conductor de encomiendas para localizar clientes, ahorrar tiempo mediante comunicación por WhatsApp, generar la mejor ruta posible y registrar entregas para que el jefe conozca el resultado de la jornada."
 

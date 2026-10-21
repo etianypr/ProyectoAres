@@ -6,7 +6,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 const { enviarActividadPendiente } = await import("@/lib/encomiendas/local/enviar");
-const { leerCola, marcarEntrega, guardarPedido, guardarRuta } = await import(
+const { leerCola, marcarResultado, guardarPedido, guardarRuta } = await import(
   "@/lib/encomiendas/local/almacen"
 );
 const idb = await import("@/lib/encomiendas/local/idb");
@@ -25,7 +25,7 @@ async function limpiar() {
   espia.reset();
 }
 
-/** Encola n eventos reales pasando por marcarEntrega (no a mano). */
+/** Encola n eventos reales pasando por marcarResultado (no a mano). */
 async function encolar(n) {
   const ids = [];
   for (let i = 0; i < n; i++) {
@@ -39,9 +39,9 @@ async function encolar(n) {
     });
     ids.push(p.id);
   }
-  await guardarRuta({ fecha: HOY, pedidoIdsEnOrden: ids, geometria: null, distanciaM: null, duracionS: null });
+  await guardarRuta({ fecha: HOY, pedidoIdsEnOrden: ids, trazado: null, distanciaM: null, duracionS: null });
   for (const id of ids) {
-    await marcarEntrega({ fecha: HOY, pedidoId: id, choferId: CHOFER }, "entregado");
+    await marcarResultado({ fecha: HOY, pedidoId: id, choferId: CHOFER }, "entregado");
   }
   return ids;
 }
@@ -64,66 +64,23 @@ test("manda los eventos con las columnas exactas de encomienda_actividad", async
   assert.equal(tabla, "encomienda_actividad");
   assert.deepEqual(opciones, { onConflict: "id", ignoreDuplicates: true });
   for (const f of filas) {
-    // "motivo" se sumó con la asistencia de ruta (migración 0003): dice por qué
-    // no se entregó, en tres valores fijos. Sigue sin ser un dato personal.
-    assert.deepEqual(
-      Object.keys(f).sort(),
-      ["chofer_id", "fecha", "hora", "id", "motivo", "tipo"],
-    );
+    // Sin motivo desde la spec 012: se entregó o no. La columna queda en la base
+    // con su default null hasta que se borre (002 T051).
+    assert.deepEqual(Object.keys(f).sort(), ["chofer_id", "fecha", "hora", "id", "tipo"]);
     assert.ok(!("origen" in f), "no debe mandar 'origen': la base pone 'app' por defecto");
     assert.ok(!("choferId" in f), "quedó el nombre del dominio local en vez de la columna");
     assert.equal(f.fecha, HOY);
     assert.equal(f.chofer_id, CHOFER);
     assert.match(f.hora, /^\d{4}-\d{2}-\d{2}T/);
     assert.ok(["entrega", "omision", "llamada"].includes(f.tipo));
-    // Una entrega no lleva motivo, y va como null explícito y no undefined: la
-    // columna existe y PostgREST reclamaría una fila a la que le falta.
-    if (f.tipo === "entrega") assert.equal(f.motivo, null);
   }
   assert.equal((await leerCola()).length, 0, "no vació la cola después de confirmar");
 });
 
-test("una omisión viaja con su motivo, y el jefe puede distinguir los tres", async () => {
-  // Es lo único nuevo que esta feature le agrega a lo que sale del teléfono, y es
-  // lo que hace que un rechazo no se confunda con un "no estaba" (FR-021).
-  const casos = [
-    ["persona_no_encontrada", "persona_no_encontrada"],
-    ["entrega_sin_respuesta", "sin_respuesta"],
-    ["rechazo", "rechazo"],
-  ];
-
-  for (const [resultado, motivoEsperado] of casos) {
-    const p = await guardarPedido({
-      nombre: "D",
-      telefono: "+56911111111",
-      direccion: "Calle 1",
-      lat: -18.47,
-      lng: -70.29,
-      notas: null,
-    });
-    await guardarRuta({
-      fecha: HOY,
-      pedidoIdsEnOrden: [p.id],
-      geometria: null,
-      distanciaM: null,
-      duracionS: null,
-    });
-    await marcarEntrega({ fecha: HOY, pedidoId: p.id, choferId: CHOFER }, resultado);
-
-    espia.llamadas = [];
-    await enviarActividadPendiente();
-
-    const filas = espia.llamadas[0].filas;
-    const fila = filas.find((f) => f.tipo === "omision");
-    assert.ok(fila, `${resultado} no salió como omisión`);
-    assert.equal(fila.motivo, motivoEsperado, `${resultado} viajó con el motivo equivocado`);
-  }
-});
-
-test("un evento encolado ANTES de esta versión sale con motivo null", async () => {
-  // Hay teléfonos con eventos ya en la cola, sin el campo. Mandarlos con
-  // undefined haría que PostgREST reclamara la columna y la cola no se vaciaría
-  // nunca: el chofer perdería esas entregas.
+test("un evento encolado ANTES de la spec 012, con motivo, sale sin él", async () => {
+  // Hay teléfonos con eventos ya en la cola que llevan el motivo de antes. Tienen
+  // que salir igual, con las mismas columnas que los nuevos: si no, la cola no
+  // se vaciaría y el conductor perdería esas entregas.
   const { STORES, escribir } = await import("@/lib/encomiendas/local/idb");
   await escribir([STORES.cola], ({ guardar }) =>
     guardar(STORES.cola, {
@@ -131,6 +88,7 @@ test("un evento encolado ANTES de esta versión sale con motivo null", async () 
       choferId: CHOFER,
       fecha: HOY,
       tipo: "omision",
+      motivo: "rechazo",
       hora: "2026-08-06T12:00:00.000Z",
     }),
   );
@@ -138,8 +96,8 @@ test("un evento encolado ANTES de esta versión sale con motivo null", async () 
   await enviarActividadPendiente();
 
   const fila = espia.llamadas[0].filas[0];
-  assert.equal(fila.motivo, null);
-  assert.ok("motivo" in fila, "la fila salió sin la columna motivo");
+  assert.equal(fila.tipo, "omision");
+  assert.equal("motivo" in fila, false, "salió el motivo viejo");
   assert.equal((await leerCola()).length, 0, "no se pudo vaciar la cola de un evento viejo");
 });
 

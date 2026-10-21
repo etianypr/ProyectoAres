@@ -14,6 +14,14 @@
 // llega al servidor únicamente el HECHO de que la entrega ocurrió:
 // encomienda_actividad. De ahí sale el ingreso estimado y la liquidación.
 
+import type {
+  AccionWhatsApp,
+  EstadoAviso,
+  OrigenEvento,
+  TipoEvento,
+  TipoPago,
+} from "@/lib/encomiendas/catalogos";
+
 export type RolUsuario = "admin" | "operador" | "chofer";
 
 export interface Perfil {
@@ -53,7 +61,7 @@ export interface Chofer {
   id: string;
   empresa_id: string;
   /** Cuenta de acceso del conductor (rol 'chofer'), si la tiene. Sin ella no
-   *  puede entrar a /conductor, que es donde registra su jornada. */
+   *  puede entrar a /conductor, que es donde registra su día. */
   user_id: string | null;
   /** Correo con el que se invitó/vinculó su login (no viene de auth.users). */
   email: string | null;
@@ -70,58 +78,15 @@ export interface Chofer {
   updated_at: string;
 }
 
-export const ROLES: Record<RolUsuario, string> = {
-  admin: "Administrador",
-  operador: "Operador",
-  chofer: "Conductor",
-};
-
 // ----------------------------------------------------------------------------
 // Actividad en terreno. Los datos del destinatario y el orden de la ruta viven
 // en el teléfono del conductor: acá solo queda el hecho de que la acción
 // ocurrió, que es lo único que la empresa necesita para el ingreso estimado y la
 // liquidación.
 // ----------------------------------------------------------------------------
-export const ENCOMIENDA_ACTIVIDAD_TIPOS = {
-  entrega: "Entregado",
-  omision: "Omitido",
-  llamada: "Llamada",
-} as const;
-export type EncomiendaActividadTipo = keyof typeof ENCOMIENDA_ACTIVIDAD_TIPOS;
+// Tipo y origen son listas cerradas: viven en lib/encomiendas/catalogos.ts.
 
-// Por qué no se entregó. Es lo único nuevo que esta feature agrega a lo que sale
-// del teléfono, y son tres etiquetas fijas: no dicen quién era el receptor ni
-// dónde vivía.
-//
-// Los nombres son los MISMOS que en el dominio local del teléfono y que en el
-// check de la columna (ver MOTIVOS_NO_ENTREGA en lib/encomiendas/config.ts y la
-// migración 0003). Definirlos una cuarta vez acá es lo que evita que el panel
-// muestre "undefined" el día que alguien agregue un motivo.
-export const ENCOMIENDA_MOTIVOS_NO_ENTREGA = {
-  persona_no_encontrada: "Persona no encontrada",
-  sin_respuesta: "Sin respuesta",
-  rechazo: "Rechazo",
-} as const;
-export type EncomiendaMotivoNoEntrega = keyof typeof ENCOMIENDA_MOTIVOS_NO_ENTREGA;
-
-/** El único motivo que NO se puede reintentar otro día. Se saca de acá y no se
- *  escribe en cada pantalla porque es una regla del producto (FR-012), no una
- *  decisión de presentación. */
-export function motivoReintentable(motivo: EncomiendaMotivoNoEntrega | null): boolean {
-  // null es una omisión registrada antes de que la app preguntara el motivo: se
-  // trata como reintentable, que es lo que era cuando se registró.
-  return motivo !== "rechazo";
-}
-
-// De dónde salió el evento. 'app' es el default en la base: la app del conductor
-// no manda esta columna.
-export const ENCOMIENDA_ACTIVIDAD_ORIGENES = {
-  app: "App del conductor",
-  manual: "Carga manual",
-} as const;
-export type EncomiendaActividadOrigen = keyof typeof ENCOMIENDA_ACTIVIDAD_ORIGENES;
-
-export interface EncomiendaActividad {
+export interface Actividad {
   /** Generado en el TELÉFONO (UUIDv7), no en la base: es la clave de
    *  idempotencia que hace que reenviar un evento desde la cola offline no
    *  pueda contarlo dos veces. */
@@ -132,15 +97,10 @@ export interface EncomiendaActividad {
    *  hora del servidor: una entrega de las 21:30 en Arica ya es del día
    *  siguiente en UTC y el pago se movería de día. */
   fecha: string;
-  tipo: EncomiendaActividadTipo;
-  /** Por qué no se entregó. Solo en las filas de tipo 'omision', y solo en las
-   *  que la app registró desde esta feature: null en las anteriores, cuando el
-   *  botón era uno solo y no preguntaba el motivo.
-   *
-   *  NO entra en el cálculo del pago. La base cuenta por `tipo` ('entrega' suma,
-   *  'omision' no) y esta columna es solo para que el jefe pueda distinguir los
-   *  tres casos — sobre todo el rechazo, que no hay que volver a intentar. */
-  motivo: EncomiendaMotivoNoEntrega | null;
+  tipo: TipoEvento;
+  /** Heredada (0003): el motivo de una no entrega. Desde la spec 012 nadie la
+   *  escribe ni la lee; se borra con la spec 002 (T051). */
+  motivo: string | null;
   /** Cuándo ocurrió según el teléfono — puede ser bastante anterior a
    *  created_at si se marcó sin señal. En las filas de origen 'manual' es de
    *  relleno (mediodía UTC del día cargado): nadie sabe la hora real. */
@@ -149,7 +109,7 @@ export interface EncomiendaActividad {
   created_at: string;
   /** 'app' = lo envió el teléfono del conductor · 'manual' = lo cargó la
    *  oficina. Los dos cuentan igual para el pago. */
-  origen: EncomiendaActividadOrigen;
+  origen: OrigenEvento;
 }
 
 // ----------------------------------------------------------------------------
@@ -170,10 +130,10 @@ export interface EncomiendaActividad {
  *  el teléfono los manda el teléfono del conductor en el cuerpo del POST de
  *  envío, se usan para armar la llamada a Meta y no se persisten.
  *
- *  Se borra al cerrar la jornada, y como máximo 72 horas después de crearse si
- *  la jornada nunca se cierra. Ver la migración 0003 y la Decisión 7 de
+ *  Se borra al cerrar el día, y como máximo 72 horas después de crearse si
+ *  el día nunca se cierra. Ver la migración 0003 y la Decisión 7 de
  *  specs/001-asistencia-ruta-entrega/research.md. */
-export interface EncomiendaWhatsappCorrelacion {
+export interface Aviso {
   /** Aleatorio. Es lo único nuestro que Meta llega a ver: viaja dentro del
    *  payload del botón y vuelve con la respuesta. */
   correlation_id: string;
@@ -182,16 +142,16 @@ export interface EncomiendaWhatsappCorrelacion {
   /** El id que el TELÉFONO le puso al pedido (UUIDv7). No hay ninguna fila en
    *  toda la base que lo asocie a una persona. */
   pedido_id_local: string;
-  /** Día de trabajo, para que el cierre de la jornada borre las de ese día. */
+  /** Día de trabajo, para que el cierre del día borre las de ese día. */
   fecha: string;
   /** wamid del aviso saliente. Segunda vía para resolver una respuesta cuando
    *  el payload del botón no viene. */
   external_message_id: string | null;
   /** Del MENSAJE, no de la entrega: 'fallido' es que WhatsApp no lo pudo dejar,
    *  nunca que el receptor haya rechazado el pedido. */
-  estado: "pendiente" | "enviado" | "entregado" | "leido" | "respondido" | "fallido";
+  estado: EstadoAviso;
   /** Qué botón tocó. Tres valores fijos; si escribe texto libre no se guarda. */
-  respuesta_accion: "CONFIRMAR" | "RECHAZAR" | "HORARIO" | null;
+  respuesta_accion: AccionWhatsApp | null;
   /** Id del bloque horario elegido ('08-10'). Configuración de la empresa. */
   respuesta_bloque_id: string | null;
   /** wamid de la RESPUESTA. Único en la base: es lo que hace idempotente al
@@ -206,22 +166,16 @@ export interface EncomiendaWhatsappCorrelacion {
   created_at: string;
 }
 
-export const ENCOMIENDA_TIPO_PAGO = {
-  porcentaje: "% por pedido entregado",
-  monto_fijo: "Monto fijo por pedido entregado",
-} as const;
-export type EncomiendaTipoPago = keyof typeof ENCOMIENDA_TIPO_PAGO;
-
 /** La regla de pago del conductor. Hay UNA sola fila y se edita encima: no
  *  tiene historial ni vigencias.
  *
  *  Eso NO significa que cambiarla reescriba el pasado. Cada día guarda sus
- *  propias cifras en EncomiendaPago apenas se registra, así que la regla solo
+ *  propias cifras en PagoDelDia apenas se registra, así que la regla solo
  *  decide lo que se registre de ahí en adelante. */
-export interface EncomiendaReglaPago {
+export interface ReglaDePago {
   id: string;
   empresa_id: string;
-  tipo_pago: EncomiendaTipoPago;
+  tipo_pago: TipoPago;
   /** numeric en Postgres: PostgREST lo devuelve como string ("15.00"). */
   valor_pago: number;
   /** CLP que se estima que entra por cada entrega. Con tipo_pago 'porcentaje'
@@ -246,7 +200,7 @@ export interface EncomiendaReglaPago {
  *  filas heredadas del sistema anterior quedaron por (anio, mes) y se conservan
  *  como historial de solo lectura. La base garantiza que sea exactamente una de
  *  las dos cosas. */
-export interface EncomiendaIngresoReal {
+export interface IngresoReal {
   id: string;
   empresa_id: string;
   /** El corte al que pertenece esta liquidación. null solo en las filas
@@ -265,17 +219,17 @@ export interface EncomiendaIngresoReal {
 
 /** Una ruta de reparto: cuándo empezó y cuándo terminó.
  *
- *  Es el sobre del día. Mientras `cerrada_en` sea null la jornada está EN CURSO
- *  y el día no se valora: no hay fila en EncomiendaPago y el panel no muestra
+ *  Es el sobre del día. Mientras `cerrada_en` sea null el día está EN CURSO
+ *  y el día no se valora: no hay fila en PagoDelDia y el panel no muestra
  *  plata. Al cerrarse —el conductor llega a la última parada, la oficina carga
  *  el día a mano, o el barrido nocturno la cierra— la base congela las cifras
  *  de una sola vez. */
-export interface EncomiendaJornada {
+export interface DiaTrabajo {
   id: string;
   empresa_id: string;
   chofer_id: string | null;
   fecha: string;
-  /** Cuándo se generó la ruta. null en jornadas levantadas desde la oficina. */
+  /** Cuándo se generó la ruta. null en días levantados desde la oficina. */
   inicio: string | null;
   /** Cuándo se cerró la última parada. null = sigue en curso. */
   cerrada_en: string | null;
@@ -289,7 +243,7 @@ export interface EncomiendaJornada {
  *  recalcula después, ni siquiera cambiar la regla de pago. Por eso no guarda
  *  regla_id: con una regla mutable apuntaría siempre a la misma fila y sus
  *  valores no serían los que se usaron acá. */
-export interface EncomiendaPago {
+export interface PagoDelDia {
   id: string;
   empresa_id: string;
   chofer_id: string | null;
@@ -312,13 +266,24 @@ export interface EncomiendaPago {
   // hace que sumarle una entrega a un día en curso no lo arrastre a una regla
   // que cambió hace diez minutos.
   regla_valor_pedido: number | null;
-  regla_tipo_pago: EncomiendaTipoPago | null;
+  regla_tipo_pago: TipoPago | null;
   /** numeric en Postgres: PostgREST lo devuelve como string ("15.00"). */
   regla_valor_pago: number | null;
   regla_monto_dia: number | null;
   regla_meta_entregas_dia: number | null;
   regla_bono_monto: number | null;
 }
+
+/** La tarifa congelada de un día (las columnas regla_* de PagoDelDia). */
+export type TarifaDelDia = Pick<
+  PagoDelDia,
+  | "regla_valor_pedido"
+  | "regla_tipo_pago"
+  | "regla_valor_pago"
+  | "regla_monto_dia"
+  | "regla_meta_entregas_dia"
+  | "regla_bono_monto"
+>;
 
 /** Un corte de facturación: de qué fecha a qué fecha.
  *
@@ -330,7 +295,7 @@ export interface EncomiendaPago {
  *  que se pinta sale de su posición en la lista, ver lib/encomiendas/periodos.ts.
  *  Dentro de una misma empresa dos periodos no pueden solaparse, y eso lo
  *  garantiza una restricción de exclusión en la base. */
-export interface EncomiendaPeriodoFacturacion {
+export interface PeriodoFacturacion {
   id: string;
   empresa_id: string;
   /** Inclusive: el día `fecha_inicio` es parte del periodo. */
@@ -340,3 +305,70 @@ export interface EncomiendaPeriodoFacturacion {
   created_at: string;
   updated_at: string;
 }
+
+// ----------------------------------------------------------------------------
+// Database: el esquema que lee supabase-js. Con esto cada .from() y .rpc() sabe
+// sus columnas y sus argumentos, y las consultas no necesitan casts.
+// ----------------------------------------------------------------------------
+
+/** Las interfaces no tienen firma de índice y supabase-js la exige: el tipo
+ *  mapeado es la misma forma, aceptada como Record. */
+type Fila<T> = { [K in keyof T]: T[K] };
+
+/** Clave foránea hacia choferes(id). El nombre es el que Postgres pone solo. */
+type HaciaChofer<T extends string> = {
+  foreignKeyName: `${T}_chofer_id_fkey`;
+  columns: ["chofer_id"];
+  isOneToOne: false;
+  referencedRelation: "choferes";
+  referencedColumns: ["id"];
+};
+
+type Tabla<T, Relaciones extends unknown[] = []> = {
+  Row: Fila<T>;
+  Insert: Partial<Fila<T>>;
+  Update: Partial<Fila<T>>;
+  Relationships: Relaciones;
+};
+
+export type Database = {
+  public: {
+    Tables: {
+      perfiles: Tabla<Perfil>;
+      empresa: Tabla<Empresa>;
+      choferes: Tabla<Chofer>;
+      encomienda_actividad: Tabla<Actividad, [HaciaChofer<"encomienda_actividad">]>;
+      encomienda_jornadas: Tabla<DiaTrabajo, [HaciaChofer<"encomienda_jornadas">]>;
+      encomienda_pagos: Tabla<PagoDelDia, [HaciaChofer<"encomienda_pagos">]>;
+      encomienda_whatsapp_correlaciones: Tabla<
+        Aviso,
+        [HaciaChofer<"encomienda_whatsapp_correlaciones">]
+      >;
+      encomienda_reglas_pago: Tabla<ReglaDePago>;
+      encomienda_ingresos_reales: Tabla<IngresoReal>;
+      encomienda_periodos_facturacion: Tabla<PeriodoFacturacion>;
+    };
+    Views: { [_ in never]: never };
+    Functions: {
+      encomienda_repreciar_dia: {
+        Args: { p_chofer_id: string; p_fecha: string };
+        Returns: undefined;
+      };
+      encomienda_valorar_dia: {
+        Args: {
+          p_chofer_id: string;
+          p_fecha: string;
+          p_valor_pedido: number;
+          p_tipo_pago: TipoPago;
+          p_valor_pago: number;
+          p_monto_dia?: number;
+          p_meta_entregas_dia?: number | null;
+          p_bono_monto?: number | null;
+        };
+        Returns: undefined;
+      };
+    };
+    Enums: { [_ in never]: never };
+    CompositeTypes: { [_ in never]: never };
+  };
+};

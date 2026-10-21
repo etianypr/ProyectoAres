@@ -22,7 +22,7 @@ import { Field } from "@/components/ui/label";
 import {
   COLOR_PERIODO,
   nombrePeriodo,
-  type PeriodoFacturacion,
+  type Periodo,
 } from "@/lib/encomiendas/periodos";
 import {
   eliminarPeriodoFacturacion,
@@ -39,7 +39,7 @@ export function PeriodosFacturacion({
   /** Todos los de la empresa, ordenados por fecha de inicio: el orden es el que
    *  fija el color de cada uno, así que tiene que ser el mismo que usa el
    *  panel para pintar las barras. */
-  periodos: PeriodoFacturacion[];
+  periodos: Periodo[];
   /** Con qué fecha arranca un periodo nuevo: el día siguiente al último corte,
    *  para que no queden huecos sin querer. */
   sugerenciaInicio: string;
@@ -76,7 +76,7 @@ function Formulario({
   sugerenciaInicio,
   onCerrar,
 }: {
-  periodos: PeriodoFacturacion[];
+  periodos: Periodo[];
   sugerenciaInicio: string;
   onCerrar: () => void;
 }) {

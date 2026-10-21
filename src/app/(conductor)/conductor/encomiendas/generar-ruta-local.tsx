@@ -49,7 +49,7 @@ export function GenerarRutaLocal({
   // la ruta se arma en el momento de salir, y salvo que se esté en el galpón, la
   // dirección de la empresa manda la primera parada al otro lado de la ciudad.
   // Antes el valor de arranque era "empresa" y había que acordarse de abrir el
-  // desplegable para corregirlo en cada jornada.
+  // desplegable para corregirlo en cada día.
   const [opcion, setOpcion] = useState<Opcion>("gps");
   const [mostrarOpciones, setMostrarOpciones] = useState(false);
   const [direccion, setDireccion] = useState("");

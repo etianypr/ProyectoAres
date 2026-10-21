@@ -1,3 +1,4 @@
+import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -46,6 +47,14 @@ export const sesionActual = cache(async (): Promise<Sesion | null> => {
     rol: (perfil?.rol as RolUsuario | undefined) ?? null,
   };
 });
+
+/** Para las server actions del panel: una action no redirige, devuelve el error
+ *  al formulario, así que necesita la respuesta y no la puerta. Es la misma
+ *  regla que exigirPanel(), y RLS la vuelve a exigir en la base. */
+export async function puedeOperarPanel(): Promise<boolean> {
+  const rol = (await sesionActual())?.rol;
+  return rol != null && ROLES_PANEL.includes(rol);
+}
 
 /** Hay sesión, sin importar el rol. Si no, al login. */
 export async function exigirSesion(): Promise<Sesion> {

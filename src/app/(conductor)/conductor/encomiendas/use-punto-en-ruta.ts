@@ -16,32 +16,32 @@
 
 import { useState } from "react";
 import { ajustarATrazado, type PosicionPegada } from "@/lib/rutas";
-import type { Coordenada } from "@/lib/geocoding";
+import type { Coordenada, Trazado } from "@/lib/geo/coordenada";
 
 export function usePuntoEnRuta(
   posicion: Coordenada | null,
-  geometria: [number, number][] | null,
+  trazado: Trazado | null,
 ): PosicionPegada | null {
   const [indice, setIndice] = useState(0);
   // El trazado se compara por IDENTIDAD y no por contenido: useNavegacion
   // devuelve un arreglo nuevo por cada tramo pedido, así que un cambio de
   // referencia es exactamente "esta es otra ruta".
-  const [geometriaAnterior, setGeometriaAnterior] = useState(geometria);
+  const [geometriaAnterior, setGeometriaAnterior] = useState(trazado);
 
   // Ajustado durante el render y no en un efecto, igual que useNavegacion con
   // su tramo: el índice hace falta en ESTE dibujado. Con un efecto, la primera
   // lectura del tramo nuevo se emparejaría con el índice del tramo viejo — que
   // puede estar a kilómetros— y el punto pegaría un salto antes de acomodarse.
   let desdeIndice = indice;
-  if (geometriaAnterior !== geometria) {
-    setGeometriaAnterior(geometria);
+  if (geometriaAnterior !== trazado) {
+    setGeometriaAnterior(trazado);
     desdeIndice = 0;
     setIndice(0);
   }
 
-  if (!posicion || !geometria) return null;
+  if (!posicion || !trazado) return null;
 
-  const pegado = ajustarATrazado(posicion, geometria, { desdeIndice });
+  const pegado = ajustarATrazado(posicion, trazado, { desdeIndice });
 
   // Solo avanza, y se compara contra el índice de ESTA vuelta (que en un tramo
   // recién llegado es 0) y no contra el que quedó guardado del tramo anterior,

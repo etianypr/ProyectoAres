@@ -5,29 +5,16 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sesionActual } from "@/lib/auth";
+import { puedeOperarPanel, sesionActual } from "@/lib/auth";
 import { s, sReq, bool } from "@/lib/form-helpers";
 
 export type FormState = { error?: string; ok?: boolean };
 
-// Quién puede administrar la ficha de un conductor. Coincide con la policy
-// choferes_write_admin_op: RLS ya frena a los demás roles.
-async function puedeAdministrarChoferes(): Promise<boolean> {
-  const sesion = await sesionActual();
-  return sesion?.rol === "admin" || sesion?.rol === "operador";
-}
-
-async function esAdmin(supabase: Awaited<ReturnType<typeof createClient>>): Promise<boolean> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return false;
-  const { data: perfil } = await supabase
-    .from("perfiles")
-    .select("rol")
-    .eq("id", user.id)
-    .maybeSingle();
-  return perfil?.rol === "admin";
+// Administrar la ficha de un conductor es de admin y operador (puedeOperarPanel,
+// igual que la policy choferes_write_admin_op). Crear o borrar CUENTAS de
+// acceso, solo de admin.
+async function esAdmin(): Promise<boolean> {
+  return (await sesionActual())?.rol === "admin";
 }
 
 // Origen del sitio para el link del correo de invitación. Se puede fijar
@@ -46,7 +33,7 @@ export async function guardarChofer(
 ): Promise<FormState> {
   const id = s(formData.get("id"));
   const nombre = sReq(formData.get("nombre"));
-  if (!nombre) return { error: "El nombre del chofer es obligatorio." };
+  if (!nombre) return { error: "El nombre del conductor es obligatorio." };
 
   // La licencia se gestiona aparte (en la ficha), no aquí, para no sobrescribirla.
   const values = {
@@ -89,8 +76,8 @@ export async function eliminarChofer(
   // se usan, no las protege el proxy — y aunque RLS frenaba el DELETE de la
   // fila EN SILENCIO (0 filas afectadas, sin error), el borrado de la cuenta
   // de Auth sí se ejecutaba.
-  if (!(await puedeAdministrarChoferes())) {
-    return { error: "No tienes permiso para eliminar choferes." };
+  if (!(await puedeOperarPanel())) {
+    return { error: "No tienes permiso para eliminar conductores." };
   }
 
   const supabase = await createClient();
@@ -137,7 +124,7 @@ export async function desactivarChofer(
 // registrados, para decidir qué advertencia mostrar en el diálogo.
 //
 // Se pregunta por la actividad y no por las liquidaciones: la actividad es lo
-// primero que existe (un día con eventos pero con la jornada abierta todavía no
+// primero que existe (un día con eventos pero con el día abierto todavía no
 // tiene fila de pago), así que es la señal que se enciende antes.
 export async function tieneHistorialChofer(id: string): Promise<boolean> {
   const supabase = await createClient();
@@ -154,7 +141,7 @@ export async function actualizarLicencia(
   formData: FormData,
 ): Promise<FormState> {
   const id = sReq(formData.get("id"));
-  if (!id) return { error: "Falta el chofer." };
+  if (!id) return { error: "Falta el conductor." };
 
   const values = {
     licencia_numero: s(formData.get("licencia_numero")),
@@ -220,12 +207,12 @@ export async function invitarChofer(
 ): Promise<InvitarState> {
   const id = sReq(formData.get("id"));
   const email = sReq(formData.get("email")).toLowerCase();
-  if (!id) return { error: "Falta el chofer." };
+  if (!id) return { error: "Falta el conductor." };
   if (!email) return { error: "Ingresa un correo." };
 
   const supabase = await createClient();
-  if (!(await esAdmin(supabase))) {
-    return { error: "Solo un administrador puede invitar choferes." };
+  if (!(await esAdmin())) {
+    return { error: "Solo un administrador puede invitar conductores." };
   }
 
   const { data: chofer } = await supabase
@@ -233,8 +220,8 @@ export async function invitarChofer(
     .select("nombre, user_id")
     .eq("id", id)
     .maybeSingle();
-  if (!chofer) return { error: "Chofer no encontrado." };
-  if (chofer.user_id) return { error: "Este chofer ya tiene una cuenta vinculada." };
+  if (!chofer) return { error: "Conductor no encontrado." };
+  if (chofer.user_id) return { error: "Este conductor ya tiene una cuenta vinculada." };
 
   const admin = createAdminClient();
 
@@ -249,11 +236,11 @@ export async function invitarChofer(
       .eq("user_id", yaExiste.id)
       .maybeSingle();
     if (otroChofer) {
-      return { error: `Ese correo ya está vinculado al chofer "${otroChofer.nombre}".` };
+      return { error: `Ese correo ya está vinculado al conductor "${otroChofer.nombre}".` };
     }
     return {
       error:
-        "Ese correo ya tiene una cuenta en el sistema (no vinculada a ningún chofer). Usa otro correo.",
+        "Ese correo ya tiene una cuenta en el sistema (no vinculada a ningún conductor). Usa otro correo.",
     };
   }
 
@@ -276,7 +263,7 @@ export async function invitarChofer(
     .update({ email, user_id: resultado.userId })
     .eq("id", id);
   if (errLink) {
-    return { error: `Cuenta creada, pero no se pudo vincular al chofer: ${errLink.message}` };
+    return { error: `Cuenta creada, pero no se pudo vincular al conductor: ${errLink.message}` };
   }
 
   revalidatePath("/choferes");
@@ -288,7 +275,7 @@ export async function invitarChofer(
 // cuenta ya existe — "invite" es solo para crearla la primera vez.
 export async function reenviarInvitacionChofer(choferId: string): Promise<InvitarState> {
   const supabase = await createClient();
-  if (!(await esAdmin(supabase))) {
+  if (!(await esAdmin())) {
     return { error: "Solo un administrador puede reenviar el acceso." };
   }
 
@@ -298,7 +285,7 @@ export async function reenviarInvitacionChofer(choferId: string): Promise<Invita
     .eq("id", choferId)
     .maybeSingle();
   if (!chofer?.user_id || !chofer.email) {
-    return { error: "Este chofer no tiene una cuenta vinculada todavía." };
+    return { error: "Este conductor no tiene una cuenta vinculada todavía." };
   }
 
   const admin = createAdminClient();

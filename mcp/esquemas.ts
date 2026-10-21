@@ -129,7 +129,7 @@ export const salidaRuta = {
     .array(z.number().int().min(0))
     .describe("Índices de 'puntos' en el orden recorrido."),
   puntos_geometria: z.number().int().min(0).describe("Cuántos puntos tiene el trazado."),
-  geometria: z
+  trazado: z
     .array(z.array(z.number()).length(2))
     .optional()
     .describe(

@@ -29,8 +29,10 @@ const {
   leerPayloadBoton,
   payloadBoton,
   bloquesActivos,
-  disponibilidadDeRespuesta,
 } = await import("@/lib/encomiendas/config");
+const { respuestaDeAccion } = await import("@/lib/encomiendas/estados");
+const disponibilidadDe = (p) =>
+  respuestaDeAccion(p.accion, p.bloqueHorarioId)?.tipo ?? "pendiente_respuesta";
 
 const doble = await import("./dobles/meta-whatsapp.mjs");
 const { meta, fixtures, instalarMeta, desinstalarMeta, respuestasEnOrden, errorMeta } = doble;
@@ -122,7 +124,7 @@ test("la plantilla lleva exactamente TRES botones, en el orden del producto", as
   // Tres es el máximo que Meta permite, y son las tres respuestas del documento
   // principal. El ORDEN importa: el payload se manda por índice, así que si
   // alguien reordena los botones en el panel de Meta, el "sí" de un receptor
-  // llega como rechazo.
+  // llega como "Mañana" (spec 010: Sí, estaré · Mañana · Otro horario).
   await enviarAvisoDisponibilidad(AVISO, yaMismo);
   const botones = ultimoCuerpo().template.components.filter((x) => x.type === "button");
 
@@ -133,7 +135,7 @@ test("la plantilla lleva exactamente TRES botones, en el orden del producto", as
   );
   assert.deepEqual(
     botones.map((b) => leerPayloadBoton(b.parameters[0].payload).accion),
-    ["CONFIRMAR", "RECHAZAR", "HORARIO"],
+    ["CONFIRMAR", "MANANA", "HORARIO"],
   );
   for (const b of botones) assert.equal(b.sub_type, "quick_reply");
 });
@@ -279,7 +281,7 @@ test("la lista trae los seis bloques con su payload resoluble", async () => {
     assert.equal(leido.accion, "HORARIO");
     assert.equal(leido.correlationId, "corr-3");
     assert.ok(leido.bloqueHorarioId, "una fila de la lista salió sin bloque");
-    assert.equal(disponibilidadDeRespuesta(leido), "horario_indicado");
+    assert.equal(disponibilidadDe(leido), "horario_indicado");
   }
 });
 
@@ -467,13 +469,21 @@ test("un CONFIRMAR de plantilla se resuelve a 'confirmado'", () => {
     correlationId: "corr-0001",
     bloqueHorarioId: null,
   });
-  assert.equal(disponibilidadDeRespuesta(leido), "confirmado");
+  assert.equal(disponibilidadDe(leido), "confirmado");
 });
 
-test("un RECHAZAR se resuelve a 'rechazado'", () => {
+test("un RECHAZAR de un aviso anterior a la 010 se lee como 'Mañana'", () => {
+  // Es el mismo botón (segunda posición) con el payload viejo: un aviso puede
+  // responderse hasta 72 h después de enviado.
   const leido = leerPayloadBoton(payloadDelWebhook(fixtures.respuesta_rechazar));
-  assert.equal(leido.accion, "RECHAZAR");
-  assert.equal(disponibilidadDeRespuesta(leido), "rechazado");
+  assert.equal(leido.accion, "MANANA");
+  assert.equal(disponibilidadDe(leido), "manana");
+});
+
+test("un MANANA se resuelve a 'manana'", () => {
+  const leido = leerPayloadBoton(payloadBoton("MANANA", "corr-9"));
+  assert.deepEqual(leido, { accion: "MANANA", correlationId: "corr-9", bloqueHorarioId: null });
+  assert.equal(disponibilidadDe(leido), "manana");
 });
 
 test("una fila de la lista de horarios trae su bloque", () => {
@@ -483,7 +493,7 @@ test("una fila de la lista de horarios trae su bloque", () => {
     correlationId: "corr-0003",
     bloqueHorarioId: "18-20",
   });
-  assert.equal(disponibilidadDeRespuesta(leido), "horario_indicado");
+  assert.equal(disponibilidadDe(leido), "horario_indicado");
 });
 
 test("un texto libre del receptor NO se interpreta", () => {

@@ -1,5 +1,10 @@
 # Data Model: Asistencia de ruta y entrega
 
+> **Superado.** Este modelo se escribió antes de implementar y no coincide con el código
+> (propone `phone_hash` y un campo `whatsapp` en el pedido, que no existen; omite el estado
+> `rechazado` y el store `whatsapp`). El modelo vigente está en `docs/CLASES.md` y
+> `docs/ARQUITECTURA.md` §2.
+
 ## Principios
 
 - El detalle del destinatario y el orden de ruta viven en IndexedDB del teléfono.

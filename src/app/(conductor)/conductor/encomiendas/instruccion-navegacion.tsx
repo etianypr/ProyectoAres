@@ -50,7 +50,7 @@ function iconoManiobra(paso: PasoNavegacion) {
 
 /** La caja del carril de arriba del mapa. Vive acá y se exporta porque hay dos
  *  cosas que la usan y tienen que verse como la MISMA pieza: el cartel de
- *  navegación y, cuando no hay maniobra, el resumen de la jornada solo. Si cada
+ *  navegación y, cuando no hay maniobra, el resumen del día solo. Si cada
  *  uno se dibujara su propia caja, el cartel cambiaría de fondo o de sombra al
  *  aparecer y desaparecer la navegación. */
 export const CAJA_CARRIL = "flex items-center gap-2.5 rounded-2xl bg-card px-3.5 py-2 shadow-card";
@@ -73,7 +73,7 @@ export function InstruccionNavegacion({
   /** Metros hasta la maniobra recalculados con el GPS (ver useNavegacion): se
    *  prefiere antes que paso.distanciaM, que se queda vieja entre consultas. */
   metros: number | null;
-  /** Cómo va la jornada, a la derecha y dentro del mismo cartel (ver
+  /** Cómo va el día, a la derecha y dentro del mismo cartel (ver
    *  CAJA_CARRIL). Va acá adentro y no como pastilla aparte porque arriba del
    *  mapa hay una sola franja legible manejando, y dos cajas flotando en ella
    *  se leen como dos cosas que compiten. Es lo único que se le permite

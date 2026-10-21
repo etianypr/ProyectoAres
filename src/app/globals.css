@@ -74,8 +74,8 @@
      contraste (4.97:1 → 6.26:1 sobre su propio fondo).
 
      Y el color nunca es lo único: cada estado de esta app lleva además su icono
-     y su texto. Las advertencias de la ruta llevan triángulo, los rechazos
-     llevan el círculo tachado, las entregas el tilde.
+     y su texto. Las advertencias de la ruta llevan triángulo, lo no entregado
+     la cruz, las entregas el tilde.
      ------------------------------------------------------------------------ */
   /* 5.62:1 sobre --ok-bg */
   --ok: #0f6b45;

@@ -4,7 +4,6 @@ import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/ui/card";
 import { buttonClass } from "@/components/ui/button";
 import { Plus, UserRound } from "lucide-react";
-import type { Chofer } from "@/types/db";
 import { ChoferAccordion } from "./chofer-accordion";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +12,7 @@ export const metadata = { title: "Conductores" };
 export default async function ChoferesPage() {
   const supabase = await createClient();
   const { data } = await supabase.from("choferes").select("*").order("nombre");
-  const choferes = (data ?? []) as Chofer[];
+  const choferes = data ?? [];
 
   return (
     <div>

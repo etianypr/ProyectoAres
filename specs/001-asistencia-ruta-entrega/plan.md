@@ -1,5 +1,7 @@
 # Implementation Plan: Asistencia de ruta y entrega
 
+> Histórico (feature implementada). Estructura vigente: `docs/ARQUITECTURA.md`.
+
 **Branch**: `001-asistencia-ruta-entrega` | **Date**: 2026-08-20 | **Spec**: [spec.md](spec.md)
 
 **Input**: Feature specification from `/specs/001-asistencia-ruta-entrega/spec.md`

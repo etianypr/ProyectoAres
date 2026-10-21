@@ -29,9 +29,9 @@ import {
   calcularPagoDia,
   ingresoEstimado,
   valorPedido,
-  type TarifaPago,
+  type Tarifa,
 } from "@/lib/encomiendas/pago";
-import type { EncomiendaReglaPago } from "@/types/db";
+import type { ReglaDePago } from "@/types/db";
 import {
   CamposTarifa,
   tarifaDeValores,
@@ -62,7 +62,7 @@ export type DiaConocido = {
   /** La tarifa con la que ese día YA está calculado (0031). Agregarle actividad
    *  lo recalcula con esta, no con la regla de ahora, así que la vista previa
    *  tiene que usarla o mostraría una cifra que la base no va a escribir. */
-  tarifa: TarifaPago | null;
+  tarifa: Tarifa | null;
 };
 
 export function AgregarDia({
@@ -80,7 +80,7 @@ export function AgregarDia({
   /** La regla de pago, o null si todavía no se configuró (0031). Sin ella no se
    *  puede cargar un día: la base no le escribiría cifras y quedaría un día
    *  trabajado que no suma ni se puede pagar. */
-  regla: EncomiendaReglaPago | null;
+  regla: ReglaDePago | null;
   diasConocidos: DiaConocido[];
   /** Fecha de hoy en Chile, calculada en el servidor: el reloj del navegador
    *  puede estar en otra zona y el tope del campo quedaría corrido un día. */
@@ -158,7 +158,7 @@ function DialogoAgregarDia({
   onGuardado,
 }: {
   choferes: ChoferOpcion[];
-  regla: EncomiendaReglaPago;
+  regla: ReglaDePago;
   diasConocidos: DiaConocido[];
   hoy: string;
   modo: ModoTarifa;
@@ -208,7 +208,7 @@ function DialogoAgregarDia({
   // La vista previa tiene que calcular con la MISMA tarifa que va a usar la
   // base, o el número que se muestra antes de guardar no es el que se guarda.
   const conteo = { entregados: nEntregados, omitidos: nOmitidos };
-  const tarifa: TarifaPago =
+  const tarifa: Tarifa =
     modoEfectivo === "editada"
       ? tarifaDeValores(tarifaEditada)
       : modoEfectivo === "dia" && yaHay?.tarifa

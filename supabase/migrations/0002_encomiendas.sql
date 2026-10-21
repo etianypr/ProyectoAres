@@ -667,14 +667,15 @@ security definer
 set search_path = public
 as $$
 begin
-  if (select private.get_rol()) not in ('admin', 'operador') then
+  -- coalesce: sin sesión get_rol() es null y `null not in (...)` no lanza (0005).
+  if coalesce((select private.get_rol())::text, '') not in ('admin', 'operador') then
     raise exception 'No tienes permiso para recalcular pagos.';
   end if;
   perform private.encomienda_congelar_dia(p_chofer_id, p_fecha, true);
 end;
 $$;
 
-revoke all on function encomienda_repreciar_dia(uuid, date) from public;
+revoke all on function encomienda_repreciar_dia(uuid, date) from public, anon;
 grant execute on function encomienda_repreciar_dia(uuid, date) to authenticated;
 
 -- 8b. Con una tarifa escrita a mano, sin tocar la regla. Para los días pasados
@@ -703,7 +704,7 @@ security definer
 set search_path = public
 as $$
 begin
-  if (select private.get_rol()) not in ('admin', 'operador') then
+  if coalesce((select private.get_rol())::text, '') not in ('admin', 'operador') then
     raise exception 'No tienes permiso para valorar días.';
   end if;
 
@@ -754,7 +755,7 @@ $$;
 
 revoke all on function encomienda_valorar_dia(
   uuid, date, integer, text, numeric, integer, integer, integer
-) from public;
+) from public, anon;
 grant execute on function encomienda_valorar_dia(
   uuid, date, integer, text, numeric, integer, integer, integer
 ) to authenticated;

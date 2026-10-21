@@ -1,5 +1,6 @@
-// El resumen que ve el jefe: que los totales coincidan con el detalle, que los
-// rechazos se puedan distinguir, y que NADA de esto haya movido el pago.
+// El resumen que ve el jefe: que los totales coincidan con el detalle y que
+// NADA de esto haya movido el pago. Desde la spec 012 no hay motivos: se
+// entregó o no.
 //
 // Las dos mitades de este archivo protegen cosas distintas:
 //
@@ -16,17 +17,13 @@ import { readFileSync } from "node:fs";
 const {
   agruparPorDia,
   contarActividad,
-  contarMotivos,
-  reintentables,
   calcularPagoDia,
   ingresoEstimado,
   valorPedido,
   tarifaDelDia,
-  MOTIVOS_CERO,
   PAGO_CERO,
 } = await import("@/lib/encomiendas/pago");
 
-const { ENCOMIENDA_MOTIVOS_NO_ENTREGA, motivoReintentable } = await import("@/types/db");
 
 const CHOFER = "11111111-1111-7111-8111-111111111111";
 const HOY = "2026-08-20";
@@ -51,131 +48,25 @@ const TARIFA = {
 };
 
 // ===========================================================================
-// Los cuatro resultados, distinguibles
-// ===========================================================================
-
-test("los tres motivos tienen etiqueta mostrable, y solo el rechazo no se reintenta", () => {
-  assert.deepEqual(Object.keys(ENCOMIENDA_MOTIVOS_NO_ENTREGA).sort(), [
-    "persona_no_encontrada",
-    "rechazo",
-    "sin_respuesta",
-  ]);
-  for (const etiqueta of Object.values(ENCOMIENDA_MOTIVOS_NO_ENTREGA)) {
-    assert.ok(etiqueta.length > 0, "un motivo quedó sin etiqueta y el panel mostraría el id");
-  }
-
-  assert.equal(motivoReintentable("persona_no_encontrada"), true);
-  assert.equal(motivoReintentable("sin_respuesta"), true);
-  assert.equal(motivoReintentable("rechazo"), false);
-  // Una omisión anterior a la 0003 no tiene motivo. Se trata como reintentable,
-  // que es lo que era cuando se registró.
-  assert.equal(motivoReintentable(null), true);
-});
-
-test("contarMotivos separa los cuatro casos", () => {
-  const eventos = [
-    EV(),
-    EV(),
-    EV({ tipo: "omision", motivo: "persona_no_encontrada" }),
-    EV({ tipo: "omision", motivo: "persona_no_encontrada" }),
-    EV({ tipo: "omision", motivo: "sin_respuesta" }),
-    EV({ tipo: "omision", motivo: "rechazo" }),
-    EV({ tipo: "omision", motivo: null }),
-    EV({ tipo: "llamada" }),
-  ];
-
-  assert.deepEqual(contarMotivos(eventos), {
-    personaNoEncontrada: 2,
-    sinRespuesta: 1,
-    rechazos: 1,
-    sinMotivo: 1,
-  });
-});
-
-test("una entrega con motivo no se cuenta como no entrega", () => {
-  // La base lo impide con un check (0003), pero si una fila así llegara igual,
-  // contarla acá taparía el problema en vez de mostrarlo.
-  assert.deepEqual(contarMotivos([EV({ tipo: "entrega", motivo: "rechazo" })]), MOTIVOS_CERO);
-});
-
-test("una llamada nunca cuenta como no entrega", () => {
-  assert.deepEqual(contarMotivos([EV({ tipo: "llamada" })]), MOTIVOS_CERO);
-});
-
-test("un motivo que la app todavía no conoce no se reparte entre los otros", () => {
-  // Es lo que pasaría con una versión nueva del teléfono contra un panel viejo:
-  // mejor "no se sabe" que sumarlo al azar a una de las tres categorías.
-  const r = contarMotivos([EV({ tipo: "omision", motivo: "algo_nuevo" })]);
-  assert.equal(r.sinMotivo, 1);
-  assert.equal(r.personaNoEncontrada + r.sinRespuesta + r.rechazos, 0);
-});
-
-test("los reintentables son todo menos los rechazos", () => {
-  assert.equal(
-    reintentables({ personaNoEncontrada: 3, sinRespuesta: 2, rechazos: 4, sinMotivo: 1 }),
-    6,
-  );
-  assert.equal(reintentables(MOTIVOS_CERO), 0);
-});
-
-// ===========================================================================
 // SC-006: el resumen coincide con el detalle
 // ===========================================================================
 
-test("el desglose de un día suma exactamente sus no entregas", () => {
+test("cada conductor y día lleva su propia cuenta de entregados y no entregados", () => {
   const eventos = [
-    EV(),
-    EV({ tipo: "omision", motivo: "persona_no_encontrada" }),
-    EV({ tipo: "omision", motivo: "rechazo" }),
-    EV({ tipo: "omision", motivo: null }),
-    EV({ tipo: "llamada" }),
-  ];
-
-  const [dia] = agruparPorDia(eventos);
-  const { personaNoEncontrada, sinRespuesta, rechazos, sinMotivo } = dia.motivos;
-
-  assert.equal(
-    personaNoEncontrada + sinRespuesta + rechazos + sinMotivo,
-    dia.conteo.omitidos,
-    "el desglose no suma lo mismo que el total de no entregadas",
-  );
-});
-
-test("agruparPorDia y contarMotivos dan lo mismo: no hay dos fuentes de verdad", () => {
-  // Se calculan en lugares distintos (una por día, la otra sobre una lista
-  // cualquiera). Si discreparan, el panel del periodo y el del día mostrarían
-  // números diferentes del mismo hecho.
-  const eventos = [
-    EV(),
-    EV({ tipo: "omision", motivo: "sin_respuesta" }),
-    EV({ tipo: "omision", motivo: "sin_respuesta" }),
-    EV({ tipo: "omision", motivo: "rechazo" }),
-    EV({ tipo: "omision" }),
-  ];
-
-  const [dia] = agruparPorDia(eventos);
-  assert.deepEqual(dia.motivos, contarMotivos(eventos));
-});
-
-test("con varios conductores y días, cada uno lleva su propio desglose", () => {
-  const eventos = [
-    EV({ chofer_id: "c1", fecha: "2026-08-01", tipo: "omision", motivo: "rechazo" }),
+    EV({ chofer_id: "c1", fecha: "2026-08-01", tipo: "omision" }),
     EV({ chofer_id: "c1", fecha: "2026-08-01" }),
-    EV({ chofer_id: "c2", fecha: "2026-08-01", tipo: "omision", motivo: "persona_no_encontrada" }),
-    EV({ chofer_id: "c1", fecha: "2026-08-02", tipo: "omision", motivo: "sin_respuesta" }),
+    EV({ chofer_id: "c2", fecha: "2026-08-01", tipo: "omision" }),
+    EV({ chofer_id: "c1", fecha: "2026-08-02", tipo: "omision" }),
+    EV({ chofer_id: "c1", fecha: "2026-08-02", tipo: "llamada" }),
   ];
 
   const dias = agruparPorDia(eventos);
   assert.equal(dias.length, 3);
+  const buscar = (chofer, fecha) => dias.find((d) => d.choferId === chofer && d.fecha === fecha);
 
-  const buscar = (chofer, fecha) =>
-    dias.find((d) => d.choferId === chofer && d.fecha === fecha);
-
-  assert.equal(buscar("c1", "2026-08-01").motivos.rechazos, 1);
-  assert.equal(buscar("c1", "2026-08-01").conteo.entregados, 1);
-  assert.equal(buscar("c2", "2026-08-01").motivos.personaNoEncontrada, 1);
-  assert.equal(buscar("c2", "2026-08-01").motivos.rechazos, 0, "se mezcló el rechazo de otro");
-  assert.equal(buscar("c1", "2026-08-02").motivos.sinRespuesta, 1);
+  assert.deepEqual(buscar("c1", "2026-08-01").conteo, { entregados: 1, omitidos: 1 });
+  assert.deepEqual(buscar("c2", "2026-08-01").conteo, { entregados: 0, omitidos: 1 });
+  assert.deepEqual(buscar("c1", "2026-08-02").conteo, { entregados: 0, omitidos: 1 }, "la llamada contó");
 });
 
 test("el total del periodo es la suma de los días, sin dobles conteos", () => {
@@ -183,34 +74,24 @@ test("el total del periodo es la suma de los días, sin dobles conteos", () => {
   for (let d = 1; d <= 10; d++) {
     const fecha = `2026-08-${String(d).padStart(2, "0")}`;
     for (let i = 0; i < 5; i++) eventos.push(EV({ fecha }));
-    eventos.push(EV({ fecha, tipo: "omision", motivo: "rechazo" }));
-    eventos.push(EV({ fecha, tipo: "omision", motivo: "persona_no_encontrada" }));
+    eventos.push(EV({ fecha, tipo: "omision" }), EV({ fecha, tipo: "omision" }));
   }
 
   const dias = agruparPorDia(eventos);
   assert.equal(dias.length, 10);
-  assert.equal(
-    dias.reduce((a, d) => a + d.motivos.rechazos, 0),
-    10,
-  );
-  assert.equal(
-    dias.reduce((a, d) => a + d.conteo.entregados, 0),
-    50,
-  );
-  // Y el total de no entregadas coincide con la suma de los desgloses.
-  assert.equal(
-    dias.reduce((a, d) => a + d.conteo.omitidos, 0),
-    dias.reduce((a, d) => a + reintentables(d.motivos) + d.motivos.rechazos, 0),
-  );
+  assert.equal(dias.reduce((a, d) => a + d.conteo.entregados, 0), 50);
+  assert.equal(dias.reduce((a, d) => a + d.conteo.omitidos, 0), 20);
+  assert.deepEqual(contarActividad(eventos), { entregados: 50, omitidos: 20 });
 });
 
-test("un evento sin la columna motivo no rompe la agregación", () => {
-  // Es una fila anterior a la 0003, o una consulta que no pidió la columna.
-  const eventos = [{ chofer_id: CHOFER, fecha: HOY, tipo: "omision", origen: "app" }];
+test("las filas viejas con motivo cuentan igual como no entregadas", () => {
+  // Antes de la spec 012 la omisión llevaba un motivo (No morador, rechazo, sin
+  // respuesta). La base las conserva; el panel ya no las separa.
+  const eventos = ["persona_no_encontrada", "rechazo", "sin_respuesta", null].map((motivo) =>
+    EV({ tipo: "omision", motivo }),
+  );
   const [dia] = agruparPorDia(eventos);
-
-  assert.equal(dia.conteo.omitidos, 1);
-  assert.equal(dia.motivos.sinMotivo, 1);
+  assert.deepEqual(dia.conteo, { entregados: 0, omitidos: 4 });
 });
 
 test("un día sin eventos no aparece: eso ES la definición de día trabajado", () => {
@@ -221,7 +102,7 @@ test("un día sin eventos no aparece: eso ES la definición de día trabajado", 
 // T042: nada de esto movió el pago
 // ===========================================================================
 
-test("el motivo NO entra en el conteo que paga", () => {
+test("un motivo viejo NO entra en el conteo que paga", () => {
   // La misma cantidad de entregas y omisiones, con y sin motivos: el conteo que
   // alimenta la liquidación tiene que ser idéntico.
   const sinMotivos = [EV(), EV(), EV({ tipo: "omision" }), EV({ tipo: "omision" })];
@@ -239,9 +120,9 @@ test("el motivo NO entra en el conteo que paga", () => {
   );
 });
 
-test("el pago del día es el mismo con cualquier combinación de motivos", () => {
+test("el pago del día no depende de las no entregas", () => {
   // Es la comprobación de T042 sobre la aritmética real: dos días con las mismas
-  // entregas se pagan igual, aunque uno tenga cinco rechazos y el otro ninguno.
+  // entregas se pagan igual, aunque uno tenga cinco no entregas y el otro ninguna.
   const base = calcularPagoDia({ entregados: 20, omitidos: 0 }, TARIFA);
 
   for (const omitidos of [0, 1, 5, 50]) {
@@ -253,7 +134,7 @@ test("el pago del día es el mismo con cualquier combinación de motivos", () =>
   }
 });
 
-test("un día entero de rechazos se paga el fijo, y nada más", () => {
+test("un día entero sin entregas se paga el fijo, y nada más", () => {
   // El chofer salió y trabajó: le corresponde el fijo diario. Y no le
   // corresponde nada por pedido, porque no entregó ninguno.
   const pago = calcularPagoDia({ entregados: 0, omitidos: 12 }, TARIFA);
@@ -266,7 +147,7 @@ test("un día entero de rechazos se paga el fijo, y nada más", () => {
 
 test("el ingreso estimado se calcula solo con las entregas", () => {
   assert.equal(ingresoEstimado(10, 950), 9500);
-  // Un rechazo no genera ingreso: nunca se entregó nada.
+  // Una no entrega no genera ingreso: nunca se entregó nada.
   assert.equal(ingresoEstimado(0, 950), 0);
 });
 
@@ -333,4 +214,27 @@ test("el trigger que congela el día sigue contando por tipo, no por motivo", ()
     "la cuenta del pago empezó a mirar el motivo: una etiqueta operativa no puede mover plata",
   );
   assert.match(cuenta[0], /'entrega'/, "la cuenta ya no filtra por tipo 'entrega'");
+});
+
+test("recalcular o valorar un día exige rol de jefe, también sin sesión (0005)", () => {
+  // get_rol() es null sin sesión y `null not in (...)` no lanza: la guarda tiene
+  // que tratar el rol vacío como "sin permiso", y anon no puede ejecutarlas.
+  for (const archivo of ["0002_encomiendas.sql", "0005_pago_solo_jefe.sql"]) {
+    const sql = readFileSync(`supabase/migrations/${archivo}`, "utf8");
+    assert.ok(
+      !sql.includes("if (select private.get_rol()) not in"),
+      `${archivo}: guarda que deja pasar al rol null`,
+    );
+    for (const fn of ["encomienda_repreciar_dia", "encomienda_valorar_dia"]) {
+      const inicio = sql.indexOf(`create or replace function ${fn}`);
+      const cuerpo = sql.slice(inicio, sql.indexOf("$$;", inicio));
+      assert.ok(inicio >= 0, `${archivo}: falta ${fn}`);
+      assert.ok(
+        cuerpo.includes("coalesce((select private.get_rol())::text, '') not in ('admin', 'operador')"),
+        `${archivo}: ${fn} no trata el rol vacío como sin permiso`,
+      );
+      const permisos = sql.slice(sql.indexOf(`revoke all on function ${fn}`));
+      assert.match(permisos.slice(0, 200), /\) from public, anon;/, `${archivo}: ${fn} sigue abierta a anon`);
+    }
+  }
 });

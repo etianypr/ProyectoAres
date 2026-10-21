@@ -29,18 +29,20 @@
 // solo se puede mandar dentro de la ventana de 24 horas que abre una respuesta
 // del cliente. De ahí el flujo de dos pasos (ver la Decisión 8 de research.md):
 //
-//   1. enviarAvisoDisponibilidad()  plantilla con "Sí puedo" / "No puedo" /
-//                                   "Indicar un horario".
+//   1. enviarAvisoDisponibilidad()  plantilla con "Sí, estaré" / "Mañana" /
+//                                   "Otro horario" (ver docs/WHATSAPP.md).
 //   2. enviarListaHorarios()        solo si tocó el tercero. Tocarlo ES una
 //                                   respuesta, así que la ventana ya está
 //                                   abierta y se le puede mandar la lista con
 //                                   los seis bloques.
 
+import "server-only";
 import {
   BLOQUES_HORARIOS,
   payloadBoton,
   type BloqueHorario,
 } from "@/lib/encomiendas/config";
+import { ACCIONES_WHATSAPP } from "@/lib/encomiendas/catalogos";
 
 // Versión fijada a mano y no "la última": Meta cambia formas de respuesta entre
 // versiones, y un webhook que empieza a recibir otra forma pierde respuestas de
@@ -98,7 +100,7 @@ export function configMeta(): ConfigMeta | null {
   };
 }
 
-export type ResultadoEnvio =
+export type ResultadoEnvioMeta =
   | { ok: true; mensajeId: string }
   | {
       ok: false;
@@ -111,7 +113,7 @@ export type ResultadoEnvio =
       reintentable: boolean;
     };
 
-const SIN_CONFIGURAR: ResultadoEnvio = {
+const SIN_CONFIGURAR: ResultadoEnvioMeta = {
   ok: false,
   error: "WhatsApp no está configurado en este servidor.",
   codigo: null,
@@ -137,12 +139,12 @@ const dormir = (ms: number) => new Promise<void>((listo) => setTimeout(listo, ms
 async function mandar(
   cuerpo: Record<string, unknown>,
   esperar: (ms: number) => Promise<void> = dormir,
-): Promise<ResultadoEnvio> {
+): Promise<ResultadoEnvioMeta> {
   const config = configMeta();
   if (!config) return SIN_CONFIGURAR;
 
   const url = `${GRAPH}/${config.phoneNumberId}/messages`;
-  let ultimo: ResultadoEnvio = SIN_CONFIGURAR;
+  let ultimo: ResultadoEnvioMeta = SIN_CONFIGURAR;
 
   for (let intento = 0; intento <= MS_BACKOFF.length; intento++) {
     if (intento > 0) await esperar(MS_BACKOFF[intento - 1]);
@@ -158,7 +160,7 @@ async function unIntento(
   url: string,
   token: string,
   cuerpo: Record<string, unknown>,
-): Promise<ResultadoEnvio> {
+): Promise<ResultadoEnvioMeta> {
   let res: Response;
   try {
     res = await fetch(url, {
@@ -205,11 +207,11 @@ async function unIntento(
     // contiene datos del receptor. El token no aparece nunca en él.
     error: datos?.error?.message ?? `WhatsApp respondió ${res.status}.`,
     codigo,
-    reintentable: esReintentable(res.status, codigo),
+    reintentable: esErrorReintentable(res.status, codigo),
   };
 }
 
-function esReintentable(estado: number, codigo: number | null): boolean {
+function esErrorReintentable(estado: number, codigo: number | null): boolean {
   if (codigo != null && SIN_REINTENTO.has(codigo)) return false;
   // 429 (cuota) y 5xx (problema de Meta) pasan solos con el tiempo.
   if (estado === 429 || estado >= 500) return true;
@@ -237,14 +239,14 @@ export type AvisoDisponibilidad = {
 
 /** Manda la plantilla con las tres respuestas del producto.
  *
- *  Los tres botones son exactamente el máximo que Meta permite, y son los tres
- *  del documento principal. El payload de cada uno lleva el identificador de
+ *  Los tres botones son exactamente el máximo que Meta permite (spec 010). El
+ *  payload de cada uno lleva el identificador de
  *  correlación, así que la respuesta se puede resolver sin consultar ni guardar
  *  nada del receptor. */
 export function enviarAvisoDisponibilidad(
   aviso: AvisoDisponibilidad,
   esperar?: (ms: number) => Promise<void>,
-): Promise<ResultadoEnvio> {
+): Promise<ResultadoEnvioMeta> {
   const config = configMeta();
   if (!config) return Promise.resolve(SIN_CONFIGURAR);
 
@@ -265,13 +267,13 @@ export function enviarAvisoDisponibilidad(
               { type: "text", text: aviso.cuando },
             ],
           },
-          // El índice es la POSICIÓN del botón en la plantilla aprobada. Si
-          // alguien reordena los botones en el panel de Meta y no toca esto, el
-          // "sí" del receptor llega como rechazo: no hay forma de detectarlo
-          // desde acá, así que queda dicho.
-          botonRapido(0, payloadBoton("CONFIRMAR", aviso.correlationId)),
-          botonRapido(1, payloadBoton("RECHAZAR", aviso.correlationId)),
-          botonRapido(2, payloadBoton("HORARIO", aviso.correlationId)),
+          // El índice es la POSICIÓN del botón en la plantilla aprobada, y
+          // ACCIONES_WHATSAPP está en ese mismo orden. Si alguien reordena los
+          // botones en el panel de Meta y no toca esto, el "sí" del receptor
+          // llega como otra cosa: no hay forma de detectarlo desde acá.
+          ...ACCIONES_WHATSAPP.map((accion, i) =>
+            botonRapido(i, payloadBoton(accion, aviso.correlationId)),
+          ),
         ],
       },
     },
@@ -316,7 +318,7 @@ export function enviarListaHorarios(
     bloques?: readonly BloqueHorario[];
   },
   esperar?: (ms: number) => Promise<void>,
-): Promise<ResultadoEnvio> {
+): Promise<ResultadoEnvioMeta> {
   if (!configMeta()) return Promise.resolve(SIN_CONFIGURAR);
 
   // Meta rechaza una lista vacía. Si el jefe desactivó todos los bloques, esto

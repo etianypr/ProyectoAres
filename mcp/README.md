@@ -65,7 +65,7 @@ openrouteservice.org (2.000 consultas/día). Sin ella, las dos tools de Plus Cod
 funcionan igual y `get_route_ch` contesta diciendo exactamente qué falta.
 
 El máximo de puntos de una ruta es **70**, medido contra la API: 70 devuelve 200
-y 71 devuelve 400 ("must not be greater than 70"). Da de sobra — una jornada de
+y 71 devuelve 400 ("must not be greater than 70"). Da de sobra — un día de
 30 paradas más la base son 31 puntos.
 
 `ORS_BASE` permite apuntar a una instancia propia: si algún día hay que cortar la

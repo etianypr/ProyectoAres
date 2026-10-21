@@ -1,10 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-// Las dos fórmulas —distancia y rumbo entre dos puntos— viven en lib/rutas.ts,
-// que es donde se usan para el trazado y la navegación. Acá estaban repetidas
-// palabra por palabra.
-import { distanciaMetros, rumboEntre } from "@/lib/rutas";
+import { distanciaMetros, rumboEntre } from "@/lib/geo/coordenada";
 import type { Ubicacion } from "./ruta-mapa";
 
 // Bajo este umbral, el "movimiento" entre dos lecturas es puro temblor de la
@@ -134,7 +131,7 @@ export function useUbicacionActual(activo: boolean): EstadoUbicacion {
     if (!activo || typeof navigator === "undefined" || !navigator.geolocation) return;
 
     // maximumAge: 0 — sin esto el navegador puede entregar una posición
-    // guardada de hasta 15 segundos antes, y al arrancar la jornada eso es la
+    // guardada de hasta 15 segundos antes, y al arrancar el día eso es la
     // del galpón de ayer. Manejando, 15 segundos son tres cuadras.
     const watchId = navigator.geolocation.watchPosition(
       aplicar,

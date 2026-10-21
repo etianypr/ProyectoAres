@@ -25,7 +25,6 @@
 import { useState } from "react";
 import {
   AlertTriangle,
-  Ban,
   Check,
   Clock,
   CloudOff,
@@ -44,7 +43,7 @@ import type { EstrategiaRuta, PropuestaRuta } from "@/lib/encomiendas/local/gene
 const BOTON_PRINCIPAL =
   "flex h-12 items-center justify-center gap-2 rounded-full bg-brand text-[15px] font-semibold text-brand-foreground shadow-[0_1px_2px_var(--brand-shadow)] transition-transform active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50";
 
-function Aviso({ icono, children }: { icono: React.ReactNode; children: React.ReactNode }) {
+function Advertencia({ icono, children }: { icono: React.ReactNode; children: React.ReactNode }) {
   return (
     <p className="mt-2 flex shrink-0 items-start gap-2 rounded-xl bg-warn-bg px-3 py-2 text-xs text-warn">
       <span className="mt-0.5 shrink-0">{icono}</span>
@@ -100,7 +99,6 @@ export function VistaPreviaRuta({
     distanciaM,
     duracionS,
     sinUbicar,
-    rechazados,
     sinTrazado,
     cerradas,
     alternativas,
@@ -123,7 +121,7 @@ export function VistaPreviaRuta({
     // espacio es la lista de paradas (min-h-0 flex-1); el resumen y los botones
     // están siempre a la vista.
     //
-    // La mitad de la pantalla, no el 85%: este panel se abre sobre la jornada,
+    // La mitad de la pantalla, no el 85%: este panel se abre sobre el día,
     // donde el mapa que dibuja la ruta propuesta es una tarjeta que queda ARRIBA
     // (ver pantalla.tsx). Con el tope viejo el panel la tapaba entera, así que
     // se veían los kilómetros y el tiempo de una ruta que no se podía mirar.
@@ -282,40 +280,28 @@ export function VistaPreviaRuta({
       ) : null}
 
       {sinUbicar.length > 0 ? (
-        <Aviso icono={<MapPinOff className="h-3.5 w-3.5" />}>
+        <Advertencia icono={<MapPinOff className="h-3.5 w-3.5" />}>
           {sinUbicar.length === 1
             ? "1 pedido quedó afuera porque su dirección no se pudo ubicar en el mapa."
             : `${sinUbicar.length} pedidos quedaron afuera porque su dirección no se pudo ubicar en el mapa.`}{" "}
           Siguen pendientes: corrige la dirección y vuelve a armar la ruta.
-        </Aviso>
-      ) : null}
-
-      {/* Los rechazados van APARTE de los que no se pudieron ubicar: el motivo
-          por el que están fuera es distinto y lo que hay que hacer con ellos
-          también. Uno se corrige, el otro se registra y se informa. */}
-      {rechazados.length > 0 ? (
-        <Aviso icono={<Ban className="h-3.5 w-3.5" />}>
-          {rechazados.length === 1
-            ? `${rechazados[0].nombre} rechazó la entrega por WhatsApp: queda fuera de la ruta.`
-            : `${rechazados.length} clientes rechazaron la entrega por WhatsApp: quedan fuera de la ruta.`}{" "}
-          Regístralo antes de cerrar la jornada para que el jefe lo sepa.
-        </Aviso>
+        </Advertencia>
       ) : null}
 
       {actual.bloquesIncumplidos > 0 ? (
-        <Aviso icono={<AlertTriangle className="h-3.5 w-3.5" />}>
-          {actual.llegariaTardeA.length === 1
-            ? `Con este orden llegarías fuera del horario que eligió ${actual.llegariaTardeA[0]}.`
-            : `Con este orden llegarías fuera de horario a ${actual.llegariaTardeA.length} clientes: ${actual.llegariaTardeA.join(", ")}.`}{" "}
+        <Advertencia icono={<AlertTriangle className="h-3.5 w-3.5" />}>
+          {actual.fueraDeHorario.length === 1
+            ? `Con este orden llegarías fuera del horario que eligió ${actual.fueraDeHorario[0]}.`
+            : `Con este orden llegarías fuera de horario a ${actual.fueraDeHorario.length} clientes: ${actual.fueraDeHorario.join(", ")}.`}{" "}
           Conviene llamarlos.
-        </Aviso>
+        </Advertencia>
       ) : null}
 
       {sinTrazado ? (
-        <Aviso icono={<CloudOff className="h-3.5 w-3.5" />}>
+        <Advertencia icono={<CloudOff className="h-3.5 w-3.5" />}>
           Sin señal no se pudo trazar el camino por calles. El orden de las paradas está
           listo igual y el mapa lo dibuja en cuanto haya conexión.
-        </Aviso>
+        </Advertencia>
       ) : null}
 
       {error ? (

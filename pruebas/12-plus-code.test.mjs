@@ -8,11 +8,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import {
-  resolverPlusCode,
-  plusCodeDe,
-  CENTRO_ARICA,
-} from "@/lib/geo/plus-code";
+import { resolverPlusCode, plusCodeDe } from "@/lib/geo/plus-code";
+import { CENTRO_ARICA } from "@/lib/geo/coordenada";
 
 // El código completo del centro de Arica, calculado por la librería y fijado
 // acá: si un día cambia, es que cambió el algoritmo y no un detalle nuestro.

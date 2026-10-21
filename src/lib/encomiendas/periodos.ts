@@ -6,16 +6,12 @@
 // fecha. El periodo global de la app —el mes que fija el selector de la barra
 // superior— es otra cosa y vive en lib/periodo.ts.
 
-import type { EncomiendaPeriodoFacturacion } from "@/types/db";
+import type { PeriodoFacturacion } from "@/types/db";
 
 /** Lo mínimo para ubicar y pintar un periodo. Los componentes de cliente
  *  reciben esto y no la fila entera: no necesitan el empresa_id ni las marcas
  *  de tiempo, y así el payload que cruza al navegador es el que se usa. */
-export type PeriodoFacturacion = {
-  id: string;
-  fecha_inicio: string;
-  fecha_fin: string;
-};
+export type Periodo = Pick<PeriodoFacturacion, "id" | "fecha_inicio" | "fecha_fin">;
 
 // TODOS los periodos van del mismo color. Antes eran siete tonos rotando por la
 // lista, y un gráfico de siete colores se lee como siete categorías distintas
@@ -40,7 +36,7 @@ export const COLOR_CORTE_PERIODO = "#442977";
  *  Es la forma en que el panel le pasa un periodo a las dos pantallas que lo
  *  muestran: el gráfico y el diálogo de comparar ingresos. Ya no trae el color
  *  —todos los periodos usan COLOR_PERIODO— y quien pinte lo toma de ahí. */
-export type ResumenPeriodo = PeriodoFacturacion & {
+export type ResumenPeriodo = Periodo & {
   /** Días con reparto registrado dentro del periodo. */
   dias: number;
   entregados: number;
@@ -85,14 +81,14 @@ export function nombrePeriodoCorto(p: { fecha_inicio: string; fecha_fin: string 
  *
  *  Comparar strings `YYYY-MM-DD` es comparar fechas, y evita construir un Date
  *  por celda del gráfico — que además se corre de día según la zona horaria. */
-export function indicePeriodoDe(fecha: string, periodos: PeriodoFacturacion[]): number {
+export function indicePeriodoDe(fecha: string, periodos: Periodo[]): number {
   return periodos.findIndex((p) => fecha >= p.fecha_inicio && fecha <= p.fecha_fin);
 }
 
 /** Los periodos que tocan el rango [desde, hasta], en orden. Es lo que se pinta
  *  y lo que se lista al pie del gráfico: un corte de marzo no tiene nada que
  *  hacer en la vista de mayo. */
-export function periodosEnRango<T extends PeriodoFacturacion>(
+export function periodosEnRango<T extends Periodo>(
   periodos: T[],
   desde: string,
   hasta: string,
@@ -117,8 +113,8 @@ function partes(fecha: string): [number, number, number] {
   return [a, m, d];
 }
 
-/** Un periodo hecho de datos sueltos, para el `EncomiendaPeriodoFacturacion`
+/** Un periodo hecho de datos sueltos, para el `PeriodoFacturacion`
  *  que llega del servidor. */
-export function aPeriodo(fila: EncomiendaPeriodoFacturacion): PeriodoFacturacion {
+export function aPeriodo(fila: PeriodoFacturacion): Periodo {
   return { id: fila.id, fecha_inicio: fila.fecha_inicio, fecha_fin: fila.fecha_fin };
 }

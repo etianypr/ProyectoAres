@@ -2,15 +2,23 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { puedeOperarPanel } from "@/lib/auth";
 import { s, sReq } from "@/lib/form-helpers";
 import { BLOQUES_HORARIOS } from "@/lib/encomiendas/config";
 
 export type FormState = { error?: string; ok?: boolean };
 
+// RLS (empresa_write_admin_op) ya frena a un conductor, pero un UPDATE bloqueado
+// devuelve "0 filas, sin error" y la acción contestaría {ok:true} sin haber
+// guardado nada. Igual que en encomiendas/actions.ts: se dice de frente.
+const SIN_PERMISO: FormState = { error: "No tienes permiso para cambiar la configuración." };
+
 export async function guardarEmpresa(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
+  if (!(await puedeOperarPanel())) return SIN_PERMISO;
+
   const id = s(formData.get("id"));
 
   // Sin proximo_numero_cotizacion: esta empresa no emite cotizaciones. El
@@ -61,6 +69,8 @@ export async function guardarBloquesHorarios(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
+  if (!(await puedeOperarPanel())) return SIN_PERMISO;
+
   const id = s(formData.get("empresa_id"));
   if (!id) {
     return { error: "Primero hay que guardar los datos de la empresa." };

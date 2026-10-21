@@ -7,7 +7,7 @@ import { Kpi } from "@/components/ui/kpi";
 import { Vacio } from "@/components/ui/vacio";
 import { ErrorDatos } from "@/components/ui/error-datos";
 import { buttonClass } from "@/components/ui/button";
-import { Ban, Package, CalendarRange, Truck, Wallet, CircleDollarSign, Pencil } from "lucide-react";
+import { Package, CalendarRange, Truck, Wallet, CircleDollarSign, Pencil } from "lucide-react";
 import { formatCLP, formatDate, formatNumber, formatTime, hoyChile, sumarDias } from "@/lib/format";
 import { getPeriodo, rangoPeriodo, etiquetaPeriodo } from "@/lib/periodo";
 import {
@@ -15,8 +15,6 @@ import {
   tarifaDelDia,
   valorPedido,
   type ConteoDia,
-  type ConteoMotivos,
-  type EventoActividad,
 } from "@/lib/encomiendas/pago";
 import {
   aPeriodo,
@@ -24,13 +22,7 @@ import {
   periodosEnRango,
   type ResumenPeriodo,
 } from "@/lib/encomiendas/periodos";
-import type {
-  EncomiendaIngresoReal,
-  EncomiendaJornada,
-  EncomiendaPago,
-  EncomiendaPeriodoFacturacion,
-  EncomiendaReglaPago,
-} from "@/types/db";
+import type { DiaTrabajo, PagoDelDia } from "@/types/db";
 import { AgregarDia, type ChoferOpcion } from "./agregar-dia";
 import { ReglaPago } from "./regla-pago";
 import { CompararIngresos } from "./comparar-ingresos";
@@ -44,17 +36,11 @@ const MES_CORTO = [
   "jul", "ago", "sep", "oct", "nov", "dic",
 ];
 
-/** Fila de encomienda_actividad (0026) con el nombre del conductor pegado. */
-type EventoFila = EventoActividad & { chofer: { id: string; nombre: string } | null };
-
 type Dia = {
   fecha: string;
   choferId: string | null;
   choferNombre: string;
   conteo: ConteoDia;
-  /** Por qué no se entregó lo que no se entregó. NO entra en ninguna cuenta de
-   *  plata: el pago se calcula desde `conteo`, que solo cuenta por tipo. */
-  motivos: ConteoMotivos;
   /** Las cifras que la base congeló para este día (0031): ingreso estimado y
    *  desglose del pago. Esta pantalla NO las recalcula — lee lo que se escribió
    *  cuando el día se registró, que es lo que hace que cambiar la regla de pago
@@ -62,11 +48,11 @@ type Dia = {
    *
    *  null solo si el día no se pudo calcular: sin conductor (eliminado después)
    *  o sin regla configurada todavía. */
-  cifras: EncomiendaPago | null;
+  cifras: PagoDelDia | null;
   /** El sobre del día (0032): a qué hora salió la ruta y si ya terminó. Una
-   *  jornada abierta es una ruta EN CURSO y por eso todavía no tiene cifras —
+   *  día abierto es una ruta EN CURSO y por eso todavía no tiene cifras —
    *  la plata se cuenta una sola vez, al cerrar. */
-  jornada: EncomiendaJornada | null;
+  diaTrabajo: DiaTrabajo | null;
   /** Eventos cargados a mano desde la oficina (0028) y total del día: con los
    *  dos se distingue un día íntegramente manual de uno que el teléfono mandó
    *  a medias y la oficina completó. */
@@ -76,7 +62,7 @@ type Dia = {
 
 /** Una ruta que todavía está pasando. No tiene cifras y no debe tenerlas. */
 function enCurso(d: Dia): boolean {
-  return d.jornada != null && d.jornada.cerrada_en == null;
+  return d.diaTrabajo != null && d.diaTrabajo.cerrada_en == null;
 }
 
 export default async function EncomiendasPage() {
@@ -99,8 +85,7 @@ export default async function EncomiendasPage() {
   const { data: periodosData, error: errorPeriodos } = await supabase
     .from("encomienda_periodos_facturacion")
     .select("*")
-    .order("fecha_inicio")
-    .returns<EncomiendaPeriodoFacturacion[]>();
+    .order("fecha_inicio");
 
   const periodos = (periodosData ?? []).map(aPeriodo);
   // El rango que cubren TODOS los cortes. De ahí sale la consulta de sus cifras:
@@ -122,17 +107,16 @@ export default async function EncomiendasPage() {
     { data: actividadData, error: errorActividad },
     { data: reglasData, error: errorReglas },
     { data: pagosData, error: errorPagos },
-    { data: jornadasData, error: errorJornadas },
+    { data: diasTrabajoData, error: errorDiasTrabajo },
     { data: choferesData, error: errorChoferes },
     { data: ingresosRealesData, error: errorIngresosReales },
     { data: pagosPeriodosData },
   ] = await Promise.all([
     supabase
       .from("encomienda_actividad")
-      .select("chofer_id, fecha, tipo, origen, motivo, chofer:choferes(id,nombre)")
+      .select("chofer_id, fecha, tipo, origen, chofer:choferes(id,nombre)")
       .gte("fecha", desde)
-      .lte("fecha", hasta)
-      .returns<EventoFila[]>(),
+      .lte("fecha", hasta),
     // Hay una sola (0031). Se pide igual porque el diálogo la necesita para
     // prellenar el formulario, y porque su ausencia es lo que bloquea el resto
     // de la pantalla.
@@ -145,16 +129,14 @@ export default async function EncomiendasPage() {
       .from("encomienda_jornadas")
       .select("*")
       .gte("fecha", desde)
-      .lte("fecha", hasta)
-      .returns<EncomiendaJornada[]>(),
+      .lte("fecha", hasta),
     // Para el selector de "Agregar día": todos los conductores. En el sistema del
     // que salió este proyecto esta consulta iba por chofer_categorias, porque
     // había tres líneas de trabajo y un chofer de taxis no debía aparecer en la
     // liquidación del reparto. Acá el reparto es el único negocio.
     supabase
       .from("choferes")
-      .select("id, nombre, activo")
-      .returns<{ id: string; nombre: string; activo: boolean }[]>(),
+      .select("id, nombre, activo"),
     // Lo que Starken liquidó de verdad. Se piden TODAS las filas y no las del
     // mes: desde la 0035 se imputan a un periodo de facturación, no a un mes, así
     // que no hay por dónde filtrarlas por el periodo global — y son unas pocas
@@ -163,8 +145,7 @@ export default async function EncomiendasPage() {
     supabase
       .from("encomienda_ingresos_reales")
       .select("*")
-      .order("created_at")
-      .returns<EncomiendaIngresoReal[]>(),
+      .order("created_at"),
     // Las cifras de los días que cubren los periodos, que NO son las del mes en
     // pantalla: un corte del 25 de abril al 10 de mayo se factura entero, y
     // sumarle solo los días de mayo diría poco menos de la mitad. Sin periodos
@@ -175,12 +156,6 @@ export default async function EncomiendasPage() {
           .select("fecha, ingresos_totales, pedidos_entregados, pago_total")
           .gte("fecha", spanPeriodos.desde)
           .lte("fecha", spanPeriodos.hasta)
-          .returns<
-            Pick<
-              EncomiendaPago,
-              "fecha" | "ingresos_totales" | "pedidos_entregados" | "pago_total"
-            >[]
-          >()
       : Promise.resolve({ data: [], error: null }),
   ]);
 
@@ -190,7 +165,7 @@ export default async function EncomiendasPage() {
   // corto sin parecerlo: sin actividad se ve un mes sin trabajo, sin pagos sale
   // "$0", sin la regla el panel se cree sin configurar. Antes los errores se
   // descartaban y el resultado era indistinguible de un mes tranquilo.
-  const errorPlata = errorActividad ?? errorReglas ?? errorPagos ?? errorJornadas;
+  const errorPlata = errorActividad ?? errorReglas ?? errorPagos ?? errorDiasTrabajo;
   if (errorPlata) {
     return (
       <div>
@@ -206,13 +181,13 @@ export default async function EncomiendasPage() {
     );
   }
 
-  const regla = (reglasData ?? null) as EncomiendaReglaPago | null;
-  const pagos = (pagosData ?? []) as EncomiendaPago[];
-  const jornadas = (jornadasData ?? []) as EncomiendaJornada[];
+  const regla = reglasData ?? null;
+  const pagos = pagosData ?? [];
+  const diasTrabajo = diasTrabajoData ?? [];
   // Este NO entra en errorPlata: que falte el ingreso real no vuelve falso
   // ningún número de la pantalla —el estimado sigue siendo el estimado—, solo
   // deja sin hacer la comparación. El aviso va dentro del diálogo, donde sirve.
-  const ingresosReales = (ingresosRealesData ?? []) as EncomiendaIngresoReal[];
+  const ingresosReales = ingresosRealesData ?? [];
 
   // Solo conductores activos: uno dado de baja no debería aparecer como opción
   // para cargarle días nuevos. Su historial y sus liquidaciones ya cargadas
@@ -231,9 +206,8 @@ export default async function EncomiendasPage() {
     choferId: d.choferId,
     choferNombre: d.eventos[0]?.chofer?.nombre ?? "Conductor eliminado",
     conteo: d.conteo,
-    motivos: d.motivos,
     cifras: pagos.find((p) => p.fecha === d.fecha && p.chofer_id === d.choferId) ?? null,
-    jornada: jornadas.find((j) => j.fecha === d.fecha && j.chofer_id === d.choferId) ?? null,
+    diaTrabajo: diasTrabajo.find((j) => j.fecha === d.fecha && j.chofer_id === d.choferId) ?? null,
     manuales: d.manuales,
     total: d.eventos.length,
   }));
@@ -244,14 +218,10 @@ export default async function EncomiendasPage() {
   // es "cuántos días hubo reparto".
   const diasCalendario = new Set(dias.map((d) => d.fecha)).size;
   const totalEntregados = dias.reduce((a, d) => a + d.conteo.entregados, 0);
-  // Los rechazos del periodo. Se cuentan aparte de las no entregas porque son la
-  // única categoría que NO vuelve a intentarse (FR-012): para la central son
-  // paquetes que hay que devolver, no reparto pendiente.
-  const totalRechazos = dias.reduce((a, d) => a + d.motivos.rechazos, 0);
   const totalIngresos = dias.reduce((a, d) => a + (d.cifras?.ingresos_totales ?? 0), 0);
   const totalPago = dias.reduce((a, d) => a + (d.cifras?.pago_total ?? 0), 0);
   const promedioDia = diasCalendario > 0 ? totalEntregados / diasCalendario : 0;
-  // Días sin cifras que NO son una ruta en curso. Una jornada abierta también
+  // Días sin cifras que NO son una ruta en curso. Un día abierto también
   // suma $0, pero eso no es un problema que reportar: es una ruta que todavía
   // está pasando y se va a contar cuando termine. Mezclarlas haría que el aviso
   // se encendiera todas las tardes.
@@ -417,10 +387,7 @@ export default async function EncomiendasPage() {
         </div>
       ) : null}
 
-      {/* Cinco tarjetas, no cuatro: se sumó la de rechazos. En pantallas anchas
-          entran en una fila; en dos columnas la última queda sola, y está bien
-          que sea esa — es la que hay que mirar aparte. */}
-      <div className="stagger-in grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="stagger-in grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi
           label="Ingresos estimados"
           value={formatCLP(totalIngresos)}
@@ -453,23 +420,6 @@ export default async function EncomiendasPage() {
           }
           icon={Package}
           tint="bg-brand-soft text-brand"
-        />
-        {/* Los rechazos como cifra propia del periodo, y no escondidos dentro de
-            "no entregados". Es el número que la central necesita: son paquetes
-            que hay que devolver, no reparto que quedó pendiente. Y es el único
-            que no vuelve a intentarse (FR-012, FR-021). */}
-        <Kpi
-          label="Rechazos"
-          value={formatNumber(totalRechazos)}
-          valueClass={totalRechazos > 0 ? "text-danger" : undefined}
-          sub={
-            totalRechazos === 0
-              ? "Ningún cliente rechazó su encomienda"
-              : "No se reintentan: hay que devolverlos"
-          }
-          subClass={totalRechazos > 0 ? "text-danger" : "text-muted"}
-          icon={Ban}
-          tint="bg-danger-bg text-danger"
         />
         <Kpi
           label="Días trabajados"
@@ -559,10 +509,9 @@ export default async function EncomiendasPage() {
                   <tr>
                     <th className="px-4 py-2.5 font-medium">Día</th>
                     <th className="px-4 py-2.5 font-medium">Conductor</th>
-                    <th className="px-4 py-2.5 font-medium">Jornada</th>
+                    <th className="px-4 py-2.5 font-medium">Día de trabajo</th>
                     <th className="px-4 py-2.5 text-right font-medium">Entregados</th>
                     <th className="px-4 py-2.5 text-right font-medium">No entreg.</th>
-                    <th className="px-4 py-2.5 text-right font-medium">Rechazos</th>
                     <th className="px-4 py-2.5 text-right font-medium">Ingresos</th>
                     <th className="px-4 py-2.5 text-right font-medium">A pagar</th>
                     <th className="px-4 py-2.5 font-medium">Origen</th>
@@ -590,9 +539,9 @@ export default async function EncomiendasPage() {
                         <td className="whitespace-nowrap px-4 py-3 text-xs text-muted">
                           {enCurso(d) ? (
                             <Badge tone="amber">En curso</Badge>
-                          ) : d.jornada?.inicio && d.jornada.cerrada_en ? (
+                          ) : d.diaTrabajo?.inicio && d.diaTrabajo.cerrada_en ? (
                             <span className="tabular-nums">
-                              {formatTime(d.jornada.inicio)} – {formatTime(d.jornada.cerrada_en)}
+                              {formatTime(d.diaTrabajo.inicio)} – {formatTime(d.diaTrabajo.cerrada_en)}
                             </span>
                           ) : (
                             "—"
@@ -603,24 +552,6 @@ export default async function EncomiendasPage() {
                         </td>
                         <td className="px-4 py-3 text-right tabular-nums text-muted">
                           {d.conteo.omitidos > 0 ? formatNumber(d.conteo.omitidos) : "—"}
-                        </td>
-                        {/* Los rechazos, aparte de las demás no entregas: son
-                            los que NO vuelven a intentarse, así que para la
-                            central son paquetes que hay que devolver y no
-                            reparto pendiente (FR-021).
-
-                            Con icono además del color: la constitución pide que
-                            un estado no se distinga solo por el color, y este es
-                            el que más caro sale confundir. */}
-                        <td className="px-4 py-3 text-right tabular-nums">
-                          {d.motivos.rechazos > 0 ? (
-                            <span className="inline-flex items-center gap-1 font-semibold text-danger">
-                              <Ban className="h-3.5 w-3.5" />
-                              {formatNumber(d.motivos.rechazos)}
-                            </span>
-                          ) : (
-                            <span className="text-muted">—</span>
-                          )}
                         </td>
                         {/* Un guion y no un $0: que un día no tenga cifras no
                             significa que no valga nada, significa que no se

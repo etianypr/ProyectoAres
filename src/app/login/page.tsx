@@ -24,7 +24,7 @@ export default async function LoginPage({
             <Package className="h-7 w-7" />
           </div>
           <h1 className="text-xl font-semibold">Gestión de encomiendas</h1>
-          <p className="text-sm text-white/70">Reparto, jornadas y liquidación</p>
+          <p className="text-sm text-white/70">Reparto, días de trabajo y liquidación</p>
         </div>
 
         <div className="animate-scale-in rounded-2xl bg-card p-6 shadow-xl [animation-delay:80ms]">

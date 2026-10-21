@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { conductorDeLaApi } from "@/lib/api-conductor";
+import {
+  MAX_RESPUESTAS_POR_CONSULTA,
+  type BuzonRespuestas,
+  type ConfirmacionOk,
+  type ConfirmarAplicadas,
+} from "@/lib/encomiendas/contrato-whatsapp";
 
 // El buzón de respuestas del conductor.
 //
@@ -28,7 +34,7 @@ import { conductorDeLaApi } from "@/lib/api-conductor";
 // enteraría jamás.
 //
 // Es el mismo orden que ya tiene la cola de actividad (ver quitarDeCola en
-// lib/encomiendas/local/almacen.ts): primero el dato queda firme donde lo va a
+// lib/encomiendas/local/almacen/cola.ts): primero el dato queda firme donde lo va a
 // usar el chofer, y recién después se avisa que se puede olvidar.
 //
 // ----------------------------------------------------------------------------
@@ -39,11 +45,6 @@ import { conductorDeLaApi } from "@/lib/api-conductor";
 // nombre, porque el servidor no los tiene guardados (ver la migración 0003). Y
 // solo del `chofer_id` de quien pregunta: lo filtra esta ruta y lo vuelve a
 // exigir RLS.
-
-/** Tope por consulta. Una jornada son ~60 pedidos, así que en la práctica baja
- *  todo junto; el tope está para que una jornada sin cerrar de días atrás no
- *  arme una respuesta enorme sobre una conexión mala. */
-const MAX_POR_CONSULTA = 100;
 
 export async function GET() {
   const conductor = await conductorDeLaApi();
@@ -61,7 +62,7 @@ export async function GET() {
     // Más viejas primero: si el receptor contestó dos veces, la última tiene que
     // aplicarse última y quedar como la vigente.
     .order("respuesta_recibida_en", { ascending: true })
-    .limit(MAX_POR_CONSULTA);
+    .limit(MAX_RESPUESTAS_POR_CONSULTA);
 
   if (error) {
     return NextResponse.json(
@@ -81,10 +82,11 @@ export async function GET() {
     recibidoEn: r.respuesta_recibida_en,
   }));
 
-  return NextResponse.json({ respuestas });
+  return NextResponse.json({ respuestas } satisfies BuzonRespuestas);
 }
 
-type CuerpoConfirmar = { aplicadas?: unknown };
+/** El cuerpo crudo de ConfirmarAplicadas, todavía sin validar. */
+type CuerpoConfirmar = Partial<Record<keyof ConfirmarAplicadas, unknown>>;
 
 export async function POST(req: Request) {
   const conductor = await conductorDeLaApi();
@@ -98,7 +100,7 @@ export async function POST(req: Request) {
   if (ids.length === 0) {
     return NextResponse.json({ error: "No hay nada que confirmar." }, { status: 400 });
   }
-  if (ids.length > MAX_POR_CONSULTA) {
+  if (ids.length > MAX_RESPUESTAS_POR_CONSULTA) {
     return NextResponse.json({ error: "Demasiadas respuestas en una llamada." }, { status: 400 });
   }
 
@@ -133,7 +135,7 @@ export async function POST(req: Request) {
     .eq("chofer_id", conductor.choferId)
     .in("respuesta_mensaje_id", ids);
 
-  return NextResponse.json({ confirmadas: data?.length ?? 0 });
+  return NextResponse.json({ confirmadas: data?.length ?? 0 } satisfies ConfirmacionOk);
 }
 
 // Lee la sesión del conductor y consulta la base: no hay nada que prerenderizar.

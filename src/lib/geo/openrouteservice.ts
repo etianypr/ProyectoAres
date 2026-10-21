@@ -17,7 +17,7 @@
 // paga. Si algún día hace falta cortar esa dependencia, ORS y Valhalla se
 // levantan en un contenedor con el extracto OSM de Chile y lo único que cambia
 // acá es ORS_BASE.
-import type { Coordenada } from "@/lib/geocoding";
+import type { Coordenada, Trazado } from "./coordenada";
 
 const ORS_BASE = process.env.ORS_BASE ?? "https://api.openrouteservice.org";
 
@@ -41,7 +41,7 @@ const EVITABLES: Record<Evitable, string> = {
 // más: rechazaba rutas que el servicio acepta. Es el mismo criterio con el que
 // está escrito MAX_PUNTOS_POR_CONSULTA en lib/rutas.ts para Mapbox.
 //
-// Da de sobra: una jornada de 30 paradas más la base son 31 puntos.
+// Da de sobra: un día de 30 paradas más la base son 31 puntos.
 const MAX_PUNTOS = 70;
 
 /** Falta la API key. NO es una falla de red y no se traga: sin esto, un .env
@@ -63,11 +63,11 @@ export type PasoRuta = {
 };
 
 export type RutaAbierta = {
-  /** [lng, lat] por punto — formato GeoJSON, IDÉNTICO a RutaCalles.geometria en
+  /** [lng, lat] por punto — formato GeoJSON, IDÉNTICO a RutaCalles.trazado en
    *  lib/rutas.ts. Es a propósito: así entra sin traducir a ajustarATrazado(),
    *  recortarTrazado() y metrosRestantes(). Invertir el par no da error, pone
    *  la ruta en el mar. */
-  geometria: [number, number][];
+  trazado: Trazado;
   distanciaM: number;
   duracionS: number;
   /** Índices de los puntos que se pasaron, en el orden recorrido. Mismo formato
@@ -89,7 +89,7 @@ export type OpcionesRuta = {
 
 type RespuestaGeoJson = {
   features?: {
-    geometry?: { coordinates?: [number, number][] };
+    geometry?: { coordinates?: Trazado };
     properties?: {
       summary?: { distance?: number; duration?: number };
       way_points?: number[];
@@ -157,23 +157,23 @@ export async function obtenerRutaAbierta(
   }
 
   const f = datos.features?.[0];
-  const geometria = f?.geometry?.coordinates;
+  const trazado = f?.geometry?.coordinates;
   // Una ruta de un solo punto no es una ruta: es peor que ninguna, porque se
   // dibuja igual y parece que el trazado terminó.
-  if (!Array.isArray(geometria) || geometria.length < 2) return null;
+  if (!Array.isArray(trazado) || trazado.length < 2) return null;
 
   const resumen = f?.properties?.summary ?? {};
   const pasosCrudos = (f?.properties?.segments ?? []).flatMap((s) => s.steps ?? []);
 
   return {
-    geometria,
+    trazado,
     distanciaM: Math.round(resumen.distance ?? 0),
     duracionS: Math.round(resumen.duration ?? 0),
     // way_points dice en qué índice del trazado cae cada parada. Sin
     // optimize_waypoints el orden es el que se mandó; con él, ORS lo reordena y
     // esto es lo único que lo cuenta.
     orden: ordenDe(f?.properties?.way_points, puntos.length),
-    pasos: opciones.instrucciones ? pasosCrudos.map((p) => aPaso(p, geometria)) : null,
+    pasos: opciones.instrucciones ? pasosCrudos.map((p) => aPaso(p, trazado)) : null,
   };
 }
 
@@ -193,10 +193,10 @@ function ordenDe(wayPoints: number[] | undefined, cuantos: number): number[] {
 
 function aPaso(
   p: { instruction?: string; distance?: number; duration?: number; way_points?: number[] },
-  geometria: [number, number][],
+  trazado: Trazado,
 ): PasoRuta {
   const indice = p.way_points?.[0] ?? 0;
-  const [lng, lat] = geometria[Math.min(indice, geometria.length - 1)] ?? geometria[0];
+  const [lng, lat] = trazado[Math.min(indice, trazado.length - 1)] ?? trazado[0];
   return {
     texto: p.instruction ?? "",
     distanciaM: Math.round(p.distance ?? 0),

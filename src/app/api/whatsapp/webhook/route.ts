@@ -2,6 +2,8 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { leerPayloadBoton } from "@/lib/encomiendas/config";
+import type { EstadoAviso } from "@/lib/encomiendas/catalogos";
+import type { Aviso } from "@/types/db";
 
 // Meta llama a este endpoint de dos formas:
 // - GET: handshake de verificación al guardar la config en el dashboard de Meta.
@@ -126,7 +128,7 @@ type CuerpoWebhook = {
  *  y nunca la entrega física — un 'failed' quiere decir que WhatsApp no lo pudo
  *  dejar, no que el receptor haya rechazado el pedido (regla explícita del
  *  contrato). */
-const ESTADOS: Record<string, string> = {
+const ESTADOS: Record<string, EstadoAviso> = {
   sent: "enviado",
   delivered: "entregado",
   read: "leido",
@@ -205,7 +207,7 @@ async function procesarEstado(supabase: Cliente, estado: EstadoMeta) {
   if (!wamid || !nuevo) return;
 
   // Se busca por el wamid del aviso que mandamos. Si no hay correlación, el
-  // estado es de un mensaje que ya se limpió (jornada cerrada) y no hay nada que
+  // estado es de un mensaje que ya se limpió (día cerrado) y no hay nada que
   // anotar.
   //
   // El update NO puede pisar 'respondido': un 'delivered' que llega tarde
@@ -247,7 +249,7 @@ async function procesarRespuesta(supabase: Cliente, mensaje: MensajeMeta) {
     respuesta_mensaje_id: wamidRespuesta,
     respuesta_recibida_en: recibidoEn,
     estado: "respondido",
-  };
+  } satisfies Partial<Aviso>;
 
   const { data } = await supabase
     .from("encomienda_whatsapp_correlaciones")
@@ -263,7 +265,7 @@ async function procesarRespuesta(supabase: Cliente, mensaje: MensajeMeta) {
   //  · ya tenía respuesta → es un reintento de Meta o el receptor tocó dos
   //    veces. Correcto que no haga nada.
   //  · la correlación no existe → el payload es de una plantilla vieja, o la
-  //    jornada ya se cerró y la fila se limpió. Se intenta la segunda vía: el
+  //    día ya se cerró y la fila se limpió. Se intenta la segunda vía: el
   //    wamid del mensaje al que está contestando, que Meta manda en `context`.
   const contexto = mensaje.context?.id;
   if (!contexto) return;

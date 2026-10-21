@@ -1,3 +1,4 @@
+import "server-only";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
@@ -31,7 +32,7 @@ export async function conductorDeLaApi(): Promise<ConductorAutenticado> {
   if (!user) return rechazo(401, "Sesión vencida. Volvé a entrar a la app.");
 
   // El rol se lee de perfiles, igual que en lib/auth.ts. Un admin no puede usar
-  // estas rutas: no tiene pedidos ni jornada, y dejarlo pasar significaría que
+  // estas rutas: no tiene pedidos ni día, y dejarlo pasar significaría que
   // el `chofer_id` de las correlaciones podría no ser de nadie.
   const { data: perfil } = await supabase
     .from("perfiles")

@@ -12,7 +12,7 @@
 //
 // Desactivar todos está permitido, y a propósito: es una decisión operativa
 // válida ("esta semana no ofrecemos horario"). Lo que la app hace en ese caso es
-// decírselo al conductor —el receptor solo puede confirmar o rechazar— en vez de
+// decírselo al conductor —el receptor solo puede confirmar o pedir mañana— en vez de
 // mandarle a Meta una lista vacía que rechazaría con un error confuso.
 
 import { useActionState } from "react";

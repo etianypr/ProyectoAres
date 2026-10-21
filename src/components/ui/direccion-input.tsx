@@ -79,10 +79,10 @@ import {
   NOMBRE_FUENTE,
   sugerirDirecciones,
   sugerirEnOsm,
-  type Coordenada,
   type PuertasEnCalles,
   type SugerenciaDireccion,
 } from "@/lib/geocoding";
+import type { Coordenada } from "@/lib/geo/coordenada";
 
 // Lo que se espera desde la última tecla antes de consultar. Escribiendo una
 // dirección entera, esto son unas pocas consultas en vez de una por letra.

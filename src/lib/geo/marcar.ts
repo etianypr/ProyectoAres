@@ -13,7 +13,7 @@
 // Por eso acá no se decide por el chofer NI se le esconde el número: se traduce
 // el radio a una de tres frases y se muestran las dos cosas, la frase y los
 // metros. Guardar o no, decide él.
-import type { Coordenada } from "@/lib/geocoding";
+import type { Coordenada } from "./coordenada";
 import { plusCodeDe } from "./plus-code";
 
 /** Qué tan bien se conoce el punto que entregó el GPS. */
@@ -27,7 +27,7 @@ export type CalidadMarca =
 
 /** Un teléfono al aire libre y quieto da entre 5 y 15 m. Por encima de esto ya
  *  no es "la casa" sino "por acá". */
-const METROS_PUERTA = 12;
+const PRECISION_PUERTA_M = 12;
 
 /** Cuarenta metros son media cuadra de Arica: todavía sirve para llegar y mirar,
  *  y es mucho mejor que la interpolación de un proveedor. Más que eso, no. */
@@ -37,7 +37,7 @@ export function calidadDe(precisionM: number | null | undefined): CalidadMarca {
   // Sin dato NO se asume lo mejor. Es el mismo criterio con el que se lee el
   // match_code de Mapbox: lo que el proveedor no afirma, no se da por bueno.
   if (precisionM == null || !Number.isFinite(precisionM)) return "dudosa";
-  if (precisionM <= METROS_PUERTA) return "puerta";
+  if (precisionM <= PRECISION_PUERTA_M) return "puerta";
   if (precisionM <= METROS_CUADRA) return "cuadra";
   return "dudosa";
 }

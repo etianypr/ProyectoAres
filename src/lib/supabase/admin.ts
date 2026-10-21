@@ -1,4 +1,6 @@
+import "server-only";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/db";
 
 // Cliente con la llave service_role: bypassa RLS por completo y puede
 // invitar/crear usuarios (Auth Admin API). SOLO se importa desde Server
@@ -10,7 +12,7 @@ export function createAdminClient() {
       "Falta SUPABASE_SERVICE_ROLE_KEY en las variables de entorno (Supabase > Settings > API > service_role).",
     );
   }
-  return createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, key, {
+  return createSupabaseClient<Database>(process.env.NEXT_PUBLIC_SUPABASE_URL!, key, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 }

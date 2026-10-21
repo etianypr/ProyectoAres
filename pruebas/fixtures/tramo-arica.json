@@ -6,7 +6,7 @@
    "distanciaM": 47,
    "tipo": "depart",
    "modificador": null,
-   "geometria": [
+   "trazado": [
     [
      -70.290018,
      -18.471251
@@ -29,7 +29,7 @@
    "distanciaM": 243,
    "tipo": "turn",
    "modificador": "right",
-   "geometria": [
+   "trazado": [
     [
      -70.28968,
      -18.471525
@@ -76,7 +76,7 @@
    "distanciaM": 631,
    "tipo": "turn",
    "modificador": "right",
-   "geometria": [
+   "trazado": [
     [
      -70.291148,
      -18.473206
@@ -231,7 +231,7 @@
    "distanciaM": 811,
    "tipo": "end of road",
    "modificador": "left",
-   "geometria": [
+   "trazado": [
     [
      -70.295492,
      -18.469374
@@ -326,7 +326,7 @@
    "distanciaM": 77,
    "tipo": "turn",
    "modificador": "slight right",
-   "geometria": [
+   "trazado": [
     [
      -70.300329,
      -18.475035
@@ -361,7 +361,7 @@
    "distanciaM": 660,
    "tipo": "end of road",
    "modificador": "right",
-   "geometria": [
+   "trazado": [
     [
      -70.300818,
      -18.475546
@@ -476,7 +476,7 @@
    "distanciaM": 1033,
    "tipo": "turn",
    "modificador": "left",
-   "geometria": [
+   "trazado": [
     [
      -70.305459,
      -18.471584
@@ -635,7 +635,7 @@
    "distanciaM": 77,
    "tipo": "end of road",
    "modificador": "right",
-   "geometria": [
+   "trazado": [
     [
      -70.311878,
      -18.478581
@@ -670,7 +670,7 @@
    "distanciaM": 0,
    "tipo": "arrive",
    "modificador": "left",
-   "geometria": [
+   "trazado": [
     [
      -70.312408,
      -18.478107
@@ -683,7 +683,7 @@
    "avisos": []
   }
  ],
- "geometria": [
+ "trazado": [
   [
    -70.290018,
    -18.471251

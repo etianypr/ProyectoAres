@@ -23,11 +23,11 @@ import { Dialogo } from "@/components/ui/dialogo";
 import { Button } from "@/components/ui/button";
 import { formatCLP, formatDate } from "@/lib/format";
 import { valorPedido } from "@/lib/encomiendas/pago";
-import type { EncomiendaReglaPago } from "@/types/db";
+import type { ReglaDePago } from "@/types/db";
 import { CamposTarifa, valoresDeTarifa, type ValoresTarifa } from "./campos-tarifa";
 import { guardarReglaPago, type FormState } from "./actions";
 
-export function ReglaPago({ regla }: { regla: EncomiendaReglaPago | null }) {
+export function ReglaPago({ regla }: { regla: ReglaDePago | null }) {
   const [abierto, setAbierto] = useState(false);
 
   return (
@@ -57,7 +57,7 @@ function Formulario({
   regla,
   onGuardado,
 }: {
-  regla: EncomiendaReglaPago | null;
+  regla: ReglaDePago | null;
   onGuardado: () => void;
 }) {
   const [state, formAction, pending] = useActionState<FormState, FormData>(
@@ -126,7 +126,7 @@ function Formulario({
  *  número deje de ser abstracto: "7 % de $950" no se traduce solo a un sueldo.
  *  Usa la regla YA GUARDADA, no lo que hay tecleado en el formulario — es una
  *  referencia de dónde se está parado, no una vista previa del cambio. */
-function ejemplo(regla: EncomiendaReglaPago, entregas: number): number {
+function ejemplo(regla: ReglaDePago, entregas: number): number {
   const valor = Number(regla.valor_pago);
   const base =
     regla.tipo_pago === "porcentaje"

@@ -7,7 +7,7 @@ import {
   obtenerNavegacion,
   type PasoNavegacion,
 } from "@/lib/rutas";
-import type { Coordenada } from "@/lib/geocoding";
+import type { Coordenada, Trazado } from "@/lib/geo/coordenada";
 
 // Un tramo pedido a Mapbox NO trae una instrucción: trae TODAS las maniobras
 // hasta la parada, cada una con su trazado y sus avisos de voz. Recorrerlo es
@@ -22,7 +22,7 @@ import type { Coordenada } from "@/lib/geocoding";
 //
 // Antes se re-pedía cada 150 metros, y no era un capricho: el cartel mostraba
 // siempre el PRIMER paso del último tramo, así que pedir otro era la única
-// forma de que la indicación avanzara. Una jornada de 60 km eran unas 400
+// forma de que la indicación avanzara. Un día de 60 km eran unas 400
 // consultas por chofer. Ahora son unas pocas por parada, y el cartel cambia en
 // el momento en que se cumple la maniobra en vez de esperar a que conteste la
 // red — o sea que además de costar menos, se siente mejor.
@@ -58,7 +58,7 @@ function mismoPunto(a: Coordenada | null | undefined, b: Coordenada | null | und
 type Tramo = {
   destino: Coordenada;
   pasos: PasoNavegacion[];
-  geometria: [number, number][];
+  trazado: Trazado;
   /** Si la consulta que lo trajo llevaba el rumbo del auto. Sin rumbo, Mapbox
    *  puede haber enganchado la salida en la calzada contraria. */
   conRumbo: boolean;
@@ -76,10 +76,10 @@ export type Navegacion = {
   metrosAManiobra: number | null;
   /** Trazado por calles desde donde se pidió hasta la parada activa,
    *  [lng, lat] por punto — esto es lo que se dibuja como "por dónde ir". */
-  geometria: [number, number][] | null;
+  trazado: Trazado | null;
 };
 
-const VACIA: Navegacion = { paso: null, siguiente: null, metrosAManiobra: null, geometria: null };
+const VACIA: Navegacion = { paso: null, siguiente: null, metrosAManiobra: null, trazado: null };
 
 export function useNavegacion(
   activo: boolean,
@@ -142,7 +142,7 @@ export function useNavegacion(
 
     // ¿Sigue sobre el camino? Se mide contra el trazado completo del tramo.
     if (sirve && tramo) {
-      const desvio = distanciaAPolilinea(origen, tramo.geometria);
+      const desvio = distanciaAPolilinea(origen, tramo.trazado);
       fueraRef.current = desvio > UMBRAL_FUERA_DE_RUTA_M ? fueraRef.current + 1 : 0;
     }
 
@@ -197,7 +197,7 @@ export function useNavegacion(
       }
 
       fueraRef.current = 0;
-      setTramo({ destino, pasos: res.pasos, geometria: res.geometria, conRumbo: rumbo != null });
+      setTramo({ destino, pasos: res.pasos, trazado: res.trazado, conRumbo: rumbo != null });
     });
   }, [habilitado, origen, destino, tramo, reintento]);
 
@@ -225,7 +225,7 @@ export function useNavegacion(
     let avanzado = Math.min(indice, tramo.pasos.length - 1);
     while (
       avanzado < tramo.pasos.length - 1 &&
-      metrosRestantes(origen, tramo.pasos[avanzado].geometria) <= UMBRAL_MANIOBRA_M
+      metrosRestantes(origen, tramo.pasos[avanzado].trazado) <= UMBRAL_MANIOBRA_M
     ) {
       avanzado++;
     }
@@ -247,9 +247,9 @@ export function useNavegacion(
     // derecho hacia un giro a la derecha, la flecha decía "siga derecho".
     siguiente: tramo.pasos[indice + 1] ?? null,
     metrosAManiobra:
-      origen && paso && paso.geometria.length > 0
-        ? metrosRestantes(origen, paso.geometria)
+      origen && paso && paso.trazado.length > 0
+        ? metrosRestantes(origen, paso.trazado)
         : (paso?.distanciaM ?? null),
-    geometria: tramo.geometria.length > 0 ? tramo.geometria : null,
+    trazado: tramo.trazado.length > 0 ? tramo.trazado : null,
   };
 }

@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 // que cambiarlo no exige tocar código. Este título es lo único fijo.
 export const metadata: Metadata = {
   title: "Gestión de encomiendas",
-  description: "Reparto de encomiendas: rutas, jornadas y liquidación de conductores",
+  description: "Reparto de encomiendas: rutas, días de trabajo y liquidación de conductores",
 };
 
 export default function RootLayout({

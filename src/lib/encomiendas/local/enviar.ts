@@ -3,19 +3,12 @@
 // El único puente entre el teléfono y el servidor en el módulo del chofer. Todo
 // lo demás (pedidos, direcciones, orden de la ruta, trazado) se queda en el
 // teléfono y no sale nunca; por acá salen solo los eventos de actividad, que no
-// llevan un dato personal: quién, qué día, qué pasó y a qué hora.
-//
-// Desde la asistencia de ruta sale UNA cosa más: el `motivo` de una no entrega,
-// en tres valores fijos (persona_no_encontrada, sin_respuesta, rechazo). Sigue
-// sin ser un dato personal — es una etiqueta operativa, no dice quién era el
-// receptor ni dónde vivía— y es lo que le permite al jefe distinguir un rechazo,
-// que no hay que reintentar, de un "no estaba" que sí (FR-021).
-//
-// NO entra en el cálculo del pago. La base cuenta por `tipo`: 'entrega' suma y
-// 'omision' no, sin mirar el motivo (ver la 0003 y su verificación).
+// llevan un dato personal: quién, qué día, qué pasó y a qué hora. Sin motivo:
+// se entregó o no (spec 012). La base cuenta por `tipo`: 'entrega' suma y
+// 'omision' no.
 //
 // Trabajar sin señal no es un caso especial acá, es lo normal: marcar una
-// entrega SIEMPRE escribe primero en el teléfono (ver almacen.marcarEntrega) y
+// entrega SIEMPRE escribe primero en el teléfono (ver almacen.marcarResultado) y
 // el envío es un intento aparte que puede fallar y reintentarse cuantas veces
 // haga falta. Reenviar no puede duplicar el conteo porque el id del evento se
 // decidió en el teléfono y la base lo inserta con "no hacer nada si ya existe"
@@ -23,10 +16,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { leerCola, leerRuta, quitarDeCola, type EventoCola } from "./almacen";
+import { leerCola, leerRuta, quitarDeCola, type ActividadPorEnviar } from "./almacen";
 
 // Un tope por consulta para no armar un cuerpo enorme con una conexión mala:
-// una jornada completa sin señal son ~60 eventos, así que en la práctica va
+// un día completo sin señal son ~60 eventos, así que en la práctica va
 // todo junto y esto es solo un techo.
 const MAX_POR_ENVIO = 100;
 
@@ -35,28 +28,23 @@ const MAX_POR_ENVIO = 100;
 // el navegador se sigue creyendo conectado y el evento nunca dispara.
 const MS_REINTENTO = 60_000;
 
-function aFila(e: EventoCola) {
+function aFila(e: ActividadPorEnviar) {
   return {
     id: e.id,
     chofer_id: e.choferId,
     fecha: e.fecha,
     tipo: e.tipo,
     hora: e.hora,
-    // Solo en las omisiones, y solo cuando lo hay: los eventos que quedaron en la
-    // cola de un teléfono ANTES de esta versión no tienen motivo, y mandarlos con
-    // `undefined` haría que PostgREST reclamara la columna. Con null explícito
-    // quedan como lo que son: una omisión de la que nadie preguntó el motivo.
-    motivo: e.motivo ?? null,
   };
 }
 
-export type ResultadoEnvio = {
+export type ResultadoEnvioCola = {
   enviados: number;
   /** Lo que sigue en la cola después de este lote. */
   pendientes: number;
 };
 
-/** Manda el estado de la jornada del día: cuándo empezó la ruta y, si terminó,
+/** Manda el estado del día de trabajo: cuándo empezó la ruta y, si terminó,
  *  cuándo (0032). Es lo que decide si el servidor valora el día o lo deja en
  *  curso, así que va en cada intento de sincronización y no una sola vez.
  *
@@ -64,9 +52,9 @@ export type ResultadoEnvio = {
  *  mismo estado no hace nada. Con la cola de eventos hace falta porque cada
  *  evento es una fila distinta que hay que poder tachar de a una; acá hay un
  *  solo dato que siempre se puede volver a escribir entero. */
-export async function sincronizarJornada(choferId: string, fecha: string): Promise<void> {
+export async function sincronizarDiaTrabajo(choferId: string, fecha: string): Promise<void> {
   const ruta = await leerRuta(fecha);
-  // Sin ruta generada no hay jornada que abrir. Un día que solo tiene llamadas
+  // Sin ruta generada no hay día que abrir. Un día que solo tiene llamadas
   // sueltas lo levanta el barrido nocturno del servidor.
   if (!ruta) return;
 
@@ -75,8 +63,8 @@ export async function sincronizarJornada(choferId: string, fecha: string): Promi
     {
       chofer_id: choferId,
       fecha,
-      inicio: ruta.generadaEn,
-      cerrada_en: ruta.cerradaEn,
+      inicio: ruta.inicio,
+      cerrada_en: ruta.cierre,
     },
     { onConflict: "chofer_id,fecha" },
   );
@@ -86,7 +74,7 @@ export async function sincronizarJornada(choferId: string, fecha: string): Promi
 
 /** Manda un lote de la cola. Si el servidor no responde, LANZA y la cola queda
  *  intacta: no se borra nada que no esté confirmado. */
-export async function enviarActividadPendiente(): Promise<ResultadoEnvio> {
+export async function enviarActividadPendiente(): Promise<ResultadoEnvioCola> {
   const cola = await leerCola();
   if (cola.length === 0) return { enviados: 0, pendientes: 0 };
 
@@ -115,7 +103,7 @@ export type EstadoEnvio = {
   enviando: boolean;
   /** Último fallo. No es una alarma: la cola reintenta sola. */
   error: string | null;
-  /** Fuerza un intento ahora. Hay que llamarlo después de cada marcarEntrega /
+  /** Fuerza un intento ahora. Hay que llamarlo después de cada marcarResultado /
    *  marcarLlamada para que el evento salga en el momento y no espere al
    *  siguiente reintento. */
   intentar: () => void;
@@ -124,9 +112,9 @@ export type EstadoEnvio = {
 // Mantiene la cola vaciándose sola: al montar, cuando vuelve la conexión,
 // cuando el chofer regresa a la app y cada minuto mientras quede algo.
 //
-// `activo` es "esta pantalla es la de HOY". Importa más que antes: la jornada
+// `activo` es "esta pantalla es la de HOY". Importa más que antes: el día
 // se manda con el estado que tiene el teléfono, así que sincronizar mirando un
-// día viejo podría reabrir una jornada que el servidor ya cerró.
+// día viejo podría reabrir un día que el servidor ya cerró.
 export function useEnvioActividad(
   activo: boolean,
   choferId: string,
@@ -156,7 +144,7 @@ export function useEnvioActividad(
           if (enviados === 0 || restantes === 0) break;
         }
 
-        // DESPUÉS de los eventos, y SOLO si no quedó ninguno. Cerrar la jornada es
+        // DESPUÉS de los eventos, y SOLO si no quedó ninguno. Cerrar el día es
         // lo que hace que el servidor cuente el día, así que tiene que contar con
         // todo lo que el teléfono tenía guardado.
         //
@@ -168,7 +156,7 @@ export function useEnvioActividad(
         //
         // Si quedó algo, el reintento del minuto siguiente vuelve a pasar por acá
         // y cierra entonces.
-        if (quedaron === 0) await sincronizarJornada(choferId, fecha);
+        if (quedaron === 0) await sincronizarDiaTrabajo(choferId, fecha);
       } catch (e) {
         setError(e instanceof Error ? e.message : "No se pudo enviar la actividad.");
         // El contador tiene que seguir a la vista aunque el envío falle: es la

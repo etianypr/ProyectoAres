@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { DebugErrores } from "@/components/encomiendas/debug-errores";
 import { exigirConductor } from "@/lib/auth";
 
 // Grupo de rutas aparte (ver docs de route groups): así todo lo que vive
@@ -39,9 +38,6 @@ export default async function ConductorLayout({ children }: { children: React.Re
   await exigirConductor();
 
   return (
-    <div className="min-h-screen bg-background">
-      <DebugErrores />
-      {children}
-    </div>
+    <div className="min-h-screen bg-background">{children}</div>
   );
 }

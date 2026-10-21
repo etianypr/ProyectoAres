@@ -9,9 +9,8 @@
 // registrada en este periodo" con los KPI en $0. Ni el typecheck, ni el lint, ni
 // el build lo pueden ver: para todos ellos el código está perfecto. Esto sí.
 //
-// Corré esto después de cada migración, y sobre todo DESPUÉS DE IMPORTAR los
-// datos del sistema anterior (scripts/migrar-datos.mjs): la sección 5 es la que
-// dice si las liquidaciones llegaron completas y cuadradas.
+// Corré esto después de cada migración: la sección 5 es la que dice si las
+// liquidaciones están completas y cuadradas.
 import { createClient } from "@supabase/supabase-js";
 import {
   agruparPorDia,
@@ -96,14 +95,14 @@ for (const [tabla, select, quien] of [
   [
     "encomienda_pagos",
     "id, empresa_id, chofer_id, fecha, pedidos_entregados, pedidos_no_entregados, ingresos_totales, pago_base, pago_dia, pago_bono, pago_total, calculado_en, regla_valor_pedido, regla_tipo_pago, regla_valor_pago, regla_monto_dia, regla_meta_entregas_dia, regla_bono_monto",
-    "tipo EncomiendaPago",
+    "tipo PagoDelDia",
   ],
   [
     "encomienda_reglas_pago",
     "id, empresa_id, tipo_pago, valor_pago, valor_pedido, monto_dia, meta_entregas_dia, bono_monto, created_at, updated_at",
-    "tipo EncomiendaReglaPago",
+    "tipo ReglaDePago",
   ],
-  ["encomienda_jornadas", "id, chofer_id, fecha, inicio, cerrada_en", "tipo EncomiendaJornada"],
+  ["encomienda_jornadas", "id, chofer_id, fecha, inicio, cerrada_en", "tipo DiaTrabajo"],
   [
     "encomienda_periodos_facturacion",
     "id, fecha_inicio, fecha_fin",
@@ -156,7 +155,7 @@ for (const [fn, args] of [
   } else ok(`${fn} existe`);
 }
 
-// El cierre automático de jornadas. Sin él, la jornada que el conductor no
+// El cierre automático de días. Sin él, el día que el conductor no
 // cerró (batería, olvido) no se valora nunca y ese día no se paga.
 const { data: cron, error: errCron } = await db
   .schema("cron")
@@ -172,7 +171,7 @@ if (errCron) {
 } else ok(`cierre automático programado (${cron[0].schedule})`);
 
 // El barrido de correlaciones de WhatsApp es lo que garantiza el tope de 72
-// horas de retención. Si no está programado, una jornada que nunca se cierra
+// horas de retención. Si no está programado, un día que nunca se cierra
 // deja sus correlaciones vivas para siempre — y eso es incumplir la política de
 // datos que documenta el producto, no solo dejar basura.
 const { data: cronWsp, error: errCronWsp } = await db
@@ -262,29 +261,29 @@ else {
 }
 
 // ---------------------------------------------------------------------------
-console.log("\n=== 7. Jornadas ===");
-const { data: jornadas } = await db.from("encomienda_jornadas").select("*");
+console.log("\n=== 7. Días de trabajo ===");
+const { data: diasTrabajo } = await db.from("encomienda_jornadas").select("*");
 const hoyCl = new Date().toLocaleDateString("en-CA", { timeZone: "America/Santiago" });
-const abiertasViejas = (jornadas ?? []).filter((j) => j.fecha < hoyCl && j.cerrada_en == null);
+const abiertasViejas = (diasTrabajo ?? []).filter((j) => j.fecha < hoyCl && j.cerrada_en == null);
 if (abiertasViejas.length) {
   mal(
-    `${abiertasViejas.length} jornada(s) de días pasados sin cerrar: esos días NO se valoran ` +
+    `${abiertasViejas.length} día(s) de días pasados sin cerrar: esos días NO se valoran ` +
       `y el conductor no cobra. Debería cerrarlas el barrido nocturno.`,
   );
-} else ok(`${jornadas?.length ?? 0} jornadas, ninguna vieja quedó abierta`);
+} else ok(`${diasTrabajo?.length ?? 0} días de trabajo, ninguna vieja quedó abierta`);
 
-// Días con actividad y sin jornada: no se valoran nunca.
-const clavesJornada = new Set((jornadas ?? []).map((j) => `${j.chofer_id}|${j.fecha}`));
-const sinJornada = [
+// Días con actividad y sin día de trabajo: no se valoran nunca.
+const clavesDia = new Set((diasTrabajo ?? []).map((j) => `${j.chofer_id}|${j.fecha}`));
+const sinDiaTrabajo = [
   ...new Set(
     (actividad ?? [])
       .filter((a) => a.chofer_id && a.fecha < hoyCl)
       .map((a) => `${a.chofer_id}|${a.fecha}`)
-      .filter((k) => !clavesJornada.has(k)),
+      .filter((k) => !clavesDia.has(k)),
   ),
 ];
-if (sinJornada.length) mal(`${sinJornada.length} día(s) pasado(s) con actividad y sin jornada: no se valoran`);
-else ok("todo día pasado con actividad tiene su jornada");
+if (sinDiaTrabajo.length) mal(`${sinDiaTrabajo.length} día(s) pasado(s) con actividad y sin día: no se valoran`);
+else ok("todo día pasado con actividad tiene su día");
 
 // ---------------------------------------------------------------------------
 console.log("\n=== 8. Truncado de PostgREST ===");
@@ -397,6 +396,7 @@ console.log("\n=== 11. Motivo de no entrega ===");
   if (errMotivo) {
     mal(`encomienda_actividad.motivo: ${errMotivo.message} — falta correr la migración 0003`);
   } else {
+    // Columna heredada: desde la spec 012 nadie la escribe. Se borra en 002 T051.
     const MOTIVOS = ["persona_no_encontrada", "sin_respuesta", "rechazo"];
     // Un motivo en una entrega significa que el check de la 0003 no está puesto,
     // y que el panel va a mostrar un motivo sobre una entrega exitosa.
@@ -406,8 +406,6 @@ console.log("\n=== 11. Motivo de no entrega ===");
     if (malPuestos.length) mal(`${malPuestos.length} evento(s) con un motivo imposible`);
     else ok(`${conMotivo?.length ?? 0} omisión(es) con motivo, todas válidas`);
 
-    const rechazos = (conMotivo ?? []).filter((a) => a.motivo === "rechazo").length;
-    console.log(`  ·     ${rechazos} rechazo(s) registrado(s) — no se reintentan (FR-012)`);
   }
 }
 

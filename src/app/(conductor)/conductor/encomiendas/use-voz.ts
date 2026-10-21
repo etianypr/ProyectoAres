@@ -120,7 +120,7 @@ function hablar(texto: string) {
   sintetizador.speak(aviso);
 
   // Chrome deja el sintetizador en PAUSA al volver de segundo plano, y el
-  // teléfono del chofer pasa media jornada con la pantalla apagada. Cuando eso
+  // teléfono del chofer pasa medio día con la pantalla apagada. Cuando eso
   // pasa, speak() encola el aviso y no suena nada nunca más en todo el viaje;
   // resume() es lo único que lo destraba, y llamarlo de más no molesta.
   sintetizador.resume();

@@ -23,16 +23,27 @@
 // por calles son las mismas funciones que ya se usaban, y ya corrían en el
 // navegador para la navegación paso a paso (ver use-navegacion.ts).
 
-import { ubicarDireccion, geocodificarDireccion, type Coordenada } from "@/lib/geocoding";
-import { distanciaMetros, matrizDistancias, obtenerRutaCalles, ordenarParadas } from "@/lib/rutas";
-import { bloquePorId, minutosDesde } from "@/lib/encomiendas/config";
+import { ubicarDireccion, geocodificarDireccion } from "@/lib/geocoding";
+import type { Coordenada, Trazado } from "@/lib/geo/coordenada";
+import { matrizDistancias, obtenerRutaCalles, ordenarParadas } from "@/lib/rutas";
+import { bloquePorId } from "@/lib/encomiendas/config";
+import { resultadoCerrado, estaConfirmado } from "@/lib/encomiendas/estados";
+import {
+  fueraDeHorario,
+  metrosDelOrden,
+  metrosEstimados,
+  minutoDelDia,
+  ubicarConHorario,
+  type MetrosEntre,
+} from "./planificar";
 import {
   fijarCoordenadas,
   guardarRuta,
+  leerPedidos,
   leerRuta,
-  pedidosPendientes,
-  type PedidoLocal,
-  type RutaLocal,
+  pedidosEnOrden,
+  type Pedido,
+  type Ruta,
 } from "./almacen";
 
 // Las direcciones se ubican al CARGAR cada pedido, una por una, así que acá
@@ -117,24 +128,23 @@ export type PuntoInicio =
   | { tipo: "direccion"; direccion: string; lat?: number; lng?: number };
 
 /** Pedido que sí se pudo ubicar en el mapa: entra en la ruta. */
-export type PedidoUbicado = PedidoLocal & { lat: number; lng: number };
+export type PedidoUbicado = Pedido & { lat: number; lng: number };
 
 /** Ruta calculada y todavía NO guardada. Es lo que se muestra en la
  *  previsualización; guardarla es cosa de confirmarRutaLocal. */
 export type PropuestaRuta = {
   fecha: string;
   /** Punto de partida ya resuelto a coordenadas. */
-  inicio: Coordenada;
+  partida: Coordenada;
   /** Las paradas que faltan, en el orden de visita propuesto. */
   paradas: PedidoUbicado[];
   /** Trazado por calles de todo el recorrido, [lng, lat] por punto. */
-  geometria: [number, number][] | null;
+  trazado: Trazado | null;
   distanciaM: number | null;
   duracionS: number | null;
   /** Pendientes que quedaron FUERA porque su dirección no se pudo ubicar en el
-   *  mapa. Siguen pendientes, así que se arrastran al día siguiente igual; la
-   *  pantalla los muestra para que el chofer corrija la dirección. */
-  sinUbicar: PedidoLocal[];
+   *  mapa. La pantalla los muestra para que el conductor corrija la dirección. */
+  sinUbicar: Pedido[];
   /** true si el trazado por calles no se pudo pedir (sin señal, o el servicio
    *  no respondió). La ruta sirve igual: están los puntos y el orden. */
   sinTrazado: boolean;
@@ -142,7 +152,7 @@ export type PropuestaRuta = {
    *  reordenan ni se pierden: quedan primero en la ruta guardada. */
   cerradas: number;
   /** Todo lo que el chofer tiene que saber antes de salir, en frases
-   *  mostrables. Se guardan CON la ruta (ver RutaLocal.advertencias) y no solo
+   *  mostrables. Se guardan CON la ruta (ver Ruta.advertencias) y no solo
    *  se muestran en la previsualización: en terreno, tres horas después, siguen
    *  siendo la explicación de por qué un pedido no está en la lista. */
   advertencias: string[];
@@ -154,20 +164,15 @@ export type PropuestaRuta = {
   alternativas: Alternativa[];
   /** Cuál de `alternativas` está puesta ahora mismo. */
   elegida: EstrategiaRuta;
-  /** Pedidos que el receptor RECHAZÓ por WhatsApp. No entran en la ruta (FR-012)
-   *  y hay que cerrarlos antes de terminar la jornada, así que se devuelven
-   *  aparte de `sinUbicar`: el motivo por el que están fuera es distinto y la
-   *  acción del chofer también. */
-  rechazados: PedidoLocal[];
 };
 
 export type ResultadoRuta = {
-  ruta: RutaLocal;
-  sinUbicar: PedidoLocal[];
+  ruta: Ruta;
+  sinUbicar: Pedido[];
   sinTrazado: boolean;
 };
 
-function tieneCoordenadas(p: PedidoLocal): p is PedidoUbicado {
+function tieneCoordenadas(p: Pedido): p is PedidoUbicado {
   return p.lat != null && p.lng != null;
 }
 
@@ -182,13 +187,13 @@ function tieneCoordenadas(p: PedidoLocal): p is PedidoUbicado {
 // dos lugares con el mismo nombre, o solo se encontró la calle, el pedido se
 // queda fuera con una advertencia y el chofer decide.
 //
-// No se pierde nada: el pedido sigue pendiente, reaparece mañana y la
+// No se pierde nada: el pedido sigue pendiente en la lista del día y la
 // advertencia le dice qué corregir. Es el cumplimiento de SC-009 —ningún pedido
 // entra a una ruta sin ubicación confirmada o advertencia visible— y del
 // principio IV de la constitución.
 async function reintentarUbicar(
-  pendientes: PedidoLocal[],
-): Promise<{ pendientes: PedidoLocal[]; advertencias: string[] }> {
+  pendientes: Pedido[],
+): Promise<{ pendientes: Pedido[]; advertencias: string[] }> {
   const sinUbicar = pendientes.filter((p) => !tieneCoordenadas(p));
   if (sinUbicar.length === 0) return { pendientes, advertencias: [] };
 
@@ -301,23 +306,8 @@ async function resolverInicio(
 //    multiplicando consultas).
 //
 //  · Si dos estrategias dan el mismo orden de paradas, es la misma ruta y se
-//    muestra una sola vez. Es lo más común en una jornada donde nadie eligió
+//    muestra una sola vez. Es lo más común en un día donde nadie eligió
 //    horario, y es justamente el caso en que el chofer no tiene que comparar nada.
-
-/** Velocidad urbana promedio en Arica, contando semáforos y esperas. Sirve para
- *  ESTIMAR a qué hora se llega a cada parada y así saber si un bloque horario se
- *  puede cumplir. Es una estimación y la pantalla lo dice: la matriz de Mapbox
- *  devuelve distancias, no tiempos, y pedir la matriz de duraciones sería otra
- *  consulta por cada armado de ruta. */
-const KMH_CIUDAD = 25;
-
-/** Cuánto se tarda en cada parada: estacionar, caminar, entregar, volver. */
-const MIN_POR_PARADA = 4;
-
-/** Cuánto se puede llegar tarde a un bloque antes de considerarlo incumplido.
- *  Un bloque es una ventana de dos horas; quince minutos de holgura es lo que
- *  separa "llegué al final del bloque" de "llegué cuando ya no estaba". */
-const MIN_TOLERANCIA_BLOQUE = 15;
 
 export type EstrategiaRuta = "corta" | "horarios" | "confirmados";
 
@@ -340,8 +330,9 @@ export type Alternativa = {
   bloquesCumplidos: number;
   /** Y los que no. Es la cifra que más pesa al elegir la recomendada. */
   bloquesIncumplidos: number;
-  /** Nombres de los receptores a cuyo bloque se llegaría tarde. */
-  llegariaTardeA: string[];
+  /** Nombres de los receptores a cuyo bloque se llegaría fuera de horario,
+   *  antes o después (ver planificar.ts). */
+  fueraDeHorario: string[];
 };
 
 const TITULOS: Record<EstrategiaRuta, { titulo: string; motivo: string }> = {
@@ -363,9 +354,20 @@ function coord(p: PedidoUbicado): Coordenada {
   return { lat: p.lat, lng: p.lng };
 }
 
-/** ¿Este receptor ya dijo que va a estar? */
-function estaConfirmado(p: PedidoLocal): boolean {
-  return p.disponibilidad === "confirmado" || p.disponibilidad === "horario_indicado";
+/** Las distancias de la matriz de calles, para el planificador. Un par que la
+ *  matriz no tiene (sin matriz, o sin camino) se estima como en planificar.ts. */
+function metrosPorMatriz(
+  base: Coordenada,
+  indiceEnMatriz: Map<string, number>,
+  matriz: number[][] | null,
+): MetrosEntre {
+  const estimado = metrosEstimados(base);
+  return (a, b) => {
+    const desde = a ? indiceEnMatriz.get(a.id) : 0;
+    const hasta = indiceEnMatriz.get(b.id);
+    const m = matriz && desde != null && hasta != null ? matriz[desde]?.[hasta] : undefined;
+    return m != null && Number.isFinite(m) ? m : estimado(a, b);
+  };
 }
 
 /** Ordena un SUBCONJUNTO de paradas partiendo de un punto dado, reusando el
@@ -428,6 +430,7 @@ function ordenPorEstrategia(
   ubicados: PedidoUbicado[],
   indiceEnMatriz: Map<string, number>,
   matriz: number[][] | null,
+  minutosDeInicio: number,
 ): PedidoUbicado[] {
   if (estrategia === "corta") {
     return ordenarGrupo(base, ubicados, indiceEnMatriz, matriz, 0);
@@ -435,99 +438,87 @@ function ordenPorEstrategia(
 
   if (estrategia === "confirmados") {
     // Primero los que dijeron que están, después los que no contestaron. Si el
-    // día se corta —se pincha una rueda, se acaba la jornada— lo que queda sin
+    // día se corta —se pincha una rueda, se acaba el día— lo que queda sin
     // entregar es lo que de todas formas era una apuesta.
     return encadenar(
       base,
-      [ubicados.filter(estaConfirmado), ubicados.filter((p) => !estaConfirmado(p))],
+      [
+        ubicados.filter((p) => estaConfirmado(p.disponibilidad)),
+        ubicados.filter((p) => !estaConfirmado(p.disponibilidad)),
+      ],
       indiceEnMatriz,
       matriz,
     );
   }
 
-  // "horarios": los bloques en orden del día, y al final los que no eligieron
-  // ninguno. Un pedido sin ventana se puede entregar a cualquier hora, así que es
-  // el que tiene que ceder el lugar.
+  // "horarios": la más corta entre los que no eligieron bloque, y cada uno con
+  // bloque metido donde se llega dentro de su ventana (ver planificar.ts). Es el
+  // mismo cálculo que reubica un pedido cuando el receptor elige horario con la
+  // ruta en curso. Antes los bloques iban primero en orden del día, y un
+  // "18–20" quedaba a media mañana: se llegaba antes de que estuviera.
   const conBloque = ubicados.filter((p) => bloquePorId(p.bloqueHorarioId));
   const sinBloque = ubicados.filter((p) => !bloquePorId(p.bloqueHorarioId));
+  const metros = metrosPorMatriz(base, indiceEnMatriz, matriz);
+  const insertado = ubicarConHorario(
+    ordenarGrupo(base, sinBloque, indiceEnMatriz, matriz, 0),
+    conBloque,
+    minutosDeInicio,
+    metros,
+  );
 
-  const porBloque = new Map<string, PedidoUbicado[]>();
-  for (const p of conBloque) {
-    const id = p.bloqueHorarioId as string;
-    const lista = porBloque.get(id);
-    if (lista) lista.push(p);
-    else porBloque.set(id, [p]);
-  }
-
-  const grupos = [...porBloque.entries()]
-    .sort((a, b) => (minutosDesde(a[0]) ?? 0) - (minutosDesde(b[0]) ?? 0))
-    .map(([, lista]) => lista);
-
-  return encadenar(base, [...grupos, sinBloque], indiceEnMatriz, matriz);
+  // Con los horarios ya puestos, cada tramo sin horario se vuelve a ordenar por
+  // distancia desde donde quedó la parada anterior: es una ruta nueva, no hay
+  // un orden elegido que respetar. Se queda solo si no deja a nadie fuera de su
+  // horario.
+  const tramos = reordenarTramos(base, insertado, indiceEnMatriz, matriz);
+  const fuera = (orden: PedidoUbicado[]) => fueraDeHorario(orden, minutosDeInicio, metros).length;
+  return fuera(tramos) <= fuera(insertado) ? tramos : insertado;
 }
 
-/** Mide un orden: cuántos metros, y a qué bloques se llegaría tarde.
- *
- *  Los minutos son una ESTIMACIÓN (ver KMH_CIUDAD). Alcanza para lo que se usa:
- *  comparar dos órdenes entre sí y avisarle al chofer que a un cliente le va a
- *  llegar fuera de su ventana. No alcanza para prometerle una hora al receptor,
- *  y por eso el mensaje de WhatsApp no le promete ninguna. */
-function medir(
+/** Reordena por distancia cada tramo de paradas SIN horario, partiendo de la
+ *  parada anterior. Las que tienen horario no se mueven. */
+function reordenarTramos(
   base: Coordenada,
   orden: PedidoUbicado[],
   indiceEnMatriz: Map<string, number>,
   matriz: number[][] | null,
+): PedidoUbicado[] {
+  const salida: PedidoUbicado[] = [];
+  let tramo: PedidoUbicado[] = [];
+  const cerrarTramo = () => {
+    const anterior = salida[salida.length - 1];
+    const desde = anterior ? coord(anterior) : base;
+    const indiceDesde = anterior ? (indiceEnMatriz.get(anterior.id) ?? 0) : 0;
+    salida.push(...ordenarGrupo(desde, tramo, indiceEnMatriz, matriz, indiceDesde));
+    tramo = [];
+  };
+  for (const p of orden) {
+    if (bloquePorId(p.bloqueHorarioId)) {
+      cerrarTramo();
+      salida.push(p);
+    } else {
+      tramo.push(p);
+    }
+  }
+  cerrarTramo();
+  return salida;
+}
+
+/** Mide un orden: cuántos metros, y a qué bloques se llegaría fuera de horario. */
+function medir(
+  orden: PedidoUbicado[],
+  metros: MetrosEntre,
   minutosDeInicio: number,
 ): Omit<Alternativa, "estrategia" | "titulo" | "motivo" | "paradas"> {
-  let metros = 0;
-  let minutos = minutosDeInicio;
-  let cumplidos = 0;
-  let incumplidos = 0;
-  const llegariaTardeA: string[] = [];
-
-  let desdeIdx = 0;
-  let desdeCoord = base;
-
-  for (const parada of orden) {
-    const hastaIdx = indiceEnMatriz.get(parada.id) ?? -1;
-    const tramo =
-      matriz && desdeIdx >= 0 && hastaIdx >= 0
-        ? (matriz[desdeIdx]?.[hastaIdx] ?? Infinity)
-        : distanciaMetros(desdeCoord, coord(parada));
-
-    // Un tramo sin camino no puede sumar Infinity al total o toda comparación
-    // entre alternativas se vuelve imposible. Se estima en línea recta, que es lo
-    // que ya hace ordenarParadas cuando no hay matriz.
-    const metrosTramo = Number.isFinite(tramo)
-      ? tramo
-      : distanciaMetros(desdeCoord, coord(parada));
-
-    metros += metrosTramo;
-    minutos += (metrosTramo / 1000 / KMH_CIUDAD) * 60 + MIN_POR_PARADA;
-
-    const bloque = bloquePorId(parada.bloqueHorarioId);
-    if (bloque) {
-      const [h, m] = bloque.hasta.split(":").map(Number);
-      const cierra = h * 60 + m;
-      if (minutos <= cierra + MIN_TOLERANCIA_BLOQUE) {
-        cumplidos++;
-      } else {
-        incumplidos++;
-        llegariaTardeA.push(parada.nombre);
-      }
-    }
-
-    desdeIdx = hastaIdx;
-    desdeCoord = coord(parada);
-  }
-
+  const fuera = fueraDeHorario(orden, minutosDeInicio, metros);
+  const conBloque = orden.filter((p) => bloquePorId(p.bloqueHorarioId)).length;
   return {
-    metrosEstimados: Math.round(metros),
-    confirmados: orden.filter(estaConfirmado).length,
+    metrosEstimados: Math.round(metrosDelOrden(orden, metros)),
+    confirmados: orden.filter((p) => estaConfirmado(p.disponibilidad)).length,
     pendientesDeContacto: orden.filter((p) => p.disponibilidad === "pendiente_respuesta").length,
-    bloquesCumplidos: cumplidos,
-    bloquesIncumplidos: incumplidos,
-    llegariaTardeA,
+    bloquesCumplidos: conBloque - fuera.length,
+    bloquesIncumplidos: fuera.length,
+    fueraDeHorario: fuera.map((p) => p.nombre),
   };
 }
 
@@ -539,7 +530,7 @@ function huellaOrden(orden: PedidoUbicado[]): string {
 }
 
 /** Cuánto más corta tiene que ser una alternativa para que valga compararla.
- *  Por debajo de esto, la diferencia no cambia la jornada y solo agrega una
+ *  Por debajo de esto, la diferencia no cambia el día y solo agrega una
  *  decisión más que tomar antes de salir. */
 const MEJORA_UTIL = 0.08;
 
@@ -580,60 +571,33 @@ function elegirUtiles(candidatas: Alternativa[]): Alternativa[] {
 }
 
 // Calcula (sin guardar) la ruta de "fecha" con todos los pedidos pendientes del
-// teléfono, incluidos los arrastrados de días anteriores. Lanza Error con un
+// día. Lanza Error con un
 // mensaje mostrable cuando no hay nada que rutear.
 export async function calcularRutaLocal(
   fecha: string,
   inicio: PuntoInicio,
 ): Promise<PropuestaRuta> {
-  const [pendientesIniciales, rutaActual] = await Promise.all([
-    pedidosPendientes(),
-    leerRuta(fecha),
-  ]);
+  // Solo los del día y sin marcar: lo ya cerrado (entregado o no entregado) no
+  // se vuelve a rutear.
+  const [delDia, rutaActual] = await Promise.all([leerPedidos(fecha), leerRuta(fecha)]);
+  const pendientesIniciales = delDia.filter((p) => p.resultado === "pendiente");
+  const cerradas = pedidosEnOrden(rutaActual, delDia).filter((p) => resultadoCerrado(p.resultado));
   if (pendientesIniciales.length === 0) {
     throw new Error("No hay pedidos pendientes para armar una ruta.");
   }
 
-  // Lo ya cerrado hoy NO se vuelve a rutear. Importa para las OMITIDAS: omitir
-  // no cierra el pedido (sigue pendiente para otro día), así que aparecían acá
-  // y entraban en el trazado, pero guardarRuta las descartaba después por estar
-  // ya cerradas — el mapa terminaba mostrando una línea que pasaba por una
-  // parada que no estaba en la ruta.
-  const cerradas = (rutaActual?.paradas ?? []).filter((p) => p.entrega !== "pendiente");
-  const yaCerrado = new Set(cerradas.map((p) => p.pedidoId));
-
   const reintento = await reintentarUbicar(pendientesIniciales);
-  const pendientes = reintento.pendientes.filter((p) => !yaCerrado.has(p.id));
-  if (pendientes.length === 0) {
-    throw new Error("Todos los pedidos pendientes ya se marcaron en esta jornada.");
-  }
+  const { pendientes } = reintento;
 
-  // Un rechazo terminal NO entra en la ruta. Es FR-012 y el principio II de la
-  // constitución: el receptor dijo que no lo recibe, así que proponerlo otra vez
-  // es mandar al chofer a una puerta donde ya sabe que le van a decir no.
-  //
-  // Salen ANTES de separar por coordenadas: un pedido rechazado que además no se
-  // pudo ubicar no es un problema de dirección que haya que corregir.
-  const rechazados = pendientes.filter((p) => p.disponibilidad === "rechazado");
-  const enJuego = pendientes.filter((p) => p.disponibilidad !== "rechazado");
-
-  const ubicados = enJuego.filter(tieneCoordenadas);
-  const sinUbicar = enJuego.filter((p) => !tieneCoordenadas(p));
+  // "Mañana" ya cerró el pedido como no entregado (ver registrarDisponibilidad):
+  // no llega acá. Lo que queda son los que se pueden visitar hoy.
+  const ubicados = pendientes.filter(tieneCoordenadas);
+  const sinUbicar = pendientes.filter((p) => !tieneCoordenadas(p));
 
   // A diferencia de la versión del servidor, un pedido con la dirección mal
-  // escrita ya NO bloquea la jornada completa: se arma la ruta con los que sí
-  // se pudieron ubicar y los otros quedan a la vista para corregir. No se
-  // pierde nada — siguen pendientes y reaparecen mañana.
+  // escrita ya NO bloquea el día completo: se arma la ruta con los que sí
+  // se pudieron ubicar y los otros quedan a la vista para corregir.
   if (ubicados.length === 0) {
-    // Tres motivos distintos para el mismo "no hay ruta", y decir cuál es lo
-    // único que le permite al chofer saber qué hacer.
-    if (sinUbicar.length === 0 && rechazados.length > 0) {
-      throw new Error(
-        rechazados.length === 1
-          ? "El único pedido pendiente fue rechazado por el cliente. Regístralo y avísale al jefe."
-          : `Los ${rechazados.length} pedidos pendientes fueron rechazados por sus clientes. Regístralos y avísale al jefe.`,
-      );
-    }
     throw new Error(
       sinUbicar.length === 1
         ? "El único pedido pendiente no se pudo ubicar en el mapa. Revisa su dirección."
@@ -654,14 +618,6 @@ export async function calcularRutaLocal(
         : `${sinUbicar.length} pedidos no entran en la ruta porque su dirección no está ubicada en el mapa.`,
     );
   }
-  if (rechazados.length > 0) {
-    advertencias.push(
-      rechazados.length === 1
-        ? `"${rechazados[0].nombre}" rechazó la entrega por WhatsApp: queda fuera de la ruta. Regístralo antes de cerrar la jornada.`
-        : `${rechazados.length} clientes rechazaron la entrega por WhatsApp: quedan fuera de la ruta. Regístralos antes de cerrar la jornada.`,
-    );
-  }
-
   // Misma partida y mismos pedidos que la vez anterior: la ruta ya está
   // calculada. Se devuelve esa, con el recuento de cerradas al día (que sí pudo
   // cambiar si el chofer marcó algo mientras la propuesta estaba en pantalla) y
@@ -672,7 +628,6 @@ export async function calcularRutaLocal(
     return {
       ...ultimaPropuesta.propuesta,
       sinUbicar,
-      rechazados,
       cerradas: cerradas.length,
       advertencias,
     };
@@ -692,18 +647,25 @@ export async function calcularRutaLocal(
   // La hora a la que arranca, en minutos desde medianoche. Sirve para estimar si
   // los bloques horarios se alcanzan; se toma del reloj y no de la ruta guardada
   // porque la pregunta es "si salgo AHORA, ¿llego?".
-  const ahora = new Date();
-  const minutosDeInicio = ahora.getHours() * 60 + ahora.getMinutes();
+  const minutosDeInicio = minutoDelDia();
+  const metros = metrosPorMatriz(base, indiceEnMatriz, matriz);
 
   // Los tres órdenes. Ninguno consulta nada: todos reusan la matriz de arriba.
   const candidatas: Alternativa[] = (["corta", "horarios", "confirmados"] as const).map(
     (estrategia) => {
-      const orden = ordenPorEstrategia(estrategia, base, ubicados, indiceEnMatriz, matriz);
+      const orden = ordenPorEstrategia(
+        estrategia,
+        base,
+        ubicados,
+        indiceEnMatriz,
+        matriz,
+        minutosDeInicio,
+      );
       return {
         estrategia,
         ...TITULOS[estrategia],
         paradas: orden,
-        ...medir(base, orden, indiceEnMatriz, matriz, minutosDeInicio),
+        ...medir(orden, metros, minutosDeInicio),
       };
     },
   );
@@ -717,34 +679,33 @@ export async function calcularRutaLocal(
   // puede costar tres veces más. Cuando el chofer elige otra, se le pide el
   // trazado de esa en ese momento (ver elegirAlternativa).
   //
-  // El límite de 25 puntos por consulta de Mapbox (una jornada de 30 paradas no
+  // El límite de 25 puntos por consulta de Mapbox (un día de 30 paradas no
   // entra) lo resuelve obtenerRutaCalles partiendo el pedido en tramos y
   // pegando los trazados.
-  const trazado = await obtenerRutaCalles([base, ...paradas.map(coord)]);
+  const calles = await obtenerRutaCalles([base, ...paradas.map(coord)]);
 
   if (recomendada.bloquesIncumplidos > 0) {
     advertencias.push(
-      recomendada.llegariaTardeA.length === 1
-        ? `Con este orden se llegaría fuera del horario que eligió ${recomendada.llegariaTardeA[0]}. Conviene llamarlo.`
-        : `Con este orden se llegaría fuera de horario a ${recomendada.llegariaTardeA.length} clientes: ${recomendada.llegariaTardeA.join(", ")}.`,
+      recomendada.fueraDeHorario.length === 1
+        ? `Con este orden se llegaría fuera del horario que eligió ${recomendada.fueraDeHorario[0]}. Conviene llamarlo.`
+        : `Con este orden se llegaría fuera de horario a ${recomendada.fueraDeHorario.length} clientes: ${recomendada.fueraDeHorario.join(", ")}.`,
     );
   }
 
   const propuesta: PropuestaRuta = {
     fecha,
-    inicio: base,
+    partida: base,
     paradas,
-    geometria: trazado?.geometria ?? null,
-    distanciaM: trazado?.distanciaM ?? null,
-    duracionS: trazado?.duracionS ?? null,
+    trazado: calles?.trazado ?? null,
+    distanciaM: calles?.distanciaM ?? null,
+    duracionS: calles?.duracionS ?? null,
     sinUbicar,
-    rechazados,
-    sinTrazado: trazado == null,
+    sinTrazado: calles == null,
     cerradas: cerradas.length,
     alternativas,
     elegida: recomendada.estrategia,
     advertencias:
-      trazado == null
+      calles == null
         ? [
             ...advertencias,
             "Sin trazado por calles (no hubo señal o el servicio no respondió). El orden y los puntos sirven igual.",
@@ -776,8 +737,8 @@ export async function elegirAlternativa(
   const alternativa = propuesta.alternativas.find((a) => a.estrategia === estrategia);
   if (!alternativa) return propuesta;
 
-  const trazado = await obtenerRutaCalles([
-    propuesta.inicio,
+  const calles = await obtenerRutaCalles([
+    propuesta.partida,
     ...alternativa.paradas.map(coord),
   ]);
 
@@ -785,10 +746,10 @@ export async function elegirAlternativa(
     ...propuesta,
     paradas: alternativa.paradas,
     elegida: estrategia,
-    geometria: trazado?.geometria ?? null,
-    distanciaM: trazado?.distanciaM ?? null,
-    duracionS: trazado?.duracionS ?? null,
-    sinTrazado: trazado == null,
+    trazado: calles?.trazado ?? null,
+    distanciaM: calles?.distanciaM ?? null,
+    duracionS: calles?.duracionS ?? null,
+    sinTrazado: calles == null,
   };
 }
 
@@ -799,18 +760,11 @@ export async function confirmarRutaLocal(propuesta: PropuestaRuta): Promise<Resu
   const ruta = await guardarRuta({
     fecha: propuesta.fecha,
     pedidoIdsEnOrden: propuesta.paradas.map((p) => p.id),
-    geometria: propuesta.geometria,
+    trazado: propuesta.trazado,
     distanciaM: propuesta.distanciaM,
     duracionS: propuesta.duracionS,
     advertencias: propuesta.advertencias,
     propuestasComparadas: propuesta.alternativas.length,
-    // La huella de la disponibilidad con la que se calculó. Si después llegan
-    // respuestas nuevas, deja de coincidir y la pantalla puede ofrecer rehacer
-    // la ruta en vez de dejar al chofer con un orden que ignora lo que el
-    // receptor contestó.
-    versionDisponibilidad: propuesta.paradas
-      .map((p) => `${p.id}:${p.disponibilidad}:${p.bloqueHorarioId ?? ""}`)
-      .join("|"),
   });
 
   return { ruta, sinUbicar: propuesta.sinUbicar, sinTrazado: propuesta.sinTrazado };

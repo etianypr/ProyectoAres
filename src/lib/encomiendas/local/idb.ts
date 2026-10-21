@@ -7,7 +7,7 @@
 //
 // IndexedDB y no localStorage: localStorage es sincrónico (traba la pantalla
 // mientras el chofer maneja), guarda solo texto y tiene ~5 MB. Acá se guardan
-// objetos con el trazado de la ruta, que en una jornada de 30 paradas son
+// objetos con el trazado de la ruta, que en un día de 30 paradas son
 // miles de coordenadas.
 //
 // IMPORTANTE — la app TIENE que estar instalada ("Agregar a pantalla de
@@ -19,17 +19,22 @@
 // Este módulo no se puede importar desde un componente de servidor:
 // IndexedDB no existe ahí. De ahí el "use client".
 
+import { hoyChile } from "@/lib/format";
+import { migrarV2, type AvisoV2, type PedidoV2, type RutaV2 } from "./almacen/migrar";
+import type { ActividadPorEnviar, Pedido, Ruta } from "./almacen/tipos";
+
 const NOMBRE_BASE = "pucarani-encomiendas";
 
-// Subir la versión SOLO al agregar o quitar un store (o un índice). Cambiar la
-// forma de los objetos guardados dentro de un store no la necesita —IndexedDB
-// no valida campos—, pero sí obliga a tolerar objetos viejos al leer.
+// Subir la versión al agregar o quitar un store o un índice, o al mover datos
+// entre stores. Un campo nuevo dentro de un objeto no la necesita —IndexedDB no
+// valida campos—: se completa al leer (ver almacen/migrar.ts).
 //
-// v2: se agregó el store "whatsapp" (coordinación del aviso de disponibilidad).
-// Los campos nuevos del pedido —disponibilidad, bloque horario, estado del
-// aviso— NO necesitaron subir la versión; se leen con valores por defecto
-// cuando el objeto guardado viene de la v1 (ver alDia() en almacen.ts).
-const VERSION = 2;
+// v2: store "whatsapp" (coordinación del aviso de disponibilidad).
+// v3: la parada y el aviso se funden en el pedido (specs 009 y 011): migrarV2
+//     mueve llamada, entrega y fecha de rutas.paradas, y el aviso del store
+//     "whatsapp", a cada pedido. Se borran el store "whatsapp" y el índice por
+//     estado, que ya no existen.
+const VERSION = 3;
 
 export const STORES = {
   /** Pedidos cargados por el chofer. Clave: id (UUIDv7 del teléfono). Los ya
@@ -41,23 +46,22 @@ export const STORES = {
    *  MISMO id que va a encomienda_actividad, que es lo que hace que reenviar
    *  no duplique el conteo. */
   cola: "cola",
-  /** Coordinación del aviso de WhatsApp: una fila por pedido, con el
-   *  identificador de correlación, el estado del mensaje y qué respuestas ya se
-   *  aplicaron. Clave: pedidoId.
-   *
-   *  Va en un store aparte y no dentro del pedido porque son dos cosas con
-   *  dueños distintos: el pedido lo edita el chofer, esto lo escribe la
-   *  sincronización con el servidor. Mezclados, guardar una respuesta que llegó
-   *  mientras el chofer corregía un teléfono pisaba una de las dos cosas — el
-   *  mismo problema que ya costó coordenadas perdidas (ver la fila de
-   *  almacen.ts). */
-  whatsapp: "whatsapp",
-} as const;
+} as const satisfies { [S in Store]: S };
 
-export type Store = (typeof STORES)[keyof typeof STORES];
+/** Qué forma guarda cada store. Leer y escribir quedan tipados por store. */
+export type FilaDe = {
+  pedidos: Pedido;
+  rutas: Ruta;
+  cola: ActividadPorEnviar;
+};
 
-/** Índice para listar los pendientes sin recorrer el historial completo. */
-export const INDICE_PEDIDO_ESTADO = "por_estado";
+export type Store = keyof FilaDe;
+
+/** Índice de la v1–v2 sobre `estado`, campo que ya no existe. La v3 lo borra. */
+const INDICE_VIEJO_POR_ESTADO = "por_estado";
+
+/** Store de la v2 con el aviso de cada pedido. La v3 lo funde en el pedido. */
+const STORE_VIEJO_WHATSAPP = "whatsapp";
 
 export class ErrorAlmacenLocal extends Error {}
 
@@ -86,11 +90,10 @@ function abrir(): Promise<IDBDatabase> {
       return;
     }
 
-    solicitud.onupgradeneeded = () => {
+    solicitud.onupgradeneeded = (evento) => {
       const base = solicitud.result;
       if (!base.objectStoreNames.contains(STORES.pedidos)) {
-        const pedidos = base.createObjectStore(STORES.pedidos, { keyPath: "id" });
-        pedidos.createIndex(INDICE_PEDIDO_ESTADO, "estado");
+        base.createObjectStore(STORES.pedidos, { keyPath: "id" });
       }
       if (!base.objectStoreNames.contains(STORES.rutas)) {
         base.createObjectStore(STORES.rutas, { keyPath: "fecha" });
@@ -98,9 +101,11 @@ function abrir(): Promise<IDBDatabase> {
       if (!base.objectStoreNames.contains(STORES.cola)) {
         base.createObjectStore(STORES.cola, { keyPath: "id" });
       }
-      if (!base.objectStoreNames.contains(STORES.whatsapp)) {
-        base.createObjectStore(STORES.whatsapp, { keyPath: "pedidoId" });
-      }
+
+      // La transacción de versión es atómica: si la migración falla, la base
+      // queda en la versión anterior con todo como estaba.
+      const tx = solicitud.transaction;
+      if (tx && evento.oldVersion > 0 && evento.oldVersion < 3) migrarAV3(tx);
     };
 
     solicitud.onsuccess = () => {
@@ -136,6 +141,34 @@ function abrir(): Promise<IDBDatabase> {
   return promesa;
 }
 
+/** v2 → v3 dentro de la transacción de versión (ver almacen/migrar.ts). */
+function migrarAV3(tx: IDBTransaction): void {
+  const pedidos = tx.objectStore(STORES.pedidos);
+  const rutas = tx.objectStore(STORES.rutas);
+  if (pedidos.indexNames.contains(INDICE_VIEJO_POR_ESTADO)) {
+    pedidos.deleteIndex(INDICE_VIEJO_POR_ESTADO);
+  }
+
+  const conAvisos = tx.objectStoreNames.contains(STORE_VIEJO_WHATSAPP);
+  const pidePedidos = pedidos.getAll();
+  const pideRutas = rutas.getAll();
+  const pideAvisos = conAvisos ? tx.objectStore(STORE_VIEJO_WHATSAPP).getAll() : null;
+  // Las solicitudes de una transacción se resuelven en orden: cuando llega la
+  // última, las anteriores ya están.
+  const ultima = pideAvisos ?? pideRutas;
+  ultima.onsuccess = () => {
+    const migrado = migrarV2(
+      pidePedidos.result as PedidoV2[],
+      pideRutas.result as RutaV2[],
+      (pideAvisos?.result ?? []) as AvisoV2[],
+      hoyChile(),
+    );
+    for (const p of migrado.pedidos) pedidos.put(p);
+    for (const r of migrado.rutas) rutas.put(r);
+    if (conAvisos) tx.db.deleteObjectStore(STORE_VIEJO_WHATSAPP);
+  };
+}
+
 function pedir<T>(solicitud: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
     solicitud.onsuccess = () => resolve(solicitud.result);
@@ -144,33 +177,21 @@ function pedir<T>(solicitud: IDBRequest<T>): Promise<T> {
   });
 }
 
-export async function leerTodos<T>(store: Store): Promise<T[]> {
+export async function leerTodos<S extends Store>(store: S): Promise<FilaDe[S][]> {
   const base = await abrir();
   const tx = base.transaction(store, "readonly");
-  return pedir(tx.objectStore(store).getAll() as IDBRequest<T[]>);
+  return pedir(tx.objectStore(store).getAll() as IDBRequest<FilaDe[S][]>);
 }
 
-/** Cuenta por índice sin traer las filas. Con cientos de pedidos entregados
- *  guardados como historial, contar los pendientes no debería leer todo. */
-export async function contarPorIndice(
-  store: Store,
-  indice: string,
-  valor: IDBValidKey,
-): Promise<number> {
+export async function leerUno<S extends Store>(store: S, clave: string): Promise<FilaDe[S] | null> {
   const base = await abrir();
   const tx = base.transaction(store, "readonly");
-  return pedir(tx.objectStore(store).index(indice).count(IDBKeyRange.only(valor)));
-}
-
-export async function leerUno<T>(store: Store, clave: string): Promise<T | null> {
-  const base = await abrir();
-  const tx = base.transaction(store, "readonly");
-  const valor = await pedir(tx.objectStore(store).get(clave) as IDBRequest<T | undefined>);
+  const valor = await pedir(tx.objectStore(store).get(clave) as IDBRequest<FilaDe[S] | undefined>);
   return valor ?? null;
 }
 
 export type Escritor = {
-  guardar: (store: Store, valor: unknown) => void;
+  guardar: <S extends Store>(store: S, valor: FilaDe[S]) => void;
   borrar: (store: Store, clave: string) => void;
 };
 

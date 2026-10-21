@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { exigirConductor } from "@/lib/auth";
 
 // Quién puede entrar a las pantallas de encomiendas. Vive aparte porque ahora
-// son DOS páginas —preparar la jornada y hacer el reparto— y las dos tienen que
+// son DOS páginas —preparar el día y hacer el reparto— y las dos tienen que
 // comprobar exactamente lo mismo. Repetido en cada una, alcanzaba con olvidarse
 // de una comprobación en una sola para dejar una puerta abierta.
 

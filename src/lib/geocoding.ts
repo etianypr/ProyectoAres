@@ -45,6 +45,7 @@
 // El tercer camino, y el único que no le pregunta a nadie: un Plus Code se
 // resuelve con aritmética. Ver el bloque de más abajo y lib/geo/plus-code.ts.
 import { resolverPlusCode } from "@/lib/geo/plus-code";
+import { RECUADRO_ARICA, distanciaMetros, type Coordenada } from "@/lib/geo/coordenada";
 
 const MAPBOX_GEOCODE = "https://api.mapbox.com/search/geocode/v6/forward";
 
@@ -53,7 +54,13 @@ const MAPBOX_GEOCODE = "https://api.mapbox.com/search/geocode/v6/forward";
 // Santiago. Es un filtro duro, a diferencia de "proximity", que solo empuja los
 // resultados cercanos hacia arriba — probado contra la API: con proximity en
 // Arica, el primer resultado de "colón 123" seguía siendo San Bernardo.
-const RECUADRO_ARICA = "-70.45,-18.65,-70.10,-18.35";
+// Formato "oeste,sur,este,norte": el bbox de Mapbox y el viewbox de Nominatim.
+const BBOX_ARICA = [
+  RECUADRO_ARICA.oeste,
+  RECUADRO_ARICA.sur,
+  RECUADRO_ARICA.este,
+  RECUADRO_ARICA.norte,
+].join(",");
 
 // Qué se ofrece: la puerta exacta primero, la calle sola si todavía no escribió
 // el número, y barrio/ciudad como último recurso. La v6 no tiene puntos de
@@ -201,8 +208,6 @@ async function pedirNominatim(
   }
 }
 
-export type Coordenada = { lat: number; lng: number };
-
 /** Una dirección ofrecida al chofer mientras escribe. Trae ya las coordenadas:
  *  elegirla de la lista es a la vez confirmar que existe y ubicarla, sin una
  *  segunda consulta. */
@@ -263,7 +268,7 @@ function urlMapbox(texto: string, extra: Record<string, string>): string | null 
   const params = new URLSearchParams({
     q: texto,
     country: "cl",
-    bbox: RECUADRO_ARICA,
+    bbox: BBOX_ARICA,
     types: TIPOS,
     language: "es",
     access_token: token,
@@ -450,7 +455,7 @@ function aSugerenciaOsm(f: FilaOsm): SugerenciaDireccion[] {
 /** Un código con este recuadro o menos apunta a la puerta. Diez dígitos dan
  *  ~14 m; once, ~3 m. Por encima de esto ya es la cuadra o el barrio y hay que
  *  decirlo. */
-const METROS_PUERTA = 20;
+const METROS_MISMA_PUERTA = 20;
 
 /** ¿Lo escrito es un Plus Code? Se pregunta antes de normalizar: la
  *  normalización está pensada para direcciones y no tiene por qué respetar un
@@ -478,7 +483,7 @@ function comoPlusCode(
     lat: r.lat,
     lng: r.lng,
     soloCalle: false,
-    confianza: r.precisionMetros <= METROS_PUERTA ? "exacta" : "aproximada",
+    confianza: r.precisionMetros <= METROS_MISMA_PUERTA ? "exacta" : "aproximada",
     // No hay número de casa en juego: no es que no coincida, es que no aplica.
     coincideNumero: null,
     fuente: "plus_code",
@@ -554,7 +559,7 @@ export async function sugerirEnOsm(
     countrycodes: "cl",
     // Mismo recuadro que Mapbox, y "bounded" lo hace filtro duro: sin esto,
     // "Chacabuco 500" trae el de Santiago o el de Concepción.
-    viewbox: RECUADRO_ARICA,
+    viewbox: BBOX_ARICA,
     bounded: "1",
     "accept-language": "es",
   });
@@ -888,16 +893,6 @@ async function conNominatim(direccion: string): Promise<SugerenciaDireccion[]> {
 // lado; por encima, lo manda a otro barrio.
 const METROS_AMBIGUEDAD = 300;
 
-/** Distancia aproximada en metros. Alcanza de sobra para decidir si dos puntos
- *  son el mismo lugar: a esta escala la curvatura de la Tierra no cambia nada, y
- *  la app ya usa el mismo criterio para la navegación. */
-function metrosEntre(a: Coordenada, b: Coordenada): number {
-  const latMedia = ((a.lat + b.lat) / 2) * (Math.PI / 180);
-  const dLat = (a.lat - b.lat) * 111_320;
-  const dLng = (a.lng - b.lng) * 111_320 * Math.cos(latMedia);
-  return Math.hypot(dLat, dLng);
-}
-
 export type ResultadoUbicacion = {
   tipo: TipoUbicacion;
   /** Todas las coincidencias, la mejor primero. El chofer elige de acá cuando
@@ -991,7 +986,7 @@ export async function ubicarDireccion(direccion: string): Promise<ResultadoUbica
   const gemelos = candidatos.filter(
     (c) => normalizar(c.direccion) === normalizar(mejor.direccion),
   );
-  const lejano = gemelos.find((c) => metrosEntre(c, mejor) > METROS_AMBIGUEDAD);
+  const lejano = gemelos.find((c) => distanciaMetros(c, mejor) > METROS_AMBIGUEDAD);
 
   if (lejano) {
     return {
@@ -1036,12 +1031,10 @@ export async function ubicarDireccion(direccion: string): Promise<ResultadoUbica
   return { tipo: "exacta", candidatos, elegida: mejor, advertencia: null };
 }
 
-/** La versión de siempre: solo las coordenadas, o null.
+/** Solo las coordenadas de la mejor coincidencia, o null.
  *
- *  Se conserva porque hay dos usos en los que no hay nadie a quien preguntar y
- *  una coordenada aproximada es mejor que ninguna: la dirección de la EMPRESA
- *  (punto de partida de la ruta) y el reintento automático de ubicar pedidos al
- *  armarla.
+ *  Para la dirección de la EMPRESA (punto de partida de la ruta), donde no hay a
+ *  quién preguntar y una coordenada aproximada es mejor que ninguna.
  *
  *  Para un pedido que el chofer está mirando hay que usar ubicarDireccion(): esta
  *  se queda con la mejor coincidencia sin decir que había otra. */

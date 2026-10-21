@@ -38,7 +38,7 @@ export function formatDistancia(metros: number): string {
 }
 
 // Duración de un trayecto, redondeada al minuto: "45 min", "1 h 20 min". Los
-// segundos no le sirven a nadie para planificar una jornada de reparto.
+// segundos no le sirven a nadie para planificar un día de reparto.
 export function formatDuracion(segundos: number): string {
   const minutos = Math.max(1, Math.round(segundos / 60));
   if (minutos < 60) return `${minutos} min`;
@@ -77,10 +77,6 @@ export function toInputDate(d: string | Date | null | undefined): string {
   return `${y}-${m}-${day}`;
 }
 
-export function todayInput(): string {
-  return toInputDate(new Date());
-}
-
 // Suma (o resta, con negativo) días a una fecha "YYYY-MM-DD" y devuelve el
 // resultado en el mismo formato — para la navegación día a día de Encomiendas.
 export function sumarDias(fecha: string, dias: number): string {
@@ -94,10 +90,15 @@ export function sumarDias(fecha: string, dias: number): string {
 // MAÑANA pasadas las ~20:00 de Chile, corriendo pagos/viajes al mes siguiente.
 // Toda fecha "hoy" que se persista debe salir de aquí.
 export function hoyChile(): string {
+  return fechaChile(new Date());
+}
+
+/** Día (YYYY-MM-DD) de un instante, en hora de Chile. */
+export function fechaChile(instante: Date | string): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Santiago",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(new Date());
+  }).format(typeof instante === "string" ? new Date(instante) : instante);
 }

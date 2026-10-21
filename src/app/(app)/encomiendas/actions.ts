@@ -2,11 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { sesionActual } from "@/lib/auth";
+import { puedeOperarPanel } from "@/lib/auth";
 import { intNull, num, s, sReq } from "@/lib/form-helpers";
 import { hoyChile } from "@/lib/format";
 import { uuidv7 } from "@/lib/uuid";
-import type { EncomiendaActividadTipo } from "@/types/db";
+import { TIPOS_PAGO, esClave, type TipoEvento } from "@/lib/encomiendas/catalogos";
+import type { Tarifa } from "@/lib/encomiendas/pago";
 
 // Acá solo vive lo exclusivamente admin: la regla de pago, los ingresos reales
 // y cargar a mano un día que el teléfono no alcanzó a registrar. La carga de
@@ -26,11 +27,8 @@ export type FormState = { error?: string; ok?: boolean };
 // con sesión puede invocarlas, el proxy no las filtra. RLS ya frena la
 // escritura de encomienda_pagos y de la actividad manual a admin/operador, pero
 // un DELETE/UPDATE bloqueado por RLS devuelve "0 filas, sin error" y la acción
-// respondería {ok:true} sin haber hecho nada. Mejor decirlo de frente.
-async function esAdminUOperador(): Promise<boolean> {
-  const sesion = await sesionActual();
-  return sesion?.rol === "admin" || sesion?.rol === "operador";
-}
+// respondería {ok:true} sin haber hecho nada. Mejor decirlo de frente: por eso
+// cada acción empieza con puedeOperarPanel().
 
 // ----------------------------------------------------------------------------
 // La tarifa: los seis números que definen cuánto vale un día
@@ -52,20 +50,9 @@ function porcentaje(v: FormDataEntryValue | null): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-type Tarifa = {
-  tipo_pago: string;
-  valor_pago: number;
-  valor_pedido: number;
-  monto_dia: number;
-  meta_entregas_dia: number | null;
-  bono_monto: number | null;
-};
-
 function leerTarifa(formData: FormData): { tarifa: Tarifa } | { error: string } {
   const tipo_pago = sReq(formData.get("tipo_pago"));
-  if (!["porcentaje", "monto_fijo"].includes(tipo_pago)) {
-    return { error: "Tipo de pago inválido." };
-  }
+  if (!esClave(TIPOS_PAGO, tipo_pago)) return { error: "Tipo de pago inválido." };
 
   // El % admite decimales; el monto fijo por pedido son pesos con separador
   // de miles. Dos formatos distintos, dos parsers distintos.
@@ -126,7 +113,7 @@ function argumentosValorar(choferId: string, fecha: string, tarifa: Tarifa) {
 
 // Techo por día. No es una regla del negocio, es un cortafuegos contra el dedo
 // resbalado: escribir "320" donde iban "32" insertaría 320 filas y multiplicaría
-// por diez la liquidación de ese día. Una jornada real en Arica son ~60
+// por diez la liquidación de ese día. Un día real en Arica son ~60
 // entregas, así que 300 no le queda corto a nadie.
 const MAX_EVENTOS_DIA = 300;
 
@@ -157,7 +144,7 @@ export async function agregarDiaManual(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  if (!(await esAdminUOperador())) {
+  if (!(await puedeOperarPanel())) {
     return { error: "No tienes permiso para cargar días." };
   }
 
@@ -244,12 +231,12 @@ export async function agregarDiaManual(
   // Un día en que salió y no logró entregar nada igual es un día trabajado y se
   // paga el fijo diario: se registra con una 'llamada', que es exactamente para
   // lo que existe ese tipo (ver 0026).
-  const tipos: EncomiendaActividadTipo[] =
+  const tipos: TipoEvento[] =
     entregados + omitidos === 0
       ? ["llamada"]
       : [
-          ...Array<EncomiendaActividadTipo>(entregados).fill("entrega"),
-          ...Array<EncomiendaActividadTipo>(omitidos).fill("omision"),
+          ...Array<TipoEvento>(entregados).fill("entrega"),
+          ...Array<TipoEvento>(omitidos).fill("omision"),
         ];
 
   const hora = horaRelleno(fecha);
@@ -286,49 +273,49 @@ export async function agregarDiaManual(
   const { error } = await supabase.from("encomienda_actividad").insert(filas);
   if (error) return { error: `No se pudo guardar el día: ${error.message}` };
 
-  // La jornada tiene que quedar CERRADA: la oficina no está abriendo una ruta,
+  // El día tiene que quedar CERRADO: la oficina no está abriendo una ruta,
   // está anotando un día que ya pasó. Sin esto el día quedaría "en curso" para
   // siempre y no se valoraría nunca (0032) — los triggers de actividad solo
-  // calculan sobre jornadas cerradas.
+  // calculan sobre días cerrados.
   //
-  // Va después del insert de actividad: cerrar la jornada es lo que dispara el
+  // Va después del insert de actividad: cerrar el día es lo que dispara el
   // cálculo, así que tiene que encontrar los eventos ya puestos.
   //
-  // NO es un upsert a secas. Si la jornada ya estaba cerrada —el conductor la
+  // NO es un upsert a secas. Si el día ya estaba cerrado —el conductor lo
   // terminó y la oficina está corrigiendo el conteo— pisar cerrada_en movería
   // la hora de fin de la ruta a la hora de la corrección, que es mentira. En
   // ese caso no hay nada que hacer: el insert de arriba ya recalculó el día.
   //
-  // inicio queda null cuando la jornada se crea acá, a propósito: nadie sabe a
+  // inicio queda null cuando el día se crea acá, a propósito: nadie sabe a
   // qué hora empezó ese día, y la hora de relleno lo haría parecer un dato.
-  const { data: jornada, error: errLeer } = await supabase
+  const { data: diaTrabajo, error: errLeer } = await supabase
     .from("encomienda_jornadas")
     .select("id, cerrada_en")
     .eq("chofer_id", chofer_id)
     .eq("fecha", fecha)
     .maybeSingle();
   if (errLeer) {
-    return { error: `Se guardó el día, pero no se pudo leer la jornada: ${errLeer.message}` };
+    return { error: `Se guardó el día, pero no se pudo leer el día de trabajo: ${errLeer.message}` };
   }
 
-  if (!jornada || jornada.cerrada_en == null) {
+  if (!diaTrabajo || diaTrabajo.cerrada_en == null) {
     const ahora = new Date().toISOString();
-    const { error: errJornada } = jornada
+    const { error: errDia } = diaTrabajo
       ? await supabase
           .from("encomienda_jornadas")
           .update({ cerrada_en: ahora })
-          .eq("id", jornada.id)
+          .eq("id", diaTrabajo.id)
       : await supabase
           .from("encomienda_jornadas")
           .insert({ chofer_id, fecha, cerrada_en: ahora });
-    if (errJornada) {
+    if (errDia) {
       return {
-        error: `Se guardó el día, pero no se pudo cerrar la jornada: ${errJornada.message}`,
+        error: `Se guardó el día, pero no se pudo cerrar el día de trabajo: ${errDia.message}`,
       };
     }
   }
 
-  // Llegado acá el día YA tiene cifras: cerrar la jornada disparó el trigger que
+  // Llegado acá el día YA tiene cifras: cerrar el día disparó el trigger que
   // lo congela (0031 + 0032), y lo hizo con la tarifa que el día tenía o, si es
   // nuevo, con la regla de ahora. Eso es exactamente el modo "dia".
   //
@@ -372,7 +359,7 @@ export async function agregarDiaManual(
  *  filas de origen 'manual': lo que el teléfono registró en terreno no se puede
  *  borrar desde acá. */
 export async function eliminarDiaManual(choferId: string, fecha: string): Promise<FormState> {
-  if (!(await esAdminUOperador())) {
+  if (!(await puedeOperarPanel())) {
     return { error: "No tienes permiso para borrar días." };
   }
 
@@ -391,7 +378,7 @@ export async function eliminarDiaManual(choferId: string, fecha: string): Promis
   // quedó actividad del teléfono, el día sobrevive y sus cifras se reescriben
   // sin lo que se acaba de borrar.
   //
-  // La jornada sí hay que borrarla acá. No cuelga de la actividad —es una tabla
+  // El día de trabajo sí hay que borrarlo acá. No cuelga de la actividad —es una tabla
   // aparte (0032)— así que sobreviviría al día entero: el panel mostraría una
   // ruta de ese día sin una sola entrega, y el barrido nocturno la miraría
   // todas las noches.
@@ -401,17 +388,17 @@ export async function eliminarDiaManual(choferId: string, fecha: string): Promis
     .eq("chofer_id", choferId)
     .eq("fecha", fecha);
   if (errConteo) {
-    return { error: `Se borró la actividad, pero quedó la jornada: ${errConteo.message}` };
+    return { error: `Se borró la actividad, pero quedó el día de trabajo: ${errConteo.message}` };
   }
 
   if (!quedan) {
-    const { error: errJornada } = await supabase
+    const { error: errDia } = await supabase
       .from("encomienda_jornadas")
       .delete()
       .eq("chofer_id", choferId)
       .eq("fecha", fecha);
-    if (errJornada) {
-      return { error: `Se borró la actividad, pero quedó la jornada: ${errJornada.message}` };
+    if (errDia) {
+      return { error: `Se borró la actividad, pero quedó el día de trabajo: ${errDia.message}` };
     }
   }
 
@@ -431,7 +418,7 @@ export async function eliminarDiaManual(choferId: string, fecha: string): Promis
  *  por dentro— y no este código: es la misma función que corre el trigger, así
  *  que un día repreciado no puede quedar calculado distinto a uno nuevo. */
 export async function repreciarDia(choferId: string, fecha: string): Promise<FormState> {
-  if (!(await esAdminUOperador())) {
+  if (!(await puedeOperarPanel())) {
     return { error: "No tienes permiso para recalcular pagos." };
   }
 
@@ -462,7 +449,7 @@ export async function repreciarDiaConTarifa(
   fecha: string,
   formData: FormData,
 ): Promise<FormState> {
-  if (!(await esAdminUOperador())) {
+  if (!(await puedeOperarPanel())) {
     return { error: "No tienes permiso para recalcular pagos." };
   }
 
@@ -511,7 +498,7 @@ export async function guardarReglaPago(
 ): Promise<FormState> {
   // RLS ya frena el insert de un chofer, pero devolvería un mensaje de Postgres
   // en la cara. Mejor decirlo de frente, igual que el resto de este archivo.
-  if (!(await esAdminUOperador())) {
+  if (!(await puedeOperarPanel())) {
     return { error: "No tienes permiso para cambiar las reglas de pago." };
   }
 
@@ -563,7 +550,7 @@ export async function guardarIngresoReal(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  if (!(await esAdminUOperador())) {
+  if (!(await puedeOperarPanel())) {
     return { error: "No tienes permiso para cargar ingresos." };
   }
 
@@ -594,7 +581,7 @@ export async function guardarIngresoReal(
  *  cargó en el periodo equivocado, o hay que borrar el periodo y la base no deja
  *  mientras tenga una liquidación colgando (0035). */
 export async function eliminarIngresoReal(periodoId: string): Promise<FormState> {
-  if (!(await esAdminUOperador())) {
+  if (!(await puedeOperarPanel())) {
     return { error: "No tienes permiso para borrar ingresos." };
   }
 
@@ -634,7 +621,7 @@ export async function guardarPeriodoFacturacion(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  if (!(await esAdminUOperador())) {
+  if (!(await puedeOperarPanel())) {
     return { error: "No tienes permiso para definir periodos de facturación." };
   }
 
@@ -675,7 +662,7 @@ export async function guardarPeriodoFacturacion(
 /** Borra un periodo. No toca ningún día ni ninguna cifra: un periodo es solo el
  *  corte con el que se leen: sacarlo deja esos días sin agrupar, nada más. */
 export async function eliminarPeriodoFacturacion(id: string): Promise<FormState> {
-  if (!(await esAdminUOperador())) {
+  if (!(await puedeOperarPanel())) {
     return { error: "No tienes permiso para borrar periodos de facturación." };
   }
 

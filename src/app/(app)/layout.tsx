@@ -3,7 +3,6 @@ import { AppShell } from "@/components/app-shell";
 import { exigirPanel } from "@/lib/auth";
 import { getPeriodo } from "@/lib/periodo";
 import { construirAlertas } from "@/lib/vencimientos";
-import type { Chofer } from "@/types/db";
 
 export default async function AppLayout({
   children,
@@ -32,7 +31,7 @@ export default async function AppLayout({
       empresaNombre={empresa?.nombre ?? "Encomiendas"}
       periodoAnio={periodo.anio}
       periodoMes={periodo.mes}
-      alertas={construirAlertas((choferes ?? []) as Chofer[])}
+      alertas={construirAlertas(choferes ?? [])}
     >
       {children}
       {modal}

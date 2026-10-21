@@ -1,3 +1,5 @@
+import { ACCIONES_WHATSAPP, type AccionWhatsApp } from "./catalogos";
+
 // Constante simple, en un archivo SIN "use server": un módulo "use server"
 // solo puede exportar funciones async (server actions) — exportar una
 // constante desde ahí rompe el empaquetado (Turbopack) para todo el mundo
@@ -20,19 +22,13 @@
 export const VALOR_APROXIMADO_PEDIDO = 950;
 
 // ----------------------------------------------------------------------------
-// Bloques horarios, disponibilidad y motivos de no entrega
+// Bloques horarios y payload de los botones de WhatsApp
 // ----------------------------------------------------------------------------
 //
-// Estas tres listas las comparten CUATRO lados que no se pueden importar entre
-// sí: el teléfono del conductor (IndexedDB, "use client"), la plantilla que
-// sale a Meta (servidor), el webhook que recibe la respuesta (servidor) y el
-// panel del jefe (componente de servidor). Definirlas de nuevo en cada uno era
-// la forma segura de que un día el botón dijera un id que el webhook no
-// reconoce y la respuesta del receptor se perdiera en silencio.
-//
-// Este archivo sigue sin ser "use server" y sin dependencias a propósito (ver
-// el comentario de arriba): tiene que poder importarse desde cualquiera de los
-// cuatro.
+// Los comparten el teléfono, la plantilla de Meta, el webhook y el panel. Sin
+// "use server" y sin dependencias salvo catalogos.ts, para poder importarse desde
+// los cuatro. Las listas cerradas del dominio están en catalogos.ts; las reglas
+// de estados, en estados.ts.
 
 /** Un tramo del día que el receptor puede elegir como su disponibilidad. */
 export type BloqueHorario = {
@@ -96,50 +92,6 @@ export function minutosDesde(bloqueId: string | null | undefined): number | null
 }
 
 // ----------------------------------------------------------------------------
-
-/** Lo que el receptor contestó (o no) al aviso de WhatsApp. Es una dimensión
- *  DISTINTA del resultado del reparto: un receptor puede confirmar por WhatsApp
- *  y después no estar en el domicilio (principio II de la constitución). */
-export const DISPONIBILIDADES = {
-  pendiente_respuesta: "Sin responder",
-  confirmado: "Confirmó",
-  horario_indicado: "Eligió horario",
-  rechazado: "No lo recibirá",
-  disponibilidad_sin_respuesta: "No respondió",
-} as const;
-export type Disponibilidad = keyof typeof DISPONIBILIDADES;
-
-/** Una disponibilidad de la que ya no se espera nada más: no tiene sentido
- *  reintentar el aviso ni esperar una respuesta tardía. */
-export function disponibilidadCerrada(d: Disponibilidad): boolean {
-  return d === "rechazado" || d === "disponibilidad_sin_respuesta";
-}
-
-// ----------------------------------------------------------------------------
-
-/** Por qué no se entregó. Viaja al servidor junto al evento de omisión para
- *  que el jefe pueda distinguir los motivos (FR-021) sin que el servidor sepa
- *  QUIÉN era el receptor: es una etiqueta de tres valores, no un dato personal.
- *
- *  Los nombres son los mismos en el teléfono, en la columna `motivo` de
- *  `encomienda_actividad` y en el panel. */
-export const MOTIVOS_NO_ENTREGA = {
-  persona_no_encontrada: "Persona no encontrada",
-  sin_respuesta: "Sin respuesta",
-  rechazo: "Rechazo",
-} as const;
-export type MotivoNoEntrega = keyof typeof MOTIVOS_NO_ENTREGA;
-
-/** ¿Se puede volver a intentar otro día?
- *
- *  El rechazo es el único que NO: el receptor dijo que no lo recibe, y volver a
- *  cargarlo en una ruta futura es exactamente lo que la constitución prohibe
- *  (principio II, FR-012). Los otros dos siguen pendientes y se arrastran. */
-export function esReintentable(motivo: MotivoNoEntrega): boolean {
-  return motivo !== "rechazo";
-}
-
-// ----------------------------------------------------------------------------
 // El payload de los botones de WhatsApp
 // ----------------------------------------------------------------------------
 //
@@ -157,12 +109,6 @@ export function esReintentable(motivo: MotivoNoEntrega): boolean {
 // Meta permite 128 caracteres de payload en un botón de respuesta rápida. Con el
 // prefijo más largo ("HORARIO_18-20:", 14) queda sitio de sobra para el
 // identificador de correlación.
-
-/** Las tres respuestas de la plantilla. "HORARIO" no elige un bloque todavía:
- *  solo dice que el receptor quiere indicar uno, y eso abre la ventana de 24
- *  horas en la que se le puede mandar la lista (ver la Decisión 8). */
-export const ACCIONES_WHATSAPP = ["CONFIRMAR", "RECHAZAR", "HORARIO"] as const;
-export type AccionWhatsApp = (typeof ACCIONES_WHATSAPP)[number];
 
 export type PayloadBoton = {
   accion: AccionWhatsApp;
@@ -207,20 +153,17 @@ export function leerPayloadBoton(payload: unknown): PayloadBoton | null {
     return { accion: "HORARIO", correlationId, bloqueHorarioId };
   }
 
-  const accion = ACCIONES_WHATSAPP.find((a) => a === prefijo);
+  const accion = leerAccion(prefijo);
   return accion ? { accion, correlationId, bloqueHorarioId: null } : null;
 }
 
-/** La disponibilidad que corresponde a una respuesta. "HORARIO" sin bloque
- *  elegido NO confirma nada: el receptor todavía tiene que elegir de la lista,
- *  así que el pedido sigue pendiente de respuesta. */
-export function disponibilidadDeRespuesta(p: PayloadBoton): Disponibilidad {
-  switch (p.accion) {
-    case "CONFIRMAR":
-      return "confirmado";
-    case "RECHAZAR":
-      return "rechazado";
-    case "HORARIO":
-      return p.bloqueHorarioId ? "horario_indicado" : "pendiente_respuesta";
-  }
+/** Lee una acción de botón venida de afuera (webhook o /status), o null.
+ *
+ *  RECHAZAR era el segundo botón antes de la spec 010, en el mismo lugar que hoy
+ *  ocupa "Mañana". Un aviso enviado antes del cambio puede responderse hasta 72 h
+ *  después (lo que vive una correlación), y el servidor anterior lo pudo guardar
+ *  así: se lee como lo que ese botón es ahora. */
+export function leerAccion(valor: unknown): AccionWhatsApp | null {
+  if (valor === "RECHAZAR") return "MANANA";
+  return ACCIONES_WHATSAPP.find((a) => a === valor) ?? null;
 }

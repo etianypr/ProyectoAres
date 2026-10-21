@@ -40,7 +40,7 @@ export function ChoferForm({
           name="activo"
           defaultChecked={chofer?.activo ?? true}
         />
-        <span className="text-sm font-medium">Chofer activo</span>
+        <span className="text-sm font-medium">Conductor activo</span>
       </label>
       <Field label="Notas" htmlFor="notas" className="sm:col-span-2">
         <Textarea id="notas" name="notas" defaultValue={chofer?.notas ?? ""} />

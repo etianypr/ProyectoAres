@@ -4,6 +4,7 @@ import { conductorDeLaApi, nuevoCorrelationId } from "@/lib/api-conductor";
 import { normalizarTelefono } from "@/lib/telefono";
 import { bloquesActivos } from "@/lib/encomiendas/config";
 import { enviarAvisoDisponibilidad, enviarListaHorarios } from "@/lib/whatsapp";
+import type { EnvioOk, ErrorApi, PedidoEnvio } from "@/lib/encomiendas/contrato-whatsapp";
 
 // POST /api/whatsapp/send — el teléfono pide que salga un aviso de WhatsApp.
 //
@@ -35,14 +36,8 @@ import { enviarAvisoDisponibilidad, enviarListaHorarios } from "@/lib/whatsapp";
 // UN pedido, así que un bucle con un error del lado del teléfono se frena solo
 // contra la comprobación de "ya se mandó" de más abajo.
 
-type Cuerpo = {
-  tipo?: "aviso" | "horarios";
-  pedidoId?: unknown;
-  fecha?: unknown;
-  nombre?: unknown;
-  telefono?: unknown;
-  cuando?: unknown;
-};
+/** El cuerpo crudo: los campos de PedidoEnvio, todavía sin validar. */
+type Cuerpo = Partial<Record<keyof Extract<PedidoEnvio, { tipo: "aviso" }>, unknown>>;
 
 /** UUID en cualquier versión: el id lo genera el teléfono (UUIDv7). Se valida la
  *  FORMA y no el contenido, porque la columna es `uuid` y un texto cualquiera
@@ -69,7 +64,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Falta el identificador del pedido." }, { status: 400 });
   }
   if (!FECHA.test(fecha)) {
-    return NextResponse.json({ error: "Falta el día de la jornada." }, { status: 400 });
+    return NextResponse.json({ error: "Falta el día de trabajo." }, { status: 400 });
   }
 
   // El teléfono se normaliza ACÁ otra vez, aunque el formulario ya lo haya hecho.
@@ -134,9 +129,13 @@ export async function POST(req: Request) {
     });
 
     return r.ok
-      ? NextResponse.json({ ok: true, correlationId: previa.correlation_id, mensajeId: r.mensajeId })
+      ? NextResponse.json({
+          ok: true,
+          correlationId: previa.correlation_id,
+          mensajeId: r.mensajeId,
+        } satisfies EnvioOk)
       : NextResponse.json(
-          { error: r.error, codigo: r.codigo, reintentable: r.reintentable },
+          { error: r.error, codigo: r.codigo, reintentable: r.reintentable } satisfies ErrorApi,
           { status: r.reintentable ? 502 : 422 },
         );
   }
@@ -156,7 +155,7 @@ export async function POST(req: Request) {
       correlationId: previa.correlation_id,
       mensajeId: previa.external_message_id,
       yaEstaba: true,
-    });
+    } satisfies EnvioOk);
   }
 
   const nombre = texto(cuerpo.nombre, 60);
@@ -213,7 +212,7 @@ export async function POST(req: Request) {
       .eq("correlation_id", correlationId);
 
     return NextResponse.json(
-      { error: r.error, codigo: r.codigo, reintentable: r.reintentable },
+      { error: r.error, codigo: r.codigo, reintentable: r.reintentable } satisfies ErrorApi,
       { status: r.reintentable ? 502 : 422 },
     );
   }
@@ -223,7 +222,7 @@ export async function POST(req: Request) {
     .update({ estado: "enviado", external_message_id: r.mensajeId })
     .eq("correlation_id", correlationId);
 
-  return NextResponse.json({ ok: true, correlationId, mensajeId: r.mensajeId });
+  return NextResponse.json({ ok: true, correlationId, mensajeId: r.mensajeId } satisfies EnvioOk);
 }
 
 /** Meta no llama acá y el navegador tampoco debería: la única forma de saber si

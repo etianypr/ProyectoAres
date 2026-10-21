@@ -9,7 +9,7 @@
 // Desde la oficina no había forma de que una ruta generada acá le llegara.
 
 import { useState, useTransition } from "react";
-import { Ban, Clock, Wallet, Truck, Trash2 } from "lucide-react";
+import { Clock, Wallet, Truck, Trash2 } from "lucide-react";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,13 +19,11 @@ import { Field } from "@/components/ui/label";
 import { formatCLP, formatNumber, formatTime } from "@/lib/format";
 import {
   calcularPagoDia,
-  contarMotivos,
   ingresoEstimado,
-  reintentables,
   tarifaDelDia,
   valorPedido,
   type ConteoDia,
-  type TarifaPago,
+  type Tarifa,
 } from "@/lib/encomiendas/pago";
 import {
   CamposTarifa,
@@ -34,25 +32,15 @@ import {
   type ValoresTarifa,
 } from "./campos-tarifa";
 import { eliminarDiaManual, repreciarDia, repreciarDiaConTarifa } from "./actions";
-import {
-  ENCOMIENDA_MOTIVOS_NO_ENTREGA,
-  type EncomiendaActividadOrigen,
-  type EncomiendaActividadTipo,
-  type EncomiendaJornada,
-  type EncomiendaMotivoNoEntrega,
-  type EncomiendaPago,
-  type EncomiendaReglaPago,
+import type {
+  Actividad,
+  DiaTrabajo,
+  PagoDelDia,
+  ReglaDePago,
 } from "@/types/db";
 
-export type EventoDia = {
-  id: string;
-  tipo: EncomiendaActividadTipo;
-  /** 'app' = lo mandó el teléfono · 'manual' = lo cargó la oficina (0028). */
-  origen: EncomiendaActividadOrigen;
-  /** Por qué no se entregó. null en las entregas, en las llamadas, y en las
-   *  omisiones registradas antes de que la app preguntara el motivo. */
-  motivo?: EncomiendaMotivoNoEntrega | null;
-};
+/** Un evento del día tal como lo muestra el panel. */
+export type EventoDia = Pick<Actividad, "id" | "tipo" | "origen">;
 
 // Acá vivían PRESENTACION (el ícono y la etiqueta de cada tipo de evento) y
 // MINUTOS_RETRASO_NOTABLE, que marcaba las entregas cuya hora del teléfono
@@ -61,7 +49,7 @@ export type EventoDia = {
 //
 // Se fueron con la bitácora por evento (0032). Con la ruta hecha de corrido, la
 // hora de cada entrega no dice nada que no diga el par (empezó, terminó), y el
-// indicador de "sin señal" perdió sentido: ahora el cierre de la jornada puede
+// indicador de "sin señal" perdió sentido: ahora el cierre del día puede
 // llegar mucho después de la última entrega sin que eso signifique nada raro.
 
 export function ActividadDia({
@@ -70,7 +58,7 @@ export function ActividadDia({
   fecha,
   eventos,
   pago,
-  jornada,
+  diaTrabajo,
   regla,
 }: {
   /** null si el conductor fue eliminado: el día se ve, pero no se liquida. */
@@ -80,13 +68,13 @@ export function ActividadDia({
   eventos: EventoDia[];
   /** Las cifras que la base congeló para este día (0031). null si no se pudo
    *  calcular: la ruta sigue en curso, no hay regla, o no hay conductor. */
-  pago: EncomiendaPago | null;
+  pago: PagoDelDia | null;
   /** El sobre del día (0032): de cuándo a cuándo salió la ruta. */
-  jornada: EncomiendaJornada | null;
+  diaTrabajo: DiaTrabajo | null;
   /** La regla de pago de ahora, para el diálogo de recalcular: es una de las
    *  dos tarifas con las que se puede volver a valorar el día, y el punto de
    *  partida cuando se va a escribir otra. */
-  regla: EncomiendaReglaPago | null;
+  regla: ReglaDePago | null;
 }) {
   const [pendingBorrar, startTransitionBorrar] = useTransition();
   const [errorBorrar, setErrorBorrar] = useState<string | null>(null);
@@ -105,13 +93,9 @@ export function ActividadDia({
 
   const entregados = eventos.filter((e) => e.tipo === "entrega").length;
   const omitidos = eventos.filter((e) => e.tipo === "omision").length;
-  // El desglose no entra en ninguna cuenta de plata: es para que el jefe sepa
-  // qué vuelve mañana a la camioneta y qué hay que informar como rechazo.
-  const motivos = contarMotivos(eventos);
-  const vuelven = reintentables(motivos);
 
   const delTelefono = eventos.filter((e) => e.origen === "app");
-  const enCursoJornada = jornada != null && jornada.cerrada_en == null;
+  const diaEnCurso = diaTrabajo != null && diaTrabajo.cerrada_en == null;
   const manuales = eventos.filter((e) => e.origen === "manual");
   const manualEntregados = manuales.filter((e) => e.tipo === "entrega").length;
   const manualOmitidos = manuales.filter((e) => e.tipo === "omision").length;
@@ -144,76 +128,6 @@ export function ActividadDia({
             <p className="text-xs text-muted">Ingresos del día</p>
           </div>
         </div>
-
-        {/* Por qué no se entregó. Un "3 no entregados" no le sirve a nadie: lo
-            que el jefe necesita saber es cuántos vuelven mañana y cuántos hay
-            que informar como rechazo definitivo (FR-021).
-
-            Los rechazos van con icono, texto y color: la constitución pide que
-            un estado no dependa solo del color, y este es el estado que más
-            caro sale confundir — reintentar un pedido que el cliente ya rechazó
-            es un viaje perdido. */}
-        {omitidos > 0 ? (
-          <div className="rounded-xl border border-separator bg-background px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-              Por qué no se entregaron
-            </p>
-            <ul className="mt-2 grid gap-1.5">
-              {[
-                {
-                  clave: "persona_no_encontrada" as const,
-                  n: motivos.personaNoEncontrada,
-                  vuelve: true,
-                },
-                { clave: "sin_respuesta" as const, n: motivos.sinRespuesta, vuelve: true },
-                { clave: "rechazo" as const, n: motivos.rechazos, vuelve: false },
-              ]
-                .filter((x) => x.n > 0)
-                .map((x) => (
-                  <li key={x.clave} className="flex items-center gap-2 text-sm">
-                    {x.vuelve ? (
-                      <Clock className="h-3.5 w-3.5 shrink-0 text-muted" />
-                    ) : (
-                      <Ban className="h-3.5 w-3.5 shrink-0 text-danger" />
-                    )}
-                    <span className="w-6 shrink-0 text-right font-semibold tabular-nums">
-                      {x.n}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      {ENCOMIENDA_MOTIVOS_NO_ENTREGA[x.clave]}
-                    </span>
-                    {x.vuelve ? (
-                      <Badge tone="gray">Se reintenta</Badge>
-                    ) : (
-                      <Badge tone="red">No se reintenta</Badge>
-                    )}
-                  </li>
-                ))}
-
-              {/* Las omisiones de la versión anterior de la app. No se les
-                  inventa un motivo: "no se sabe" es más honesto que uno elegido
-                  a dedo, y saber que existen explica por qué los números no
-                  cuadran con el desglose. */}
-              {motivos.sinMotivo > 0 ? (
-                <li className="flex items-center gap-2 text-sm text-muted">
-                  <Clock className="h-3.5 w-3.5 shrink-0" />
-                  <span className="w-6 shrink-0 text-right font-semibold tabular-nums">
-                    {motivos.sinMotivo}
-                  </span>
-                  <span className="min-w-0 flex-1">Sin motivo registrado</span>
-                  <Badge tone="gray">Se reintenta</Badge>
-                </li>
-              ) : null}
-            </ul>
-
-            <p className="mt-2.5 text-xs text-muted">
-              {motivos.rechazos > 0
-                ? `${vuelven === 1 ? "1 pedido vuelve" : `${vuelven} pedidos vuelven`} a intentarse. ` +
-                  `${motivos.rechazos === 1 ? "1 rechazo" : `${motivos.rechazos} rechazos`} para informar en la central.`
-                : `${vuelven === 1 ? "1 pedido vuelve" : `Los ${vuelven} vuelven`} a intentarse otro día.`}
-            </p>
-          </div>
-        ) : null}
 
         {manuales.length > 0 ? (
           <div className="rounded-xl border border-[#ece8f8] bg-[#faf9fe] px-4 py-3">
@@ -283,25 +197,25 @@ export function ActividadDia({
 
             Un día cargado desde la oficina no tiene inicio —nadie sabe a qué
             hora empezó— y el bloque de arriba ya cuenta lo que se sabe de él. */}
-        {jornada ? (
+        {diaTrabajo ? (
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-background px-4 py-3 text-sm">
             <span className="flex items-center gap-2 text-muted">
               <Clock className="h-4 w-4 shrink-0" />
-              Jornada
+              Día de trabajo
             </span>
-            {jornada.cerrada_en == null ? (
+            {diaTrabajo.cerrada_en == null ? (
               <span className="flex items-center gap-2">
                 <Badge tone="amber">En curso</Badge>
-                {jornada.inicio ? (
+                {diaTrabajo.inicio ? (
                   <span className="text-xs text-muted">
-                    salió a las {formatTime(jornada.inicio)}
+                    salió a las {formatTime(diaTrabajo.inicio)}
                   </span>
                 ) : null}
               </span>
             ) : (
               <span className="tabular-nums">
-                {jornada.inicio ? formatTime(jornada.inicio) : "—"} a{" "}
-                {formatTime(jornada.cerrada_en)}
+                {diaTrabajo.inicio ? formatTime(diaTrabajo.inicio) : "—"} a{" "}
+                {formatTime(diaTrabajo.cerrada_en)}
               </span>
             )}
           </div>
@@ -340,10 +254,10 @@ export function ActividadDia({
               // concretas, y conviene decir cuál.
               // Tres razones distintas para no tener cifras, y conviene decir
               // cuál: una ruta en curso no es un problema, las otras dos sí.
-              <span className={enCursoJornada ? "text-muted" : "text-danger"}>
+              <span className={diaEnCurso ? "text-muted" : "text-danger"}>
                 {!choferId
                   ? "El conductor fue eliminado: este día no se puede liquidar."
-                  : enCursoJornada
+                  : diaEnCurso
                     ? "La ruta sigue en curso. El pago se calcula cuando termine."
                     : "Sin regla de pago configurada: este día no se pudo calcular."}
               </span>
@@ -352,7 +266,7 @@ export function ActividadDia({
           {/* Un día conserva su tarifa para siempre, así que corregir la regla
               no arregla un día que se calculó con una regla mal escrita. Esta
               es la única forma de moverlo, y es de a un día a propósito. */}
-          {choferId && !enCursoJornada ? (
+          {choferId && !diaEnCurso ? (
             <Button
               onClick={() => setRecalculando(true)}
               size="sm"
@@ -405,8 +319,8 @@ function DialogoRecalcular({
   choferId: string;
   fecha: string;
   conteo: ConteoDia;
-  partida: TarifaPago | null;
-  regla: EncomiendaReglaPago | null;
+  partida: Tarifa | null;
+  regla: ReglaDePago | null;
   onCerrar: () => void;
 }) {
   // Sin regla configurada, "la regla actual" no es una opción: no hay ninguna.

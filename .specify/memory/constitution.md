@@ -1,10 +1,9 @@
 <!--
 Sync Impact Report
-- Version change: template -> 1.0.0
-- Modified principles: replaced all template placeholders with ARES project principles
-- Added sections: Product Constraints, Development Workflow
-- Removed sections: none
-- Deferred items: none
+- Version: 1.3.2 -> 1.4.0 (MINOR: principio II, el resultado es entregado o no entregado, sin motivo)
+- Historial: 1.1.0 principio VI · 1.2.0 principio V ampliado (borrado diario, rol de
+  encargado, subencargados) · 1.3.0 autorizaciones exigidas al lanzamiento oficial, no al
+  desarrollo · 1.3.1 redacción condensada · 1.3.2 glosario, "día" por "jornada".
 -->
 
 # ARES Encomiendas Constitution
@@ -12,59 +11,69 @@ Sync Impact Report
 ## Core Principles
 
 ### I. Conductor-First Experience
-The conductor's phone workflow MUST minimize typing, taps, and attention away from
-the road. Every delivery action MUST be clear, reversible where practical, and
-usable on a small screen. Office workflows MAY be denser, but they MUST support the
-same operational truth as the conductor workflow.
+El flujo del conductor MUST minimizar escritura, toques y atención fuera del camino. Cada
+acción de entrega MUST ser clara, reversible cuando se pueda y usable en pantalla chica.
+El panel MAY ser más denso, pero MUST reflejar la misma verdad operativa.
 
 ### II. Delivery Truth Over Convenience
-The system MUST preserve the distinction between availability responses and actual
-delivery results. It MUST distinguish delivered, person not found, no response,
-and rejection. A rejection MUST NOT be silently reintroduced into a future route.
-Summaries used for payment MUST be derived from recorded delivery outcomes.
+Disponibilidad (lo que responde el receptor) y resultado de entrega MUST ser dimensiones
+separadas. El resultado es entregado o no entregado, sin motivo; un pedido cerrado MUST NOT
+volver a la ruta del día. Los resúmenes de pago MUST derivarse de los
+resultados registrados.
 
 ### III. Test Critical Operations
-Changes to route generation, address resolution, WhatsApp responses, delivery
-states, payment inputs, or privacy boundaries MUST include focused tests for the
-affected behavior. A user scenario MUST be testable independently before it is
-considered complete.
+Cambios en rutas, direcciones, WhatsApp, estados de entrega, pago o privacidad MUST
+incluir pruebas enfocadas. Cada escenario de usuario MUST poder probarse por separado.
 
 ### IV. Resilient External Services
-Map and messaging providers MUST be treated as fallible dependencies. Address
-resolution MUST expose ambiguity instead of silently selecting an unsafe location,
-and provider failure MUST leave the conductor with an actionable recovery path.
-Provider-specific behavior MUST NOT redefine the delivery states or business rules.
+Proveedores de mapas y mensajería son falibles. Una dirección ambigua MUST mostrarse como
+ambigua; una caída MUST dejar al conductor una salida. Un proveedor MUST NOT redefinir
+estados ni reglas del negocio.
 
-### V. Minimum Necessary Data
-The application MUST limit collection, storage, access, and transmission of
-recipient data to what is necessary for the current delivery operation and its
-required result. Any new external integration that receives recipient data MUST
-document the data exchanged, retention, and access boundary before implementation.
+### V. Minimum Necessary Data and Legal Compliance
+- Se recolecta, guarda y transmite solo lo necesario para repartir.
+- **Borrado diario**: los datos de destinatarios en el teléfono MUST borrarse al cerrar
+  el día de trabajo; solo conteos MAY sobrevivir.
+- **Encargado**: los datos son de Starken (responsable); se tratan solo por su cuenta y
+  para repartir (Ley 21.719, art. 15 bis).
+- **Subencargados**: todo proveedor que reciba datos de destinatarios MUST figurar en
+  `docs/PRIVACIDAD.md`. MAY usarse en desarrollo y piloto; MUST tener autorización escrita
+  de Starken antes del lanzamiento oficial. Lo legal pendiente MUST NOT frenar el desarrollo.
+
+### VI. Verifiable Architecture
+- Cada `plan.md` MUST incluir un diagrama de los límites afectados y una tabla de los datos
+  (tablas, stores, tipos) que crea, cambia o lee.
+- `docs/ARQUITECTURA.md` (sistema y datos) y `docs/CLASES.md` (tipos y módulos) son la
+  fuente canónica; un cambio de estructura los actualiza en el mismo cambio.
+- Un `data-model.md` que no coincide con el código es un defecto: se corrige o se marca
+  superado.
 
 ## Product Constraints
 
-The product is focused on encomiendas. Detailed trip history, expenses, permanent
-GPS tracking, accounting, and general logistics operations are out of scope unless
-a later specification explicitly adds them. The mobile conductor app and desktop
-office panel are separate experiences. Orange is the primary visual direction, but
-status communication MUST remain accessible without relying on color alone.
+Solo encomiendas. Fuera de alcance salvo spec explícita: historial de viajes, gastos, GPS
+permanente, contabilidad, logística general. App del conductor y panel son experiencias
+separadas. Naranja como color principal; ningún estado depende solo del color.
 
 ## Development Workflow
 
-Each feature MUST have a specification with user scenarios, testable functional
-requirements, measurable success criteria, assumptions, and edge cases before
-planning implementation. Plans MUST identify affected boundaries and external
-dependencies. Implementation is complete only after focused validation and the
-existing test suite or an explicit documented exception.
+- Cada feature: spec (escenarios, requisitos verificables, criterios medibles, supuestos,
+  bordes) → plan → tareas. Los planes cumplen el principio VI.
+- Terminado = validación enfocada + `npm test`, `npm run lint`, `npm run build` en verde.
+- Documentos concisos: viñetas, sin repetir lo que vive en otro documento (se enlaza).
+
+### Architecture Rules
+
+- Capas: `app → components → lib`. `lib` MUST NOT importar de `app` ni `components`;
+  `components/ui` sin lógica de dominio.
+- Un módulo que lee un secreto MUST `import "server-only"`. El código del teléfono
+  (`lib/encomiendas/local/`) MUST NOT importarse desde el servidor.
+- Nombres de dominio en castellano; término canónico **conductor** (no agregar "chofer").
+- Un archivo de más de ~400 líneas SHOULD dividirse por responsabilidad al tocarlo.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-This constitution is the governing product and engineering guidance for ARES
-Encomiendas. Amendments MUST be made through a documented change, include a version
-bump, and explain their effect on existing specifications. Reviews MUST verify the
-principles relevant to the changed behavior. A new exception MUST name its scope,
-rationale, and removal condition.
+Esta constitución rige producto e ingeniería. Una enmienda MUST documentarse, subir versión
+y explicar su efecto en las specs. Las revisiones verifican los principios afectados. Una
+excepción MUST indicar alcance, motivo y condición de término.
 
-**Version**: 1.0.0 | **Ratified**: 2026-08-20 | **Last Amended**: 2026-08-20
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.4.0 | **Ratified**: 2026-08-20 | **Last Amended**: 2026-10-21

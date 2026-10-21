@@ -230,7 +230,7 @@ function AccesoChofer({ chofer }: { chofer: Chofer }) {
         {reenviarState.link ? (
           <>
             <p className="mt-2 text-xs text-muted">
-              Copia este link y envíaselo al chofer (WhatsApp, correo, SMS):
+              Copia este link y envíaselo al conductor (WhatsApp, correo, SMS):
             </p>
             <LinkAcceso link={reenviarState.link} />
           </>
@@ -259,7 +259,7 @@ function AccesoChofer({ chofer }: { chofer: Chofer }) {
       {state.link ? (
         <>
           <p className="text-xs text-muted">
-            Cuenta creada. Copia este link y envíaselo al chofer (WhatsApp, correo, SMS):
+            Cuenta creada. Copia este link y envíaselo al conductor (WhatsApp, correo, SMS):
           </p>
           <LinkAcceso link={state.link} />
         </>

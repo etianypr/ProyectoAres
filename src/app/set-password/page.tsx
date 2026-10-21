@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
+import type { Database } from "@/types/db";
 import { Bus, KeyRound } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Field } from "@/components/ui/label";
@@ -12,7 +13,7 @@ import { Button } from "@/components/ui/button";
 // hacemos a mano abajo (ver por qué en el useEffect). Nada más en la app
 // depende de este comportamiento, así que no se toca el cliente compartido.
 function crearClienteSinAutoDeteccion() {
-  return createBrowserClient(
+  return createBrowserClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     { auth: { detectSessionInUrl: false } },

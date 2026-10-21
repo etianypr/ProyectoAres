@@ -15,8 +15,8 @@
 //      instalada: saber con qué cuenta está abierta es lo primero que hay que
 //      poder comprobar, y es también lo que hace que cerrar sesión abajo tenga
 //      sentido.
-//   2. LOS DÍAS. Cómo salió cada jornada guardada en este teléfono. Son cifras,
-//      no pedidos — ver DiaJornada en el almacén: los nombres y teléfonos de un
+//   2. LOS DÍAS. Cómo salió cada día guardado en este teléfono. Son cifras,
+//      no pedidos — ver ResumenDia en el almacén: los nombres y teléfonos de un
 //      día pasado no hacen falta para decir cómo salió.
 //   3. CERRAR SESIÓN. Al fondo y separado, porque es lo único de acá que no se
 //      puede deshacer.
@@ -30,7 +30,7 @@ import { createPortal } from "react-dom";
 import { Check, LogOut, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDateLong } from "@/lib/format";
-import type { DiaJornada } from "@/lib/encomiendas/local/almacen";
+import type { ResumenDia } from "@/lib/encomiendas/local/almacen";
 
 /** El botón que lo abre. Vive acá, junto al panel, para que no haya dos lugares
  *  que decidir cómo se ve el menú. */
@@ -55,7 +55,7 @@ export function MenuLateral({
   logout,
 }: {
   nombreChofer: string;
-  dias: DiaJornada[];
+  dias: ResumenDia[];
   /** El día que la app está trabajando: se marca en la lista. */
   fechaActiva: string;
   onCerrar: () => void;
@@ -139,11 +139,11 @@ export function MenuLateral({
                       </p>
                       {/* Un día sin cerrar es lo único que este resumen tiene
                           que poder gritar: quedó una parada sin marcar y el
-                          servidor no valoró la jornada. */}
+                          servidor no valoró el día. */}
                       <p className="mt-0.5 text-xs text-muted">
                         {esActivo
                           ? "Hoy"
-                          : dia.cerradaEn == null
+                          : dia.cierre == null
                             ? "Quedó sin cerrar"
                             : `${dia.paradas} ${dia.paradas === 1 ? "parada" : "paradas"}`}
                       </p>
@@ -153,10 +153,10 @@ export function MenuLateral({
                         <Check className="h-3.5 w-3.5 shrink-0" />
                         {dia.entregadas}/{dia.paradas}
                       </span>
-                      {dia.omitidas > 0 ? (
+                      {dia.noEntregadas > 0 ? (
                         <span className="flex items-center gap-1 tabular-nums text-danger">
                           <X className="h-3.5 w-3.5 shrink-0" />
-                          {dia.omitidas}
+                          {dia.noEntregadas}
                         </span>
                       ) : null}
                     </div>

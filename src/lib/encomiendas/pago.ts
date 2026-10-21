@@ -1,6 +1,6 @@
 // Agrupación de la actividad por día, y la cuenta del ingreso y del pago.
-// Funciones puras, en un archivo SIN "use server" (ver la nota de ./actions.ts:
-// un módulo "use server" solo puede exportar funciones async).
+// Funciones puras, en un archivo SIN "use server": un módulo "use server" solo
+// puede exportar funciones async.
 //
 // ⚠️ LA CUENTA DE ACÁ NO ES LA QUE MANDA (0031).
 //
@@ -23,13 +23,8 @@
 // cambiar la otra — está anotado también en la 0031.
 
 import { VALOR_APROXIMADO_PEDIDO } from "./config";
-import type {
-  EncomiendaActividadOrigen,
-  EncomiendaActividadTipo,
-  EncomiendaMotivoNoEntrega,
-  EncomiendaPago,
-  EncomiendaTipoPago,
-} from "@/types/db";
+import type { Actividad, ReglaDePago, TarifaDelDia } from "@/types/db";
+import type { TipoEvento } from "@/lib/encomiendas/catalogos";
 
 /** Cómo cerró el día un conductor. Sale de contar los eventos que el teléfono
  *  registró en encomienda_actividad para ese (chofer, fecha) — ver 0026.
@@ -43,31 +38,6 @@ export type ConteoDia = {
   omitidos: number;
 };
 
-/** POR QUÉ no se entregó, desglosado. Es lo que el jefe necesita para no
- *  confundir un rechazo con un "no estaba" (FR-021).
- *
- *  Va SEPARADO de ConteoDia y no adentro, y eso es a propósito: ConteoDia es lo
- *  que entra en la cuenta del pago, y esto no entra en ninguna cuenta. Si
- *  estuvieran juntos, el día que alguien agregue un motivo nuevo tendría que
- *  pensar si afecta la liquidación. Separados, la respuesta es siempre no.
- *
- *  `sinMotivo` son las omisiones registradas antes de que la app preguntara por
- *  qué (ver la migración 0003). No se les inventa un motivo: "no se sabe" es un
- *  dato más honesto que uno elegido a dedo. */
-export type ConteoMotivos = {
-  personaNoEncontrada: number;
-  sinRespuesta: number;
-  rechazos: number;
-  sinMotivo: number;
-};
-
-export const MOTIVOS_CERO: ConteoMotivos = {
-  personaNoEncontrada: 0,
-  sinRespuesta: 0,
-  rechazos: 0,
-  sinMotivo: 0,
-};
-
 /** Los números que definen cuánto vale un día.
  *
  *  Los tiene la regla de pago, pero también —congelados— cada día ya calculado
@@ -75,17 +45,13 @@ export const MOTIVOS_CERO: ConteoMotivos = {
  *  actividad a un día que YA existe lo recalcula con la tarifa de ese día, no
  *  con la regla de ahora. Una vista previa que use la regla mostraría una cifra
  *  distinta de la que la base va a escribir. */
-export type TarifaPago = {
-  tipo_pago: EncomiendaTipoPago;
-  valor_pago: number;
-  valor_pedido: number;
-  monto_dia: number;
-  meta_entregas_dia: number | null;
-  bono_monto: number | null;
-};
+export type Tarifa = Pick<
+  ReglaDePago,
+  "tipo_pago" | "valor_pago" | "valor_pedido" | "monto_dia" | "meta_entregas_dia" | "bono_monto"
+>;
 
 /** La tarifa con la que está calculado un día, si la tiene. */
-export function tarifaDelDia(pago: EncomiendaPago | null | undefined): TarifaPago | null {
+export function tarifaDelDia(pago: TarifaDelDia | null | undefined): Tarifa | null {
   if (!pago || pago.regla_valor_pedido == null || pago.regla_tipo_pago == null) return null;
   return {
     tipo_pago: pago.regla_tipo_pago,
@@ -103,7 +69,7 @@ export function tarifaDelDia(pago: EncomiendaPago | null | undefined): TarifaPag
  *
  *  numeric/integer de PostgREST puede llegar como string: sin este Number() y
  *  su comprobación, un NaN se pasearía por la pantalla. */
-export function valorPedido(tarifa: TarifaPago | null | undefined): number {
+export function valorPedido(tarifa: Tarifa | null | undefined): number {
   const valor = Number(tarifa?.valor_pedido);
   return Number.isFinite(valor) && valor > 0 ? valor : VALOR_APROXIMADO_PEDIDO;
 }
@@ -156,7 +122,7 @@ export const PAGO_CERO: PagoDesglose = { base: 0, dia: 0, bono: 0, total: 0 };
  *  tiene (o va a tener) actividad, y eso ES la definición de día trabajado. */
 export function calcularPagoDia(
   conteo: ConteoDia,
-  tarifa: TarifaPago | null,
+  tarifa: Tarifa | null,
 ): PagoDesglose {
   if (!tarifa) return PAGO_CERO;
 
@@ -185,60 +151,14 @@ export function calcularPagoDia(
 /** Cuenta los eventos de un (chofer, fecha). Los de tipo "llamada" no suman ni
  *  restan: están para probar que el conductor salió, y eso ya lo dice el hecho
  *  de que exista aunque sea una fila. */
-export function contarActividad(eventos: { tipo: EncomiendaActividadTipo }[]): ConteoDia {
+export function contarActividad(eventos: { tipo: TipoEvento }[]): ConteoDia {
   return {
     entregados: eventos.filter((e) => e.tipo === "entrega").length,
     omitidos: eventos.filter((e) => e.tipo === "omision").length,
   };
 }
 
-/** Cuenta los motivos de no entrega de un conjunto de eventos.
- *
- *  Solo mira las omisiones: una entrega con motivo sería un error de datos (la
- *  base lo impide con un check, ver la 0003) y contarla acá lo taparía. */
-export function contarMotivos(
-  eventos: { tipo: EncomiendaActividadTipo; motivo?: EncomiendaMotivoNoEntrega | null }[],
-): ConteoMotivos {
-  const conteo = { ...MOTIVOS_CERO };
-
-  for (const e of eventos) {
-    if (e.tipo !== "omision") continue;
-    switch (e.motivo) {
-      case "persona_no_encontrada":
-        conteo.personaNoEncontrada++;
-        break;
-      case "sin_respuesta":
-        conteo.sinRespuesta++;
-        break;
-      case "rechazo":
-        conteo.rechazos++;
-        break;
-      default:
-        // null, undefined, o un valor que la base todavía no conocía. No se
-        // reparte entre los otros tres: se cuenta como lo que es.
-        conteo.sinMotivo++;
-    }
-  }
-
-  return conteo;
-}
-
-/** Cuántas de las no entregas se pueden volver a intentar. El rechazo es el
- *  único que no (FR-012), así que esto es lo que el jefe usa para saber cuánto
- *  vuelve mañana a la camioneta. */
-export function reintentables(motivos: ConteoMotivos): number {
-  return motivos.personaNoEncontrada + motivos.sinRespuesta + motivos.sinMotivo;
-}
-
-export type EventoActividad = {
-  chofer_id: string | null;
-  fecha: string;
-  tipo: EncomiendaActividadTipo;
-  origen: EncomiendaActividadOrigen;
-  /** Opcional a propósito: las pantallas que solo liquidan no necesitan pedir
-   *  esta columna, y las filas anteriores a la 0003 no la tienen. */
-  motivo?: EncomiendaMotivoNoEntrega | null;
-};
+export type EventoActividad = Pick<Actividad, "chofer_id" | "fecha" | "tipo" | "origen">;
 
 export type DiaActividad<T extends EventoActividad> = {
   /** null si el conductor fue eliminado después (la FK es on delete set null,
@@ -246,8 +166,6 @@ export type DiaActividad<T extends EventoActividad> = {
   choferId: string | null;
   fecha: string;
   conteo: ConteoDia;
-  /** Por qué no se entregó lo que no se entregó. No entra en el pago. */
-  motivos: ConteoMotivos;
   /** Los eventos crudos del día, para las pantallas que muestran horas. */
   eventos: T[];
   /** Cuántos de esos eventos los cargó la oficina a mano (0028). 0 = día
@@ -276,7 +194,6 @@ export function agruparPorDia<T extends EventoActividad>(eventos: T[]): DiaActiv
         choferId: evento.chofer_id,
         fecha: evento.fecha,
         conteo: { entregados: 0, omitidos: 0 },
-        motivos: { ...MOTIVOS_CERO },
         eventos: [],
         manuales: 0,
       };
@@ -284,24 +201,7 @@ export function agruparPorDia<T extends EventoActividad>(eventos: T[]): DiaActiv
     }
     dia.eventos.push(evento);
     if (evento.tipo === "entrega") dia.conteo.entregados++;
-    if (evento.tipo === "omision") {
-      dia.conteo.omitidos++;
-      // El desglose se arma acá y no con un segundo recorrido: es el mismo bucle
-      // y así no hay forma de que los totales y el desglose discrepen.
-      switch (evento.motivo) {
-        case "persona_no_encontrada":
-          dia.motivos.personaNoEncontrada++;
-          break;
-        case "sin_respuesta":
-          dia.motivos.sinRespuesta++;
-          break;
-        case "rechazo":
-          dia.motivos.rechazos++;
-          break;
-        default:
-          dia.motivos.sinMotivo++;
-      }
-    }
+    if (evento.tipo === "omision") dia.conteo.omitidos++;
     if (evento.origen === "manual") dia.manuales++;
   }
 

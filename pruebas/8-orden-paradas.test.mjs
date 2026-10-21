@@ -8,7 +8,8 @@
 // bien".
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ordenarParadas, distanciaMetros } from "@/lib/rutas";
+import { ordenarParadas } from "@/lib/rutas";
+import { distanciaMetros } from "@/lib/geo/coordenada";
 
 // Igual que en el código: hasta 14 puntos se resuelve exacto.
 const MAX_EXACTO = 14;
@@ -21,8 +22,8 @@ function azar(semilla) {
   };
 }
 
-/** Jornada repartida por Arica, con la empresa como punto 0. */
-function jornada(n, semilla) {
+/** Las paradas de un día repartidas por Arica, con la empresa como punto 0. */
+function puntosDelDia(n, semilla) {
   const r = azar(semilla);
   const puntos = [{ lat: -18.471152, lng: -70.289929 }];
   for (let i = 1; i < n; i++) {
@@ -98,7 +99,7 @@ function vecinoMasCercano(n, costo) {
 test("con pocas paradas devuelve el ÓPTIMO EXACTO, no una aproximación", () => {
   for (const n of [4, 5, 6, 7, 8, 9]) {
     for (let s = 1; s <= 12; s++) {
-      const puntos = jornada(n, s * 101);
+      const puntos = puntosDelDia(n, s * 101);
       const costo = costoDe(puntos, null);
       const nuestro = largo(ordenarParadas(puntos), costo);
       const mejor = optimo(n, costo);
@@ -115,7 +116,7 @@ test("el óptimo exacto también vale con la matriz de calles ASIMÉTRICA", () =
   // igual, así que es el que hay que verificar contra fuerza bruta.
   for (const n of [4, 6, 8, 9]) {
     for (let s = 1; s <= 12; s++) {
-      const puntos = jornada(n, s * 101);
+      const puntos = puntosDelDia(n, s * 101);
       const matriz = matrizCalles(puntos, s);
       const costo = costoDe(puntos, matriz);
       const nuestro = largo(ordenarParadas(puntos, matriz), costo);
@@ -130,20 +131,20 @@ test("el óptimo exacto también vale con la matriz de calles ASIMÉTRICA", () =
 
 test("el límite del exacto es de verdad el que dice la constante", () => {
   // Si alguien sube MAX_EXACTO sin medir, esta prueba avisa por el tiempo.
-  const puntos = jornada(MAX_EXACTO, 7);
+  const puntos = puntosDelDia(MAX_EXACTO, 7);
   const t0 = performance.now();
   ordenarParadas(puntos);
   const ms = performance.now() - t0;
   assert.ok(ms < 1500, `resolver ${MAX_EXACTO} puntos exacto tardó ${Math.round(ms)} ms`);
 });
 
-// --------------------------------------------------- jornadas más grandes
-test("en jornadas grandes mejora bastante al vecino más cercano, y nunca lo empeora", () => {
+// --------------------------------------------------- días más grandes
+test("en días grandes mejora bastante al vecino más cercano, y nunca lo empeora", () => {
   for (const n of [20, 31, 45]) {
     let suyo = 0;
     let nuestro = 0;
     for (let s = 1; s <= 10; s++) {
-      const puntos = jornada(n, s * 101);
+      const puntos = puntosDelDia(n, s * 101);
       const costo = costoDe(puntos, null);
       const base = largo(vecinoMasCercano(n, costo), costo);
       const optimizado = largo(ordenarParadas(puntos), costo);
@@ -160,7 +161,7 @@ test("con matriz de calles, el orden elegido es el mejor MEDIDO POR CALLE", () =
   // Ordenar mirando la línea recta y ordenar mirando las calles dan órdenes
   // distintos; el que se entrega tiene que ser el mejor con el costo real.
   for (let s = 1; s <= 10; s++) {
-    const puntos = jornada(18, s * 101);
+    const puntos = puntosDelDia(18, s * 101);
     const matriz = matrizCalles(puntos, s);
     const porCalle = costoDe(puntos, matriz);
     const conMatriz = largo(ordenarParadas(puntos, matriz), porCalle);
@@ -172,11 +173,11 @@ test("con matriz de calles, el orden elegido es el mejor MEDIDO POR CALLE", () =
   }
 });
 
-test("la misma jornada da SIEMPRE la misma ruta", () => {
+test("el mismo día da SIEMPRE la misma ruta", () => {
   // Si no, el chofer regenera y le cambia el orden sin motivo, y deja de
   // confiar en la propuesta.
   for (const n of [9, 20, 31]) {
-    const puntos = jornada(n, 4242);
+    const puntos = puntosDelDia(n, 4242);
     const matriz = n > 14 ? null : matrizCalles(puntos, 3);
     const primera = ordenarParadas(puntos, matriz);
     for (let i = 0; i < 5; i++) {
@@ -185,9 +186,9 @@ test("la misma jornada da SIEMPRE la misma ruta", () => {
   }
 });
 
-test("una jornada completa se ordena sin trabar el teléfono", () => {
-  // 61 puntos = 60 entregas + la base, que es la jornada real de Arica.
-  const puntos = jornada(61, 99);
+test("un día completo se ordena sin trabar el teléfono", () => {
+  // 61 puntos = 60 entregas + la base, que es el día real de Arica.
+  const puntos = puntosDelDia(61, 99);
   const t0 = performance.now();
   const orden = ordenarParadas(puntos);
   const ms = performance.now() - t0;
@@ -198,7 +199,7 @@ test("una jornada completa se ordena sin trabar el teléfono", () => {
 });
 
 test("sigue tolerando matrices rotas sin devolver basura", () => {
-  const puntos = jornada(20, 5);
+  const puntos = puntosDelDia(20, 5);
   for (const matriz of [
     [[0, 1]], // filas de menos
     puntos.map(() => []), // filas vacías

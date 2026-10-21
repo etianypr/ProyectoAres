@@ -16,7 +16,7 @@
 //   5. recién ahí confirma que lo aplicó              → POST /api/whatsapp/status
 //
 // El orden de 4 y 5 no es negociable, y es el mismo criterio que ya tiene la
-// cola de actividad (ver quitarDeCola en almacen.ts): primero el dato queda
+// cola de actividad (ver quitarDeCola en almacen/cola.ts): primero el dato queda
 // firme donde lo va a usar el chofer, después se avisa que se puede olvidar. Al
 // revés, un teléfono que se apaga entre bajar la respuesta y guardarla dejaría
 // esa respuesta marcada como entregada y no volvería a bajar nunca: el receptor
@@ -26,37 +26,26 @@
 // navegador, así que todo pasa por las rutas del propio servidor.
 
 import {
-  leerCoordinaciones,
   marcarHorariosEnviados,
   registrarDisponibilidad,
-  registrarEnvioWhatsapp,
-  registrarFalloWhatsapp,
-  type PedidoLocal,
-  type RespuestaDisponibilidad,
+  registrarAvisoEnviado,
+  registrarAvisoFallido,
+  type Pedido,
 } from "./almacen";
-import { bloquePorId, type AccionWhatsApp } from "@/lib/encomiendas/config";
+import { bloquePorId, leerAccion } from "@/lib/encomiendas/config";
+import { respuestaDeAccion } from "@/lib/encomiendas/estados";
+import type { RespuestaAplicada } from "./replanificar";
+import {
+  RUTA_ENVIO,
+  RUTA_RESPUESTAS,
+  type ConfirmarAplicadas,
+  type PedidoEnvio,
+  type RespuestaPendiente,
+} from "@/lib/encomiendas/contrato-whatsapp";
 
 // ----------------------------------------------------------------------------
 // Lo que devuelve GET /api/whatsapp/status
 // ----------------------------------------------------------------------------
-
-/** Una respuesta del receptor esperando aplicarse en este teléfono.
- *
- *  Ojo con lo que NO trae: ni nombre, ni teléfono, ni el texto que el receptor
- *  pudo haber escrito. El servidor no guarda nada de eso (ver la migración
- *  0003), así que no hay de dónde sacarlo aunque alguien lo pidiera. Lo único
- *  que viaja es "a este pedido tuyo le contestaron esto". */
-export type RespuestaPendiente = {
-  /** El id local del pedido, el mismo que este teléfono generó. */
-  pedidoId: string;
-  /** wamid de la respuesta. Es la clave de idempotencia en las dos puntas. */
-  mensajeId: string;
-  accion: AccionWhatsApp;
-  /** Solo cuando el receptor eligió un bloque de la lista. */
-  bloqueHorarioId: string | null;
-  /** ISO. Cuándo la recibió Meta. */
-  recibidoEn: string;
-};
 
 /** Valida una fila cruda venida de la red. Devuelve null en vez de lanzar: una
  *  respuesta malformada no puede tumbar la sincronización de las demás, y
@@ -75,7 +64,8 @@ export function validarRespuesta(cruda: unknown): RespuestaPendiente | null {
   const mensajeId = typeof r.mensajeId === "string" ? r.mensajeId.trim() : "";
   const accion = r.accion;
   if (!pedidoId || !mensajeId) return null;
-  if (accion !== "CONFIRMAR" && accion !== "RECHAZAR" && accion !== "HORARIO") return null;
+  const accionValida = leerAccion(accion);
+  if (!accionValida) return null;
 
   // Un bloque que el jefe retiró después de mandar el aviso no se guarda: el
   // pedido quedaría ordenado por una ventana horaria que ya no existe en ninguna
@@ -89,29 +79,7 @@ export function validarRespuesta(cruda: unknown): RespuestaPendiente | null {
       ? r.recibidoEn
       : new Date().toISOString();
 
-  return { pedidoId, mensajeId, accion, bloqueHorarioId, recibidoEn };
-}
-
-/** Traduce una respuesta ya validada al vocabulario del dominio local.
- *
- *  Devuelve null para el caso que no cambia nada: "quiere indicar un horario"
- *  pero todavía no eligió cuál. Eso NO es una disponibilidad —el pedido sigue
- *  pendiente de respuesta— y aplicarlo como si lo fuera haría que el chofer
- *  creyera que ese receptor ya está resuelto. Lo que sí hace es abrir la ventana
- *  para mandarle la lista de bloques (ver la Decisión 8). */
-export function aRespuestaDisponibilidad(
-  r: RespuestaPendiente,
-): RespuestaDisponibilidad | null {
-  switch (r.accion) {
-    case "CONFIRMAR":
-      return { tipo: "confirmado" };
-    case "RECHAZAR":
-      return { tipo: "rechazado" };
-    case "HORARIO":
-      return r.bloqueHorarioId
-        ? { tipo: "horario_indicado", bloqueHorarioId: r.bloqueHorarioId }
-        : null;
-  }
+  return { pedidoId, mensajeId, accion: accionValida, bloqueHorarioId, recibidoEn };
 }
 
 /** Si esta respuesta obliga a mandarle al receptor la lista de bloques. Es la
@@ -129,15 +97,16 @@ export function pideListaDeHorarios(r: RespuestaPendiente): boolean {
 export type ResultadoAplicado = {
   /** Respuestas que cambiaron el pedido. */
   aplicadas: number;
-  /** Bajadas y descartadas: repetidas, o frenadas por una regla del dominio
-   *  (un rechazo que no se reabre, un "no respondió" que no pisa un "sí").
-   *  Se confirman al servidor igual: ya están resueltas. */
+  /** Bajadas y descartadas: repetidas, o de un pedido ya cerrado. Se confirman
+   *  al servidor igual: ya están resueltas. */
   descartadas: number;
   /** Ids de mensaje que el servidor ya puede dejar de mandar. Incluye las
    *  descartadas a propósito: si no, volverían a bajar en cada consulta. */
   confirmar: string[];
   /** Pedidos a los que hay que mandarles la lista de bloques horarios. */
   pedirHorarios: string[];
+  /** Respuestas aplicadas que pueden mover la ruta en curso ("Mañana", un bloque). */
+  cambios: RespuestaAplicada[];
 };
 
 /** Escribe un lote de respuestas en IndexedDB.
@@ -150,12 +119,15 @@ export type ResultadoAplicado = {
  *  vuelve a bajar en la próxima consulta. */
 export async function aplicarRespuestas(
   crudas: unknown[],
+  /** Para el evento de no entrega que deja "Mañana". */
+  choferId: string,
 ): Promise<ResultadoAplicado> {
   const resultado: ResultadoAplicado = {
     aplicadas: 0,
     descartadas: 0,
     confirmar: [],
     pedirHorarios: [],
+    cambios: [],
   };
 
   for (const cruda of crudas) {
@@ -164,7 +136,7 @@ export async function aplicarRespuestas(
     // confirmarla la borraría y nadie se enteraría del problema.
     if (!respuesta) continue;
 
-    const disponibilidad = aRespuestaDisponibilidad(respuesta);
+    const disponibilidad = respuestaDeAccion(respuesta.accion, respuesta.bloqueHorarioId);
 
     try {
       if (disponibilidad) {
@@ -172,9 +144,16 @@ export async function aplicarRespuestas(
           respuesta.pedidoId,
           disponibilidad,
           respuesta.mensajeId,
+          choferId,
         );
-        if (cambio) resultado.aplicadas++;
-        else resultado.descartadas++;
+        if (cambio) {
+          resultado.aplicadas++;
+          if (disponibilidad.tipo !== "confirmado") {
+            resultado.cambios.push({ pedidoId: respuesta.pedidoId, tipo: disponibilidad.tipo });
+          }
+        } else {
+          resultado.descartadas++;
+        }
       } else {
         // "Quiere indicar un horario": no hay disponibilidad que escribir, pero
         // la respuesta está atendida y hay que mandarle la lista.
@@ -202,20 +181,15 @@ export async function aplicarRespuestas(
 export const MAX_INTENTOS_AVISO = 3;
 
 /** De una lista de pedidos, los que todavía no tienen aviso mandado y pueden
- *  recibirlo. Se consulta al incorporar pedidos a una ruta (FR-007).
+ *  recibirlo. Se consulta al confirmar la ruta (FR-007) y en cada sondeo.
  *
  *  Quedan fuera los que ya tienen un aviso enviado —mandarlo dos veces le llega
  *  al receptor dos veces— y los que agotaron los reintentos. */
-export async function pedidosSinAviso(pedidoIds: string[]): Promise<string[]> {
-  const coordinaciones = await leerCoordinaciones();
-  const porId = new Map(coordinaciones.map((c) => [c.pedidoId, c] as const));
-
-  return pedidoIds.filter((id) => {
-    const c = porId.get(id);
-    if (!c) return true;
-    if (c.estado === "pendiente") return true;
-    return c.estado === "fallido" && c.intentos < MAX_INTENTOS_AVISO;
-  });
+export function pedidosSinAviso<T extends Pedido>(pedidos: T[]): T[] {
+  return pedidos.filter(
+    ({ aviso }) =>
+      aviso.estado === "pendiente" || (aviso.estado === "fallido" && aviso.intentos < MAX_INTENTOS_AVISO),
+  );
 }
 
 // ----------------------------------------------------------------------------
@@ -272,10 +246,10 @@ async function pedir(
  *
  *  Devuelve null si salió bien. */
 export async function pedirAviso(
-  pedido: PedidoLocal,
+  pedido: Pedido,
   fecha: string,
 ): Promise<FalloEnvio | null> {
-  const r = await pedir("/api/whatsapp/send", {
+  const r = await pedir(RUTA_ENVIO, {
     method: "POST",
     body: JSON.stringify({
       tipo: "aviso",
@@ -283,27 +257,28 @@ export async function pedirAviso(
       fecha,
       nombre: pedido.nombre,
       telefono: pedido.telefono,
-    }),
+    } satisfies PedidoEnvio),
   });
 
   if (!r.ok) {
     // El intento se cuenta igual, y por eso se anota antes de devolver: es lo que
     // frena el reintento eterno de un número que va a fallar siempre.
-    await registrarFalloWhatsapp(pedido.id, r.error);
+    await registrarAvisoFallido(pedido.id, r.error);
     return { error: r.error, reintentable: r.reintentable };
   }
 
-  const correlationId = typeof r.datos.correlationId === "string" ? r.datos.correlationId : null;
-  if (!correlationId) {
-    // No debería pasar. Sin correlación no hay forma de recibir la respuesta, así
-    // que se trata como fallo en vez de darlo por bueno.
-    await registrarFalloWhatsapp(pedido.id, "El servidor no devolvió la correlación del aviso.");
+  // El contrato HTTP conserva "correlationId" hasta renombrar la base (spec 002).
+  const codigo = typeof r.datos.correlationId === "string" ? r.datos.correlationId : null;
+  if (!codigo) {
+    // No debería pasar. Sin código no hay forma de recibir la respuesta, así que
+    // se trata como fallo en vez de darlo por bueno.
+    await registrarAvisoFallido(pedido.id, "El servidor no devolvió el código del aviso.");
     return { error: "El aviso no quedó registrado. Reintentá.", reintentable: true };
   }
 
-  await registrarEnvioWhatsapp({
+  await registrarAvisoEnviado({
     pedidoId: pedido.id,
-    correlationId,
+    codigo,
     mensajeId: typeof r.datos.mensajeId === "string" ? r.datos.mensajeId : null,
   });
   return null;
@@ -314,17 +289,17 @@ export async function pedirAviso(
  *  Es el segundo mensaje del flujo de dos pasos: solo se puede mandar porque el
  *  receptor, al tocar el botón, abrió la ventana de 24 horas (Decisión 8). */
 export async function pedirListaHorarios(
-  pedido: PedidoLocal,
+  pedido: Pedido,
   fecha: string,
 ): Promise<FalloEnvio | null> {
-  const r = await pedir("/api/whatsapp/send", {
+  const r = await pedir(RUTA_ENVIO, {
     method: "POST",
     body: JSON.stringify({
       tipo: "horarios",
       pedidoId: pedido.id,
       fecha,
       telefono: pedido.telefono,
-    }),
+    } satisfies PedidoEnvio),
   });
 
   if (!r.ok) return { error: r.error, reintentable: r.reintentable };
@@ -340,6 +315,8 @@ export type ResultadoSincronizacion = {
   aplicadas: number;
   /** Pedidos a los que hay que mandarles la lista de bloques. */
   pedirHorarios: string[];
+  /** Lo que puede mover la ruta en curso (ver replanificarRuta). */
+  cambios: RespuestaAplicada[];
   /** Mostrable, o null si todo salió bien. */
   error: string | null;
 };
@@ -355,31 +332,34 @@ export type ResultadoSincronizacion = {
  *
  *  Si la confirmación falla no pasa nada grave: la respuesta vuelve a bajar y
  *  aplicarla otra vez no cambia el pedido (es idempotente por mensajeId). */
-export async function sincronizarDisponibilidad(): Promise<ResultadoSincronizacion> {
-  const vacio = { aplicadas: 0, pedirHorarios: [] as string[] };
+export async function sincronizarDisponibilidad(
+  choferId: string,
+): Promise<ResultadoSincronizacion> {
+  const vacio = { aplicadas: 0, pedirHorarios: [] as string[], cambios: [] as RespuestaAplicada[] };
 
-  const bajada = await pedir("/api/whatsapp/status", { method: "GET" });
+  const bajada = await pedir(RUTA_RESPUESTAS, { method: "GET" });
   if (!bajada.ok) return { ...vacio, error: bajada.error };
 
   const crudas = Array.isArray(bajada.datos.respuestas) ? bajada.datos.respuestas : [];
   if (crudas.length === 0) return { ...vacio, error: null };
 
   // Paso 2: escribir en el teléfono.
-  const aplicado = await aplicarRespuestas(crudas);
+  const aplicado = await aplicarRespuestas(crudas, choferId);
 
   // Paso 3: confirmar solo lo que quedó resuelto. Lo que no se pudo escribir no
   // se confirma, y vuelve a bajar en la próxima pasada.
   if (aplicado.confirmar.length > 0) {
-    const confirmacion = await pedir("/api/whatsapp/status", {
+    const confirmacion = await pedir(RUTA_RESPUESTAS, {
       method: "POST",
-      body: JSON.stringify({ aplicadas: aplicado.confirmar }),
+      body: JSON.stringify({ aplicadas: aplicado.confirmar } satisfies ConfirmarAplicadas),
     });
     if (!confirmacion.ok) {
       // No se pierde nada: las respuestas ya están en IndexedDB y volverán a
-      // bajar. Se informa por si el chofer ve muchos reintentos seguidos.
+      // bajar.
       return {
         aplicadas: aplicado.aplicadas,
         pedirHorarios: aplicado.pedirHorarios,
+        cambios: aplicado.cambios,
         error: null,
       };
     }
@@ -388,6 +368,7 @@ export async function sincronizarDisponibilidad(): Promise<ResultadoSincronizaci
   return {
     aplicadas: aplicado.aplicadas,
     pedirHorarios: aplicado.pedirHorarios,
+    cambios: aplicado.cambios,
     error: null,
   };
 }

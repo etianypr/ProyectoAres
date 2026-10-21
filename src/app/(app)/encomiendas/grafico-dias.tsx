@@ -29,7 +29,7 @@ import {
   COLOR_PERIODO,
   nombrePeriodo,
   nombrePeriodoCorto,
-  type PeriodoFacturacion,
+  type Periodo,
   type ResumenPeriodo,
 } from "@/lib/encomiendas/periodos";
 import { PeriodosFacturacion } from "./periodos-facturacion";
@@ -65,7 +65,7 @@ export function GraficoDias({
   /** Los cortes que tocan el mes en pantalla, con lo que facturó cada uno. */
   resumen: ResumenPeriodo[];
   /** Todos los de la empresa, para el diálogo que los edita. */
-  periodos: PeriodoFacturacion[];
+  periodos: Periodo[];
   sugerenciaInicio: string;
   errorPeriodos: string | null;
 }) {

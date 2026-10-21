@@ -58,15 +58,3 @@ export function enRango(fecha: string | null | undefined, p: Periodo): boolean {
 export function etiquetaPeriodo(p: Periodo): string {
   return p.mes === null ? `Año ${p.anio}` : `${MESES[p.mes - 1]} ${p.anio}`;
 }
-
-// Periodo inmediatamente anterior (mes anterior, o año anterior en vista anual).
-export function periodoAnterior(p: Periodo): Periodo {
-  if (p.mes === null) return { anio: p.anio - 1, mes: null };
-  if (p.mes === 1) return { anio: p.anio - 1, mes: 12 };
-  return { anio: p.anio, mes: p.mes - 1 };
-}
-
-// Etiqueta corta para comparaciones: "mayo" o "2025".
-export function etiquetaCorta(p: Periodo): string {
-  return p.mes === null ? String(p.anio) : MESES[p.mes - 1];
-}

@@ -43,13 +43,13 @@ const TABLAS = {
   Perfil: "perfiles",
   Empresa: "empresa",
   Chofer: "choferes",
-  EncomiendaActividad: "encomienda_actividad",
-  EncomiendaJornada: "encomienda_jornadas",
-  EncomiendaReglaPago: "encomienda_reglas_pago",
-  EncomiendaPago: "encomienda_pagos",
-  EncomiendaPeriodoFacturacion: "encomienda_periodos_facturacion",
-  EncomiendaIngresoReal: "encomienda_ingresos_reales",
-  EncomiendaWhatsappCorrelacion: "encomienda_whatsapp_correlaciones",
+  Actividad: "encomienda_actividad",
+  DiaTrabajo: "encomienda_jornadas",
+  ReglaDePago: "encomienda_reglas_pago",
+  PagoDelDia: "encomienda_pagos",
+  PeriodoFacturacion: "encomienda_periodos_facturacion",
+  IngresoReal: "encomienda_ingresos_reales",
+  Aviso: "encomienda_whatsapp_correlaciones",
 };
 
 // Tablas que el código usa pero que no tienen una interfaz propia. Hoy ninguna.

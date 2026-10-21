@@ -24,7 +24,7 @@ const GEOMETRIA = REAL.geometry.coordinates; // 58 pares [lng, lat] reales de Ar
 const PASOS_REALES = REAL.properties.segments[0].steps;
 
 // El tramo de Mapbox sobre el MISMO origen y destino, para el contraste.
-const TRAMO_MAPBOX = JSON.parse(readFileSync("pruebas/fixtures/tramo-arica.json", "utf8")).geometria;
+const TRAMO_MAPBOX = JSON.parse(readFileSync("pruebas/fixtures/tramo-arica.json", "utf8")).trazado;
 
 // Origen y destino del tramo real, ya en {lat, lng}.
 const DESDE = { lat: GEOMETRIA[0][1], lng: GEOMETRIA[0][0] };
@@ -42,11 +42,11 @@ const MEDIO = (() => {
 
 /** El sobre geojson de ORS. Por defecto, la respuesta real tal cual se capturó;
  *  los parámetros son para forzar los casos que la API no devuelve sola. */
-function respuestaORS({ geometria, distance, duration, wayPoints, steps } = {}) {
+function respuestaORS({ trazado, distance, duration, wayPoints, steps } = {}) {
   return {
     features: [
       {
-        geometry: { coordinates: geometria ?? GEOMETRIA },
+        geometry: { coordinates: trazado ?? GEOMETRIA },
         properties: {
           summary: {
             distance: distance ?? REAL.properties.summary.distance,
@@ -113,8 +113,8 @@ test("las coordenadas salen como [lng, lat], no al revés", async () => {
 
 test("la geometría vuelve tal cual, en el mismo formato que lib/rutas", async () => {
   const r = await obtenerRutaAbierta([DESDE, HASTA]);
-  assert.equal(r.geometria.length, GEOMETRIA.length);
-  assert.deepEqual(r.geometria[0], GEOMETRIA[0]);
+  assert.equal(r.trazado.length, GEOMETRIA.length);
+  assert.deepEqual(r.trazado[0], GEOMETRIA[0]);
   // 3418,1 m → 3418: se redondea a metros y segundos enteros.
   assert.equal(r.distanciaM, Math.round(REAL.properties.summary.distance));
   assert.equal(r.duracionS, Math.round(REAL.properties.summary.duration));
@@ -127,7 +127,7 @@ test("ORS y Mapbox no trazan lo mismo, y está bien que así sea", async () => {
   const r = await obtenerRutaAbierta([DESDE, HASTA]);
   assert.ok(r.distanciaM < 3600 && r.distanciaM > 3200);
   assert.ok(
-    r.geometria.length < TRAMO_MAPBOX.length,
+    r.trazado.length < TRAMO_MAPBOX.length,
     "el muestreo de ORS dejó de ser más ralo que el de Mapbox",
   );
 });
@@ -137,14 +137,14 @@ test("esa geometría entra SIN traducir a la maquinaria de la ruta", async () =>
   // vuelta los pares en el camino, alguien los daría vuelta mal algún día.
   const r = await obtenerRutaAbierta([DESDE, HASTA]);
 
-  const pegado = ajustarATrazado(DESDE, r.geometria);
+  const pegado = ajustarATrazado(DESDE, r.trazado);
   assert.ok(pegado, "ajustarATrazado no supo leer la geometría");
 
-  const faltan = metrosRestantes(DESDE, r.geometria);
+  const faltan = metrosRestantes(DESDE, r.trazado);
   assert.ok(faltan > 3000 && faltan < 4200, `faltaban ${faltan} m para un tramo de 3,6 km`);
 
   // Un punto del propio trazado está a cero metros del trazado.
-  assert.ok(distanciaAPolilinea({ lat: MEDIO.lat, lng: MEDIO.lng }, r.geometria) < 1);
+  assert.ok(distanciaAPolilinea({ lat: MEDIO.lat, lng: MEDIO.lng }, r.trazado) < 1);
 });
 
 // ---------------------------------------------------------------------------
@@ -242,7 +242,7 @@ test("si la red se cae, se devuelve null: el llamador conserva lo que tenía", a
 
 test("una respuesta sin trazado usable es null, no media ruta", async () => {
   // Una ruta de un punto se dibuja igual y parece que el trazado terminó ahí.
-  contestar = () => respuestaORS({ geometria: [GEOMETRIA[0]] });
+  contestar = () => respuestaORS({ trazado: [GEOMETRIA[0]] });
   assert.equal(await obtenerRutaAbierta([DESDE, HASTA]), null);
 
   contestar = () => ({ features: [] });

@@ -4,9 +4,8 @@ process.env.NEXT_PUBLIC_MAPBOX_TOKEN = "pk.token-de-prueba";
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import { distanciaMetros, rumboEntre } from "@/lib/geo/coordenada";
 import {
-  distanciaMetros,
-  rumboEntre,
   rumboDelCamino,
   metrosRestantes,
   distanciaAPolilinea,
@@ -130,7 +129,7 @@ test("ajustarATrazado: una lectura con error lateral vuelve a la calle", () => {
 });
 
 test("ajustarATrazado: desde adentro de la casa, el punto sale al inicio del camino", () => {
-  // El caso real de arrancar la jornada: el trazado empieza donde Mapbox
+  // El caso real de arrancar el día: el trazado empieza donde Mapbox
   // enganchó al chofer en la calle, y el GPS lo pone 45 m adentro del galpón.
   const geo = Array.from({ length: 40 }, (_, i) => [-70.2899, -18.4711 + i * 0.0002]);
   const enElGalpon = { lat: -18.4711, lng: -70.2899 + 0.00043 }; // ~45 m al este
@@ -305,7 +304,7 @@ test("ordenarParadas: con matriz por calles nunca sale peor que el orden en lín
   }
 });
 
-test("ordenarParadas es rápido con una jornada grande (no traba el teléfono)", () => {
+test("ordenarParadas es rápido con un día grande (no traba el teléfono)", () => {
   const puntos = [EMPRESA, ...alAzar(40, 99)];
   const t0 = performance.now();
   const orden = ordenarParadas(puntos, puntos.map((a) => puntos.map((b) => distanciaMetros(a, b))));
@@ -394,7 +393,7 @@ test("obtenerRutaCalles: una sola consulta cuando entra (<= 25 puntos)", async (
     const puntos = [EMPRESA, ...alAzar(9, 21)];
     const r = await obtenerRutaCalles(puntos);
     assert.deepEqual(registro, [10]);
-    assert.equal(r.geometria.length, 10);
+    assert.equal(r.trazado.length, 10);
     assert.equal(r.distanciaM, 9000);
     assert.equal(r.duracionS, 540);
   } finally {
@@ -407,23 +406,23 @@ test("obtenerRutaCalles: parte en tramos y pega el trazado sin duplicar ni perde
   const registro = [];
   globalThis.fetch = fetchRutaFalsa(registro);
   try {
-    // 31 puntos = jornada de 30 paradas + la base.
+    // 31 puntos = día de 30 paradas + la base.
     const puntos = [EMPRESA, ...alAzar(30, 31)];
     const r = await obtenerRutaCalles(puntos);
     assert.deepEqual(registro, [25, 7], "no partió en tramos de 25 con el punto de unión repetido");
     // 25 + 7 - 1 repetido = 31: todos los puntos, ninguno dos veces.
-    assert.equal(r.geometria.length, 31);
-    const vistos = new Set(r.geometria.map((c) => c.join(",")));
+    assert.equal(r.trazado.length, 31);
+    const vistos = new Set(r.trazado.map((c) => c.join(",")));
     assert.equal(vistos.size, 31, "el punto de unión quedó duplicado");
     assert.equal(r.distanciaM, 24000 + 6000);
     // El trazado empieza en la base y termina en la última parada.
-    assert.deepEqual(r.geometria[0], [EMPRESA.lng, EMPRESA.lat]);
+    assert.deepEqual(r.trazado[0], [EMPRESA.lng, EMPRESA.lat]);
   } finally {
     globalThis.fetch = original;
   }
 });
 
-test("obtenerRutaCalles: cubre TODOS los tramos para tamaños de jornada variados", async () => {
+test("obtenerRutaCalles: cubre TODOS los tramos para tamaños de día variados", async () => {
   const original = globalThis.fetch;
   try {
     for (const n of [2, 24, 25, 26, 27, 49, 50, 51, 74]) {
@@ -431,7 +430,7 @@ test("obtenerRutaCalles: cubre TODOS los tramos para tamaños de jornada variado
       globalThis.fetch = fetchRutaFalsa(registro);
       const puntos = [EMPRESA, ...alAzar(n - 1, n)];
       const r = await obtenerRutaCalles(puntos);
-      assert.equal(r.geometria.length, n, `con ${n} puntos el trazado quedó de ${r.geometria.length}`);
+      assert.equal(r.trazado.length, n, `con ${n} puntos el trazado quedó de ${r.trazado.length}`);
       assert.ok(registro.every((t) => t <= 25), `un tramo pidió ${Math.max(...registro)} puntos`);
     }
   } finally {

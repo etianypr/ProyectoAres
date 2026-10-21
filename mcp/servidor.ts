@@ -185,10 +185,10 @@ servidor.registerTool(
       distancia_metros: r.distanciaM,
       duracion_segundos: r.duracionS,
       orden: r.orden,
-      puntos_geometria: r.geometria.length,
+      puntos_geometria: r.trazado.length,
       // El trazado completo son miles de pares que nadie lee y que llenan el
       // contexto del modelo. Va solo si se pidió.
-      ...(incluir_geometria ? { geometria: r.geometria } : {}),
+      ...(incluir_geometria ? { trazado: r.trazado } : {}),
       ...(r.pasos
         ? {
             pasos: r.pasos.map((p) => ({
@@ -205,7 +205,7 @@ servidor.registerTool(
     const km = (r.distanciaM / 1000).toFixed(1);
     const min = Math.round(r.duracionS / 60);
     return {
-      content: [{ type: "text" as const, text: `${km} km, ${min} min (${r.geometria.length} puntos de trazado)` }],
+      content: [{ type: "text" as const, text: `${km} km, ${min} min (${r.trazado.length} puntos de trazado)` }],
       structuredContent,
     };
   },

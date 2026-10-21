@@ -1,5 +1,8 @@
 # Contract: WhatsApp de disponibilidad
 
+> **Reemplazado en parte por la spec 010**: botones "Sí, estaré" · "Mañana" · "Otro horario"
+> (RECHAZAR → MANANA) y la ruta en curso se reordena con las respuestas. Vigente: `docs/WHATSAPP.md`.
+
 ## Objetivo
 
 Definir el contrato entre ARES y Meta WhatsApp Cloud API sin exponer la ruta
