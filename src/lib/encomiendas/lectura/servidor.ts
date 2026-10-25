@@ -22,11 +22,12 @@ const MODELO_POR_DEFECTO = "claude-opus-5";
  *  (2026-10-25) con una foto difícil —ruido, rayas, inclinada— de 10 líneas:
  *  Haiku, Sonnet y Opus leyeron 10/10, a US$0,003, 0,014–0,022 y 0,024–0,036
  *  por foto. Lo que fallaba en terreno ("14, 6…") era el lector del teléfono
- *  dando por buena una lectura incompleta, no el modelo. Va Haiku; si el
- *  teléfono ve una OF que Haiku no leyó, el teléfono pide revisar (`alta`) y
- *  esa foto va a Sonnet. Se cambian con LECTURA_MODELO_GUIA(_ALTA). */
-const MODELO_GUIA = "claude-haiku-4-5";
-const MODELO_GUIA_ALTA = "claude-sonnet-5";
+ *  dando por buena una lectura incompleta, no el modelo. El dueño eligió Opus
+ *  (~US$3 al mes con 3 fotos por día). Si el teléfono ve una OF que la primera
+ *  lectura no trajo, la foto se relee (`alta`). Se cambian con
+ *  LECTURA_MODELO_GUIA y LECTURA_MODELO_GUIA_ALTA. */
+const MODELO_GUIA = "claude-opus-5";
+const MODELO_GUIA_ALTA = "claude-opus-5";
 
 function modeloPara(tipo: TipoLectura, alta: boolean): string {
   if (tipo === "etiqueta") return process.env.LECTURA_MODELO || MODELO_POR_DEFECTO;
