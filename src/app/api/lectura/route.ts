@@ -34,7 +34,10 @@ export async function POST(request: Request) {
   if (!mediaType) return error(400, "La foto tiene que ser JPEG, PNG o WebP.");
 
   try {
-    const lectura = await leerFoto(tipo, new Uint8Array(await foto.arrayBuffer()), mediaType as TipoFoto);
+    // "revisar": el teléfono vio en la guía una OF que la primera lectura no
+    // trajo; se relee con el modelo más fino (ver lectura/servidor.ts).
+    const alta = tipo === "guia" && datos?.get("revisar") === "1";
+    const lectura = await leerFoto(tipo, new Uint8Array(await foto.arrayBuffer()), mediaType as TipoFoto, { alta });
     return NextResponse.json<RespuestaLectura>(lectura);
   } catch (e) {
     if (e instanceof LecturaIlegible) return error(422, "No se pudo leer la foto. Intenta otra, más cerca y con luz.");

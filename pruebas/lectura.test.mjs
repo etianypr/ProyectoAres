@@ -165,3 +165,14 @@ test("la O de 'O.F.' leída como cero no pierde la OF ni el monto", () => {
   const g = leerGuia("0F:200000001 DESTINO: CALLE UNO 100\nOF:200000002 DESTINO : CALLE DOS 200\nMONTO NETO: 2");
   assert.deepEqual(g.lineas.map((l) => l.of), ["200000001", "200000002"]);
 });
+
+test("si el teléfono ve una OF que la IA no trajo, la guía se relee", async () => {
+  const { faltanEnLaPrimera } = await import("@/lib/encomiendas/lectura/guia");
+  const ia = leerGuia("OF:200000001 DESTINO: CALLE UNO 100\nOF:200000002 DESTINO: CALLE DOS 200");
+  const igual = leerGuia("OF:200000002 DESTINO: CALLE DOS 200");
+  const conOtra = leerGuia("OF:200000001 DESTINO: CALLE UNO 100\nOF:200000003 DESTINO: CALLE TRES 300");
+  const malLeida = leerGuia("OF:20000 DESTINO: CALLE TRES 300");
+  assert.equal(faltanEnLaPrimera(ia, igual), false);
+  assert.equal(faltanEnLaPrimera(ia, conOtra), true);
+  assert.equal(faltanEnLaPrimera(ia, malLeida), false, "una OF dudosa del teléfono no obliga a releer");
+});

@@ -108,20 +108,24 @@ test("POR PAGAR sin monto queda por revisar, nunca en 0", async () => {
   assert.ok(etiqueta.dudosos.includes("montoPorPagar"));
 });
 
-test("la guía va siempre al modelo grande, aunque las etiquetas usen Haiku", async () => {
-  // Terreno 2026-10-25: con un modelo chico cada foto de la guía daba una
-  // cantidad distinta de líneas.
-  process.env.LECTURA_MODELO = "claude-haiku-4-5";
+test("la guía va a Haiku y, si hay que revisarla, a Sonnet", async () => {
+  // Medido 2026-10-25: los tres modelos leyeron 10/10 una foto difícil; Haiku
+  // cuesta ~10 veces menos. Lo que fallaba era el lector del teléfono.
+  instalar(JSON.stringify({ folio: null, totalDeclarado: null, lineas: [] }));
+  await leerFoto("guia", FOTO, "image/jpeg");
+  assert.equal(pedidos[0].cuerpo.model, "claude-haiku-4-5");
+  assert.equal(pedidos[0].cuerpo.output_config.effort, undefined);
+  assert.match(pedidos[0].cuerpo.messages[0].content[1].text, /CADA fila/);
+
+  instalar(JSON.stringify({ folio: null, totalDeclarado: null, lineas: [] }));
+  await leerFoto("guia", FOTO, "image/jpeg", { alta: true });
+  assert.equal(pedidos[0].cuerpo.model, "claude-sonnet-5");
+  assert.equal(pedidos[0].cuerpo.output_config.effort, "medium");
+
+  process.env.LECTURA_MODELO_GUIA = "claude-opus-5";
   instalar(JSON.stringify({ folio: null, totalDeclarado: null, lineas: [] }));
   await leerFoto("guia", FOTO, "image/jpeg");
   assert.equal(pedidos[0].cuerpo.model, "claude-opus-5");
-  assert.equal(pedidos[0].cuerpo.output_config.effort, "medium");
-  assert.match(pedidos[0].cuerpo.messages[0].content[1].text, /CADA fila/);
-
-  process.env.LECTURA_MODELO_GUIA = "claude-sonnet-5";
-  instalar(JSON.stringify({ folio: null, totalDeclarado: null, lineas: [] }));
-  await leerFoto("guia", FOTO, "image/jpeg");
-  assert.equal(pedidos[0].cuerpo.model, "claude-sonnet-5");
   delete process.env.LECTURA_MODELO_GUIA;
 });
 

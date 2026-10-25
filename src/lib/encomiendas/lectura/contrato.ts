@@ -17,7 +17,9 @@ export type ErrorLecturaApi = { error: string };
 /** Límite de la foto que acepta el servidor (Vercel corta en 4,5 MB). */
 export const BYTES_MAXIMOS_FOTO = 4 * 1024 * 1024;
 
-/** Lado mayor de la foto reducida en el teléfono: la guía tiene letra chica. */
-export const LADO_MAXIMO: Record<TipoLectura, number> = { guia: 2576, etiqueta: 1280 };
+/** Lado mayor de la foto reducida en el teléfono. La guía tiene letra chica,
+ *  pero 2000 px alcanzan (Haiku la reduce a ~1568 igual, y para el modelo fino
+ *  cuesta un tercio menos que 2576; medido 2026-10-25). */
+export const LADO_MAXIMO: Record<TipoLectura, number> = { guia: 2000, etiqueta: 1280 };
 
 export type { EtiquetaIA, GuiaIA };

@@ -79,6 +79,14 @@ export function guiaDesdeIA(fotos: GuiaIA[]): GuiaLeida {
   );
 }
 
+/** ¿La segunda lectura trae alguna OF válida que la primera no tiene? Sirve
+ *  para controlar la lectura de la IA con la del teléfono (gratis): si el
+ *  teléfono vio una OF que la IA no trajo, la foto se relee con más cuidado. */
+export function faltanEnLaPrimera(primera: GuiaLeida, segunda: GuiaLeida): boolean {
+  const leidas = new Set(primera.lineas.map((l) => l.of));
+  return segunda.lineas.some((l) => !l.dudosa && !leidas.has(l.of));
+}
+
 /** Líneas crudas → GuiaLeida, con las OF repetidas juntas y los avisos. */
 export function armarGuia(
   crudas: { of: string; destino: string }[],

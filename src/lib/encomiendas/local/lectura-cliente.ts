@@ -18,7 +18,7 @@
 
 import { LADO_MAXIMO, type RespuestaLectura, type TipoLectura } from "@/lib/encomiendas/lectura/contrato";
 import { etiquetaCompleta, leerEtiqueta, type LecturaEtiqueta } from "@/lib/encomiendas/lectura/etiqueta";
-import { guiaDesdeIA, leerGuia, type GuiaLeida } from "@/lib/encomiendas/lectura/guia";
+import { faltanEnLaPrimera, guiaDesdeIA, leerGuia, type GuiaLeida } from "@/lib/encomiendas/lectura/guia";
 import type { ReferenciaPaquete } from "@/lib/encomiendas/paquete";
 import { textoDeFoto } from "@/lib/nativo/telefono";
 import { comprimirFoto } from "./foto";
@@ -45,18 +45,31 @@ export type LecturaFoto =
 export async function leerImagen(tipo: TipoLectura, foto: Blob, { ia }: { ia: boolean }): Promise<LecturaFoto> {
   const reducida = await comprimirFoto(foto, LADO_MAXIMO[tipo]);
 
-  // La guía, al revés: primero la IA. El lector del teléfono, con una foto a la
-  // pantalla, daba una cantidad distinta de líneas en cada foto (14, 6…;
-  // terreno 2026-10-25). Queda para cuando no hay IA o no hay señal.
+  // La guía, al revés: manda la IA (barata). El lector del teléfono, con una
+  // foto a la pantalla, daba una cantidad distinta de líneas en cada foto (14,
+  // 6…; terreno 2026-10-25), así que solo sirve de control —gratis—: si vio
+  // una OF que la IA no trajo, la foto se relee con el modelo fino. Sin IA o
+  // sin señal, queda lo del teléfono.
   if (tipo === "guia" && ia) {
-    try {
-      return desdeIA(await pedirIA(tipo, reducida));
-    } catch (e) {
-      const texto = await textoDeFoto(reducida);
-      const local = texto ? desdeTexto(tipo, texto) : null;
+    const [lectura, texto] = await Promise.all([
+      pedirIA(tipo, reducida)
+        .then(desdeIA)
+        .catch((e: unknown) => (e instanceof Error ? e : new ErrorLectura("No se pudo leer la foto.", 0))),
+      textoDeFoto(reducida),
+    ]);
+    const local = texto ? desdeTexto(tipo, texto) : null;
+    if (lectura instanceof Error) {
       if (local && suficiente(local)) return local;
-      throw e;
+      throw lectura;
     }
+    if (lectura.tipo === "guia" && local?.tipo === "guia" && faltanEnLaPrimera(lectura.guia, local.guia)) {
+      try {
+        return desdeIA(await pedirIA(tipo, reducida, { revisar: true }));
+      } catch {
+        return lectura;
+      }
+    }
+    return lectura;
   }
 
   const texto = await textoDeFoto(reducida);
@@ -92,10 +105,11 @@ function desdeIA(r: RespuestaLectura): LecturaFoto {
     : { tipo: "etiqueta", etiqueta: r.etiqueta, fuente: "ia" };
 }
 
-async function pedirIA(tipo: TipoLectura, reducida: Blob): Promise<RespuestaLectura> {
+async function pedirIA(tipo: TipoLectura, reducida: Blob, { revisar = false } = {}): Promise<RespuestaLectura> {
   const datos = new FormData();
   datos.set("tipo", tipo);
   datos.set("imagen", reducida, "foto.jpg");
+  if (revisar) datos.set("revisar", "1");
 
   let respuesta: Response;
   try {

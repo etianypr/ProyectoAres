@@ -18,16 +18,21 @@ import type { RespuestaLectura, TipoLectura } from "./contrato";
  *  solo recibe las que no pudo: ahí basta uno barato (claude-haiku-4-5). */
 const MODELO_POR_DEFECTO = "claude-opus-5";
 
-/** La guía es otra cosa: muchas líneas de letra chica, fotografiadas a una
- *  pantalla. Con el lector del teléfono y con Haiku cada foto daba una cantidad
- *  distinta de líneas (14, 6…; terreno 2026-10-25), así que va siempre al modelo
- *  grande. Es una o dos fotos por día. Se cambia con LECTURA_MODELO_GUIA. */
-const MODELO_GUIA = "claude-opus-5";
+/** La guía: muchas líneas de letra chica fotografiadas a una pantalla. Medido
+ *  (2026-10-25) con una foto difícil —ruido, rayas, inclinada— de 10 líneas:
+ *  Haiku, Sonnet y Opus leyeron 10/10, a US$0,003, 0,014–0,022 y 0,024–0,036
+ *  por foto. Lo que fallaba en terreno ("14, 6…") era el lector del teléfono
+ *  dando por buena una lectura incompleta, no el modelo. Va Haiku; si el
+ *  teléfono ve una OF que Haiku no leyó, el teléfono pide revisar (`alta`) y
+ *  esa foto va a Sonnet. Se cambian con LECTURA_MODELO_GUIA(_ALTA). */
+const MODELO_GUIA = "claude-haiku-4-5";
+const MODELO_GUIA_ALTA = "claude-sonnet-5";
 
-function modeloPara(tipo: TipoLectura): string {
-  return tipo === "guia"
-    ? process.env.LECTURA_MODELO_GUIA || MODELO_GUIA
-    : process.env.LECTURA_MODELO || MODELO_POR_DEFECTO;
+function modeloPara(tipo: TipoLectura, alta: boolean): string {
+  if (tipo === "etiqueta") return process.env.LECTURA_MODELO || MODELO_POR_DEFECTO;
+  return alta
+    ? process.env.LECTURA_MODELO_GUIA_ALTA || MODELO_GUIA_ALTA
+    : process.env.LECTURA_MODELO_GUIA || MODELO_GUIA;
 }
 
 /** La IA no pudo leer la foto (ilegible, rechazada o con otra forma): el
@@ -77,9 +82,14 @@ const INSTRUCCIONES: Record<TipoLectura, string> = {
 /** Lee la foto (JPEG ya reducido en el teléfono). Lanza LecturaIlegible si no se
  *  pudo, y deja pasar los errores de la API (red, cuota) para que la ruta los
  *  conteste como 503. */
-export async function leerFoto(tipo: TipoLectura, foto: Uint8Array, mediaType: "image/jpeg" | "image/png" | "image/webp"): Promise<RespuestaLectura> {
+export async function leerFoto(
+  tipo: TipoLectura,
+  foto: Uint8Array,
+  mediaType: "image/jpeg" | "image/png" | "image/webp",
+  { alta = false }: { alta?: boolean } = {},
+): Promise<RespuestaLectura> {
   const formato = tipo === "guia" ? zodOutputFormat(GuiaIA) : zodOutputFormat(EtiquetaIA);
-  const modelo = modeloPara(tipo);
+  const modelo = modeloPara(tipo, alta);
   let respuesta;
   try {
     respuesta = await cliente().messages.parse({
