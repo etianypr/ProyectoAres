@@ -51,7 +51,7 @@ borra su excepción en `pruebas/arquitectura.test.mjs`.
 - [x] T027 [P] [US2] Fotos nuevas en `conductores/` (`foto-uploader.tsx:37`)
 - [x] T028 [US2] `pruebas/**` y `mcp/**` a nombres nuevos; comentarios de `src/`; A8 solo con excepciones permanentes
 - [x] T029 [US2] Ensayo en copia de la base (`quickstart.md`) — **requiere copia y credenciales** Hecho (2026-10-25) en la base real, dentro de una transacción deshecha al final: 1 conductor, 1 perfil y 5 eventos iguales antes y después; permisos de las funciones iguales.
-- [ ] T030 [US2] Producción en ventana nocturna (aprobado) después de T029
+- [x] T030 [US2] Producción en ventana nocturna (aprobado) después de T029 Hecho (2026-10-25): 0006 y 0007 aplicadas en producción; `npm run test:esquema` OK; datos iguales (1 conductor, 1 perfil, 5 eventos).
 - [ ] T049 [US2] (spec 011, parte 2) En la misma migración, tablas y columnas al glosario: `encomienda_jornadas` → `dias_trabajo` (`cerrada_en` → `cierre`), `encomienda_actividad` → `actividades`, `encomienda_pagos` → `pagos_dia`, `encomienda_reglas_pago` → `reglas_pago`, `encomienda_whatsapp_correlaciones` → `avisos` (`correlation_id` → `codigo_aviso`), `encomienda_periodos_facturacion` → `periodos_facturacion`, `encomienda_ingresos_reales` → `ingresos_reales` (funciones, triggers, RLS y pg_cron incluidos); nombres a confirmar en el plan
 - [ ] T050 [US2] (spec 011, parte 2) `Database` y `.from()` a los nombres nuevos; contrato HTTP `correlationId` → `codigoAviso` en `contrato-whatsapp.ts`, rutas y teléfono
 - [ ] T051 [US2] (spec 012) Borrar `encomienda_actividad.motivo`, su check y su índice: nadie la escribe ni la lee; quitarla de `Database` y de `pruebas/base.mjs`
