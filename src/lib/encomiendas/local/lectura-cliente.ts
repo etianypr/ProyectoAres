@@ -1,7 +1,7 @@
 "use client";
 
-// El teléfono lee la foto de la guía o de la etiqueta (spec 005), lo más barato
-// primero:
+// El teléfono lee la foto de la guía o de la etiqueta (spec 005). La guía va
+// primero a la IA (ver leerImagen); la etiqueta, lo más barato primero:
 //
 //   1. En la APK, el texto se lee EN EL TELÉFONO (ML Kit, lib/nativo): gratis,
 //      sin señal y sin que la foto salga del teléfono. Ese texto pasa por las
@@ -44,6 +44,21 @@ export type LecturaFoto =
  *  la IA. Si la IA falla pero el teléfono leyó algo, se devuelve eso. */
 export async function leerImagen(tipo: TipoLectura, foto: Blob, { ia }: { ia: boolean }): Promise<LecturaFoto> {
   const reducida = await comprimirFoto(foto, LADO_MAXIMO[tipo]);
+
+  // La guía, al revés: primero la IA. El lector del teléfono, con una foto a la
+  // pantalla, daba una cantidad distinta de líneas en cada foto (14, 6…;
+  // terreno 2026-10-25). Queda para cuando no hay IA o no hay señal.
+  if (tipo === "guia" && ia) {
+    try {
+      return desdeIA(await pedirIA(tipo, reducida));
+    } catch (e) {
+      const texto = await textoDeFoto(reducida);
+      const local = texto ? desdeTexto(tipo, texto) : null;
+      if (local && suficiente(local)) return local;
+      throw e;
+    }
+  }
+
   const texto = await textoDeFoto(reducida);
   const local = texto ? desdeTexto(tipo, texto) : null;
   if (local && suficiente(local)) return local;

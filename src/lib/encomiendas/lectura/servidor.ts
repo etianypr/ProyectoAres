@@ -13,11 +13,22 @@ import { EtiquetaIA, GuiaIA } from "./esquemas";
 import { etiquetaDesdeIA } from "./etiqueta";
 import type { RespuestaLectura, TipoLectura } from "./contrato";
 
-/** Modelo por defecto; se cambia con LECTURA_MODELO tras medir con etiquetas
- *  reales (tasks T030). Desde que el teléfono lee el texto primero (ML Kit), la
- *  IA solo recibe las fotos que el teléfono no pudo leer. Para gastar menos en
- *  ellas: LECTURA_MODELO=claude-haiku-4-5 (~5 veces más barato por foto). */
+/** Modelo para las etiquetas; se cambia con LECTURA_MODELO tras medir con
+ *  etiquetas reales (tasks T030). El teléfono las lee primero (ML Kit) y la IA
+ *  solo recibe las que no pudo: ahí basta uno barato (claude-haiku-4-5). */
 const MODELO_POR_DEFECTO = "claude-opus-5";
+
+/** La guía es otra cosa: muchas líneas de letra chica, fotografiadas a una
+ *  pantalla. Con el lector del teléfono y con Haiku cada foto daba una cantidad
+ *  distinta de líneas (14, 6…; terreno 2026-10-25), así que va siempre al modelo
+ *  grande. Es una o dos fotos por día. Se cambia con LECTURA_MODELO_GUIA. */
+const MODELO_GUIA = "claude-opus-5";
+
+function modeloPara(tipo: TipoLectura): string {
+  return tipo === "guia"
+    ? process.env.LECTURA_MODELO_GUIA || MODELO_GUIA
+    : process.env.LECTURA_MODELO || MODELO_POR_DEFECTO;
+}
 
 /** La IA no pudo leer la foto (ilegible, rechazada o con otra forma): el
  *  teléfono ofrece pegar el texto. */
@@ -43,7 +54,9 @@ const INSTRUCCIONES: Record<TipoLectura, string> = {
   guia: [
     "Es una foto de la pantalla de una guía de despacho electrónica de Starken (app Infologistic).",
     'En la tabla DESCRIPCION, cada línea tiene la forma "OF:<número> DESTINO:<dirección>".',
-    "Devuelve todas esas líneas en orden, con la OF tal como está escrita y el destino tal como aparece.",
+    "La foto suele estar tomada a una pantalla: puede venir inclinada, con reflejos o con rayas.",
+    "Recorre la tabla de arriba hacia abajo y devuelve CADA fila que tenga OF, en orden, con la OF tal como está escrita y el destino tal como aparece.",
+    "No te detengas antes de la última fila. Una fila cortada en el borde de la foto también va, con los dígitos que se vean.",
     "folio es el número de la guía (Nº). totalDeclarado es MONTO NETO.",
     "Si un dígito no se lee con seguridad, devuelve tu mejor lectura: el conductor revisa cada línea. No inventes líneas.",
   ].join(" "),
@@ -66,7 +79,7 @@ const INSTRUCCIONES: Record<TipoLectura, string> = {
  *  conteste como 503. */
 export async function leerFoto(tipo: TipoLectura, foto: Uint8Array, mediaType: "image/jpeg" | "image/png" | "image/webp"): Promise<RespuestaLectura> {
   const formato = tipo === "guia" ? zodOutputFormat(GuiaIA) : zodOutputFormat(EtiquetaIA);
-  const modelo = process.env.LECTURA_MODELO || MODELO_POR_DEFECTO;
+  const modelo = modeloPara(tipo);
   let respuesta;
   try {
     respuesta = await cliente().messages.parse({
@@ -75,8 +88,11 @@ export async function leerFoto(tipo: TipoLectura, foto: Uint8Array, mediaType: "
       // Leer una foto no necesita razonar: sin pensamiento es más rápido y barato.
       thinking: { type: "disabled" },
       // Haiku no acepta `effort` (verificado en la API de modelos): con él, la
-      // consulta vuelve con error 400.
-      output_config: /haiku/.test(modelo) ? { format: formato } : { effort: "low", format: formato },
+      // consulta vuelve con error 400. La guía pide más atención: una línea
+      // salteada es un paquete que no entra a la ruta.
+      output_config: /haiku/.test(modelo)
+        ? { format: formato }
+        : { effort: tipo === "guia" ? "medium" : "low", format: formato },
       messages: [
         {
           role: "user",
