@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { conductorDeLaApi, nuevoCorrelationId } from "@/lib/api-conductor";
-import { normalizarTelefono } from "@/lib/telefono";
+import { conductorDeLaApi } from "@/lib/auth/api-conductor";
+import { nuevoCorrelationId } from "@/lib/whatsapp/correlacion";
+import { normalizarTelefono } from "@/lib/comun/telefono";
 import { bloquesActivos } from "@/lib/encomiendas/config";
-import { enviarAvisoDisponibilidad, enviarListaHorarios } from "@/lib/whatsapp";
+import { esFecha } from "@/lib/comun/fechas";
+import { enviarAvisoDisponibilidad, enviarListaHorarios } from "@/lib/whatsapp/meta";
 import type { EnvioOk, ErrorApi, PedidoEnvio } from "@/lib/encomiendas/contrato-whatsapp";
 
 // POST /api/whatsapp/send — el teléfono pide que salga un aviso de WhatsApp.
@@ -30,7 +32,7 @@ import type { EnvioOk, ErrorApi, PedidoEnvio } from "@/lib/encomiendas/contrato-
 //                     ubicado entra en una ruta (FR-007).
 //   tipo: "horarios"  el mensaje de lista con los bloques. Solo después de que
 //                     el receptor tocó "Indicar un horario", que es lo que abre
-//                     la ventana de 24 h (ver la Decisión 8 de research.md).
+//                     la ventana de 24 h (ver docs/WHATSAPP.md, Diseño).
 
 // Un aviso por llamada. No hace falta un tope explícito: la ruta trabaja sobre
 // UN pedido, así que un bucle con un error del lado del teléfono se frena solo
@@ -43,7 +45,6 @@ type Cuerpo = Partial<Record<keyof Extract<PedidoEnvio, { tipo: "aviso" }>, unkn
  *  FORMA y no el contenido, porque la columna es `uuid` y un texto cualquiera
  *  haría fallar el insert con un error de Postgres en vez de un 400 claro. */
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const FECHA = /^\d{4}-\d{2}-\d{2}$/;
 
 function texto(v: unknown, max: number): string | null {
   if (typeof v !== "string") return null;
@@ -63,7 +64,7 @@ export async function POST(req: Request) {
   if (!UUID.test(pedidoId)) {
     return NextResponse.json({ error: "Falta el identificador del pedido." }, { status: 400 });
   }
-  if (!FECHA.test(fecha)) {
+  if (!esFecha(fecha)) {
     return NextResponse.json({ error: "Falta el día de trabajo." }, { status: 400 });
   }
 
@@ -93,7 +94,7 @@ export async function POST(req: Request) {
   const { data: previa } = await supabase
     .from("encomienda_whatsapp_correlaciones")
     .select("correlation_id, estado, external_message_id")
-    .eq("chofer_id", conductor.choferId)
+    .eq("conductor_id", conductor.conductorId)
     .eq("pedido_id_local", pedidoId)
     .eq("fecha", fecha)
     .maybeSingle();
@@ -178,13 +179,13 @@ export async function POST(req: Request) {
     .upsert(
       {
         correlation_id: correlationId,
-        chofer_id: conductor.choferId,
+        conductor_id: conductor.conductorId,
         pedido_id_local: pedidoId,
         fecha,
         estado: "pendiente",
         expira_en: new Date(Date.now() + 72 * 3600 * 1000).toISOString(),
       },
-      { onConflict: "chofer_id,pedido_id_local,fecha" },
+      { onConflict: "conductor_id,pedido_id_local,fecha" },
     );
 
   if (errorInsert) {

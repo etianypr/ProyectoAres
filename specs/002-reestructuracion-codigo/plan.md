@@ -63,18 +63,23 @@ src/
 └── lib/
     ├── auth/ sesion [server-only] · roles · acciones ("use server") · api-conductor [server-only] · conductor-de-usuario
     ├── supabase/ server · client · admin · sesion-proxy (← middleware)
-    ├── geo/ coordenada · distancia · trazado · plus-code · marcar · openrouteservice · geocoding/ · mapbox/ (token, direcciones, navegacion, mapa-estatico)
-    ├── rutas/ orden-paradas/
-    ├── whatsapp/ meta [server-only] · telefono · correlacion
-    ├── encomiendas/ config · pago · periodos · local/ (idb, enviar, sincronizar-whatsapp, resumen-dia, almacen/, generar-ruta/)
+    ├── geo/ coordenada · trazado · plus-code · marcar · openrouteservice · geocoding/ · mapbox/ (token, direcciones, navegacion, mapa-estatico)
+    ├── rutas/ orden-paradas/ (exacto, construccion, mejora, perturbacion)
+    ├── whatsapp/ meta [server-only] · correlacion
+    ├── encomiendas/ config · pago · periodos · local/ (idb, enviar, sincronizar-whatsapp, planificar, replanificar, almacen/, generar-ruta/)
+    ├── nativo/ entorno · telefono · llamada · escaner · version (spec 015)
     ├── conductores/ vencimientos
-    └── comun/ fechas · format · forms · utils · uuid · deslizar · periodo · periodo-servidor [server-only]
+    └── comun/ fechas · format · forms · utils · uuid · deslizar · telefono · periodo · periodo-servidor [server-only]
 ```
 
 **Una sola definición (FR-004)**: meses y meses cortos (4 + 2 copias) · cookie de período
 (2) · token de Mapbox (5 lecturas) · centro y recuadro de Arica (2) · distancia (2) · lectura
 del rol (5) · ficha del conductor por usuario (3) · `FormState` (3) · destino por rol
 (`set-password` no usa `inicioSegunRol`) · `telHref` duplica `telefono.ts`.
+
+**Hecho (2026-10-24, US1)**: todo lo anterior tiene una sola definición. `distanciaMetros` ya
+vivía solo en `geo/coordenada.ts` (008), así que no hizo falta `geo/distancia.ts`; `telHref` se
+reemplazó por `llamar()` de `lib/nativo/telefono.ts` (fuera de la APK abre `tel:` igual).
 
 **Excepciones de tamaño (FR-013)**: ninguna prevista; si aparece, se lista aquí y en la
 prueba de arquitectura.

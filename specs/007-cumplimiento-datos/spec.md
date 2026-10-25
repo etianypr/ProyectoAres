@@ -11,8 +11,8 @@ todo vaya en regla, pero lo legal no debe frenar el desarrollo."
   Registro, proveedores y lista de lanzamiento: `docs/PRIVACIDAD.md`.
 - Esta spec es la parte de software del cumplimiento. Los trámites (§6 de PRIVACIDAD) no
   son código y no bloquean desarrollo ni piloto (constitución v1.3.0, principio V).
-- Hoy el teléfono nunca borra pedidos: los entregados quedan y los pendientes pasan al día
-  siguiente. Esta spec lo cambia.
+- Desde la 009 lo no entregado ya no pasa al día siguiente, pero el teléfono todavía no borra
+  los días cerrados. Esta spec lo agrega.
 
 ## User Scenarios & Testing *(mandatory)*
 

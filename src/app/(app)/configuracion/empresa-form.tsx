@@ -1,10 +1,11 @@
 "use client";
 
 import { useActionState, useRef, useState } from "react";
-import { guardarEmpresa, type FormState } from "./actions";
+import type { FormState } from "@/lib/comun/forms";
+import { guardarEmpresa } from "./actions";
 import { createClient } from "@/lib/supabase/client";
 import { Input } from "@/components/ui/input";
-import { DireccionInput } from "@/components/ui/direccion-input";
+import { DireccionInput } from "@/components/direccion/direccion-input";
 import { Field } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
@@ -73,7 +74,7 @@ export function EmpresaForm({ empresa }: { empresa?: Empresa }) {
           </Field>
           {/* Con sugerencias: de acá sale el punto de partida de la ruta de
               reparto (ver generar-ruta.ts), así que si esta dirección no se
-              puede ubicar en el mapa, el chofer arranca desde otro lado. */}
+              puede ubicar en el mapa, el conductor arranca desde otro lado. */}
           <Field label="Dirección" htmlFor="direccion">
             <DireccionInput
               id="direccion"

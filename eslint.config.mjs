@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Assets estáticos (incluye la app de taxis embebida y libs de terceros).
     "public/**",
+    // Proyecto Android de Capacitor (spec 015): Java y archivos generados por Gradle.
+    "android/**",
   ]),
 ]);
 

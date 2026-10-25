@@ -11,27 +11,27 @@ Formato: `[ID] [P?] [Story] descripción` · [P] = paralelizable.
 
 ## Phase 1: Setup
 
-- [ ] T001 Verificar prerrequisito (existe `pruebas/arquitectura.test.mjs`; estructura de 002-US1) y registrar línea base (`npm test`, `npm run lint`, `npm run build`) en `specs/007-cumplimiento-datos/quickstart.md`
+- [x] T001 Verificar prerrequisito (existe `pruebas/arquitectura.test.mjs`; estructura de 002-US1) y registrar línea base (`npm test`, `npm run lint`, `npm run build`) en `specs/007-cumplimiento-datos/quickstart.md`
 
 ## Phase 2: Foundational
 
-- [ ] T002 En `src/lib/encomiendas/local/idb.ts`: store `dias` (clave `fecha`) en la siguiente `VERSION` libre y lista exportada `STORES_DEL_DIA` (`pedidos`, `rutas`, `whatsapp` y todo store futuro con datos de destinatarios); tipo `ResumenDia` en `almacen/`; prueba de migración en `pruebas/idb-version.test.mjs`
+- [x] T002 En `src/lib/encomiendas/local/idb.ts`: store `dias` (clave `fecha`) en la siguiente `VERSION` libre y lista exportada `STORES_DEL_DIA` (`pedidos`, `rutas` y todo store futuro con datos de destinatarios); tipo `ResumenDia` en `almacen/`; prueba de migración en `pruebas/idb-version.test.mjs`
 - [ ] T003 [P] En `src/lib/encomiendas/config.ts`: `PROVEEDORES` (mapbox, osm, meta, anthropic; espejo de `docs/PRIVACIDAD.md` §3), `proveedorHabilitado(clave, empresa)`, `validarPlantilla(texto, nombreEmpresa)`; pruebas en `pruebas/privacidad.test.mjs`
 - [ ] T004 [P] Migración `supabase/migrations/000N_cumplimiento.sql` (próxima libre, re-ejecutable): `empresa.modo_operacion`, `empresa.proveedores_datos` (ver `data-model.md`); actualizar `src/types/db.ts`
 
 ## Phase 3: US1 - Todo se borra al cerrar el día (P1) 🎯 MVP
 
-- [ ] T005 [US1] Crear `src/lib/encomiendas/local/borrado.ts`: `noEntregadosDelDia(fecha)`, `cerrarYBorrarDia(fecha)` (escribe `ResumenDia` y vacía cada store de `STORES_DEL_DIA` en una transacción de `escribir()`), `diasSinCerrar(hoy)`; pruebas en `pruebas/privacidad.test.mjs`: cierre simulado sin datos de destinatarios en ningún store de `STORES_DEL_DIA`, resumen correcto, `cola` intacta, no entregados no pasan al día siguiente
-- [ ] T006 [US1] En `src/lib/encomiendas/local/almacen/`: `leerDias()` lee `dias` en vez de reconstruir desde `rutas`; quitar el arrastre de pendientes al día siguiente; ajustar `pruebas/3-almacen.test.mjs`
-- [ ] T007 [P] [US1] Crear `_componentes/lista-no-entregados.tsx` (OF; la reusa la spec 004 desde la hoja) y `_componentes/cierre-dia.tsx` (lista + confirmar), en `src/app/(conductor)/conductor/encomiendas/`
-- [ ] T008 [US1] En `_hooks/use-dia-trabajo.ts`: tras `cerrarDia()` mostrar `cierre-dia` y al confirmar `cerrarYBorrarDia()`; al abrir, `diasSinCerrar(hoy)` → mostrar la lista de cada día → borrar antes de mostrar el día nuevo
-- [ ] T009 [US1] Mostrar días anteriores desde `dias` en `_componentes/menu-lateral.tsx` y `pantalla.tsx` (solo conteos)
+- [x] T005 [US1] Crear `src/lib/encomiendas/local/almacen/borrado.ts` (dentro de `almacen/`: solo él toca los stores): `noEntregadosDelDia(fecha)`, `cerrarYBorrarDia(fecha)` (escribe `ResumenDia` y vacía cada store de `STORES_DEL_DIA` en una transacción de `escribir()`), `diasPorBorrar(hoy)`; pruebas en `pruebas/privacidad.test.mjs`: cierre simulado sin datos de destinatarios en ningún store de `STORES_DEL_DIA`, resumen correcto, `cola` intacta, no entregados no pasan al día siguiente
+- [x] T006 [US1] En `src/lib/encomiendas/local/almacen/`: `leerDias()` lee `dias` en vez de reconstruir desde `rutas`; quitar el arrastre de pendientes al día siguiente; ajustar `pruebas/3-almacen.test.mjs`
+- [x] T007 [P] [US1] Crear `_componentes/lista-no-entregados.tsx` (OF; la reusa la spec 004 desde la hoja) y `_componentes/cierre-dia.tsx` (lista + confirmar), en `src/app/(conductor)/conductor/encomiendas/`
+- [x] T008 [US1] (en `_hooks/use-cierre-dia.ts`, no en `use-dia-trabajo.ts`) Tras `cerrarDia()` mostrar `cierre-dia` y al confirmar `cerrarYBorrarDia()`; al abrir, `diasSinCerrar(hoy)` → mostrar la lista de cada día → borrar antes de mostrar el día nuevo
+- [x] T009 [US1] Mostrar días anteriores desde `dias` en `_componentes/menu-lateral.tsx` y `pantalla.tsx` (solo conteos)
 
 ## Phase 4: US2 - Borrado al perder el acceso (P1) 🎯 MVP
 
-- [ ] T010 [US2] `borrarDatosDestinatarios()` en `borrado.ts` (vacía `pedidos`, `rutas`, `whatsapp`, `fotos`; conserva `cola` y `dias`); prueba en `pruebas/privacidad.test.mjs`
-- [ ] T011 [US2] Crear `src/app/login/borrado-local.tsx` (cliente) que llama `borrarDatosDestinatarios()` y montarlo en `src/app/login/page.tsx`
-- [ ] T012 [US2] En el cierre de sesión (`_componentes/menu-lateral.tsx`, acción `logout` de `lib/auth/acciones.ts`): aviso si `leerCola()` tiene eventos sin enviar
+- [x] T010 [US2] `borrarDatosDestinatarios()` en `borrado.ts` (vacía `pedidos`, `rutas`, `fotos`; conserva `cola` y `dias`); prueba en `pruebas/privacidad.test.mjs`
+- [x] T011 [US2] ~~`/login`~~ (ver research R3): `src/app/(conductor)/borrado-local.tsx` llama `borrarDatosDestinatarios()` y se monta en las pantallas "Cuenta sin vincular" y "Cuenta desactivada" (`conductor/page.tsx`, `encomiendas/page.tsx`); `conductorDeUsuario` trae `activo` y lanza si la consulta falla; la API rechaza la ficha inactiva
+- [x] T012 [US2] En el cierre de sesión (`_componentes/menu-lateral.tsx`, acción `logout` de `lib/auth/acciones.ts`): aviso si `leerCola()` tiene eventos sin enviar
 
 ## Phase 5: US4 - Mensajes que dicen quién escribe (P2)
 
@@ -39,8 +39,8 @@ Formato: `[ID] [P?] [Story] descripción` · [P] = paralelizable.
 
 ## Phase 6: US5 - Verificación automática (P2)
 
-- [ ] T014 [P] [US5] En `pruebas/privacidad.test.mjs`: tablas `encomienda_*` de `supabase/migrations/*.sql` sin columnas `nombre|telefono|direccion|of`; `src/app/api/**` sin `console.*` del cuerpo de la solicitud
-- [ ] T015 [P] [US5] Regla A10 en `pruebas/arquitectura.test.mjs`: todo host `https://…` de `src/` figura en `docs/PRIVACIDAD.md` o en una lista blanca justificada (Supabase propio)
+- [x] T014 [P] [US5] En `pruebas/privacidad.test.mjs`: tablas `encomienda_*` de `supabase/migrations/*.sql` sin columnas `nombre|telefono|direccion|of`; `src/app/api/**` sin `console.*` del cuerpo de la solicitud
+- [x] T015 [P] [US5] (hecha en 002 T002) Regla A10 en `pruebas/arquitectura.test.mjs`: todo host `https://…` de `src/` figura en `docs/PRIVACIDAD.md` o en una lista blanca justificada (Supabase propio)
 
 ## Phase 7: US3 - Modo piloto / oficial (P3)
 
@@ -50,7 +50,7 @@ Formato: `[ID] [P?] [Story] descripción` · [P] = paralelizable.
 
 ## Phase 8: Polish
 
-- [ ] T019 [P] Actualizar `docs/ARQUITECTURA.md` (store `dias`, borrado diario implementado), `docs/CLASES.md` (`ResumenDia`, proveedores) y `docs/PRIVACIDAD.md` §2/§4
+- [x] T019 [P] Actualizar `docs/ARQUITECTURA.md` (store `dias`, borrado diario implementado), `docs/CLASES.md` (`ResumenDia`, proveedores) y `docs/PRIVACIDAD.md` §2/§4
 - [ ] T020 Correr `quickstart.md` completo y registrar resultado
 
 ## Dependencies

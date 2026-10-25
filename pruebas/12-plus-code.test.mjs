@@ -106,7 +106,7 @@ test("un código inválido devuelve null y NO lanza", () => {
 // ---------------------------------------------------------------------------
 
 test("marcar la casa y volver a leerla no la mueve", () => {
-  // El uso de verdad: el chofer marca el punto una vez, se guarda el código, y
+  // El uso de verdad: el conductor marca el punto una vez, se guarda el código, y
   // mañana se lee. Si el viaje redondo corre la casa, corre la entrega.
   const puntos = [
     CENTRO_ARICA,

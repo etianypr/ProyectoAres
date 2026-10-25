@@ -67,7 +67,7 @@ separadas. Naranja como color principal; ningún estado depende solo del color.
   `components/ui` sin lógica de dominio.
 - Un módulo que lee un secreto MUST `import "server-only"`. El código del teléfono
   (`lib/encomiendas/local/`) MUST NOT importarse desde el servidor.
-- Nombres de dominio en castellano; término canónico **conductor** (no agregar "chofer").
+- Nombres de dominio en castellano; término canónico **conductor** (no agregar "conductor").
 - Un archivo de más de ~400 líneas SHOULD dividirse por responsabilidad al tocarlo.
 
 ## Governance

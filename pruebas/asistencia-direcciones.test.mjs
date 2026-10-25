@@ -1,24 +1,24 @@
 // Teléfonos y direcciones: el punto donde un dato mal interpretado manda al
-// chofer —o el aviso de WhatsApp— a otra persona.
+// conductor —o el aviso de WhatsApp— a otra persona.
 //
 // Los dos proveedores de mapas se responden con los fixtures de
 // pruebas/fixtures/ (sustituyendo el fetch global), así que estas pruebas no
 // tocan la red y no dependen de que Mapbox devuelva hoy lo mismo que ayer. Lo
-// que se ejercita es el código REAL de src/lib/geocoding.ts: cómo normaliza la
+// que se ejercita es el código REAL de src/lib/geo/geocoding: cómo normaliza la
 // consulta, cómo combina las dos listas, y sobre todo cuándo se NIEGA a elegir.
 //
 // Los casos no son inventados: salen de direcciones reales de la operación en
 // Arica. El peor de todos es el de "Los Aromos 120", que existe en la ciudad y
 // en el valle de Azapa a nueve kilómetros: quedándose con el primer resultado,
-// el chofer sale con el paquete hacia el lugar equivocado y se entera al llegar.
+// el conductor sale con el paquete hacia el lugar equivocado y se entera al llegar.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const { normalizarTelefono, telefonoParaGuardar, puedeRecibirAviso } = await import(
-  "@/lib/telefono"
+  "@/lib/comun/telefono"
 );
-const geo = await import("@/lib/geocoding");
+const geo = await import("@/lib/geo/geocoding");
 const {
   normalizarConsulta,
   combinarSugerencias,
@@ -57,7 +57,7 @@ function instalar() {
     const cuerpo = typeof r === "function" ? r(url) : r;
 
     // null = el proveedor se cayó. Es un caso que hay que probar: la
-    // constitución exige que un fallo deje al chofer con algo accionable.
+    // constitución exige que un fallo deje al conductor con algo accionable.
     if (cuerpo === null) return new Response("boom", { status: 503 });
 
     return new Response(JSON.stringify(cuerpo), {
@@ -101,7 +101,7 @@ test("el prefijo chileno se agrega solo (FR-002)", () => {
 });
 
 test("al que le falta el 9 inicial se le completa", () => {
-  // Es lo más común: el chofer copia el número de una etiqueta que solo trae los
+  // Es lo más común: el conductor copia el número de una etiqueta que solo trae los
   // ocho dígitos.
   const r = normalizarTelefono("1234 5678");
   assert.equal(r.ok, true);
@@ -168,11 +168,11 @@ test("normalizar es idempotente: guardar dos veces da lo mismo", () => {
 });
 
 test("lo que no se pudo normalizar se guarda TAL COMO SE ESCRIBIÓ", () => {
-  // Vaciarlo dejaría al chofer sin la única pista de en qué se equivocó.
+  // Vaciarlo dejaría al conductor sin la única pista de en qué se equivocó.
   assert.equal(telefonoParaGuardar("  12345  "), "12345");
 });
 
-test("el número legible es el que el chofer reconoce", () => {
+test("el número legible es el que el conductor reconoce", () => {
   assert.equal(normalizarTelefono("912345678").telefono.legible, "+56 9 1234 5678");
 });
 
@@ -197,7 +197,7 @@ test("el # y el N° del número se sacan", () => {
 
 test("el depto se saca de la CONSULTA, no de la dirección guardada", () => {
   // Para el geocodificador es ruido que empuja el resultado a otra cuadra; para
-  // el chofer es el timbre que tiene que tocar. Por eso esto normaliza la
+  // el conductor es el timbre que tiene que tocar. Por eso esto normaliza la
   // consulta y el pedido conserva el texto entero.
   assert.equal(normalizarConsulta("Chacabuco 500 depto 42"), "Chacabuco 500");
   assert.equal(normalizarConsulta("Chacabuco 500, Depto 42"), "Chacabuco 500");
@@ -224,7 +224,7 @@ test("la consulta normalizada es la que de verdad se manda", async () => {
 });
 
 test("una abreviatura sola no gasta una consulta", async () => {
-  // "Av." normaliza a "avenida", que pasa el largo mínimo — pero el chofer no
+  // "Av." normaliza a "avenida", que pasa el largo mínimo — pero el conductor no
   // escribió una dirección todavía.
   assert.deepEqual(await sugerirDirecciones("Av"), []);
   assert.equal(consultas.length, 0, "se consultó por una abreviatura sola");
@@ -269,7 +269,7 @@ test("la puerta INTERPOLADA es aproximada, y su número no es 'otro número'", a
 
   assert.equal(s.confianza, "aproximada", "una puerta interpolada no es exacta");
   assert.equal(s.soloCalle, false, "la calle sí trae número: no es una calle sola");
-  // Ni true (no hay puerta) ni false (false le pinta al chofer la marca grave
+  // Ni true (no hay puerta) ni false (false le pinta al conductor la marca grave
   // "otro número" sobre una dirección que está bien escrita).
   assert.equal(s.coincideNumero, null);
 });
@@ -312,7 +312,7 @@ test("la calle sin número se marca como tal", async () => {
 test("el número interpolado sobre OTRA calle se descarta entero", async () => {
   // Mapbox pega el número pedido sobre cualquier calle que le suene parecida y
   // no avisa: para "Av. Diego Portales 2000" devolvió seis avenidas distintas
-  // con el 2000. Mandar al chofer ahí es mandarlo a otro barrio con el paquete.
+  // con el 2000. Mandar al conductor ahí es mandarlo a otro barrio con el paquete.
   respuestas.mapbox = MAPBOX.numero_interpolado;
   assert.deepEqual(
     await sugerirDirecciones("avenida Diego Portales 2000"),
@@ -403,13 +403,13 @@ test("una sola coincidencia exacta se puede usar sin preguntar", async () => {
 
 test("la MISMA dirección en dos lugares distintos es ambigua y NO se elige", async () => {
   // El caso que motivó todo esto: "Los Aromos 120" en Arica y en Azapa, a nueve
-  // kilómetros. Quedándose con el primero, el chofer se entera al llegar.
+  // kilómetros. Quedándose con el primero, el conductor se entera al llegar.
   respuestas.mapbox = MAPBOX.ambigua;
   const r = await ubicarDireccion("Los Aromos 120");
 
   assert.equal(r.tipo, "ambigua");
   assert.equal(r.elegida, null, "la aplicación eligió entre dos lugares distintos");
-  assert.equal(r.candidatos.length, 2, "los dos candidatos tienen que llegar al chofer");
+  assert.equal(r.candidatos.length, 2, "los dos candidatos tienen que llegar al conductor");
   assert.match(r.advertencia, /más de un lugar/i);
 });
 
@@ -436,7 +436,7 @@ test("dos coincidencias CERCA no son ambiguas: es la misma puerta", async () => 
 
 test("una puerta interpolada ENTRA a la ruta, pero con la advertencia puesta", async () => {
   // La decisión: dejarlas fuera es lo que estuvo pasando y significaba que el
-  // chofer confirmaba a mano media ruta. Nadie confirma media ruta —se sale
+  // conductor confirmaba a mano media ruta. Nadie confirma media ruta —se sale
   // igual, o no se sale—. Llegar a la cuadra correcta con el cartel puesto es
   // mejor que no llegar. Lo que NO se negocia es que el cartel esté.
   respuestas.mapbox = MAPBOX.puerta_interpolada;
@@ -454,7 +454,7 @@ test("solo la calle: se avisa y no se elige", async () => {
   assert.equal(r.tipo, "solo_calle");
   assert.equal(r.elegida, null);
   assert.match(r.advertencia, /mitad de cuadra|número/i);
-  // Pero el candidato se ofrece: el chofer puede decidir que le sirve.
+  // Pero el candidato se ofrece: el conductor puede decidir que le sirve.
   assert.equal(r.candidatos.length, 1);
 });
 
@@ -473,7 +473,7 @@ test("una dirección vacía no gasta ninguna consulta", async () => {
 });
 
 test("si Mapbox se cae, OSM sostiene la búsqueda", async () => {
-  // Principio IV de la constitución: un proveedor caído no puede dejar al chofer
+  // Principio IV de la constitución: un proveedor caído no puede dejar al conductor
   // sin poder trabajar.
   respuestas.mapbox = null; // 503
   respuestas.osm = OSM.con_numero;
@@ -559,7 +559,7 @@ test("una dirección ambigua NO queda elegida, aunque geocodificar devuelva algo
 // La calle se llama "Avenida Linderos Poniente" y en la boleta dice "Linderos
 // 3536". Los proveedores contestan la CALLE sin número —el 3536 se pierde— y la
 // puerta aparece recién escribiendo el nombre largo entero (ver
-// completarNumeroEnCalles en lib/geocoding.ts).
+// completarNumeroEnCalles en lib/geo/geocoding).
 //
 // Cada prueba usa un NÚMERO distinto a propósito: lo ya preguntado se recuerda
 // mientras dure el módulo (escribiendo "3536" dígito a dígito la misma consulta
@@ -657,7 +657,7 @@ test("si el número existe en las DOS calles, no se elige ninguna", async () => 
 
   // El 3540 existe en Linderos Poniente y en Linderos Oriente, a casi tres
   // kilómetros una de otra. Son dos avenidas distintas, no dos formas de
-  // escribir la misma: elige el chofer.
+  // escribir la misma: elige el conductor.
   const r = await ubicarDireccion("Linderos 3540");
 
   assert.equal(r.tipo, "ambigua");
@@ -707,7 +707,7 @@ test("coincidir solo en una palabra genérica no es coincidir", async () => {
 test("el nombre de la calle lo puede aportar OSM y el número, Mapbox", async () => {
   // Es la razón por la que esto vive afuera de los dos proveedores: OSM tiene
   // los nombres de calle correctos y Mapbox los números de casa (ver la cabecera
-  // de lib/geocoding.ts). Acá Mapbox no reconoce "Linderos 3544" y la calle sale
+  // de lib/geo/geocoding). Acá Mapbox no reconoce "Linderos 3544" y la calle sale
   // de OSM.
   respuestas.mapbox = (url) => {
     const q = new URL(url).searchParams.get("q") ?? "";
@@ -744,14 +744,14 @@ test("con la puerta ya resuelta no se gasta ninguna consulta de más", async () 
 test("una calle sin número escrito no dispara la búsqueda de puertas", async () => {
   respuestas.mapbox = mapboxLinderos;
 
-  // Sin número no hay puerta que buscar: el chofer todavía está escribiendo.
+  // Sin número no hay puerta que buscar: el conductor todavía está escribiendo.
   await ubicarDireccion("Linderos");
 
   assert.deepEqual(consultasMapbox(), ["Linderos"]);
 });
 
 test("las puertas encontradas se muestran ARRIBA de lo que ya había", () => {
-  // Lo que hace la lista mientras el chofer escribe (ver direccion-input.tsx):
+  // Lo que hace la lista mientras el conductor escribe (ver direccion-input.tsx):
   // la puerta encontrada primero, y afuera la calle que no tiene ese número.
   const lista = [
     {
@@ -828,7 +828,7 @@ test("un Plus Code queda elegido y sin dudas que resolver", async () => {
   assert.equal(r.elegida.fuente, "plus_code");
   assert.equal(r.elegida.soloCalle, false);
   // No hay número de casa en juego: no es que no coincida, es que no aplica.
-  // false le pintaría al chofer la marca grave "otro número".
+  // false le pintaría al conductor la marca grave "otro número".
   assert.equal(r.elegida.coincideNumero, null);
   assert.ok(Math.abs(r.elegida.lat - -18.4783) < 0.01, "no cayó en Arica");
 });

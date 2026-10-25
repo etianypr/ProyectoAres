@@ -6,7 +6,7 @@
 // una posición aunque esté perdido, con un radio de error al lado. Guardar una
 // lectura de ±80 m como "la puerta" es exactamente lo que hacía el
 // geocodificador cuando decidía por `confidence` — solo que ahora con la firma
-// del chofer encima, así que nadie sospecharía.
+// del conductor encima, así que nadie sospecharía.
 //
 // Lo que se prueba acá es que ese radio nunca se pierda por el camino.
 import test from "node:test";
@@ -53,12 +53,12 @@ test("solo la puerta entra sin insistir", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Lo que se le muestra al chofer
+// Lo que se le muestra al conductor
 // ---------------------------------------------------------------------------
 
 test("el radio de error viaja SIEMPRE en el texto", () => {
   // Es la única defensa contra guardar "por acá" creyendo que es "acá". Si
-  // alguna variante deja de nombrar los metros, el chofer pierde lo único que
+  // alguna variante deja de nombrar los metros, el conductor pierde lo único que
   // le permite decidir.
   for (const metros of [4, 25, 90]) {
     const m = marcaDe(PUERTA, metros);

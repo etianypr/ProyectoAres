@@ -2,8 +2,9 @@
 // de la vista sin que nadie lo note.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { rangoPeriodo, enRango, etiquetaPeriodo } from "@/lib/periodo";
-import { hoyChile, sumarDias, formatDate, formatDistancia, formatCLP, formatNumber } from "@/lib/format";
+import { rangoPeriodo, enRango, etiquetaPeriodo, periodoACookie, periodoDeCookie } from "@/lib/comun/periodo";
+import { formatDate, formatDistancia, formatCLP, formatNumber } from "@/lib/comun/format";
+import { esFecha, hoyChile, sumarDias } from "@/lib/comun/fechas";
 
 test("rangoPeriodo cubre el mes completo, incluidos los de 28/29/30/31 días", () => {
   assert.deepEqual(rangoPeriodo({ anio: 2026, mes: 2 }), { desde: "2026-02-01", hasta: "2026-02-28" });
@@ -71,4 +72,24 @@ test("formatos de plata y distancia toleran null/NaN sin escupir 'NaN' en pantal
 test("etiquetaPeriodo", () => {
   assert.equal(etiquetaPeriodo({ anio: 2026, mes: 8 }), "agosto 2026");
   assert.equal(etiquetaPeriodo({ anio: 2026, mes: null }), "Año 2026");
+});
+
+test("esFecha acepta solo la forma YYYY-MM-DD", () => {
+  assert.equal(esFecha("2026-10-24"), true);
+  assert.equal(esFecha("2026-1-24"), false);
+  assert.equal(esFecha("24-10-2026"), false);
+  assert.equal(esFecha("2026-10-24T00:00"), false);
+  assert.equal(esFecha(""), false);
+});
+
+test("la cookie del periodo va y vuelve igual; lo roto cae al mes por defecto", () => {
+  const hoy = { anio: 2026, mes: 10 };
+  for (const p of [{ anio: 2026, mes: 1 }, { anio: 2026, mes: 12 }, { anio: 2025, mes: null }]) {
+    assert.deepEqual(periodoDeCookie(periodoACookie(p), hoy), p);
+  }
+  assert.equal(periodoACookie({ anio: 2026, mes: 8 }), "2026-08");
+  assert.equal(periodoACookie({ anio: 2026, mes: null }), "2026-ALL");
+  assert.deepEqual(periodoDeCookie(undefined, hoy), hoy);
+  assert.deepEqual(periodoDeCookie("basura", hoy), hoy);
+  assert.deepEqual(periodoDeCookie("2026-13", hoy), { anio: 2026, mes: 10 });
 });

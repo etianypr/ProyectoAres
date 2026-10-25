@@ -1,4 +1,4 @@
-import { uuidv7 } from "@/lib/uuid";
+import { uuidv7 } from "@/lib/comun/uuid";
 import { STORES, escribir } from "../idb";
 import { enFila } from "./fila";
 import { leerPedido, leerPedidos, leerRuta } from "./lecturas";
@@ -15,7 +15,9 @@ export async function pedidosPendientes(fecha: string): Promise<Pedido[]> {
 }
 
 /** Lo que el formulario edita: el resto del pedido lo maneja el almacén. */
-export type DatosPedido = Pick<Pedido, "nombre" | "telefono" | "direccion" | "lat" | "lng" | "notas">;
+export type DatosPedido = Pick<Pedido, "nombre" | "telefono" | "direccion" | "lat" | "lng" | "notas"> &
+  /** El paquete (spec 003). Si no viene, se conserva el que tenía. */
+  Partial<Pick<Pedido, "of" | "referencia">>;
 
 /** Crea (sin id) o actualiza (con id) un pedido del día `fecha`. Devuelve el
  *  guardado. Editar no cambia la fecha de un pedido existente. */
@@ -37,13 +39,22 @@ export function guardarPedido(
       horaLlamada: anterior?.horaLlamada ?? null,
       horaResultado: anterior?.horaResultado ?? null,
       // Corregir un teléfono o una dirección tampoco borra lo que el receptor
-      // ya contestó. Si el chofer cambia el número porque el anterior estaba
+      // ya contestó. Si el conductor cambia el número porque el anterior estaba
       // mal, esa respuesta era de otra persona y hay que descartarla — pero eso
       // lo decide reiniciarDisponibilidad(), no un guardado cualquiera.
       disponibilidad: anterior?.disponibilidad ?? "pendiente_respuesta",
       bloqueHorarioId: anterior?.bloqueHorarioId ?? null,
       aviso: anterior?.aviso ?? avisoVacio(),
       cargadoEn: anterior?.cargadoEn ?? new Date().toISOString(),
+      of: datos.of !== undefined ? datos.of : (anterior?.of ?? null),
+      referencia: datos.referencia !== undefined ? datos.referencia : (anterior?.referencia ?? null),
+      fotoId: anterior?.fotoId ?? null,
+      bultos: anterior?.bultos ?? null,
+      bultosEscaneados: anterior?.bultosEscaneados ?? [],
+      porPagar: anterior?.porPagar ?? null,
+      montoPorPagar: anterior?.montoPorPagar ?? null,
+      folioGuia: anterior?.folioGuia ?? null,
+      origenCarga: anterior?.origenCarga ?? "manual",
     };
 
     await escribir([STORES.pedidos], ({ guardar }) => guardar(STORES.pedidos, pedido));
@@ -53,7 +64,7 @@ export function guardarPedido(
 
 /** Fija las coordenadas de varios pedidos de una vez, sin tocar el resto de sus
  *  datos: se usa al reintentar ubicar direcciones que habían fallado (ver
- *  ../generar-ruta.ts). Los que ya no existan se ignoran en silencio — el chofer
+ *  ../generar-ruta.ts). Los que ya no existan se ignoran en silencio — el conductor
  *  pudo borrarlos mientras corría la geocodificación. */
 export function fijarCoordenadas(
   coordenadas: { id: string; lat: number; lng: number }[],
@@ -71,9 +82,27 @@ export function fijarCoordenadas(
   });
 }
 
+/** Cambia la dirección de un pedido y su punto (spec 005: la etiqueta dice otra
+ *  cosa que la guía). Sin punto queda "sin ubicar": el de antes era de la otra
+ *  dirección y dejarlo mandaría al conductor al lugar equivocado. El orden de la
+ *  ruta no se toca; para reordenar se rehace la ruta. */
+export function cambiarDireccion(
+  id: string,
+  direccion: string,
+  punto: { lat: number; lng: number } | null,
+): Promise<Pedido | null> {
+  return enFila(async () => {
+    const pedido = await leerPedido(id);
+    if (!pedido) return null;
+    const cambiado: Pedido = { ...pedido, direccion, lat: punto?.lat ?? null, lng: punto?.lng ?? null };
+    await escribir([STORES.pedidos], ({ guardar }) => guardar(STORES.pedidos, cambiado));
+    return cambiado;
+  });
+}
+
 /** Todo lo que se le quitó al teléfono al eliminar un pedido, en una sola pieza.
  *  Es lo que hace que "Deshacer" pueda existir: sin esto, eliminar es definitivo
- *  y el chofer perdería la dirección y el teléfono del receptor —que escribió a
+ *  y el conductor perdería la dirección y el teléfono del receptor —que escribió a
  *  mano— por un roce en la pantalla.
  *
  *  Se guarda en memoria y no en la base: si la app se cierra durante la ventana

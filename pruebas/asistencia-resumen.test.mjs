@@ -25,12 +25,12 @@ const {
 } = await import("@/lib/encomiendas/pago");
 
 
-const CHOFER = "11111111-1111-7111-8111-111111111111";
+const CONDUCTOR = "11111111-1111-7111-8111-111111111111";
 const HOY = "2026-08-20";
 
 /** Un evento de actividad como lo devuelve la base. */
 const EV = (extra = {}) => ({
-  chofer_id: CHOFER,
+  conductor_id: CONDUCTOR,
   fecha: HOY,
   tipo: "entrega",
   origen: "app",
@@ -53,16 +53,16 @@ const TARIFA = {
 
 test("cada conductor y día lleva su propia cuenta de entregados y no entregados", () => {
   const eventos = [
-    EV({ chofer_id: "c1", fecha: "2026-08-01", tipo: "omision" }),
-    EV({ chofer_id: "c1", fecha: "2026-08-01" }),
-    EV({ chofer_id: "c2", fecha: "2026-08-01", tipo: "omision" }),
-    EV({ chofer_id: "c1", fecha: "2026-08-02", tipo: "omision" }),
-    EV({ chofer_id: "c1", fecha: "2026-08-02", tipo: "llamada" }),
+    EV({ conductor_id: "c1", fecha: "2026-08-01", tipo: "omision" }),
+    EV({ conductor_id: "c1", fecha: "2026-08-01" }),
+    EV({ conductor_id: "c2", fecha: "2026-08-01", tipo: "omision" }),
+    EV({ conductor_id: "c1", fecha: "2026-08-02", tipo: "omision" }),
+    EV({ conductor_id: "c1", fecha: "2026-08-02", tipo: "llamada" }),
   ];
 
   const dias = agruparPorDia(eventos);
   assert.equal(dias.length, 3);
-  const buscar = (chofer, fecha) => dias.find((d) => d.choferId === chofer && d.fecha === fecha);
+  const buscar = (conductor, fecha) => dias.find((d) => d.conductorId === conductor && d.fecha === fecha);
 
   assert.deepEqual(buscar("c1", "2026-08-01").conteo, { entregados: 1, omitidos: 1 });
   assert.deepEqual(buscar("c2", "2026-08-01").conteo, { entregados: 0, omitidos: 1 });
@@ -135,7 +135,7 @@ test("el pago del día no depende de las no entregas", () => {
 });
 
 test("un día entero sin entregas se paga el fijo, y nada más", () => {
-  // El chofer salió y trabajó: le corresponde el fijo diario. Y no le
+  // El conductor salió y trabajó: le corresponde el fijo diario. Y no le
   // corresponde nada por pedido, porque no entregó ninguno.
   const pago = calcularPagoDia({ entregados: 0, omitidos: 12 }, TARIFA);
 
@@ -171,7 +171,7 @@ test("valorPedido cae al respaldo cuando la tarifa no lo trae", () => {
 
 test("la 0003 no redefine ninguna función ni tabla de la liquidación", () => {
   // Se lee el SQL como texto porque la verificación de verdad necesita
-  // credenciales de Supabase (ver la nota de quickstart.md). Lo que está en
+  // credenciales de Supabase (`npm run test:base`). Lo que está en
   // juego son liquidaciones ya pagadas.
   const sql = readFileSync("supabase/migrations/0003_asistencia_ruta.sql", "utf8");
 

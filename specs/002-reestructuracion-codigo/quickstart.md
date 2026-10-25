@@ -1,5 +1,10 @@
 # Quickstart: validar la reestructuración
 
+**Línea base (2026-10-24, antes de mover nada)**: 501 pruebas, lint y build en verde; 13
+archivos de `src/` con más de 400 líneas (el mayor, `pantalla.tsx`, 1.699). Excepciones
+iniciales de `pruebas/arquitectura.test.mjs`: A2 (1), A3 (5), A5 (3 por mover + 1 por crear),
+A6 (14), A7 (13), A8 (102 archivos con "chofer").
+
 ## Cada fase
 
 ```bash
@@ -9,8 +14,8 @@ npm test && npm run lint && npm run build
 Lista de excepciones de `arquitectura.test.mjs` igual o más corta que antes. Prueba manual:
 conductor (login → pedido → ruta → entrega → cerrar) y panel (Encomiendas, día, Conductores).
 
-Pendiente en iPhone real: bug de la hoja deslizable en Safari. Si reaparece, el aviso de
-depuración se recupera con `git show 001a468:src/components/encomiendas/debug-errores.tsx`.
+Probar en el Android del conductor (APK de la 015). Si la hoja deslizable vuelve a fallar, el
+aviso de depuración se recupera con `git show 001a468:src/components/encomiendas/debug-errores.tsx`.
 
 ## Renombrado (US2), en una copia de la base
 

@@ -144,7 +144,7 @@ servidor.registerTool(
       "Trazado real por calles entre coordenadas, con su distancia y duración, " +
       "vía OpenRouteService: grafo de OpenStreetMap con Jerarquías de " +
       "Contracción, así que respeta avenidas, calles y pasajes. Recibe y " +
-      "devuelve SOLO coordenadas. No es la ruta que maneja el chofer —esa sale " +
+      "devuelve SOLO coordenadas. No es la ruta que maneja el conductor —esa sale " +
       "de Mapbox, con la voz en español— sino la que se puede preguntar sin " +
       "gastar esa cuota.",
     inputSchema: entradaRuta,

@@ -1,16 +1,16 @@
 // Marcar la puerta con el GPS, estando parado en ella.
 //
 // Es el último recurso y el más confiable de todos: ningún proveedor sabe dónde
-// queda una casa sin número, pero el chofer que está en la puerta sí. Lo que
+// queda una casa sin número, pero el conductor que está en la puerta sí. Lo que
 // falta es que el teléfono lo diga con honestidad, y ahí está el problema —
 //
 // EL GPS NUNCA DICE "NO SÉ". Devuelve siempre una posición, con un radio de
 // error al lado, y ese radio es lo único que separa "esta es la puerta" de
 // "estoy en algún lugar de estas cuatro manzanas". Guardar una lectura de ±80 m
 // como si fuera la puerta es exactamente el error que veníamos arreglando en el
-// geocodificador, solo que ahora con la firma del chofer encima.
+// geocodificador, solo que ahora con la firma del conductor encima.
 //
-// Por eso acá no se decide por el chofer NI se le esconde el número: se traduce
+// Por eso acá no se decide por el conductor NI se le esconde el número: se traduce
 // el radio a una de tres frases y se muestran las dos cosas, la frase y los
 // metros. Guardar o no, decide él.
 import type { Coordenada } from "./coordenada";
@@ -96,7 +96,7 @@ export function marcaDe(punto: Coordenada, precisionM: number | null | undefined
 
 /** ¿Se puede guardar sin insistir? Solo la puerta.
  *
- *  Las otras dos se pueden guardar igual —el chofer manda— pero pidiendo una
+ *  Las otras dos se pueden guardar igual —el conductor manda— pero pidiendo una
  *  confirmación aparte: es la misma regla que el resto de la app, nada dudoso
  *  entra en silencio. */
 export function entraSolo(marca: Marca): boolean {

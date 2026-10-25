@@ -14,9 +14,9 @@
 import { DISPONIBILIDADES, esClave, type Disponibilidad } from "@/lib/encomiendas/catalogos";
 import type { EstadoAviso } from "@/lib/encomiendas/catalogos";
 import type { ResultadoVisita, ResultadoLlamada } from "@/lib/encomiendas/estados";
-import { fechaChile } from "@/lib/format";
+import { fechaChile } from "@/lib/comun/fechas";
 import type { Trazado } from "@/lib/geo/coordenada";
-import type { Aviso, Pedido, Ruta } from "./tipos";
+import type { Aviso, Pedido, ResumenDia, Ruta } from "./tipos";
 
 export function alDia(pedido: Pedido): Pedido {
   return {
@@ -29,6 +29,17 @@ export function alDia(pedido: Pedido): Pedido {
     resultado: resultadoAlDia(pedido.resultado),
     horaLlamada: pedido.horaLlamada ?? null,
     horaResultado: pedido.horaResultado ?? null,
+    // Spec 003: los pedidos de antes no tienen paquete.
+    of: pedido.of ?? null,
+    referencia: pedido.referencia ?? null,
+    fotoId: pedido.fotoId ?? null,
+    // Spec 005: los pedidos de antes se cargaron a mano.
+    bultos: pedido.bultos ?? null,
+    bultosEscaneados: pedido.bultosEscaneados ?? [],
+    porPagar: pedido.porPagar ?? null,
+    montoPorPagar: pedido.montoPorPagar ?? null,
+    folioGuia: pedido.folioGuia ?? null,
+    origenCarga: pedido.origenCarga ?? "manual",
   };
 }
 
@@ -44,6 +55,18 @@ function disponibilidadAlDia(valor: string | undefined): Disponibilidad {
 function resultadoAlDia(valor: string | undefined): ResultadoVisita {
   if (valor === undefined || valor === "pendiente") return "pendiente";
   return valor === "entregado" ? "entregado" : "no_entregado";
+}
+
+/** Un resumen guardado antes de la spec 005 no trae cobros ni origen. */
+export function diaAlDia(dia: ResumenDia): ResumenDia {
+  return {
+    ...dia,
+    contactados: dia.contactados ?? null,
+    porPagar: dia.porPagar ?? 0,
+    aCobrar: dia.aCobrar ?? 0,
+    cobrado: dia.cobrado ?? 0,
+    porOrigen: dia.porOrigen ?? {},
+  };
 }
 
 export function rutaAlDia(ruta: Ruta): Ruta {

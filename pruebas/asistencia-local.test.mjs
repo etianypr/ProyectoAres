@@ -1,11 +1,11 @@
 // Invariantes del dominio local que agregó la asistencia de ruta y resultado:
 // disponibilidad del receptor y el resultado de la visita (entregado o no). Corre contra los módulos REALES (almacen/, config.ts,
-// local/whatsapp.ts) sobre IndexedDB de verdad vía fake-indexeddb.
+// local/sincronizar-whatsapp.ts) sobre IndexedDB de verdad vía fake-indexeddb.
 //
 // Lo que se protege acá no es cosmético:
 //
 //  · Una respuesta de WhatsApp que se aplica dos veces, o que llega tarde y pisa
-//    otra, deja al chofer llamando a quien ya contestó o dando por confirmado a
+//    otra, deja al conductor llamando a quien ya contestó o dando por confirmado a
 //    quien dijo que no.
 //  · Un pedido cerrado que vuelve a la ruta del día se visita dos veces.
 import "fake-indexeddb/auto";
@@ -44,7 +44,7 @@ const {
 const disponibilidadDe = (p) =>
   respuestaDeAccion(p.accion, p.bloqueHorarioId)?.tipo ?? "pendiente_respuesta";
 
-const wsp = await import("@/lib/encomiendas/local/whatsapp");
+const wsp = await import("@/lib/encomiendas/local/sincronizar-whatsapp");
 const {
   validarRespuesta,
   pideListaDeHorarios,
@@ -55,7 +55,7 @@ const {
 const idb = await import("@/lib/encomiendas/local/idb");
 
 const HOY = "2026-08-20";
-const CHOFER = "11111111-1111-7111-8111-111111111111";
+const CONDUCTOR = "11111111-1111-7111-8111-111111111111";
 
 // La clave de cada store es distinta (id, fecha, pedidoId), así que se resuelve
 // por store en vez de adivinar con "fila.id ?? fila.fecha" — que es lo que
@@ -110,8 +110,8 @@ test.beforeEach(limpiar);
 // Los bloques horarios que promete el producto
 // ---------------------------------------------------------------------------
 
-test("son los seis bloques de dos horas de 08:00 a 20:00 (FR-009)", () => {
-  assert.equal(BLOQUES_HORARIOS.length, 6);
+test("son los cinco bloques de dos horas de 08:00 a 18:00 (FR-009)", () => {
+  assert.equal(BLOQUES_HORARIOS.length, 5);
   assert.deepEqual(
     BLOQUES_HORARIOS.map((b) => b.etiqueta),
     [
@@ -120,7 +120,6 @@ test("son los seis bloques de dos horas de 08:00 a 20:00 (FR-009)", () => {
       "12:00 - 14:00",
       "14:00 - 16:00",
       "16:00 - 18:00",
-      "18:00 - 20:00",
     ],
   );
   // Sin huecos ni solapes: el fin de cada uno es el inicio del siguiente.
@@ -135,7 +134,7 @@ test("los ids de bloque son únicos: son la clave con la que vuelve la respuesta
 });
 
 test("un bloque que ya no existe no revienta el ordenamiento, devuelve null", () => {
-  assert.equal(minutosDesde("18-20"), 18 * 60);
+  assert.equal(minutosDesde("16-18"), 16 * 60);
   assert.equal(minutosDesde("03-05"), null, "un bloque retirado no puede dar un número");
   assert.equal(minutosDesde(null), null);
   assert.equal(bloquePorId("no-existe"), null);
@@ -155,18 +154,18 @@ test("el payload del botón va y vuelve sin perder nada", () => {
     });
   }
 
-  const conBloque = payloadBoton("HORARIO", "corr-xyz", "18-20");
-  assert.equal(conBloque, "HORARIO_18-20:corr-xyz");
+  const conBloque = payloadBoton("HORARIO", "corr-xyz", "16-18");
+  assert.equal(conBloque, "HORARIO_16-18:corr-xyz");
   assert.deepEqual(leerPayloadBoton(conBloque), {
     accion: "HORARIO",
     correlationId: "corr-xyz",
-    bloqueHorarioId: "18-20",
+    bloqueHorarioId: "16-18",
   });
 });
 
 test("el payload cabe en los 128 caracteres que permite Meta", () => {
   // El prefijo más largo posible con los bloques de hoy.
-  const masLargo = payloadBoton("HORARIO", "a".repeat(36), "18-20");
+  const masLargo = payloadBoton("HORARIO", "a".repeat(36), "16-18");
   assert.ok(masLargo.length <= 128, `el payload mide ${masLargo.length}`);
 });
 
@@ -284,24 +283,24 @@ test("una ruta guardada por la versión ANTERIOR se lee sin undefined", async ()
 
 test("confirmar deja el pedido confirmado y visible como tal", async () => {
   const [id] = await cargar(1);
-  assert.equal(await registrarDisponibilidad(id, { tipo: "confirmado" }, "wamid.R1", CHOFER), true);
+  assert.equal(await registrarDisponibilidad(id, { tipo: "confirmado" }, "wamid.R1", CONDUCTOR), true);
   assert.equal((await pedido(id)).disponibilidad, "confirmado");
 });
 
 test("elegir un bloque lo asocia al pedido", async () => {
   const [id] = await cargar(1);
-  await registrarDisponibilidad(id, { tipo: "horario_indicado", bloqueHorarioId: "18-20" }, "wamid.R1", CHOFER);
+  await registrarDisponibilidad(id, { tipo: "horario_indicado", bloqueHorarioId: "16-18" }, "wamid.R1", CONDUCTOR);
   const p = await pedido(id);
   assert.equal(p.disponibilidad, "horario_indicado");
-  assert.equal(p.bloqueHorarioId, "18-20");
+  assert.equal(p.bloqueHorarioId, "16-18");
 });
 
 test("cambiar de respuesta LIMPIA el bloque anterior", async () => {
   // Si no se limpiara, la ruta seguiría ordenando por una ventana horaria que el
   // receptor ya descartó.
   const [id] = await cargar(1);
-  await registrarDisponibilidad(id, { tipo: "horario_indicado", bloqueHorarioId: "08-10" }, "wamid.R1", CHOFER);
-  await registrarDisponibilidad(id, { tipo: "confirmado" }, "wamid.R2", CHOFER);
+  await registrarDisponibilidad(id, { tipo: "horario_indicado", bloqueHorarioId: "08-10" }, "wamid.R1", CONDUCTOR);
+  await registrarDisponibilidad(id, { tipo: "confirmado" }, "wamid.R2", CONDUCTOR);
 
   const p = await pedido(id);
   assert.equal(p.disponibilidad, "confirmado");
@@ -310,8 +309,8 @@ test("cambiar de respuesta LIMPIA el bloque anterior", async () => {
 
 test("una respuesta posterior reemplaza la anterior", async () => {
   const [id] = await cargar(1);
-  await registrarDisponibilidad(id, { tipo: "confirmado" }, "wamid.R1", CHOFER);
-  await registrarDisponibilidad(id, { tipo: "horario_indicado", bloqueHorarioId: "12-14" }, "wamid.R2", CHOFER);
+  await registrarDisponibilidad(id, { tipo: "confirmado" }, "wamid.R1", CONDUCTOR);
+  await registrarDisponibilidad(id, { tipo: "horario_indicado", bloqueHorarioId: "12-14" }, "wamid.R2", CONDUCTOR);
   assert.equal((await pedido(id)).disponibilidad, "horario_indicado");
 });
 
@@ -321,9 +320,9 @@ test("una respuesta posterior reemplaza la anterior", async () => {
 
 test("la MISMA respuesta aplicada dos veces cambia el pedido una sola vez", async () => {
   const [id] = await cargar(1);
-  assert.equal(await registrarDisponibilidad(id, { tipo: "confirmado" }, "wamid.R1", CHOFER), true);
+  assert.equal(await registrarDisponibilidad(id, { tipo: "confirmado" }, "wamid.R1", CONDUCTOR), true);
   assert.equal(
-    await registrarDisponibilidad(id, { tipo: "confirmado" }, "wamid.R1", CHOFER),
+    await registrarDisponibilidad(id, { tipo: "confirmado" }, "wamid.R1", CONDUCTOR),
     false,
     "la segunda aplicación del mismo mensaje se contó como un cambio",
   );
@@ -338,9 +337,9 @@ test("tres aplicaciones EN PARALELO del mismo mensaje: solo una entra", async ()
   // almacén, los tres leerían "no aplicada" y los tres pasarían.
   const [id] = await cargar(1);
   const r = await Promise.all([
-    registrarDisponibilidad(id, { tipo: "confirmado" }, "wamid.R1", CHOFER),
-    registrarDisponibilidad(id, { tipo: "confirmado" }, "wamid.R1", CHOFER),
-    registrarDisponibilidad(id, { tipo: "confirmado" }, "wamid.R1", CHOFER),
+    registrarDisponibilidad(id, { tipo: "confirmado" }, "wamid.R1", CONDUCTOR),
+    registrarDisponibilidad(id, { tipo: "confirmado" }, "wamid.R1", CONDUCTOR),
+    registrarDisponibilidad(id, { tipo: "confirmado" }, "wamid.R1", CONDUCTOR),
   ]);
   assert.equal(r.filter(Boolean).length, 1, `entraron ${r.filter(Boolean).length} veces`);
 
@@ -350,7 +349,7 @@ test("tres aplicaciones EN PARALELO del mismo mensaje: solo una entra", async ()
 
 test("una respuesta para un pedido borrado se descarta sin lanzar", async () => {
   assert.equal(
-    await registrarDisponibilidad("00000000-0000-7000-8000-000000000404", { tipo: "confirmado" }, "wamid.R9", CHOFER),
+    await registrarDisponibilidad("00000000-0000-7000-8000-000000000404", { tipo: "confirmado" }, "wamid.R9", CONDUCTOR),
     false,
   );
 });
@@ -361,9 +360,9 @@ test("una respuesta para un pedido borrado se descarta sin lanzar", async () => 
 
 test("un 'sí' que llega DESPUÉS de 'Mañana' no lo reabre", async () => {
   const [id] = await cargar(1);
-  await registrarDisponibilidad(id, { tipo: "manana" }, "wamid.R1", CHOFER);
+  await registrarDisponibilidad(id, { tipo: "manana" }, "wamid.R1", CONDUCTOR);
   assert.equal(
-    await registrarDisponibilidad(id, { tipo: "confirmado" }, "wamid.R2", CHOFER),
+    await registrarDisponibilidad(id, { tipo: "confirmado" }, "wamid.R2", CONDUCTOR),
     false,
     "una respuesta posterior reabrió un pedido cerrado",
   );
@@ -374,8 +373,8 @@ test("un 'sí' que llega DESPUÉS de 'Mañana' no lo reabre", async () => {
 
 test("un bloque elegido DESPUÉS de 'Mañana' tampoco lo reabre", async () => {
   const [id] = await cargar(1);
-  await registrarDisponibilidad(id, { tipo: "manana" }, "wamid.R1", CHOFER);
-  await registrarDisponibilidad(id, { tipo: "horario_indicado", bloqueHorarioId: "10-12" }, "wamid.R2", CHOFER);
+  await registrarDisponibilidad(id, { tipo: "manana" }, "wamid.R1", CONDUCTOR);
+  await registrarDisponibilidad(id, { tipo: "horario_indicado", bloqueHorarioId: "10-12" }, "wamid.R2", CONDUCTOR);
 
   const p = await pedido(id);
   assert.equal(p.disponibilidad, "manana");
@@ -384,8 +383,8 @@ test("un bloque elegido DESPUÉS de 'Mañana' tampoco lo reabre", async () => {
 
 test("una respuesta frenada por una regla se anota igual, para no bajarla eternamente", async () => {
   const [id] = await cargar(1);
-  await registrarDisponibilidad(id, { tipo: "manana" }, "wamid.R1", CHOFER);
-  await registrarDisponibilidad(id, { tipo: "confirmado" }, "wamid.R2", CHOFER);
+  await registrarDisponibilidad(id, { tipo: "manana" }, "wamid.R1", CONDUCTOR);
+  await registrarDisponibilidad(id, { tipo: "confirmado" }, "wamid.R2", CONDUCTOR);
 
   const c = (await pedido(id)).aviso;
   assert.deepEqual(
@@ -397,8 +396,8 @@ test("una respuesta frenada por una regla se anota igual, para no bajarla eterna
 
 test("repetir el MISMO 'Mañana' es idempotente: un solo evento", async () => {
   const [id] = await cargar(1);
-  assert.equal(await registrarDisponibilidad(id, { tipo: "manana" }, "wamid.R1", CHOFER), true);
-  assert.equal(await registrarDisponibilidad(id, { tipo: "manana" }, "wamid.R1", CHOFER), false);
+  assert.equal(await registrarDisponibilidad(id, { tipo: "manana" }, "wamid.R1", CONDUCTOR), true);
+  assert.equal(await registrarDisponibilidad(id, { tipo: "manana" }, "wamid.R1", CONDUCTOR), false);
   assert.equal((await leerCola()).length, 1);
 });
 
@@ -409,7 +408,7 @@ test("repetir el MISMO 'Mañana' es idempotente: un solo evento", async () => {
 test("entregar cierra el pedido y encola una entrega", async () => {
   const [id] = await cargar(1);
   await rutaCon([id]);
-  await marcarResultado({ fecha: HOY, pedidoId: id, choferId: CHOFER }, "entregado");
+  await marcarResultado({ fecha: HOY, pedidoId: id, conductorId: CONDUCTOR }, "entregado");
 
   assert.equal((await pedido(id)).resultado, "entregado");
   const cola = await leerCola();
@@ -421,7 +420,7 @@ test("entregar cierra el pedido y encola una entrega", async () => {
 test("no entregado cierra el pedido del día y encola una omisión sin motivo", async () => {
   const [id, otro] = await cargar(2);
   await rutaCon([id, otro]);
-  await marcarResultado({ fecha: HOY, pedidoId: id, choferId: CHOFER }, "no_entregado");
+  await marcarResultado({ fecha: HOY, pedidoId: id, conductorId: CONDUCTOR }, "no_entregado");
 
   assert.equal((await pedido(id)).resultado, "no_entregado");
   assert.deepEqual(
@@ -446,8 +445,8 @@ test("marcar dos veces la misma parada no duplica el evento, con cualquier resul
     [d, "no_entregado"],
   ];
   for (const [id, resultado] of casos) {
-    const primero = await marcarResultado({ fecha: HOY, pedidoId: id, choferId: CHOFER }, resultado);
-    const segundo = await marcarResultado({ fecha: HOY, pedidoId: id, choferId: CHOFER }, resultado);
+    const primero = await marcarResultado({ fecha: HOY, pedidoId: id, conductorId: CONDUCTOR }, resultado);
+    const segundo = await marcarResultado({ fecha: HOY, pedidoId: id, conductorId: CONDUCTOR }, resultado);
     assert.ok(primero, `${resultado}: el primer toque no devolvió evento`);
     assert.equal(segundo, null, `${resultado}: el segundo toque volvió a cerrar la parada`);
   }
@@ -457,7 +456,7 @@ test("marcar dos veces la misma parada no duplica el evento, con cualquier resul
 test("cuatro toques EN PARALELO sobre la misma parada encolan un solo evento", async () => {
   const [id] = await cargar(1);
   await rutaCon([id]);
-  const marca = { fecha: HOY, pedidoId: id, choferId: CHOFER };
+  const marca = { fecha: HOY, pedidoId: id, conductorId: CONDUCTOR };
 
   const ids = await Promise.all([
     marcarResultado(marca, "no_entregado"),
@@ -475,7 +474,7 @@ test("cuatro toques EN PARALELO sobre la misma parada encolan un solo evento", a
 
 test("'Mañana' cierra el pedido como no entregado y lo cuenta, sin necesitar una ruta", async () => {
   const [id] = await cargar(1);
-  assert.equal(await registrarDisponibilidad(id, { tipo: "manana" }, "wamid.R1", CHOFER), true);
+  assert.equal(await registrarDisponibilidad(id, { tipo: "manana" }, "wamid.R1", CONDUCTOR), true);
 
   const p = await pedido(id);
   assert.equal(p.disponibilidad, "manana", "lo que dijo el receptor sigue separado del resultado");
@@ -485,15 +484,15 @@ test("'Mañana' cierra el pedido como no entregado y lo cuenta, sin necesitar un
   const [ev] = await leerCola();
   assert.equal(ev.tipo, "omision");
   assert.equal(ev.fecha, HOY);
-  assert.equal(ev.choferId, CHOFER);
+  assert.equal(ev.conductorId, CONDUCTOR);
 });
 
 test("'Mañana' en paralelo encola un solo evento", async () => {
   const [id] = await cargar(1);
   const r = await Promise.all([
-    registrarDisponibilidad(id, { tipo: "manana" }, "wamid.R1", CHOFER),
-    registrarDisponibilidad(id, { tipo: "manana" }, "wamid.R1", CHOFER),
-    registrarDisponibilidad(id, { tipo: "manana" }, "wamid.R2", CHOFER),
+    registrarDisponibilidad(id, { tipo: "manana" }, "wamid.R1", CONDUCTOR),
+    registrarDisponibilidad(id, { tipo: "manana" }, "wamid.R1", CONDUCTOR),
+    registrarDisponibilidad(id, { tipo: "manana" }, "wamid.R2", CONDUCTOR),
   ]);
   assert.equal(r.filter(Boolean).length, 1);
   assert.equal((await leerCola()).length, 1);
@@ -502,8 +501,8 @@ test("'Mañana' en paralelo encola un solo evento", async () => {
 test("'Sí' y un horario no cierran nada ni encolan", async () => {
   // Solo "Mañana" cierra: lo demás es disponibilidad, el resultado lo pone la puerta.
   const [a, b] = await cargar(2);
-  await registrarDisponibilidad(a, { tipo: "confirmado" }, "wamid.RA", CHOFER);
-  await registrarDisponibilidad(b, { tipo: "horario_indicado", bloqueHorarioId: "16-18" }, "wamid.RB", CHOFER);
+  await registrarDisponibilidad(a, { tipo: "confirmado" }, "wamid.RA", CONDUCTOR);
+  await registrarDisponibilidad(b, { tipo: "horario_indicado", bloqueHorarioId: "16-18" }, "wamid.RB", CONDUCTOR);
 
   assert.deepEqual((await pedidosPendientes(HOY)).map((p) => p.id).sort(), [a, b].sort());
   assert.equal((await leerCola()).length, 0);
@@ -515,7 +514,7 @@ test("'Sí' y un horario no cierran nada ni encolan", async () => {
 
 test("editar un pedido conserva lo que el receptor ya contestó", async () => {
   const [id] = await cargar(1);
-  await registrarDisponibilidad(id, { tipo: "horario_indicado", bloqueHorarioId: "14-16" }, "wamid.R1", CHOFER);
+  await registrarDisponibilidad(id, { tipo: "horario_indicado", bloqueHorarioId: "14-16" }, "wamid.R1", CONDUCTOR);
 
   await guardarPedido({ ...P(1), notas: "portón azul" }, HOY, id);
 
@@ -529,7 +528,7 @@ test("reiniciar la disponibilidad borra la respuesta del número equivocado", as
   // Esa respuesta era de otra persona: no puede quedar pegada al pedido, y el
   // aviso tiene que poder salir de nuevo al número correcto.
   const [id] = await cargar(1);
-  await registrarDisponibilidad(id, { tipo: "horario_indicado", bloqueHorarioId: "16-18" }, "wamid.R1", CHOFER);
+  await registrarDisponibilidad(id, { tipo: "horario_indicado", bloqueHorarioId: "16-18" }, "wamid.R1", CONDUCTOR);
 
   await reiniciarDisponibilidad(id);
 
@@ -539,13 +538,13 @@ test("reiniciar la disponibilidad borra la respuesta del número equivocado", as
   assert.deepEqual((await pedido(id)).aviso.respuestasAplicadas, [], "quedó el aviso del número viejo");
 
   // Y ahora el mismo mensaje puede volver a aplicarse: es otro destinatario.
-  assert.equal(await registrarDisponibilidad(id, { tipo: "confirmado" }, "wamid.R1", CHOFER), true);
+  assert.equal(await registrarDisponibilidad(id, { tipo: "confirmado" }, "wamid.R1", CONDUCTOR), true);
 });
 
 test("corregir un teléfono mal escrito descarta la respuesta del anterior", async () => {
   // El flujo completo tal como lo dispara el formulario.
   const [id] = await cargar(1);
-  await registrarDisponibilidad(id, { tipo: "confirmado" }, "wamid.DELOTRO", CHOFER);
+  await registrarDisponibilidad(id, { tipo: "confirmado" }, "wamid.DELOTRO", CONDUCTOR);
 
   await reiniciarDisponibilidad(id);
   await guardarPedido({ ...P(1), telefono: "+56999999999" }, HOY, id);
@@ -560,7 +559,7 @@ test("corregir el teléfono NO reabre un 'Mañana' ya registrado", async () => {
   // La no entrega ya salió al servidor como evento: reabrirla dejaría las dos
   // puntas contando cosas distintas.
   const [id] = await cargar(1);
-  await registrarDisponibilidad(id, { tipo: "manana" }, "wamid.R1", CHOFER);
+  await registrarDisponibilidad(id, { tipo: "manana" }, "wamid.R1", CONDUCTOR);
 
   await reiniciarDisponibilidad(id);
   const p = await pedido(id);
@@ -569,10 +568,10 @@ test("corregir el teléfono NO reabre un 'Mañana' ya registrado", async () => {
 });
 
 test("corregir SOLO la dirección conserva lo que el receptor contestó", async () => {
-  // La contracara: no hay que descartar una respuesta válida porque el chofer
+  // La contracara: no hay que descartar una respuesta válida porque el conductor
   // arregló una calle mal escrita.
   const [id] = await cargar(1);
-  await registrarDisponibilidad(id, { tipo: "confirmado" }, "wamid.R1", CHOFER);
+  await registrarDisponibilidad(id, { tipo: "confirmado" }, "wamid.R1", CONDUCTOR);
 
   await guardarPedido({ ...P(1), direccion: "Calle Corregida 200, Arica" }, HOY, id);
 
@@ -586,7 +585,7 @@ test("reiniciar la disponibilidad NO reabre un pedido tachado en la puerta", asy
   // marcado en la puerta sí ocurrió: queda cerrado.
   const [id] = await cargar(1);
   await rutaCon([id]);
-  await marcarResultado({ fecha: HOY, pedidoId: id, choferId: CHOFER }, "no_entregado");
+  await marcarResultado({ fecha: HOY, pedidoId: id, conductorId: CONDUCTOR }, "no_entregado");
 
   await reiniciarDisponibilidad(id);
   assert.equal((await pedido(id)).resultado, "no_entregado");
@@ -595,7 +594,7 @@ test("reiniciar la disponibilidad NO reabre un pedido tachado en la puerta", asy
 test("reiniciar la disponibilidad NO reabre una entrega ya hecha", async () => {
   const [id] = await cargar(1);
   await rutaCon([id]);
-  await marcarResultado({ fecha: HOY, pedidoId: id, choferId: CHOFER }, "entregado");
+  await marcarResultado({ fecha: HOY, pedidoId: id, conductorId: CONDUCTOR }, "entregado");
 
   await reiniciarDisponibilidad(id);
   assert.equal((await pedido(id)).resultado, "entregado", "se reabrió un pedido ya entregado y contado");
@@ -734,13 +733,13 @@ test("un lote mixto se aplica, y solo se confirma lo que quedó resuelto", async
 
   const lote = [
     { pedidoId: a, mensajeId: "wamid.RA", accion: "CONFIRMAR", recibidoEn: "2026-08-20T12:00:00.000Z" },
-    { pedidoId: b, mensajeId: "wamid.RB", accion: "HORARIO", bloqueHorarioId: "18-20", recibidoEn: "2026-08-20T12:01:00.000Z" },
+    { pedidoId: b, mensajeId: "wamid.RB", accion: "HORARIO", bloqueHorarioId: "16-18", recibidoEn: "2026-08-20T12:01:00.000Z" },
     { pedidoId: c, mensajeId: "wamid.RC", accion: "HORARIO", bloqueHorarioId: null, recibidoEn: "2026-08-20T12:02:00.000Z" },
     // Basura en el medio: no puede frenar las demás ni confirmarse.
     { pedidoId: "", mensajeId: "wamid.RX", accion: "CONFIRMAR" },
   ];
 
-  const r = await aplicarRespuestas(lote, CHOFER);
+  const r = await aplicarRespuestas(lote, CONDUCTOR);
 
   assert.equal(r.aplicadas, 2, "no se aplicaron las dos respuestas con disponibilidad");
   assert.equal(r.descartadas, 1, "el 'quiere indicar horario' debía quedar atendido sin cambiar el pedido");
@@ -751,7 +750,7 @@ test("un lote mixto se aplica, y solo se confirma lo que quedó resuelto", async
   assert.deepEqual(r.cambios, [{ pedidoId: b, tipo: "horario_indicado" }]);
 
   assert.equal((await pedido(a)).disponibilidad, "confirmado");
-  assert.equal((await pedido(b)).bloqueHorarioId, "18-20");
+  assert.equal((await pedido(b)).bloqueHorarioId, "16-18");
   assert.equal((await pedido(c)).disponibilidad, "pendiente_respuesta");
 });
 
@@ -761,8 +760,8 @@ test("volver a aplicar el mismo lote no cambia nada y sigue confirmándose", asy
     { pedidoId: id, mensajeId: "wamid.R1", accion: "CONFIRMAR", recibidoEn: "2026-08-20T12:00:00.000Z" },
   ];
 
-  const primera = await aplicarRespuestas(lote, CHOFER);
-  const segunda = await aplicarRespuestas(lote, CHOFER);
+  const primera = await aplicarRespuestas(lote, CONDUCTOR);
+  const segunda = await aplicarRespuestas(lote, CONDUCTOR);
 
   assert.equal(primera.aplicadas, 1);
   assert.equal(segunda.aplicadas, 0);
@@ -772,7 +771,7 @@ test("volver a aplicar el mismo lote no cambia nada y sigue confirmándose", asy
 });
 
 test("un lote vacío no hace nada", async () => {
-  assert.deepEqual(await aplicarRespuestas([], CHOFER), {
+  assert.deepEqual(await aplicarRespuestas([], CONDUCTOR), {
     aplicadas: 0,
     descartadas: 0,
     confirmar: [],
@@ -863,7 +862,9 @@ test("cada policy de la correlación exige que sea del propio conductor", () => 
   for (const policy of policies) {
     assert.match(
       policy,
-      /choferes where user_id = \(select auth\.uid\(\)\)/,
+      // La migración es histórica (0003): la tabla se renombró en la 0006 y
+      // Postgres actualizó las policies solo. Lo que importa es el filtro.
+      /where user_id = \(select auth\.uid\(\)\)/,
       `una policy no se limita al propio conductor:\n${policy.slice(0, 120)}`,
     );
   }

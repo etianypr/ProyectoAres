@@ -12,21 +12,23 @@
 //
 //   calcularRutaLocal()   ordena las paradas y pide el trazado, SIN guardar
 //                         nada. Lo que devuelve es una propuesta, que la
-//                         pantalla muestra en el mapa para que el chofer la vea
+//                         pantalla muestra en el mapa para que el conductor la vea
 //                         antes de comprometerse (ver vista-previa-ruta.tsx).
 //   confirmarRutaLocal()  recién ahí la ruta queda guardada en el teléfono.
 //
 // Antes era un solo paso que guardaba de una: rehacer la ruta a media mañana
-// reordenaba las paradas y el chofer se enteraba mirando el mapa después.
+// reordenaba las paradas y el conductor se enteraba mirando el mapa después.
 //
 // Lo que no cambió es el cálculo en sí: ordenarParadas() y el pedido del trazado
 // por calles son las mismas funciones que ya se usaban, y ya corrían en el
 // navegador para la navegación paso a paso (ver use-navegacion.ts).
 
-import { ubicarDireccion, geocodificarDireccion } from "@/lib/geocoding";
+import { ubicarDireccion, geocodificarDireccion } from "@/lib/geo/geocoding";
 import type { Coordenada, Trazado } from "@/lib/geo/coordenada";
-import { matrizDistancias, obtenerRutaCalles, ordenarParadas } from "@/lib/rutas";
+import { matrizDistancias, obtenerRutaCalles } from "@/lib/geo/mapbox/direcciones";
+import { ordenarParadas } from "@/lib/rutas/orden-paradas";
 import { bloquePorId } from "@/lib/encomiendas/config";
+import { nombreVisible } from "@/lib/encomiendas/paquete";
 import { resultadoCerrado, estaConfirmado } from "@/lib/encomiendas/estados";
 import {
   fueraDeHorario,
@@ -48,7 +50,7 @@ import {
 
 // Las direcciones se ubican al CARGAR cada pedido, una por una, así que acá
 // solo se reintentan las que fallaron. Se limita cuántas para no dejar al
-// chofer treinta segundos mirando una pantalla trabada; las que no entren en
+// conductor treinta segundos mirando una pantalla trabada; las que no entren en
 // este intento se reintentan en la próxima generación.
 const MAX_REINTENTOS_UBICAR = 5;
 
@@ -63,7 +65,7 @@ const MAX_REINTENTOS_UBICAR = 5;
 // exactamente lo mismo. En un día de prueba fueron 6.839 elementos de matriz
 // —unas 56 generaciones— sin que nadie repartiera en serio.
 //
-// Las dos cachés de acá abajo no cambian nada de lo que el chofer ve; al
+// Las dos cachés de acá abajo no cambian nada de lo que el conductor ve; al
 // contrario, la propuesta repetida aparece al instante en vez de después de un
 // segundo y medio de espera.
 
@@ -123,7 +125,7 @@ let ultimaPropuesta: { huella: string; propuesta: PropuestaRuta } | null = null;
 export type PuntoInicio =
   | { tipo: "empresa"; direccion: string | null }
   | { tipo: "gps"; lat: number; lng: number }
-  /** lat/lng vienen cuando el chofer eligió la dirección de una lista de
+  /** lat/lng vienen cuando el conductor eligió la dirección de una lista de
    *  sugerencias: ya está ubicada y no hay que geocodificar el texto. */
   | { tipo: "direccion"; direccion: string; lat?: number; lng?: number };
 
@@ -151,7 +153,7 @@ export type PropuestaRuta = {
   /** Cuántas paradas de hoy ya están cerradas (entregadas u omitidas). No se
    *  reordenan ni se pierden: quedan primero en la ruta guardada. */
   cerradas: number;
-  /** Todo lo que el chofer tiene que saber antes de salir, en frases
+  /** Todo lo que el conductor tiene que saber antes de salir, en frases
    *  mostrables. Se guardan CON la ruta (ver Ruta.advertencias) y no solo
    *  se muestran en la previsualización: en terreno, tres horas después, siguen
    *  siendo la explicación de por qué un pedido no está en la lista. */
@@ -160,7 +162,7 @@ export type PropuestaRuta = {
    *  primero. `paradas` de arriba son siempre las de la elegida.
    *
    *  Con una sola alternativa la pantalla no muestra ninguna comparación: es el
-   *  caso en que el documento principal pide no obligar al chofer a elegir. */
+   *  caso en que el documento principal pide no obligar al conductor a elegir. */
   alternativas: Alternativa[];
   /** Cuál de `alternativas` está puesta ahora mismo. */
   elegida: EstrategiaRuta;
@@ -182,10 +184,10 @@ function tieneCoordenadas(p: Pedido): p is PedidoUbicado {
 // LO QUE CAMBIÓ Y POR QUÉ: antes esto usaba geocodificarDireccion(), que se
 // queda con la mejor coincidencia y no dice que había otra. Un pedido con una
 // dirección ambigua entraba a la ruta con coordenadas que nadie había
-// confirmado, y el chofer se enteraba al llegar a la casa equivocada. Ahora se
+// confirmado, y el conductor se enteraba al llegar a la casa equivocada. Ahora se
 // usa ubicarDireccion(), que devuelve `elegida` SOLO cuando no hay dudas: si hay
 // dos lugares con el mismo nombre, o solo se encontró la calle, el pedido se
-// queda fuera con una advertencia y el chofer decide.
+// queda fuera con una advertencia y el conductor decide.
 //
 // No se pierde nada: el pedido sigue pendiente en la lista del día y la
 // advertencia le dice qué corregir. Es el cumplimiento de SC-009 —ningún pedido
@@ -203,7 +205,7 @@ async function reintentarUbicar(
 
   // Secuencial a propósito: en paralelo se pasaría del límite de consultas por
   // segundo de OpenStreetMap. El espaciado ya no se hace acá — lo garantiza el
-  // propio geocodificador (ver la fila de turnos en lib/geocoding.ts), y así una
+  // propio geocodificador (ver la fila de turnos en lib/geo/geocoding), y así una
   // dirección que Mapbox resuelve sola no paga ninguna espera.
   for (const pedido of aIntentar) {
     const r = await ubicarDireccion(pedido.direccion);
@@ -211,15 +213,15 @@ async function reintentarUbicar(
       encontradas.push({ id: pedido.id, lat: r.elegida.lat, lng: r.elegida.lng });
       // Entró a la ruta, pero puede haber entrado con la puerta interpolada
       // (tipo "aproximada"): se avisa igual. Un pedido que entra con una
-      // coordenada aproximada y sin decirlo es el chofer buscando el número a
+      // coordenada aproximada y sin decirlo es el conductor buscando el número a
       // pie en la cuadra, sin saber por qué.
-      if (r.advertencia) advertencias.push(`${pedido.nombre}: ${r.advertencia}`);
+      if (r.advertencia) advertencias.push(`${nombreVisible(pedido)}: ${r.advertencia}`);
       continue;
     }
     // Sin ubicación confirmada. La advertencia nombra al destinatario porque es
-    // así como el chofer sabe de qué paquete se trata; el texto no sale del
+    // así como el conductor sabe de qué paquete se trata; el texto no sale del
     // teléfono.
-    if (r.advertencia) advertencias.push(`${pedido.nombre}: ${r.advertencia}`);
+    if (r.advertencia) advertencias.push(`${nombreVisible(pedido)}: ${r.advertencia}`);
   }
 
   // Los que no entraron en este intento no son un problema silencioso: se
@@ -252,12 +254,12 @@ async function resolverInicio(
   }
 
   if (inicio.tipo === "direccion") {
-    // Ya viene ubicada (el chofer la eligió de la lista de sugerencias).
+    // Ya viene ubicada (el conductor la eligió de la lista de sugerencias).
     if (inicio.lat != null && inicio.lng != null) {
       return { lat: inicio.lat, lng: inicio.lng };
     }
     const coord = await geocodificarDireccion(inicio.direccion);
-    // Si el chofer escribió a mano de dónde parte y no se pudo ubicar, se lo
+    // Si el conductor escribió a mano de dónde parte y no se pudo ubicar, se lo
     // decimos en vez de arrancar la ruta desde un punto que no eligió (mismo
     // criterio que tenía la versión del servidor).
     if (!coord) {
@@ -302,12 +304,12 @@ async function resolverInicio(
 //  · Los tres órdenes salen GRATIS. Se calculan con la matriz que ya se pidió,
 //    sin una sola consulta más. Lo que cuesta plata y segundos es el TRAZADO por
 //    calles, y eso se pide solo para las propuestas que de verdad se van a
-//    mostrar (ver la Decisión 5 de research.md: no generar tres rutas artificiales
+//    mostrar (ver docs/ARQUITECTURA.md, propuestas de ruta: no generar tres rutas artificiales
 //    multiplicando consultas).
 //
 //  · Si dos estrategias dan el mismo orden de paradas, es la misma ruta y se
 //    muestra una sola vez. Es lo más común en un día donde nadie eligió
-//    horario, y es justamente el caso en que el chofer no tiene que comparar nada.
+//    horario, y es justamente el caso en que el conductor no tiene que comparar nada.
 
 export type EstrategiaRuta = "corta" | "horarios" | "confirmados";
 
@@ -518,7 +520,7 @@ function medir(
     pendientesDeContacto: orden.filter((p) => p.disponibilidad === "pendiente_respuesta").length,
     bloquesCumplidos: conBloque - fuera.length,
     bloquesIncumplidos: fuera.length,
-    fueraDeHorario: fuera.map((p) => p.nombre),
+    fueraDeHorario: fuera.map((p) => nombreVisible(p)),
   };
 }
 
@@ -614,14 +616,14 @@ export async function calcularRutaLocal(
   if (sinUbicar.length > 0) {
     advertencias.push(
       sinUbicar.length === 1
-        ? `"${sinUbicar[0].nombre}" no entra en la ruta: su dirección no está ubicada en el mapa.`
+        ? `"${nombreVisible(sinUbicar[0])}" no entra en la ruta: su dirección no está ubicada en el mapa.`
         : `${sinUbicar.length} pedidos no entran en la ruta porque su dirección no está ubicada en el mapa.`,
     );
   }
   // Misma partida y mismos pedidos que la vez anterior: la ruta ya está
   // calculada. Se devuelve esa, con el recuento de cerradas al día (que sí pudo
-  // cambiar si el chofer marcó algo mientras la propuesta estaba en pantalla) y
-  // con las advertencias recién calculadas: una dirección que el chofer corrigió
+  // cambiar si el conductor marcó algo mientras la propuesta estaba en pantalla) y
+  // con las advertencias recién calculadas: una dirección que el conductor corrigió
   // entre las dos pasadas no puede seguir avisando.
   const clave = huella(fecha, base, ubicados);
   if (ultimaPropuesta?.huella === clave) {
@@ -676,7 +678,7 @@ export async function calcularRutaLocal(
 
   // El trazado se pide SOLO para la recomendada, y no para las tres. Es la
   // consulta caraaa de este armado (ver la Decisión 5): mostrar tres opciones no
-  // puede costar tres veces más. Cuando el chofer elige otra, se le pide el
+  // puede costar tres veces más. Cuando el conductor elige otra, se le pide el
   // trazado de esa en ese momento (ver elegirAlternativa).
   //
   // El límite de 25 puntos por consulta de Mapbox (un día de 30 paradas no
@@ -723,7 +725,7 @@ export async function calcularRutaLocal(
  *
  *  El trazado se pide acá y no al calcular las tres porque es la consulta que
  *  cuesta: mostrar una comparación de tres órdenes no puede valer tres veces más
- *  que mostrar uno (Decisión 5). El chofer paga la consulta de la que de verdad
+ *  que mostrar uno (Decisión 5). El conductor paga la consulta de la que de verdad
  *  quiere mirar.
  *
  *  Si la estrategia pedida no está entre las útiles, devuelve la propuesta tal
@@ -754,7 +756,7 @@ export async function elegirAlternativa(
 }
 
 /** Guarda la propuesta como la ruta del día. Entre calcular y confirmar el
- *  chofer pudo cerrar una parada o agregar un pedido: guardarRuta vuelve a leer
+ *  conductor pudo cerrar una parada o agregar un pedido: guardarRuta vuelve a leer
  *  lo guardado y conserva lo cerrado, así que la propuesta nunca lo pisa. */
 export async function confirmarRutaLocal(propuesta: PropuestaRuta): Promise<ResultadoRuta> {
   const ruta = await guardarRuta({

@@ -1,7 +1,7 @@
-// Prueba intensiva del guardado local del chofer (IndexedDB real vía
+// Prueba intensiva del guardado local del conductor (IndexedDB real vía
 // fake-indexeddb) contra src/lib/encomiendas/local/almacen/ + idb.ts reales.
 // Es lo que sostiene el día sin señal: si acá se pierde un evento, el
-// chofer trabaja gratis; si se duplica, se le paga dos veces.
+// conductor trabaja gratis; si se duplica, se le paga dos veces.
 import "fake-indexeddb/auto";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -26,7 +26,7 @@ const {
 } = almacen;
 
 const HOY = "2026-08-06";
-const CHOFER = "11111111-1111-7111-8111-111111111111";
+const CONDUCTOR = "11111111-1111-7111-8111-111111111111";
 
 async function limpiar() {
   // Borra la base entre pruebas para que cada una arranque de cero.
@@ -73,7 +73,7 @@ test("guardarPedido crea con id propio, del día y pendiente", async () => {
 test("editar un pedido no lo reabre ni lo cierra, ni le cambia la fecha de carga", async () => {
   const p = await guardarPedido(P(1), HOY);
   await guardarRuta({ fecha: HOY, pedidoIdsEnOrden: [p.id], trazado: null, distanciaM: null, duracionS: null });
-  await marcarResultado({ fecha: HOY, pedidoId: p.id, choferId: CHOFER }, "entregado");
+  await marcarResultado({ fecha: HOY, pedidoId: p.id, conductorId: CONDUCTOR }, "entregado");
 
   const editado = await guardarPedido({ ...P(1), nombre: "Corregido" }, HOY, p.id);
   assert.equal(editado.resultado, "entregado", "editar reabrió un pedido ya entregado");
@@ -109,15 +109,15 @@ test("borrarPedido lo saca también de la ruta del día", async () => {
 test("borrarPedido no borra los eventos ya contados", async () => {
   const [id] = await cargar(1);
   await guardarRuta({ fecha: HOY, pedidoIdsEnOrden: [id], trazado: null, distanciaM: null, duracionS: null });
-  await marcarResultado({ fecha: HOY, pedidoId: id, choferId: CHOFER }, "entregado");
+  await marcarResultado({ fecha: HOY, pedidoId: id, conductorId: CONDUCTOR }, "entregado");
   // Una entrega ya prueba el día trabajado: no hace falta encolar una 'llamada'.
   assert.equal((await leerCola()).length, 1);
   await borrarPedido(id);
-  assert.equal((await leerCola()).length, 1, "se perdió una entrega ya hecha del sueldo del chofer");
+  assert.equal((await leerCola()).length, 1, "se perdió una entrega ya hecha del sueldo del conductor");
 });
 
-// Eliminar deslizando la fila (ver components/encomiendas/fila-deslizable.tsx)
-// tiene que poder deshacerse: el chofer escribió esa dirección y ese teléfono a
+// Eliminar deslizando la fila (ver conductor/encomiendas/_componentes/fila-deslizable.tsx)
+// tiene que poder deshacerse: el conductor escribió esa dirección y ese teléfono a
 // mano, y no están en ningún otro lado. Lo que se prueba acá es el recibo.
 test("borrarPedido devuelve el recibo con el lugar que ocupaba en la ruta", async () => {
   const ids = await cargar(3);
@@ -143,7 +143,7 @@ test("restaurarPedido lo devuelve al MISMO lugar de la ruta, no al final", async
 test("restaurarPedido conserva lo que ya se había marcado en ese pedido", async () => {
   const ids = await cargar(2);
   await guardarRuta({ fecha: HOY, pedidoIdsEnOrden: ids, trazado: null, distanciaM: null, duracionS: null });
-  await marcarLlamada({ fecha: HOY, pedidoId: ids[0], choferId: CHOFER }, "no_contesto");
+  await marcarLlamada({ fecha: HOY, pedidoId: ids[0], conductorId: CONDUCTOR }, "no_contesto");
 
   const recibo = await borrarPedido(ids[0]);
   await restaurarPedido(recibo);
@@ -155,7 +155,7 @@ test("restaurarPedido conserva lo que ya se había marcado en ese pedido", async
 
 test("restaurarPedido dos veces deja UNA sola parada", async () => {
   // El aviso de "Deshacer" vive sobre el mapa y se puede tocar dos veces antes
-  // de que la pantalla se rehaga. Duplicado, el chofer iría dos veces al mismo
+  // de que la pantalla se rehaga. Duplicado, el conductor iría dos veces al mismo
   // domicilio.
   const ids = await cargar(2);
   await guardarRuta({ fecha: HOY, pedidoIdsEnOrden: ids, trazado: null, distanciaM: null, duracionS: null });
@@ -209,8 +209,8 @@ test("borrarPedido de un pedido fuera de la ruta no toca la ruta del día", asyn
 test("guardarRuta conserva lo cerrado y le pone detrás el orden nuevo", async () => {
   const ids = await cargar(5);
   await guardarRuta({ fecha: HOY, pedidoIdsEnOrden: ids, trazado: [[1, 2]], distanciaM: 100, duracionS: 10 });
-  await marcarResultado({ fecha: HOY, pedidoId: ids[0], choferId: CHOFER }, "entregado");
-  await marcarResultado({ fecha: HOY, pedidoId: ids[1], choferId: CHOFER }, "no_entregado");
+  await marcarResultado({ fecha: HOY, pedidoId: ids[0], conductorId: CONDUCTOR }, "entregado");
+  await marcarResultado({ fecha: HOY, pedidoId: ids[1], conductorId: CONDUCTOR }, "no_entregado");
 
   // Regeneración a media mañana con el orden invertido y un pedido nuevo.
   const nuevo = await guardarPedido(P(6), HOY);
@@ -236,7 +236,7 @@ test("guardarRuta conserva lo cerrado y le pone detrás el orden nuevo", async (
 test("regenerar la ruta conserva la llamada ya hecha de un pedido pendiente", async () => {
   const ids = await cargar(3);
   await guardarRuta({ fecha: HOY, pedidoIdsEnOrden: ids, trazado: null, distanciaM: null, duracionS: null });
-  await marcarLlamada({ fecha: HOY, pedidoId: ids[2], choferId: CHOFER }, "contesto");
+  await marcarLlamada({ fecha: HOY, pedidoId: ids[2], conductorId: CONDUCTOR }, "contesto");
 
   const ruta = await guardarRuta({
     fecha: HOY,
@@ -256,7 +256,7 @@ test("regenerar 50 veces no duplica pedidos ni pierde lo cerrado", async () => {
   const ids = await cargar(12);
   await guardarRuta({ fecha: HOY, pedidoIdsEnOrden: ids, trazado: null, distanciaM: null, duracionS: null });
   for (let i = 0; i < 12; i += 3) {
-    await marcarResultado({ fecha: HOY, pedidoId: ids[i], choferId: CHOFER }, "entregado");
+    await marcarResultado({ fecha: HOY, pedidoId: ids[i], conductorId: CONDUCTOR }, "entregado");
   }
   for (let v = 0; v < 50; v++) {
     const mezcla = [...ids].sort(() => Math.random() - 0.5);
@@ -279,7 +279,7 @@ test("cada día tiene su propia ruta y no se pisan", async () => {
   assert.equal(await leerRuta("2026-01-01"), null);
 });
 
-// La lista de días del menú lateral. Es lo único que el chofer tiene para
+// La lista de días del menú lateral. Es lo único que el conductor tiene para
 // comprobar lo que hizo: el detalle pedido por pedido lo mira la oficina.
 test("leerDias devuelve los días del más nuevo al más viejo", async () => {
   const ids = await cargar(2);
@@ -298,9 +298,9 @@ test("leerDias devuelve los días del más nuevo al más viejo", async () => {
 test("leerDias cuenta entregadas y no entregadas; la pendiente no es ninguna", async () => {
   const ids = await cargar(4);
   await guardarRuta({ fecha: HOY, pedidoIdsEnOrden: ids, trazado: null, distanciaM: null, duracionS: null });
-  await marcarResultado({ fecha: HOY, pedidoId: ids[0], choferId: CHOFER }, "entregado");
-  await marcarResultado({ fecha: HOY, pedidoId: ids[1], choferId: CHOFER }, "no_entregado");
-  await marcarResultado({ fecha: HOY, pedidoId: ids[2], choferId: CHOFER }, "no_entregado");
+  await marcarResultado({ fecha: HOY, pedidoId: ids[0], conductorId: CONDUCTOR }, "entregado");
+  await marcarResultado({ fecha: HOY, pedidoId: ids[1], conductorId: CONDUCTOR }, "no_entregado");
+  await marcarResultado({ fecha: HOY, pedidoId: ids[2], conductorId: CONDUCTOR }, "no_entregado");
 
   const [dia] = await leerDias();
   assert.equal(dia.paradas, 4);
@@ -315,7 +315,7 @@ test("leerDias distingue un día cerrado de uno que quedó abierto", async () =>
   await guardarRuta({ fecha: HOY, pedidoIdsEnOrden: ids, trazado: null, distanciaM: null, duracionS: null });
   assert.equal((await leerDias())[0].cierre, null);
 
-  await marcarResultado({ fecha: HOY, pedidoId: ids[0], choferId: CHOFER }, "entregado");
+  await marcarResultado({ fecha: HOY, pedidoId: ids[0], conductorId: CONDUCTOR }, "entregado");
   await cerrarDia(HOY);
   assert.ok((await leerDias())[0].cierre, "el día cerrado tiene que traer la hora");
 });
@@ -330,12 +330,12 @@ test("la primera acción del día encola una 'llamada' (prueba del día trabajad
   const ids = await cargar(3);
   await guardarRuta({ fecha: HOY, pedidoIdsEnOrden: ids, trazado: null, distanciaM: null, duracionS: null });
 
-  await marcarLlamada({ fecha: HOY, pedidoId: ids[0], choferId: CHOFER }, "contesto");
+  await marcarLlamada({ fecha: HOY, pedidoId: ids[0], conductorId: CONDUCTOR }, "contesto");
   let cola = await leerCola();
   assert.equal(cola.length, 1);
   assert.equal(cola[0].tipo, "llamada");
 
-  await marcarLlamada({ fecha: HOY, pedidoId: ids[1], choferId: CHOFER }, "no_contesto");
+  await marcarLlamada({ fecha: HOY, pedidoId: ids[1], conductorId: CONDUCTOR }, "no_contesto");
   cola = await leerCola();
   assert.equal(cola.filter((e) => e.tipo === "llamada").length, 1, "encoló una segunda llamada de más");
 });
@@ -343,17 +343,17 @@ test("la primera acción del día encola una 'llamada' (prueba del día trabajad
 test("un día en que solo se llama igual queda registrado como trabajado", async () => {
   const ids = await cargar(1);
   await guardarRuta({ fecha: HOY, pedidoIdsEnOrden: ids, trazado: null, distanciaM: null, duracionS: null });
-  await marcarLlamada({ fecha: HOY, pedidoId: ids[0], choferId: CHOFER }, "no_contesto");
+  await marcarLlamada({ fecha: HOY, pedidoId: ids[0], conductorId: CONDUCTOR }, "no_contesto");
   const cola = await leerCola();
   assert.equal(cola.length, 1);
   assert.equal(cola[0].fecha, HOY);
-  assert.equal(cola[0].choferId, CHOFER);
+  assert.equal(cola[0].conductorId, CONDUCTOR);
 });
 
 test("marcar entrega cierra el pedido y encola el evento en la MISMA transacción", async () => {
   const ids = await cargar(2);
   await guardarRuta({ fecha: HOY, pedidoIdsEnOrden: ids, trazado: null, distanciaM: null, duracionS: null });
-  await marcarResultado({ fecha: HOY, pedidoId: ids[0], choferId: CHOFER }, "entregado");
+  await marcarResultado({ fecha: HOY, pedidoId: ids[0], conductorId: CONDUCTOR }, "entregado");
 
   const pedido = (await leerPedidos(HOY)).find((p) => p.id === ids[0]);
   assert.equal(pedido.resultado, "entregado");
@@ -367,7 +367,7 @@ test("no entregado cierra el pedido del día: no pasa al siguiente", async () =>
   // nuevo. Si el registro se arrastrara, el paquete aparecería dos veces.
   const ids = await cargar(1);
   await guardarRuta({ fecha: HOY, pedidoIdsEnOrden: ids, trazado: null, distanciaM: null, duracionS: null });
-  await marcarResultado({ fecha: HOY, pedidoId: ids[0], choferId: CHOFER }, "no_entregado");
+  await marcarResultado({ fecha: HOY, pedidoId: ids[0], conductorId: CONDUCTOR }, "no_entregado");
 
   assert.equal((await pedidosPendientes(HOY)).length, 0, "el pedido sigue en juego");
   assert.equal((await leerCola()).filter((e) => e.tipo === "omision").length, 1);
@@ -388,8 +388,8 @@ test("marcar llamada y entrega no reescribe la ruta: solo el pedido y la cola", 
   await guardarRuta({ fecha: HOY, pedidoIdsEnOrden: ids, trazado: [[1, 2]], distanciaM: 5, duracionS: 9 });
   const antes = await leerRuta(HOY);
 
-  await marcarLlamada({ fecha: HOY, pedidoId: ids[0], choferId: CHOFER }, "contesto");
-  await marcarResultado({ fecha: HOY, pedidoId: ids[0], choferId: CHOFER }, "entregado");
+  await marcarLlamada({ fecha: HOY, pedidoId: ids[0], conductorId: CONDUCTOR }, "contesto");
+  await marcarResultado({ fecha: HOY, pedidoId: ids[0], conductorId: CONDUCTOR }, "entregado");
 
   assert.deepEqual(await leerRuta(HOY), antes);
 });
@@ -397,16 +397,16 @@ test("marcar llamada y entrega no reescribe la ruta: solo el pedido y la cola", 
 test("marcar dos veces la misma parada no duplica el evento (ni el pago)", async () => {
   const ids = await cargar(1);
   await guardarRuta({ fecha: HOY, pedidoIdsEnOrden: ids, trazado: null, distanciaM: null, duracionS: null });
-  await marcarResultado({ fecha: HOY, pedidoId: ids[0], choferId: CHOFER }, "entregado");
-  await marcarResultado({ fecha: HOY, pedidoId: ids[0], choferId: CHOFER }, "entregado");
-  await marcarResultado({ fecha: HOY, pedidoId: ids[0], choferId: CHOFER }, "no_entregado");
+  await marcarResultado({ fecha: HOY, pedidoId: ids[0], conductorId: CONDUCTOR }, "entregado");
+  await marcarResultado({ fecha: HOY, pedidoId: ids[0], conductorId: CONDUCTOR }, "entregado");
+  await marcarResultado({ fecha: HOY, pedidoId: ids[0], conductorId: CONDUCTOR }, "no_entregado");
   assert.equal((await leerCola()).filter((e) => e.tipo !== "llamada").length, 1);
 });
 
 test("doble toque simultáneo (dos dedos / doble tap) tampoco duplica", async () => {
   const ids = await cargar(1);
   await guardarRuta({ fecha: HOY, pedidoIdsEnOrden: ids, trazado: null, distanciaM: null, duracionS: null });
-  const marca = { fecha: HOY, pedidoId: ids[0], choferId: CHOFER };
+  const marca = { fecha: HOY, pedidoId: ids[0], conductorId: CONDUCTOR };
   await Promise.all([
     marcarResultado(marca, "entregado"),
     marcarResultado(marca, "entregado"),
@@ -416,9 +416,9 @@ test("doble toque simultáneo (dos dedos / doble tap) tampoco duplica", async ()
   assert.equal(entregas.length, 1, `se encolaron ${entregas.length} entregas por el mismo pedido`);
 });
 
-test("ubicar direcciones mientras el chofer marca no reabre lo ya entregado", async () => {
+test("ubicar direcciones mientras el conductor marca no reabre lo ya entregado", async () => {
   // fijarCoordenadas corre al rearmar la ruta, con consultas de red en el
-  // medio: lee el pedido, y si el chofer lo marca entregado mientras tanto, al
+  // medio: lee el pedido, y si el conductor lo marca entregado mientras tanto, al
   // guardar las coordenadas lo devolvía a "pendiente" y el paquete reaparecía
   // al día siguiente como no entregado.
   const ids = await cargar(3, false);
@@ -426,7 +426,7 @@ test("ubicar direcciones mientras el chofer marca no reabre lo ya entregado", as
 
   await Promise.all([
     fijarCoordenadas(ids.map((id, i) => ({ id, lat: -18.47 - i / 1000, lng: -70.29 }))),
-    marcarResultado({ fecha: HOY, pedidoId: ids[0], choferId: CHOFER }, "entregado"),
+    marcarResultado({ fecha: HOY, pedidoId: ids[0], conductorId: CONDUCTOR }, "entregado"),
   ]);
 
   const pedido = (await leerPedidos(HOY)).find((p) => p.id === ids[0]);
@@ -438,29 +438,29 @@ test("ubicar direcciones mientras el chofer marca no reabre lo ya entregado", as
 test("una operación que falla no deja la fila trabada para el resto del día", async () => {
   const ids = await cargar(2);
   // Esta lanza (no hay ruta todavía) y no debe romper las siguientes.
-  await assert.rejects(() => marcarResultado({ fecha: HOY, pedidoId: ids[0], choferId: CHOFER }, "entregado"));
+  await assert.rejects(() => marcarResultado({ fecha: HOY, pedidoId: ids[0], conductorId: CONDUCTOR }, "entregado"));
   await guardarRuta({ fecha: HOY, pedidoIdsEnOrden: ids, trazado: null, distanciaM: null, duracionS: null });
-  await marcarResultado({ fecha: HOY, pedidoId: ids[0], choferId: CHOFER }, "entregado");
+  await marcarResultado({ fecha: HOY, pedidoId: ids[0], conductorId: CONDUCTOR }, "entregado");
   assert.equal((await leerCola()).length, 1);
 });
 
 test("marcar sobre una ruta o un pedido que no existen falla con mensaje claro y sin escribir nada", async () => {
   const ids = await cargar(1);
   await assert.rejects(
-    () => marcarResultado({ fecha: HOY, pedidoId: ids[0], choferId: CHOFER }, "entregado"),
+    () => marcarResultado({ fecha: HOY, pedidoId: ids[0], conductorId: CONDUCTOR }, "entregado"),
     /No hay una ruta/,
   );
   await assert.rejects(
-    () => marcarLlamada({ fecha: HOY, pedidoId: ids[0], choferId: CHOFER }, "contesto"),
+    () => marcarLlamada({ fecha: HOY, pedidoId: ids[0], conductorId: CONDUCTOR }, "contesto"),
     /No hay una ruta/,
   );
   await guardarRuta({ fecha: HOY, pedidoIdsEnOrden: ids, trazado: null, distanciaM: null, duracionS: null });
   await assert.rejects(
-    () => marcarResultado({ fecha: HOY, pedidoId: "fantasma", choferId: CHOFER }, "entregado"),
+    () => marcarResultado({ fecha: HOY, pedidoId: "fantasma", conductorId: CONDUCTOR }, "entregado"),
     /ya no existe|no está en la ruta/,
   );
   await assert.rejects(
-    () => marcarLlamada({ fecha: HOY, pedidoId: "fantasma", choferId: CHOFER }, "contesto"),
+    () => marcarLlamada({ fecha: HOY, pedidoId: "fantasma", conductorId: CONDUCTOR }, "contesto"),
     /ya no existe|no está en la ruta/,
   );
   assert.equal((await leerCola()).length, 0, "escribió eventos de una marca que falló");
@@ -474,7 +474,7 @@ test("un pedido borrado del teléfono pero aún en la ruta no se puede marcar (y
   const idb = await import("@/lib/encomiendas/local/idb");
   await idb.escribir([idb.STORES.pedidos], ({ borrar }) => borrar(idb.STORES.pedidos, ids[0]));
   await assert.rejects(
-    () => marcarResultado({ fecha: HOY, pedidoId: ids[0], choferId: CHOFER }, "entregado"),
+    () => marcarResultado({ fecha: HOY, pedidoId: ids[0], conductorId: CONDUCTOR }, "entregado"),
     /ya no existe/,
   );
 });
@@ -484,7 +484,7 @@ test("la cola sale de la más vieja a la más nueva", async () => {
   const ids = await cargar(4);
   await guardarRuta({ fecha: HOY, pedidoIdsEnOrden: ids, trazado: null, distanciaM: null, duracionS: null });
   for (const id of ids) {
-    await marcarResultado({ fecha: HOY, pedidoId: id, choferId: CHOFER }, "entregado");
+    await marcarResultado({ fecha: HOY, pedidoId: id, conductorId: CONDUCTOR }, "entregado");
   }
   const cola = await leerCola();
   const horas = cola.map((e) => e.hora);
@@ -495,7 +495,7 @@ test("la cola sale de la más vieja a la más nueva", async () => {
 test("quitarDeCola solo saca los confirmados", async () => {
   const ids = await cargar(3);
   await guardarRuta({ fecha: HOY, pedidoIdsEnOrden: ids, trazado: null, distanciaM: null, duracionS: null });
-  for (const id of ids) await marcarResultado({ fecha: HOY, pedidoId: id, choferId: CHOFER }, "entregado");
+  for (const id of ids) await marcarResultado({ fecha: HOY, pedidoId: id, conductorId: CONDUCTOR }, "entregado");
   const cola = await leerCola();
   await quitarDeCola(cola.slice(0, 2).map((e) => e.id));
   const quedan = await leerCola();
@@ -516,12 +516,12 @@ test("día completo de 30 pedidos: los eventos cuadran exactamente con el pago",
   for (const [i, id] of ids.entries()) {
     // Cada 5 paradas el destinatario no contesta: llamada + omisión.
     if (i % 5 === 4) {
-      await marcarLlamada({ fecha: HOY, pedidoId: id, choferId: CHOFER }, "no_contesto");
-      await marcarResultado({ fecha: HOY, pedidoId: id, choferId: CHOFER }, "no_entregado");
+      await marcarLlamada({ fecha: HOY, pedidoId: id, conductorId: CONDUCTOR }, "no_contesto");
+      await marcarResultado({ fecha: HOY, pedidoId: id, conductorId: CONDUCTOR }, "no_entregado");
       noEntregadas++;
     } else {
-      await marcarLlamada({ fecha: HOY, pedidoId: id, choferId: CHOFER }, "contesto");
-      await marcarResultado({ fecha: HOY, pedidoId: id, choferId: CHOFER }, "entregado");
+      await marcarLlamada({ fecha: HOY, pedidoId: id, conductorId: CONDUCTOR }, "contesto");
+      await marcarResultado({ fecha: HOY, pedidoId: id, conductorId: CONDUCTOR }, "entregado");
       entregadas++;
     }
   }
@@ -534,7 +534,7 @@ test("día completo de 30 pedidos: los eventos cuadran exactamente con el pago",
 
   // Lo que vería el panel al recibir esa cola.
   const [dia] = agruparPorDia(
-    cola.map((e) => ({ chofer_id: e.choferId, fecha: e.fecha, tipo: e.tipo, origen: "app" })),
+    cola.map((e) => ({ conductor_id: e.conductorId, fecha: e.fecha, tipo: e.tipo, origen: "app" })),
   );
   assert.deepEqual(dia.conteo, { entregados: 24, omitidos: 6 });
   assert.equal(dia.eventos.length, 31);

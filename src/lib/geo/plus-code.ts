@@ -112,7 +112,7 @@ export function resolverPlusCode(
  *  en la casa de al lado, y acá al lado es un pasaje entero. */
 const DIGITOS = 11;
 
-/** El código de un punto marcado en el mapa. Es la otra mitad: el chofer marca
+/** El código de un punto marcado en el mapa. Es la otra mitad: el conductor marca
  *  la casa una vez y esto es lo que se guarda para no volver a buscarla. */
 export function plusCodeDe(punto: Coordenada, digitos: number = DIGITOS): string | null {
   if (!Number.isFinite(punto.lat) || !Number.isFinite(punto.lng)) return null;

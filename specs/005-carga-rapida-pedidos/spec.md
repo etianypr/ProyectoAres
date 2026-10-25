@@ -6,7 +6,7 @@
 
 **Decisiones (2026-10-20)**
 
-- Número en el paquete = posición en la ruta optimizada, escrita con rotulador; lógica en spec 003 FR-001..003.
+- No se escribe nada en el paquete (2026-10-24): la parada se reconoce por la OF y la descripción (spec 003). `Pedido.of` lo agrega la 003; esta spec lo llena desde el código de barras.
 - Datos del pedido se borran al cerrar el día (spec 007).
 - IA usable desde el piloto; autorización de Starken al lanzamiento oficial (constitución v1.3.0, spec 007 FR-009).
 - "POR PAGAR" sale en grande en la etiqueta. No se depende de la descarga de la guía.
@@ -31,7 +31,7 @@ Foto(s) de la guía → un pedido por línea con OF y destino → flujo de ruta 
 3. **Given** dos fotos superpuestas, **When** se cargan, **Then** los OF repetidos se juntan.
 4. **Given** destino con basura (`&amp;`, "XV REGION DE ARICA"), **When** se crea el pedido, **Then** queda limpio.
 5. **Given** lista revisada, **When** se confirma, **Then** los pedidos siguen el flujo actual de ubicación y ruta.
-6. **Given** foto ilegible o IA no disponible, **When** falla, **Then** se puede pegar texto (Texto en vivo) o escribir líneas.
+6. **Given** foto ilegible o IA no disponible, **When** falla, **Then** se puede pegar texto (copiado con Google Lens) o escribir líneas.
 
 ### US2 - Escanear etiqueta y saber dónde va (P1)
 
@@ -71,7 +71,7 @@ Foto(s) de la guía → un pedido por línea con OF y destino → flujo de ruta 
 ### Edge Cases
 
 - Guía en varias fotos → unión por OF. Etiqueta arrugada/reflejo → reintento, luego OF impreso + confirmación.
-- Línea sin paquete → aviso (US5); paquete sin línea → pedido nuevo (US2). Ruta reoptimizada → números fijos (003).
+- Línea sin paquete → aviso (US5); paquete sin línea → pedido nuevo (US2). Ruta reoptimizada → el escaneo muestra la parada de la ruta vigente.
 - RUT, remitente, correo, cuenta corriente, rampa: no se extraen.
 
 ## Requirements *(mandatory)*
@@ -102,8 +102,8 @@ Foto(s) de la guía → un pedido por línea con OF y destino → flujo de ruta 
 - **FR-019**: Al iniciar la ruta, listar líneas sin paquete escaneado, sin bloquear.
 
 **Número, privacidad, conservación**
-- **FR-021**: Número escrito = posición en la ruta optimizada al escanear; fijo en el día (spec 003 FR-001..003).
-- **FR-022**: IA usable desde el piloto; proveedor registrado en `docs/PRIVACIDAD.md` §3; autorización de Starken al lanzamiento oficial (spec 007 FR-009). Sin IA: código de barras + Texto en vivo pegado separado por palabras clave (`OF:`, `DESTINO:`, `DESTINATARIO`, `Tel`, `POR PAGAR`) + selectores 003.
+- **FR-021**: "PARADA n de N" = posición en la ruta vigente al escanear; no se escribe en el paquete (spec 003).
+- **FR-022**: IA usable desde el piloto; proveedor registrado en `docs/PRIVACIDAD.md` §3; autorización de Starken al lanzamiento oficial (spec 007 FR-009). Sin IA: código de barras + texto pegado (Google Lens) separado por palabras clave (`OF:`, `DESTINO:`, `DESTINATARIO`, `Tel`, `POR PAGAR`) + selectores 003.
 - **FR-023**: Fotos descartadas tras la lectura (salvo foto del paquete, spec 003); servidor sin guardarlas ni registrar cuerpos.
 - **FR-024**: Todos los datos de pedidos se borran al cerrar el día (spec 007); no pasan al siguiente.
 - **FR-025**: Registrar origen de carga (guía IA · guía pegada · etiqueta · manual) como conteo sin datos personales.
@@ -128,7 +128,7 @@ Guía leída (folio, líneas OF + destino) · Lectura de etiqueta (OF, bulto, de
 
 - Código de barras de 26 dígitos con OF en dígitos 15–23 (visto en 3 etiquetas, 2 formatos); se confirma con ≥ 50.
 - POR PAGAR en el recuadro de pago; monto en "Total Monto O.F.".
-- iPhone; lector de códigos funciona en Safari dentro de la PWA.
+- Android con la APK de la spec 015: el código de barras lo lee el escáner nativo, sin conexión (`escanearCodigo()`); en el navegador, `BarcodeDetector` o escribir el código.
 - En el hub suele haber señal; en reparto puede no haber.
 - ≤ 60 pedidos/día, un conductor, un mandante.
 - Relación: referencia y número (003), avisos con el teléfono (004), asignados (006), borrado y modos (007).

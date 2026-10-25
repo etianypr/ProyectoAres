@@ -1,6 +1,6 @@
 // OpenRouteService: el trazado por calles abierto (grafo de OSM, Jerarquías de
-// Contracción). Lo usa el servidor MCP, NO el camino del chofer — ese sigue
-// saliendo de Mapbox por las razones escritas en lib/rutas.ts.
+// Contracción). Lo usa el servidor MCP, NO el camino del conductor — ese sigue
+// saliendo de Mapbox por las razones escritas en lib/geo/mapbox/direcciones.ts.
 //
 // Igual que el resto del proyecto, se reemplaza el `fetch` global y no el
 // módulo: así corre el armado real del cuerpo (el orden lng/lat, los
@@ -16,7 +16,7 @@ import { readFileSync } from "node:fs";
 import { obtenerRutaAbierta, ErrorClaveORS } from "@/lib/geo/openrouteservice";
 // Las funciones REALES que van a recibir esta geometría. Que entre sin traducir
 // es la mitad del valor de este módulo.
-import { ajustarATrazado, metrosRestantes, distanciaAPolilinea } from "@/lib/rutas";
+import { ajustarATrazado, metrosRestantes, distanciaAPolilinea } from "@/lib/geo/trazado";
 
 const ORS = JSON.parse(readFileSync("pruebas/fixtures/ruta-ors-arica.json", "utf8"));
 const REAL = ORS.features[0];
@@ -111,7 +111,7 @@ test("las coordenadas salen como [lng, lat], no al revés", async () => {
   assert.ok(primera[1] < -18 && primera[1] > -19, "la latitud no es de Arica");
 });
 
-test("la geometría vuelve tal cual, en el mismo formato que lib/rutas", async () => {
+test("la geometría vuelve tal cual, en el mismo formato que lib/geo/trazado", async () => {
   const r = await obtenerRutaAbierta([DESDE, HASTA]);
   assert.equal(r.trazado.length, GEOMETRIA.length);
   assert.deepEqual(r.trazado[0], GEOMETRIA[0]);
@@ -179,10 +179,10 @@ test("las instrucciones se piden en castellano, y solo si se piden", async () =>
 test("las instrucciones de ORS dicen \"Camina\" aunque el perfil sea en auto", async () => {
   // No es un bug nuestro: es cómo ORS traduce al castellano el perfil
   // driving-car. Queda fijado acá porque es una de las razones por las que la
-  // navegación del chofer sigue saliendo de Mapbox, que dice "Conduzca".
+  // navegación del conductor sigue saliendo de Mapbox, que dice "Conduzca".
   contestar = () => respuestaORS({ steps: PASOS_REALES });
   const r = await obtenerRutaAbierta([DESDE, HASTA], { instrucciones: true });
-  assert.match(r.pasos[0].texto, /^Camina/, "ORS cambió su redacción: revisá si ya sirve para el chofer");
+  assert.match(r.pasos[0].texto, /^Camina/, "ORS cambió su redacción: revisá si ya sirve para el conductor");
 });
 
 test("sin instrucciones no se inventan pasos", async () => {
@@ -255,7 +255,7 @@ test("una respuesta sin trazado usable es null, no media ruta", async () => {
 test("la falta de API key LANZA: no es lo mismo que ORS caído", async () => {
   // Tragarse esto haría que un .env mal armado se vea igual que un servicio
   // caído, y se busca el problema donde no está. Mismo criterio que
-  // ErrorTokenMapbox en lib/rutas.ts.
+  // ErrorTokenMapbox en lib/geo/mapbox/direcciones.ts.
   const guardada = process.env.ORS_API_KEY;
   delete process.env.ORS_API_KEY;
   try {

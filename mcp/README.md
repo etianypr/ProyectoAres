@@ -37,7 +37,7 @@ sin límite de consultas y determinista.
 
 **Y no es solo del LLM.** `src/lib/geo/plus-code.ts` lo usa también la app: el
 campo de dirección del conductor reconoce un Plus Code escrito y lo resuelve ahí
-mismo, sin consultar a Mapbox ni a OSM (ver `lib/geocoding.ts`). Esa es la razón
+mismo, sin consultar a Mapbox ni a OSM (ver `lib/geo/geocoding`). Esa es la razón
 de que la lógica viva en `src/lib/geo/` y no acá adentro — el MCP es un
 consumidor más, no el dueño.
 

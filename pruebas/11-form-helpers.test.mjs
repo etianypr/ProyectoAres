@@ -3,7 +3,7 @@
 // ningún error a la vista.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { s, sReq, num, numNull, intNull, bool } from "@/lib/form-helpers";
+import { s, sReq, num, numNull, intNull, bool } from "@/lib/comun/forms";
 
 test("num entiende el formato chileno de miles", () => {
   assert.equal(num("1.234.567"), 1234567);

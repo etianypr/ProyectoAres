@@ -20,7 +20,7 @@
 //
 // La fila serializa esas operaciones. No hace falta nada más fino: son
 // escrituras de milisegundos disparadas por una sola pantalla, y el orden entre
-// dos toques del chofer es justamente el que él hizo.
+// dos toques del conductor es justamente el que él hizo.
 let fila: Promise<unknown> = Promise.resolve();
 
 export function enFila<T>(trabajo: () => Promise<T>): Promise<T> {

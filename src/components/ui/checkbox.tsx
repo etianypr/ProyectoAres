@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Check } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/comun/utils";
 
 // Casilla de verificación con el estilo del sistema. Antes era un
 // <input type="checkbox"> pelado con "accent-brand": eso solo TIÑE el control

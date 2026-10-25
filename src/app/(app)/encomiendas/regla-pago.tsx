@@ -21,11 +21,12 @@ import { useActionState, useState } from "react";
 import { Save, Settings } from "lucide-react";
 import { Dialogo } from "@/components/ui/dialogo";
 import { Button } from "@/components/ui/button";
-import { formatCLP, formatDate } from "@/lib/format";
+import { formatCLP, formatDate } from "@/lib/comun/format";
 import { valorPedido } from "@/lib/encomiendas/pago";
 import type { ReglaDePago } from "@/types/db";
 import { CamposTarifa, valoresDeTarifa, type ValoresTarifa } from "./campos-tarifa";
-import { guardarReglaPago, type FormState } from "./actions";
+import type { FormState } from "@/lib/comun/forms";
+import { guardarReglaPago } from "./actions";
 
 export function ReglaPago({ regla }: { regla: ReglaDePago | null }) {
   const [abierto, setAbierto] = useState(false);

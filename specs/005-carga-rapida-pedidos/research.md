@@ -27,16 +27,16 @@
 ## Decisiones
 
 **R1. OF por código de barras en el teléfono**
-- Decisión: librería JS/WASM que lea Code 128 desde cámara o foto en Safari iOS: `zxing-wasm` (preferida) o `@zxing/browser`.
+- Decisión (2026-10-24, el conductor usa Android): el escáner nativo de la spec 015 (ML Kit, Code 128 e ITF, sin conexión) vía `escanearCodigo()`. En el navegador, `BarcodeDetector` (Chrome Android lo trae); si no existe, escribir el código.
 - Motivo: exacto (dígito verificador), sin red, sin proveedor. La IA puede errar un dígito y enlazar mal la parada.
-- `BarcodeDetector` nativo: no garantizado en Safari iOS; usar solo si existe, con la librería como base.
+- Se descartó `zxing-wasm`: hacía falta solo por Safari iOS.
 
 **R2. Parsers puros de texto**
 - Decisión: `src/lib/encomiendas/lectura/{codigo-barras,guia,etiqueta}.ts`, funciones puras.
   - `codigo-barras`: 26 dígitos → `{of, bulto, agencia}` o null.
   - `guia`: texto → `LineaGuia[]` + avisos (formato, repetidos, total).
   - `etiqueta`: texto → campos por palabras clave.
-- Uso: fallback sin IA (Texto en vivo pegado) y normalización/validación de la salida de IA.
+- Uso: fallback sin IA (texto pegado desde Google Lens) y normalización/validación de la salida de IA.
 - Pruebas con fixtures anonimizados en `pruebas/fixtures/lectura/`.
 
 **R3. Lectura con IA**

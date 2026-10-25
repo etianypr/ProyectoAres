@@ -13,19 +13,25 @@
 //  2. Regenerar la ruta nunca pierde lo ya cerrado en el día: lo cerrado queda
 //     primero en el orden, y su resultado vive en el pedido, no en la ruta.
 //
-// Un pedido es de UN día (spec 009): lo no entregado no pasa al siguiente.
+// Un pedido es de UN día (spec 009): lo no entregado no pasa al siguiente, y
+// al cerrar el día sus datos se borran y queda solo el resumen (spec 007).
 //
 // Partido por tema (cada archivo ≤ 400 líneas); este barril es la única puerta.
 
 export type {
   Aviso,
   ActividadPorEnviar,
+  Foto,
+  OrigenCarga,
   Pedido,
+  ReferenciaPaquete,
+  ResumenDia,
   Ruta,
 } from "./tipos";
-export { leerPedidos, leerRuta, pedidosEnOrden } from "./lecturas";
+export { leerDiaGuardado, leerPedidos, leerRuta, pedidosEnOrden } from "./lecturas";
 export {
   borrarPedido,
+  cambiarDireccion,
   fijarCoordenadas,
   guardarPedido,
   pedidosPendientes,
@@ -35,15 +41,23 @@ export {
 } from "./pedidos";
 export {
   cerrarDia,
+  cifrasDelDia,
   fijarTrazado,
   guardarRuta,
   leerDias,
+  leerResumenDia,
   ordenarRuta,
   resumirDia,
   rutaTerminada,
-  type ResumenDia,
+  sumarResumenes,
   type EntradaRuta,
 } from "./ruta";
+export {
+  borrarDatosDestinatarios,
+  cerrarYBorrarDia,
+  diasPorBorrar,
+  noEntregadosDelDia,
+} from "./borrado";
 export {
   deshacerResultado,
   marcarResultado,
@@ -59,6 +73,22 @@ export {
   reiniciarDisponibilidad,
 } from "./disponibilidad";
 export { leerCola, quitarDeCola } from "./cola";
+export {
+  aplicarLecturaEtiqueta,
+  crearDesdeGuia,
+  sinEtiquetaEscaneada,
+  type LecturaParaAplicar,
+  type LineaParaCrear,
+  type ResultadoEscaneo,
+} from "./carga";
+export {
+  borrarFoto,
+  guardarFoto,
+  guardarPaquete,
+  leerFoto,
+  ofRepetida,
+  purgarFotosCerradas,
+} from "./paquete";
 
 // Para distinguir "el teléfono no puede guardar" (accionable: instalar la app,
 // salir del modo privado) de cualquier otro error.

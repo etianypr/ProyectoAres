@@ -28,7 +28,7 @@ function esPrimeraAccion(enRuta: Pedido[]): boolean {
 export type MarcaPedido = {
   fecha: string;
   pedidoId: string;
-  choferId: string;
+  conductorId: string;
 };
 
 /** La ruta del día con el pedido adentro, o un error mostrable. */
@@ -43,7 +43,7 @@ async function rutaConPedido(fecha: string, pedidoId: string) {
 /** Registra el resultado de llamar al destinatario. No suma ni resta entregas:
  *  solo prueba que el conductor está trabajando (ver esPrimeraAccion). */
 export function marcarLlamada(
-  { fecha, pedidoId, choferId }: MarcaPedido,
+  { fecha, pedidoId, conductorId }: MarcaPedido,
   resultado: Exclude<ResultadoLlamada, "pendiente">,
 ): Promise<void> {
   return enFila(async () => {
@@ -55,7 +55,7 @@ export function marcarLlamada(
 
     await escribir([STORES.pedidos, STORES.cola], ({ guardar }) => {
       guardar(STORES.pedidos, actualizado);
-      if (primera) guardar(STORES.cola, nuevoEvento(choferId, fecha, "llamada", hora));
+      if (primera) guardar(STORES.cola, nuevoEvento(conductorId, fecha, "llamada", hora));
     });
   });
 }
@@ -66,7 +66,7 @@ export function marcarLlamada(
  *  y no pasa a mañana; si vuelve a salir, se escanea de nuevo (specs 009 y 012).
  *  El evento para el servidor sale en la misma transacción. */
 export function marcarResultado(
-  { fecha, pedidoId, choferId }: MarcaPedido,
+  { fecha, pedidoId, conductorId }: MarcaPedido,
   resultado: ResultadoMarcable,
   /** Milisegundos que el evento queda retenido en la cola antes de poder
    *  salir: la ventana en la que el conductor puede deshacer (ver leerCola). 0
@@ -89,7 +89,7 @@ export function marcarResultado(
     const actualizado: Pedido = { ...pedido, resultado: resultado, horaResultado: hora };
 
     const registro: ActividadPorEnviar = {
-      ...nuevoEvento(choferId, fecha, tipoEventoDe(resultado), hora),
+      ...nuevoEvento(conductorId, fecha, tipoEventoDe(resultado), hora),
       ...(retenerMs > 0 ? { retenidoHasta: new Date(Date.now() + retenerMs).toISOString() } : {}),
     };
 

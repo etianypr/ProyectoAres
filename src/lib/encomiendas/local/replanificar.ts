@@ -11,7 +11,7 @@
 import { bloquePorId } from "@/lib/encomiendas/config";
 import { resultadoCerrado } from "@/lib/encomiendas/estados";
 import { deLngLat, type Coordenada } from "@/lib/geo/coordenada";
-import { obtenerRutaCalles } from "@/lib/rutas";
+import { obtenerRutaCalles } from "@/lib/geo/mapbox/direcciones";
 import {
   fijarTrazado,
   leerPedidos,

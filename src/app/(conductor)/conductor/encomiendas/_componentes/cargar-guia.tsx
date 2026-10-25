@@ -1,0 +1,319 @@
+"use client";
+
+// Cargar el día desde la guía de despacho (spec 005, US1): texto de la guía →
+// revisar las líneas → crear los pedidos → ubicar sus direcciones. Después sigue
+// el flujo de siempre: armar la ruta y escanear cada etiqueta.
+//
+// Con una foto de la guía: en la APK el texto se lee en el teléfono (gratis) y,
+// si no alcanza, con la IA (ver lectura-cliente). Sin foto, el texto se copia de
+// la guía con Google Lens ("Copiar texto") y se pega acá.
+
+import { useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { AlertTriangle, Camera, ClipboardPaste, Loader2, Plus, Trash2, X } from "lucide-react";
+import { cn } from "@/lib/comun/utils";
+import { armarGuia, leerGuia, limpiarDestino, type LineaGuia } from "@/lib/encomiendas/lectura/guia";
+import { formatoOf, ofValida } from "@/lib/encomiendas/paquete";
+import { crearDesdeGuia, fijarCoordenadas } from "@/lib/encomiendas/local/almacen";
+import { ubicarDireccion } from "@/lib/geo/geocoding";
+import { leerImagen, type FuenteLectura } from "@/lib/encomiendas/local/lectura-cliente";
+import { esApp } from "@/lib/nativo/entorno";
+
+type Paso =
+  | { tipo: "texto" }
+  | { tipo: "revisar" }
+  | { tipo: "ubicando"; hechos: number; total: number }
+  | { tipo: "listo"; creados: number; ubicados: number; yaEstaban: number };
+
+const BOTON =
+  "flex h-12 w-full items-center justify-center gap-2 rounded-full bg-brand text-[15px] font-semibold text-brand-foreground transition-transform active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50";
+
+export function CargarGuia({
+  fecha,
+  lecturaIA,
+  onCerrar,
+  onCreados,
+}: {
+  fecha: string;
+  /** La IA está encendida: lee la foto si el teléfono no pudo. */
+  lecturaIA: boolean;
+  onCerrar: () => void;
+  /** Se crearon pedidos: la pantalla los vuelve a leer. */
+  onCreados: () => void;
+}) {
+  const [paso, setPaso] = useState<Paso>({ tipo: "texto" });
+  const [texto, setTexto] = useState("");
+  const [lineas, setLineas] = useState<LineaGuia[]>([]);
+  const [avisos, setAvisos] = useState<string[]>([]);
+  const [folio, setFolio] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [leyendo, setLeyendo] = useState(false);
+  /** Quién leyó las fotos de esta carga (null = texto pegado). */
+  const [fuente, setFuente] = useState<FuenteLectura | null>(null);
+  // Foto: en la APK siempre (lee el teléfono); en el navegador, solo con IA.
+  const conFoto = lecturaIA || esApp();
+  const entradaFoto = useRef<HTMLInputElement>(null);
+
+  const malas = useMemo(() => lineas.filter((l) => !ofValida(l.of) || !l.destino.trim()).length, [lineas]);
+  const ocupado = paso.tipo === "ubicando";
+
+  function leer() {
+    const guia = leerGuia(texto);
+    setLineas(guia.lineas);
+    setAvisos(guia.avisos);
+    setFolio(guia.folio);
+    setPaso({ tipo: "revisar" });
+  }
+
+  /** Una foto más de la guía: sus líneas se suman a las que ya hay (la guía
+   *  larga no entra en una foto) y las repetidas se juntan. */
+  async function leerFoto(archivo: File | undefined) {
+    if (!archivo) return;
+    setLeyendo(true);
+    setError(null);
+    try {
+      const r = await leerImagen("guia", archivo, { ia: lecturaIA });
+      if (r.tipo !== "guia") throw new Error("Respuesta inesperada.");
+      const nueva = r.guia;
+      const unida = armarGuia([...lineas, ...nueva.lineas], folio ?? nueva.folio, nueva.totalDeclarado);
+      setLineas(unida.lineas);
+      setAvisos(unida.avisos);
+      setFolio(unida.folio);
+      setFuente((antes) => (antes === "ia" ? antes : r.fuente));
+      setPaso({ tipo: "revisar" });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo leer la foto.");
+    } finally {
+      setLeyendo(false);
+      if (entradaFoto.current) entradaFoto.current.value = "";
+    }
+  }
+
+  function cambiar(i: number, cambio: Partial<LineaGuia>) {
+    setLineas((ls) => ls.map((l, j) => (j === i ? { ...l, ...cambio } : l)));
+  }
+
+  async function crear() {
+    setError(null);
+    const validas = lineas.map((l) => ({ of: ofValida(l.of)!, destino: limpiarDestino(l.destino) }));
+    try {
+      const { creados, yaEstaban } = await crearDesdeGuia(validas, fecha, {
+        folio,
+        origen: fuente === "ia" ? "guia_ia" : fuente === "telefono" ? "guia_foto" : "guia_pegada",
+      });
+      onCreados();
+      // Una por una, como al cargar a mano: el geocodificador respeta el límite
+      // de consultas de OpenStreetMap. Lo que no se ubique queda "Sin ubicar" en
+      // la lista, para corregirlo como siempre.
+      let ubicados = 0;
+      for (const [i, p] of creados.entries()) {
+        setPaso({ tipo: "ubicando", hechos: i, total: creados.length });
+        try {
+          const r = await ubicarDireccion(p.direccion);
+          if (r.elegida) {
+            await fijarCoordenadas([{ id: p.id, lat: r.elegida.lat, lng: r.elegida.lng }]);
+            ubicados++;
+          }
+        } catch {
+          // Sin señal o proveedor caído: queda sin ubicar.
+        }
+      }
+      onCreados();
+      setPaso({ tipo: "listo", creados: creados.length, ubicados, yaEstaban });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudieron crear los pedidos.");
+      setPaso({ tipo: "revisar" });
+    }
+  }
+
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <div
+      className="animate-fade-in fixed inset-0 z-50 flex flex-col bg-background pt-[max(0.75rem,env(safe-area-inset-top))]"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Cargar la guía"
+    >
+      <div className="flex items-center gap-2 px-4 pb-3">
+        <h2 className="min-w-0 flex-1 text-lg font-semibold">Cargar la guía</h2>
+        <button
+          type="button"
+          onClick={onCerrar}
+          disabled={ocupado}
+          aria-label="Cerrar"
+          className="flex h-10 w-10 items-center justify-center rounded-full text-muted active:bg-card disabled:opacity-40"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-4">
+        <input
+          ref={entradaFoto}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={(e) => void leerFoto(e.target.files?.[0])}
+        />
+        {leyendo ? (
+          <p className="flex items-center gap-2 rounded-xl bg-brand-soft px-3 py-2 text-sm font-medium text-brand">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Leyendo la guía…
+          </p>
+        ) : null}
+        {error && paso.tipo === "texto" ? <p className="text-sm text-danger">{error}</p> : null}
+
+        {paso.tipo === "texto" ? (
+          <>
+            {conFoto ? (
+              <>
+                <button
+                  type="button"
+                  disabled={leyendo}
+                  onClick={() => entradaFoto.current?.click()}
+                  className={BOTON}
+                >
+                  <Camera className="h-4 w-4" />
+                  Foto de la guía
+                </button>
+                <p className="text-xs text-muted">
+                  Saca la foto a la pantalla de la guía, derecha y con toda la lista. Si no entra, saca
+                  otra después con &ldquo;Agregar otra foto&rdquo;. O pega el texto:
+                </p>
+              </>
+            ) : null}
+            <p className="text-sm text-muted">
+              En el teléfono de la guía, abre <b>Google Lens</b> sobre la guía, toca <b>Texto</b> →{" "}
+              <b>Copiar todo</b>, y pégalo acá. Si la guía no entra en una foto, pega las dos, una
+              detrás de la otra.
+            </p>
+            <textarea
+              value={texto}
+              onChange={(e) => setTexto(e.target.value)}
+              rows={10}
+              placeholder={"OF:275388184 DESTINO:SAN MARCOS 1030\nOF:…"}
+              className="w-full rounded-2xl border border-separator bg-card p-3 font-mono text-xs outline-none focus:border-brand"
+            />
+          </>
+        ) : null}
+
+        {paso.tipo === "revisar" ? (
+          <>
+            {avisos.map((a) => (
+              <p key={a} className="flex items-start gap-1.5 rounded-xl bg-warn-bg px-3 py-2 text-sm text-warn">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                {a}
+              </p>
+            ))}
+            <p className="text-sm font-medium">
+              {lineas.length} {lineas.length === 1 ? "línea" : "líneas"}
+              {folio ? ` · guía N° ${folio}` : ""}
+            </p>
+            <ul className="divide-y divide-divider overflow-hidden rounded-2xl bg-card shadow-soft">
+              {lineas.map((l, i) => {
+                const of = ofValida(l.of);
+                return (
+                  <li key={i} className={cn("flex items-start gap-2 px-3 py-2.5", (!of || !l.destino.trim()) && "bg-warn-bg")}>
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <input
+                        aria-label="OF"
+                        inputMode="numeric"
+                        value={of ? formatoOf(of) : l.of}
+                        onChange={(e) => cambiar(i, { of: e.target.value })}
+                        className="w-full bg-transparent text-sm font-semibold tabular-nums outline-none"
+                        placeholder="OF (9 dígitos)"
+                      />
+                      <input
+                        aria-label="Destino"
+                        value={l.destino}
+                        onChange={(e) => cambiar(i, { destino: e.target.value })}
+                        className="w-full bg-transparent text-sm text-muted outline-none"
+                        placeholder="Destino"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setLineas((ls) => ls.filter((_, j) => j !== i))}
+                      aria-label="Quitar la línea"
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted active:bg-background"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            {conFoto ? (
+              <button
+                type="button"
+                disabled={leyendo}
+                onClick={() => entradaFoto.current?.click()}
+                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-card py-3 text-sm font-medium text-brand shadow-soft disabled:opacity-50"
+              >
+                <Camera className="h-4 w-4" />
+                Agregar otra foto de la guía
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setLineas((ls) => [...ls, { of: "", destino: "", dudosa: true }])}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-separator py-3 text-sm font-medium text-brand"
+            >
+              <Plus className="h-4 w-4" />
+              Agregar una línea
+            </button>
+            {error ? <p className="text-sm text-danger">{error}</p> : null}
+          </>
+        ) : null}
+
+        {paso.tipo === "ubicando" ? (
+          <div className="flex flex-col items-center gap-3 py-12 text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-brand" />
+            <p className="text-sm font-medium">
+              Ubicando direcciones: {paso.hechos} de {paso.total}
+            </p>
+            <p className="text-xs text-muted">Los pedidos ya están guardados en el teléfono.</p>
+          </div>
+        ) : null}
+
+        {paso.tipo === "listo" ? (
+          <div className="space-y-2 py-6 text-center">
+            <p className="text-lg font-semibold">
+              {paso.creados} {paso.creados === 1 ? "pedido cargado" : "pedidos cargados"}
+            </p>
+            <p className="text-sm text-muted">
+              {paso.ubicados} ubicados en el mapa
+              {paso.creados - paso.ubicados > 0
+                ? ` · ${paso.creados - paso.ubicados} por revisar (aparecen como "Sin ubicar" en la lista)`
+                : ""}
+              {paso.yaEstaban > 0 ? ` · ${paso.yaEstaban} ya estaban cargados` : ""}.
+            </p>
+            <p className="text-sm text-muted">Ahora arma la ruta y escanea cada etiqueta.</p>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="border-t border-divider px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
+        {paso.tipo === "texto" ? (
+          <button type="button" disabled={!texto.trim()} onClick={leer} className={BOTON}>
+            <ClipboardPaste className="h-4 w-4" />
+            Leer la guía
+          </button>
+        ) : paso.tipo === "revisar" ? (
+          <button type="button" disabled={lineas.length === 0 || malas > 0} onClick={() => void crear()} className={BOTON}>
+            {malas > 0
+              ? `Corrige ${malas} ${malas === 1 ? "línea" : "líneas"}`
+              : `Crear ${lineas.length} ${lineas.length === 1 ? "pedido" : "pedidos"}`}
+          </button>
+        ) : paso.tipo === "listo" ? (
+          <button type="button" onClick={onCerrar} className={BOTON}>
+            Listo
+          </button>
+        ) : null}
+      </div>
+    </div>,
+    document.body,
+  );
+}

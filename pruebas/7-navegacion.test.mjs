@@ -5,7 +5,7 @@
 // dos reglas que reemplazan a esas consultas funcionan sobre datos de verdad:
 //
 //   · avanzar de maniobra cuando faltan <= 25 m para ella
-//   · detectar que el chofer se salió del camino a más de 60 m del trazado
+//   · detectar que el conductor se salió del camino a más de 60 m del trazado
 //
 // Los umbrales solo se pueden justificar contra geometría real: con vértices
 // cada 30 m en una avenida y cada 5 m en una rotonda, un número elegido a ojo
@@ -13,7 +13,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { ajustarATrazado, distanciaAPolilinea, metrosRestantes } from "@/lib/rutas";
+import { ajustarATrazado, distanciaAPolilinea, metrosRestantes } from "@/lib/geo/trazado";
 import { distanciaMetros } from "@/lib/geo/coordenada";
 
 const tramo = JSON.parse(

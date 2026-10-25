@@ -33,7 +33,7 @@ export const VALOR_APROXIMADO_PEDIDO = 950;
 /** Un tramo del día que el receptor puede elegir como su disponibilidad. */
 export type BloqueHorario = {
   /** Estable y corto: viaja dentro del payload del botón de WhatsApp
-   *  (`HORARIO_<id>`, ver contracts/whatsapp.md) y queda guardado en el pedido
+   *  (`HORARIO_<id>`, ver docs/WHATSAPP.md) y queda guardado en el pedido
    *  del teléfono. Cambiarlo invalida las respuestas ya recibidas. */
   id: string;
   /** Lo que ve el receptor y lo que ve el conductor. */
@@ -43,7 +43,8 @@ export type BloqueHorario = {
   hasta: string;
 };
 
-/** Los seis bloques de dos horas con los que arranca la operación (FR-009).
+/** Los cinco bloques de dos horas, de 08:00 a 18:00 (FR-009; el de 18–20 salió el
+ *  2026-10-24: el reparto termina a las 18).
  *  El jefe puede activar o desactivar cuáles se ofrecen (FR-010, ver la
  *  configuración del panel), pero no inventar tramos nuevos desde la app: la
  *  plantilla aprobada por Meta tiene una cantidad fija de botones. */
@@ -53,7 +54,6 @@ export const BLOQUES_HORARIOS: readonly BloqueHorario[] = [
   { id: "12-14", etiqueta: "12:00 - 14:00", desde: "12:00", hasta: "14:00" },
   { id: "14-16", etiqueta: "14:00 - 16:00", desde: "14:00", hasta: "16:00" },
   { id: "16-18", etiqueta: "16:00 - 18:00", desde: "16:00", hasta: "18:00" },
-  { id: "18-20", etiqueta: "18:00 - 20:00", desde: "18:00", hasta: "20:00" },
 ] as const;
 
 export function bloquePorId(id: string | null | undefined): BloqueHorario | null {
@@ -104,10 +104,10 @@ export function minutosDesde(bloqueId: string | null | undefined): number | null
 //
 // Forma: "<ACCION>:<correlationId>", y para la elección de un bloque
 // "HORARIO_<bloqueId>:<correlationId>". El correlationId es opaco y aleatorio;
-// es lo único nuestro que Meta llega a ver (ver la Decisión 7 de research.md).
+// es lo único nuestro que Meta llega a ver (ver docs/WHATSAPP.md, Diseño).
 //
 // Meta permite 128 caracteres de payload en un botón de respuesta rápida. Con el
-// prefijo más largo ("HORARIO_18-20:", 14) queda sitio de sobra para el
+// prefijo más largo ("HORARIO_16-18:", 14) queda sitio de sobra para el
 // identificador de correlación.
 
 export type PayloadBoton = {

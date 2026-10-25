@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ARES</string>
+    <string name="title_activity_main">ARES</string>
+    <string name="package_name">cl.pucarani.ares</string>
+    <string name="custom_url_scheme">cl.pucarani.ares</string>
+</resources>

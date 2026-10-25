@@ -39,7 +39,7 @@ const R = (o) => ({
 const P = (o) => ({
   id: o.id ?? "p",
   empresa_id: "e",
-  chofer_id: o.chofer_id ?? "c1",
+  conductor_id: o.conductor_id ?? "c1",
   fecha: o.fecha ?? "2026-08-01",
   pedidos_entregados: o.pedidos_entregados ?? 0,
   pedidos_no_entregados: o.pedidos_no_entregados ?? 0,
@@ -59,7 +59,7 @@ const P = (o) => ({
 });
 
 const EV = (o) => ({
-  chofer_id: "chofer_id" in o ? o.chofer_id : "c1",
+  conductor_id: "conductor_id" in o ? o.conductor_id : "c1",
   fecha: o.fecha ?? "2026-08-01",
   tipo: o.tipo ?? "entrega",
   origen: o.origen ?? "app",
@@ -261,14 +261,14 @@ test("las llamadas no suman ni restan al conteo", () => {
 // ----------------------------------------------------------- agruparPorDia
 test("agrupa por (conductor, día) y cuenta cada tipo", () => {
   const dias = agruparPorDia([
-    EV({ chofer_id: "c1", fecha: "2026-08-01", tipo: "entrega" }),
-    EV({ chofer_id: "c1", fecha: "2026-08-01", tipo: "omision" }),
-    EV({ chofer_id: "c1", fecha: "2026-08-01", tipo: "llamada" }),
-    EV({ chofer_id: "c2", fecha: "2026-08-01", tipo: "entrega" }),
-    EV({ chofer_id: "c1", fecha: "2026-08-02", tipo: "entrega" }),
+    EV({ conductor_id: "c1", fecha: "2026-08-01", tipo: "entrega" }),
+    EV({ conductor_id: "c1", fecha: "2026-08-01", tipo: "omision" }),
+    EV({ conductor_id: "c1", fecha: "2026-08-01", tipo: "llamada" }),
+    EV({ conductor_id: "c2", fecha: "2026-08-01", tipo: "entrega" }),
+    EV({ conductor_id: "c1", fecha: "2026-08-02", tipo: "entrega" }),
   ]);
   assert.equal(dias.length, 3);
-  const d = dias.find((x) => x.fecha === "2026-08-01" && x.choferId === "c1");
+  const d = dias.find((x) => x.fecha === "2026-08-01" && x.conductorId === "c1");
   assert.deepEqual(d.conteo, { entregados: 1, omitidos: 1 });
   assert.equal(d.eventos.length, 3);
 });
@@ -296,10 +296,10 @@ test("cuenta los eventos de carga manual aparte", () => {
   assert.ok(d.manuales < d.eventos.length, "día mixto: la pantalla debe decir 'Manual parcial'");
 });
 
-test("un conductor eliminado (chofer_id null) sigue teniendo su día", () => {
-  const dias = agruparPorDia([EV({ chofer_id: null }), EV({ chofer_id: null, tipo: "omision" })]);
+test("un conductor eliminado (conductor_id null) sigue teniendo su día", () => {
+  const dias = agruparPorDia([EV({ conductor_id: null }), EV({ conductor_id: null, tipo: "omision" })]);
   assert.equal(dias.length, 1);
-  assert.equal(dias[0].choferId, null);
+  assert.equal(dias[0].conductorId, null);
   assert.deepEqual(dias[0].conteo, { entregados: 1, omitidos: 1 });
 });
 
@@ -313,7 +313,7 @@ test("agruparPorDia conserva TODOS los eventos y no pierde ni duplica conteos", 
   for (let i = 0; i < 3000; i++) {
     eventos.push(
       EV({
-        chofer_id: `c${i % 4}`,
+        conductor_id: `c${i % 4}`,
         fecha: `2026-08-${String((i % 28) + 1).padStart(2, "0")}`,
         tipo: tipos[i % 3],
         origen: i % 5 === 0 ? "manual" : "app",
@@ -335,7 +335,7 @@ test("agruparPorDia conserva TODOS los eventos y no pierde ni duplica conteos", 
     eventos.filter((e) => e.origen === "manual").length,
   );
   // Ninguna clave repetida
-  const claves = dias.map((d) => `${d.fecha}|${d.choferId}`);
+  const claves = dias.map((d) => `${d.fecha}|${d.conductorId}`);
   assert.equal(new Set(claves).size, claves.length);
 });
 

@@ -5,7 +5,10 @@
 **Decisiones**
 - "Entregas al primer intento" se reemplazó por "entregas sobre lo asignado": el borrado diario (spec 007) impide seguir un paquete entre días.
 - Facturación por períodos e ingresos reales: prioridad mínima, fuera de esta spec.
-- Todo se calcula con datos que ya están en el servidor + un conteo diario sin datos personales.
+- Todo se calcula con datos que ya están en el servidor + conteos diarios sin datos personales.
+- **Contactados antes de llegar** (meta de éxito del documento principal, decidido 2026-10-24):
+  pedidos cuyo receptor contestó la llamada o respondió el aviso antes de marcar el resultado.
+  Una llamada sin respuesta no cuenta.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -35,6 +38,7 @@ Responsable del negocio: saber qué parte de lo asignado en la guía se entregó
 
 1. **Given** día cerrado con asignados, **When** se calcula, **Then** muestra entregados / asignados del día y del período.
 2. **Given** días sin asignados (anteriores a esta spec), **When** se calcula, **Then** quedan fuera y se indica desde qué fecha hay datos.
+3. **Given** día cerrado con contactados, **When** se calcula, **Then** muestra contactados / asignados del día y del período.
 
 ### User Story 3 - Margen del día (Priority: P2)
 
@@ -80,10 +84,11 @@ Conductor: ver cuántas entregas lleva y cuántas faltan para el bono del día.
 - **FR-006**: La app del conductor MUST mostrar el avance hacia la meta diaria cuando la regla la tiene, sin exponer el resto de la tarifa.
 - **FR-007**: MUST NOT requerir datos de destinatarios.
 - **FR-008**: Las cifras MUST distinguirse sin depender solo del color.
+- **FR-009**: Al cerrar el día, el teléfono MUST enviar cuántos pedidos se contactaron antes de la visita (un número) y el panel MUST mostrar contactados / asignados.
 
 ### Key Entities
 
-Día (+ `asignados`) · Indicador (cálculo, no se guarda). Detalle en `data-model.md`.
+Día (+ `asignados`, `contactados`) · Indicador (cálculo, no se guarda). Detalle en `data-model.md`.
 
 ## Success Criteria *(mandatory)*
 

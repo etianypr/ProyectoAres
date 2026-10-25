@@ -1,3 +1,5 @@
+-- HISTÓRICA: los nombres "chofer"/"choferes" de este archivo se renombraron a
+-- "conductor"/"conductores" en 0006_conductor.sql (spec 002 US2). No se edita.
 -- ============================================================================
 -- 0002 — Encomiendas: actividad en terreno, jornadas, regla de pago,
 --        liquidación por día, periodos de facturación e ingresos reales.

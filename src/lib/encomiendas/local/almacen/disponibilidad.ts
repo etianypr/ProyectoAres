@@ -93,7 +93,7 @@ export function registrarDisponibilidad(
   /** Id del mensaje de WhatsApp que trajo la respuesta: la clave de la regla 1. */
   mensajeId: string,
   /** Para el evento de no entrega que deja "Mañana". */
-  choferId: string,
+  conductorId: string,
 ): Promise<boolean> {
   return enFila(async () => {
     const pedido = await leerPedido(pedidoId);
@@ -126,7 +126,7 @@ export function registrarDisponibilidad(
     };
     const evento: ActividadPorEnviar | null =
       respuesta.tipo === "manana"
-        ? nuevoEvento(choferId, pedido.fecha, "omision", hora)
+        ? nuevoEvento(conductorId, pedido.fecha, "omision", hora)
         : null;
 
     await escribir([STORES.pedidos, STORES.cola], ({ guardar }) => {

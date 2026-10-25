@@ -6,6 +6,7 @@ archivo, la prueba y la constitución (Architecture Rules).
 | ID | Regla |
 |---|---|
 | A1 | `src/lib/**` no importa `src/app/**` ni `src/components/**` |
+| A1b | `@capacitor/*` solo se importa desde `src/lib/nativo/**` (spec 015) |
 | A2 | `src/components/**` no importa `src/app/**` |
 | A3 | `src/components/ui/**` solo importa `react`, `lucide-react`, `next/*`, `@/lib/comun/*` y `ui/*` |
 | A4 | Nada del servidor importa `src/lib/encomiendas/local/**` (servidor = `route.ts`, actions, `"use server"`, `page`/`layout` sin `"use client"`, y lo que importe `server-only`) |

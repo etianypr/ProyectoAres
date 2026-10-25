@@ -42,7 +42,7 @@ const aviso = (m) => {
 const TABLAS = {
   Perfil: "perfiles",
   Empresa: "empresa",
-  Chofer: "choferes",
+  Conductor: "conductores",
   Actividad: "encomienda_actividad",
   DiaTrabajo: "encomienda_jornadas",
   ReglaDePago: "encomienda_reglas_pago",
@@ -78,7 +78,7 @@ const RETIRADAS = [
   "facturas",
   "vehiculos",
   "servicios_taxi",
-  "chofer_categorias",
+  "conductor_categorias",
 ];
 
 // ---------------------------------------------------------------------------
@@ -143,7 +143,7 @@ for (const [interfaz, tabla] of Object.entries(TABLAS)) {
 console.log("\n=== 3. Los joins que arma el código ===");
 // Un join mal nombrado no lo ve TypeScript: es un string que PostgREST resuelve
 // por la foreign key. Si la FK cambia de nombre, la consulta falla en runtime.
-const JOINS = [["encomienda_actividad", "*, chofer:choferes(id,nombre)"]];
+const JOINS = [["encomienda_actividad", "*, conductor:conductores(id,nombre)"]];
 for (const [tabla, select] of JOINS) {
   const { error } = await db.from(tabla).select(select).limit(1);
   if (error) mal(`join en ${tabla}: ${error.message}`);

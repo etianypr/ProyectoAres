@@ -28,7 +28,7 @@ Sección de indicadores en el panel (rendimiento, entregas sobre lo asignado, ma
 
 ```mermaid
 flowchart LR
-  TEL["Teléfono: cierre de jornada ✱ asignados"] -->|upsert| J[("encomienda_jornadas ✱ asignados")]
+  TEL["Teléfono: cierre del día ✱ asignados · contactados"] -->|upsert| J[("encomienda_jornadas ✱ asignados · contactados")]
   F[("encomienda_meta_entregas_dia() ✱")] -->|rpc| CP["página conductor → meta-bono ✱"]
   A[("encomienda_actividad")] --> D["(app)/encomiendas/_datos.ts ✱"]
   J --> D
@@ -40,10 +40,10 @@ flowchart LR
 
 | Dónde | Objeto | Cambio |
 |---|---|---|
-| Postgres | `encomienda_jornadas` | `asignados int null` |
+| Postgres | `encomienda_jornadas` | `asignados int null` · `contactados int null` |
 | Postgres | función | `encomienda_meta_entregas_dia()` |
 | Postgres | actividad, pagos, reglas | sin cambios |
-| Teléfono | `enviar.ts` | envía `asignados` |
+| Teléfono | `enviar.ts` | envía `asignados` y `contactados` |
 
 Detalle: [data-model.md](data-model.md) · decisiones: [research.md](research.md).
 
@@ -55,11 +55,11 @@ src/app/(app)/encomiendas/_datos.ts            ✱ leer asignados y período ant
 src/app/(app)/encomiendas/_resumen.ts          ✱ usa indicadores.ts (sin duplicar KPIs existentes)
 src/app/(app)/encomiendas/_componentes/indicadores.tsx   ✱ nueva sección
 src/app/(app)/encomiendas/_componentes/tabla-dias.tsx    ✱ columna margen
-src/lib/encomiendas/local/enviar.ts            ✱ asignados en sincronizarJornada
+src/lib/encomiendas/local/enviar.ts            ✱ asignados y contactados en sincronizarDiaTrabajo
 src/app/(conductor)/conductor/encomiendas/page.tsx       ✱ rpc meta
 src/app/(conductor)/conductor/encomiendas/_componentes/meta-bono.tsx   ✱
 supabase/migrations/000N_indicadores.sql       ✱ próxima migración libre
-src/types/db.ts                                ✱ DiaTrabajo.asignados
+src/types/db.ts                                ✱ DiaTrabajo.asignados · contactados
 pruebas/indicadores.test.mjs                   ✱ · pruebas/esquema.mjs ✱ · pruebas/base.mjs ✱
 ```
 

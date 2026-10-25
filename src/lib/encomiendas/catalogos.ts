@@ -53,6 +53,37 @@ export const ESTADOS_AVISO = [
 ] as const;
 export type EstadoAviso = (typeof ESTADOS_AVISO)[number];
 
+/** Cómo es el paquete (spec 003): tipo, tamaño y color, un toque cada uno. Las
+ *  etiquetas son las del botón; el texto de la parada concuerda en género (ver
+ *  textoReferencia en paquete.ts). */
+export const TIPOS_PAQUETE = {
+  caja: "Caja",
+  bolsa: "Bolsa",
+  sobre: "Sobre",
+  otro: "Otro",
+} as const;
+export type TipoPaquete = keyof typeof TIPOS_PAQUETE;
+
+export const TAMANOS_PAQUETE = {
+  chico: "Chico",
+  mediano: "Mediano",
+  grande: "Grande",
+} as const;
+export type TamanoPaquete = keyof typeof TAMANOS_PAQUETE;
+
+export const COLORES_PAQUETE = {
+  cafe: "Café",
+  blanco: "Blanco",
+  negro: "Negro",
+  gris: "Gris",
+  amarillo: "Amarillo",
+  azul: "Azul",
+  rojo: "Rojo",
+  verde: "Verde",
+  transparente: "Transparente",
+} as const;
+export type ColorPaquete = keyof typeof COLORES_PAQUETE;
+
 /** Si un valor crudo (formulario, red) es una clave del catálogo. Propia, no
  *  heredada: "toString" no es un tipo de pago. */
 export function esClave<C extends object>(catalogo: C, valor: unknown): valor is keyof C {

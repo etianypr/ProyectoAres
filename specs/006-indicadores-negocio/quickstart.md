@@ -14,8 +14,8 @@ npm run test:esquema && npm run test:base      # contra la base (credenciales en
 5. Día 40 entregas × $950, pago $25.000 → margen $13.000.
 
 ## Teléfono
-6. Cerrar una jornada con 25 pedidos → `encomienda_jornadas.asignados = 25`; el panel muestra entregados/asignados.
+6. Cerrar un día con 25 pedidos, 18 con llamada contestada o aviso respondido → `asignados = 25`, `contactados = 18`; el panel muestra entregados/asignados y contactados/asignados.
 7. Regla con meta 45 → contador "N de 45"; sin conexión avanza igual. Regla sin meta → no aparece.
 
 ## Privacidad
-8. El único dato nuevo que viaja es `asignados` (un número).
+8. Los únicos datos nuevos que viajan son `asignados` y `contactados` (dos números).

@@ -29,7 +29,7 @@ const idb = await import("@/lib/encomiendas/local/idb");
 const reloj = await import("./dobles/reloj.mjs");
 
 const HOY = "2026-08-20";
-const CHOFER = "11111111-1111-7111-8111-111111111111";
+const CONDUCTOR = "11111111-1111-7111-8111-111111111111";
 
 // Base de la ruta: el centro de Arica. Las paradas se ubican a distancias
 // crecientes hacia el sur, así que "la más corta" siempre es 1, 2, 3, ...
@@ -173,7 +173,7 @@ async function pedidoAKm(nombre, km, extra = {}) {
     );
   }
   if (extra.disponibilidad === "confirmado") {
-    await registrarDisponibilidad(p.id, { tipo: "confirmado" }, `wamid.${p.id}`, CHOFER);
+    await registrarDisponibilidad(p.id, { tipo: "confirmado" }, `wamid.${p.id}`, CONDUCTOR);
   }
   return p;
 }
@@ -204,9 +204,9 @@ async function pedidoA(n, extra = {}) {
     notas: null,
   }, HOY);
   if (extra.disponibilidad === "confirmado") {
-    await registrarDisponibilidad(p.id, { tipo: "confirmado" }, `wamid.${p.id}`, CHOFER);
+    await registrarDisponibilidad(p.id, { tipo: "confirmado" }, `wamid.${p.id}`, CONDUCTOR);
   } else if (extra.disponibilidad === "manana") {
-    await registrarDisponibilidad(p.id, { tipo: "manana" }, `wamid.${p.id}`, CHOFER);
+    await registrarDisponibilidad(p.id, { tipo: "manana" }, `wamid.${p.id}`, CONDUCTOR);
   } else if (extra.bloque) {
     await registrarDisponibilidad(
       p.id,
@@ -225,7 +225,7 @@ const nombres = (paradas) => paradas.map((p) => p.nombre);
 
 test("sin respuestas de nadie, la ruta es la más corta y se muestra UNA sola", async () => {
   // Es el caso normal y el que el documento principal quiere proteger: si las
-  // tres estrategias dan el mismo orden, no hay nada que comparar y el chofer no
+  // tres estrategias dan el mismo orden, no hay nada que comparar y el conductor no
   // tiene que elegir nada.
   for (const n of [3, 1, 2]) await pedidoA(n);
 
@@ -288,7 +288,7 @@ test("un pedido tachado no reaparece al rehacer la ruta", async () => {
     distanciaM: null,
     duracionS: null,
   });
-  await marcarResultado({ fecha: HOY, pedidoId: b.id, choferId: CHOFER }, "no_entregado");
+  await marcarResultado({ fecha: HOY, pedidoId: b.id, conductorId: CONDUCTOR }, "no_entregado");
 
   const p = await calcularRutaLocal(HOY, inicioDe());
   assert.deepEqual(nombres(p.paradas), ["Cliente 1"]);
@@ -306,7 +306,7 @@ test("nada pasa al día siguiente: lo no entregado se tacha", async () => {
     distanciaM: null,
     duracionS: null,
   });
-  await marcarResultado({ fecha: HOY, pedidoId: b.id, choferId: CHOFER }, "no_entregado");
+  await marcarResultado({ fecha: HOY, pedidoId: b.id, conductorId: CONDUCTOR }, "no_entregado");
 
   // Hoy: lo cerrado no se vuelve a rutear.
   assert.deepEqual(nombres((await calcularRutaLocal(HOY, inicioDe())).paradas), ["Cliente 1"]);
@@ -356,7 +356,7 @@ test("cuando la ruta corta se pasa del horario, gana la que lo respeta", async (
   assert.equal(p.paradas[0].nombre, "Temprano");
   assert.equal(p.alternativas[0].bloquesIncumplidos, 0);
 
-  // Y la más corta se ofrece igual, para que el chofer pueda decidir que
+  // Y la más corta se ofrece igual, para que el conductor pueda decidir que
   // prefiere manejar menos y llamar al cliente.
   const corta = p.alternativas.find((a) => a.estrategia === "corta");
   assert.ok(corta, "no se ofreció la más corta como alternativa");
@@ -374,7 +374,7 @@ test("los bloques se ordenan por hora del día, no por cercanía", async (t) => 
 
   // A propósito al revés: el más cercano es el de la tarde y el más lejano el de
   // la mañana. Por distancia quedarían justo en el orden contrario al del día.
-  await pedidoAKm("Tarde", 1, { bloque: "18-20" });
+  await pedidoAKm("Tarde", 1, { bloque: "16-18" });
   await pedidoAKm("Mediodía", 2, { bloque: "12-14" });
   await pedidoAKm("Mañana", 15, { bloque: "08-10" });
 
@@ -674,7 +674,7 @@ test("rehacer la ruta conserva lo que ya se cerró hoy", async () => {
     distanciaM: null,
     duracionS: null,
   });
-  await marcarResultado({ fecha: HOY, pedidoId: a.id, choferId: CHOFER }, "entregado");
+  await marcarResultado({ fecha: HOY, pedidoId: a.id, conductorId: CONDUCTOR }, "entregado");
 
   // Entra un pedido nuevo y se rehace.
   await pedidoA(3);

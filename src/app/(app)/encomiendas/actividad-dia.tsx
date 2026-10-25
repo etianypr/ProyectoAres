@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Dialogo } from "@/components/ui/dialogo";
 import { Select } from "@/components/ui/select";
 import { Field } from "@/components/ui/label";
-import { formatCLP, formatNumber, formatTime } from "@/lib/format";
+import { formatCLP, formatNumber, formatTime } from "@/lib/comun/format";
 import {
   calcularPagoDia,
   ingresoEstimado,
@@ -53,8 +53,8 @@ export type EventoDia = Pick<Actividad, "id" | "tipo" | "origen">;
 // llegar mucho después de la última entrega sin que eso signifique nada raro.
 
 export function ActividadDia({
-  choferId,
-  choferNombre,
+  conductorId,
+  conductorNombre,
   fecha,
   eventos,
   pago,
@@ -62,8 +62,8 @@ export function ActividadDia({
   regla,
 }: {
   /** null si el conductor fue eliminado: el día se ve, pero no se liquida. */
-  choferId: string | null;
-  choferNombre: string;
+  conductorId: string | null;
+  conductorNombre: string;
   fecha: string;
   eventos: EventoDia[];
   /** Las cifras que la base congeló para este día (0031). null si no se pudo
@@ -82,10 +82,10 @@ export function ActividadDia({
   const [recalculando, setRecalculando] = useState(false);
 
   function onBorrarManual() {
-    if (!choferId) return;
+    if (!conductorId) return;
     setErrorBorrar(null);
     startTransitionBorrar(async () => {
-      const res = await eliminarDiaManual(choferId, fecha);
+      const res = await eliminarDiaManual(conductorId, fecha);
       if (res.error) setErrorBorrar(res.error);
       setConfirmandoBorrado(false);
     });
@@ -103,7 +103,7 @@ export function ActividadDia({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{choferNombre}</CardTitle>
+        <CardTitle>{conductorNombre}</CardTitle>
         <span className="flex items-center gap-1.5 text-xs text-muted">
           <Truck className="h-3.5 w-3.5" />
           {formatNumber(eventos.length)} registro{eventos.length === 1 ? "" : "s"}
@@ -143,7 +143,7 @@ export function ActividadDia({
               {manualOmitidos === 1 ? "" : "s"}
               {manualEntregados + manualOmitidos === 0 ? " (solo día trabajado)" : ""}
             </p>
-            {choferId ? (
+            {conductorId ? (
               <div className="mt-2.5 flex flex-wrap items-center gap-2">
                 {confirmandoBorrado ? (
                   <>
@@ -255,7 +255,7 @@ export function ActividadDia({
               // Tres razones distintas para no tener cifras, y conviene decir
               // cuál: una ruta en curso no es un problema, las otras dos sí.
               <span className={diaEnCurso ? "text-muted" : "text-danger"}>
-                {!choferId
+                {!conductorId
                   ? "El conductor fue eliminado: este día no se puede liquidar."
                   : diaEnCurso
                     ? "La ruta sigue en curso. El pago se calcula cuando termine."
@@ -266,7 +266,7 @@ export function ActividadDia({
           {/* Un día conserva su tarifa para siempre, así que corregir la regla
               no arregla un día que se calculó con una regla mal escrita. Esta
               es la única forma de moverlo, y es de a un día a propósito. */}
-          {choferId && !diaEnCurso ? (
+          {conductorId && !diaEnCurso ? (
             <Button
               onClick={() => setRecalculando(true)}
               size="sm"
@@ -279,9 +279,9 @@ export function ActividadDia({
         </div>
       </CardBody>
 
-      {recalculando && choferId ? (
+      {recalculando && conductorId ? (
         <DialogoRecalcular
-          choferId={choferId}
+          conductorId={conductorId}
           fecha={fecha}
           conteo={{ entregados, omitidos }}
           // Se edita a partir de la tarifa del propio día: se está corrigiendo
@@ -309,14 +309,14 @@ export function ActividadDia({
 // contó como pagado no puede ser a ciegas.
 // ----------------------------------------------------------------------------
 function DialogoRecalcular({
-  choferId,
+  conductorId,
   fecha,
   conteo,
   partida,
   regla,
   onCerrar,
 }: {
-  choferId: string;
+  conductorId: string;
   fecha: string;
   conteo: ConteoDia;
   partida: Tarifa | null;
@@ -342,8 +342,8 @@ function DialogoRecalcular({
     startTransition(async () => {
       const res =
         modo === "editada"
-          ? await repreciarDiaConTarifa(choferId, fecha, datos)
-          : await repreciarDia(choferId, fecha);
+          ? await repreciarDiaConTarifa(conductorId, fecha, datos)
+          : await repreciarDia(conductorId, fecha);
       if (res.error) setError(res.error);
       else onCerrar();
     });

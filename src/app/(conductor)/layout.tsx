@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import { exigirConductor } from "@/lib/auth";
+import { exigirConductor } from "@/lib/auth/sesion";
+import { RegistrarSW } from "./registrar-sw";
 
 // Grupo de rutas aparte (ver docs de route groups): así todo lo que vive
 // bajo /conductor NO hereda el AppShell/sidebar del panel admin — es la
@@ -33,11 +34,14 @@ export const viewport: Viewport = {
 };
 
 export default async function ConductorLayout({ children }: { children: React.ReactNode }) {
-  // Puerta del grupo: acá solo entra el rol chofer. Cualquier otro rol vuelve
+  // Puerta del grupo: acá solo entra el rol conductor. Cualquier otro rol vuelve
   // al panel — antes quedaba encerrado en "Cuenta sin vincular", sin salida.
   await exigirConductor();
 
   return (
-    <div className="min-h-screen bg-background">{children}</div>
+    <div className="min-h-screen bg-background">
+      <RegistrarSW />
+      {children}
+    </div>
   );
 }

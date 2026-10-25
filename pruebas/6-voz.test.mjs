@@ -3,7 +3,7 @@
 // termina leyendo en inglés o callado. Acá se fija a qué voz cae cada aparato.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { elegirVoz } from "@/app/(conductor)/conductor/encomiendas/use-voz";
+import { elegirVoz } from "@/app/(conductor)/conductor/encomiendas/_hooks/voz";
 
 const v = (lang, name = lang) => ({ lang, name });
 

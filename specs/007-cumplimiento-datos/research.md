@@ -8,11 +8,19 @@
 
 ## R2. Dónde corre el borrado del día
 
-- **Decision**: módulo nuevo `lib/encomiendas/local/borrado.ts`: `noEntregadosDelDia(fecha)` (lista de OF), `cerrarYBorrarDia(fecha)` (escribe `ResumenDia` y borra `pedidos`, `rutas`, `whatsapp`, `fotos` del día en **una** transacción de `escribir()`), `diasSinCerrar(hoy)`.
+- **Decision**: módulo nuevo `lib/encomiendas/local/almacen/borrado.ts` (solo `almacen/` toca los stores): `noEntregadosDelDia(fecha)` (lista de OF), `cerrarYBorrarDia(fecha)` (escribe `ResumenDia` y borra `pedidos` (con su aviso), `rutas` y `fotos` del día en **una** transacción de `escribir()`), `diasPorBorrar(hoy)`; y `borrarDatosDestinatarios()` para la sesión.
 - **Rationale**: una transacción evita estados a medias (resumen escrito sin borrar, o al revés). `cerrarDia()` (almacen.ts) sigue marcando el cierre; el borrado va después de la confirmación.
 - Pedidos sin fecha de ruta (cargados sin rutear): se borran con el día de `cargadoEn`.
 
 ## R3. Detección de cuenta desactivada
+
+> **Revisada 2026-10-24 (implementación).** Borrar al llegar a `/login` se descartó: el proxy
+> también manda a `/login` cuando Supabase no responde (proyecto pausado, caída), y eso borraría
+> la ruta del día en plena calle. Además "desactivar" solo marca `conductores.activo = false`; la
+> sesión sigue válida. Quedó así: cerrar sesión borra en el teléfono antes de salir (con aviso);
+> las pantallas "Cuenta sin vincular" y "Cuenta desactivada" montan `BorradoLocal`, y solo se
+> llega a ellas con una consulta que respondió (`conductorDeUsuario` lanza si falla). Lo de abajo
+> es la decisión original.
 
 - **Decision**: la página `/login` monta `<BorradoLocal/>` (cliente) que borra los stores con datos de destinatarios. Llegan a `/login`: el cierre de sesión y toda sesión sin rol válido (`private.get_rol()` exige `perfiles.activo`; `exigirConductor()` redirige).
 - **Rationale**: un solo punto cubre FR-007 sin consultar el servidor desde el teléfono.

@@ -7,7 +7,8 @@
 // compone centrado sobre un cuadrado azul de marca.
 //
 // Correr después de cambiar public/logo.png:
-//   node scripts/generar-iconos.mjs
+//   node scripts/generar-iconos.mjs            (web + Android)
+//   node scripts/generar-iconos.mjs --android  (solo los íconos de la APK, spec 015)
 import fs from "node:fs";
 import path from "node:path";
 import sharp from "sharp";
@@ -102,8 +103,58 @@ const salidas = [
   ["apple-icon.png", 180, 0.78],
 ];
 
-for (const [nombre, lado, ocupacion] of salidas) {
+const soloAndroid = process.argv.includes("--android");
+
+for (const [nombre, lado, ocupacion] of soloAndroid ? [] : salidas) {
   const destino = path.join(PUBLIC, nombre);
   await sharp(await componer(marca, lado, ocupacion)).toFile(destino);
   console.log(`✓ public/${nombre} (${lado}×${lado})`);
+}
+
+// APK Android (spec 015). El ícono adaptativo muestra solo el centro (72 de 108 dp):
+// la marca va al 0.6 del lado, como en el maskable. Los PNG cuadrado y redondo son
+// el respaldo de los lanzadores viejos.
+const RES = path.join(RAIZ, "android", "app", "src", "main", "res");
+if (fs.existsSync(RES)) {
+  const densidades = { mdpi: 1, hdpi: 1.5, xhdpi: 2, xxhdpi: 3, xxxhdpi: 4 };
+  for (const [nombre, factor] of Object.entries(densidades)) {
+    const dir = path.join(RES, `mipmap-${nombre}`);
+    const lado = Math.round(48 * factor);
+    const cuadrado = await componer(marca, lado, 0.78);
+    await sharp(cuadrado).toFile(path.join(dir, "ic_launcher.png"));
+    const circulo = Buffer.from(
+      `<svg width="${lado}" height="${lado}"><circle cx="${lado / 2}" cy="${lado / 2}" r="${lado / 2}"/></svg>`,
+    );
+    await sharp(cuadrado)
+      .composite([{ input: circulo, blend: "dest-in" }])
+      .png()
+      .toFile(path.join(dir, "ic_launcher_round.png"));
+    const frente = Math.round(108 * factor);
+    await sharp(await componer(marca, frente, 0.6)).toFile(path.join(dir, "ic_launcher_foreground.png"));
+  }
+  fs.writeFileSync(
+    path.join(RES, "values", "ic_launcher_background.xml"),
+    `<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_launcher_background">#0C3F9B</color>
+</resources>
+`,
+  );
+  // Pantalla de carga (Android 10 y 11; desde el 12 el sistema usa el ícono): la
+  // marca al 30 % del lado corto sobre el azul, respetando el tamaño de cada archivo
+  // que trae la plantilla de Capacitor.
+  for (const carpeta of fs.readdirSync(RES).filter((d) => d.startsWith("drawable"))) {
+    const archivo = path.join(RES, carpeta, "splash.png");
+    if (!fs.existsSync(archivo)) continue;
+    const { width, height } = await sharp(archivo).metadata();
+    const interior = Math.round(Math.min(width, height) * 0.3);
+    const escalada = await sharp(marca).resize(interior, interior, { fit: "contain", background: FONDO }).toBuffer();
+    const fondo = sharp({ create: { width, height, channels: 4, background: FONDO } });
+    const destino = await fondo
+      .composite([{ input: escalada, top: Math.round((height - interior) / 2), left: Math.round((width - interior) / 2) }])
+      .png()
+      .toBuffer();
+    fs.writeFileSync(archivo, destino);
+  }
+  console.log("✓ android/app/src/main/res (íconos y pantalla de carga de la APK)");
 }

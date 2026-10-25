@@ -1,7 +1,7 @@
 "use client";
 
 // ----------------------------------------------------------------------------
-// Encomiendas del chofer — una sola pantalla
+// Encomiendas del conductor — una sola pantalla
 // ----------------------------------------------------------------------------
 // Mapa a pantalla completa y, abajo, una hoja deslizable de dos posiciones.
 //
@@ -29,7 +29,9 @@ import {
   ArrowLeft,
   Check,
   Clock,
+  ClipboardList,
   CloudOff,
+  Download,
   LocateFixed,
   LogOut,
   MapPin,
@@ -38,56 +40,70 @@ import {
   PackageCheck,
   Route,
   Phone,
+  PhoneCall,
+  PhoneOff,
   Plus,
   RotateCw,
+  ScanLine,
   Trash2,
   Undo2,
   Volume2,
   VolumeX,
   X,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { formatDistancia } from "@/lib/format";
-import { metrosRestantes, recortarTrazado, rumboDelCamino } from "@/lib/rutas";
-import { BottomSheet } from "@/components/encomiendas/bottom-sheet";
-import { PilaNotificaciones, type Notificacion } from "@/components/encomiendas/notificaciones";
-import { FilaDeslizable } from "@/components/encomiendas/fila-deslizable";
-import { Seccion } from "@/components/encomiendas/seccion";
+import { cn } from "@/lib/comun/utils";
+import { sumarDias } from "@/lib/comun/fechas";
+import { metrosRestantes, recortarTrazado, rumboDelCamino } from "@/lib/geo/trazado";
+import { BottomSheet } from "./_componentes/hoja";
+import { PilaNotificaciones, type Notificacion } from "./_componentes/notificaciones";
+import { FilaDeslizable } from "./_componentes/fila-deslizable";
+import { Seccion } from "./_componentes/seccion";
 import {
   leerDias,
-  leerPedidos,
-  leerRuta,
-  resumirDia,
+  leerResumenDia,
   type ResumenDia,
   type PedidoEliminado,
   type Pedido,
 } from "@/lib/encomiendas/local/almacen";
-import { BotonMenu, MenuLateral } from "@/components/encomiendas/menu-lateral";
-import { logout } from "@/app/login/actions";
+import { BotonMenu, MenuLateral } from "./_componentes/menu-lateral";
+import { logout } from "@/lib/auth/acciones";
 import { bloquePorId } from "@/lib/encomiendas/config";
+import { alBotonAtras, esApp, minimizarApp, versionInstalada } from "@/lib/nativo/entorno";
+import { llamar } from "@/lib/nativo/telefono";
+import { esMasVieja } from "@/lib/nativo/version";
 import {
   confirmarRutaLocal,
   elegirAlternativa,
   type EstrategiaRuta,
   type PropuestaRuta,
 } from "@/lib/encomiendas/local/generar-ruta";
-import type { PreviaRuta, PuntoMapa, Ubicacion } from "./ruta-mapa";
-import { MS_DESHACER, useDiaTrabajo, type Parada } from "./use-dia-trabajo";
-import { useUbicacionActual } from "./use-ubicacion-actual";
-import { useNavegacion } from "./use-navegacion";
-import { usePantallaEncendida } from "./use-pantalla-encendida";
-import { usePuntoEnRuta } from "./use-punto-en-ruta";
-import { useVozNavegacion } from "./use-voz";
-import { useBrujula } from "./use-brujula";
-import { CAJA_CARRIL, InstruccionNavegacion } from "./instruccion-navegacion";
-import { PedidoFormLocal } from "./pedido-form-local";
-import { GenerarRutaLocal } from "./generar-ruta-local";
-import { VistaPreviaRuta } from "./vista-previa-ruta";
+import type { PreviaRuta, PuntoMapa, Ubicacion } from "./_mapa/ruta-mapa";
+import { MS_DESHACER, useDiaTrabajo, type Parada } from "./_hooks/use-dia-trabajo";
+import { useUbicacionActual } from "./_hooks/use-ubicacion-actual";
+import { useNavegacion } from "./_hooks/use-navegacion";
+import { usePantallaEncendida } from "./_hooks/use-pantalla-encendida";
+import { useLlamadaNativa, type LlamadaDetectada } from "./_hooks/use-llamada-nativa";
+import { usePuntoEnRuta } from "./_hooks/use-punto-en-ruta";
+import { useVozNavegacion } from "./_hooks/use-voz";
+import { useBrujula } from "./_hooks/use-brujula";
+import { useCierreDia } from "./_hooks/use-cierre-dia";
+import { BuscarOf } from "./_componentes/buscar-of";
+import { CargarGuia } from "./_componentes/cargar-guia";
+import { EscanearEtiqueta } from "./_componentes/escanear-etiqueta";
+import { CierreDia } from "./_componentes/cierre-dia";
+import { MetaBono } from "./_componentes/meta-bono";
+import { AvisoSinEtiqueta } from "./_componentes/aviso-sin-etiqueta";
+import { TarjetaParada } from "./_componentes/tarjeta-parada";
+import { formatoOf, nombreVisible } from "@/lib/encomiendas/paquete";
+import { CAJA_CARRIL, InstruccionNavegacion } from "./_componentes/instruccion-navegacion";
+import { PedidoFormLocal } from "./_componentes/pedido-form-local";
+import { GenerarRutaLocal } from "./_componentes/generar-ruta-local";
+import { VistaPreviaRuta } from "./_componentes/vista-previa-ruta";
 
 // mapbox-gl toca `window` apenas se importa — aunque este archivo ya es "use
 // client", Next.js igual lo renderiza una vez en el servidor antes de hidratar,
 // donde `window` no existe. ssr:false lo deja cargar solo en el navegador.
-const RutaMapa = dynamic(() => import("./ruta-mapa").then((m) => m.RutaMapa), {
+const RutaMapa = dynamic(() => import("./_mapa/ruta-mapa").then((m) => m.RutaMapa), {
   ssr: false,
 });
 
@@ -96,7 +112,7 @@ const RutaMapa = dynamic(() => import("./ruta-mapa").then((m) => m.RutaMapa), {
 //   esperando_resultado  → "Contestó" / "No contestó"
 //   eligiendo            → no contestó: "Dejar para el final" / "Omitir por hoy"
 //   confirmado           → contestó: "Pedido finalizado"
-// En qué paso del trato con ESTA parada está el chofer.
+// En qué paso del trato con ESTA parada está el conductor.
 //
 //   antes_llamar         hay que contactarlo: no contestó el WhatsApp.
 //   esperando_resultado  se lo llamó y hay que decir qué pasó con la llamada:
@@ -122,19 +138,7 @@ type Fase =
   | "esperando_entrega"
   | "salidas";
 
-function telHref(telefono: string): string {
-  return `tel:${telefono.replace(/[^\d+]/g, "")}`;
-}
-
-/** El día anterior a una fecha "YYYY-MM-DD", sin pasar por la zona horaria del
- *  teléfono: con new Date("2026-08-09") y luego getDate() el resultado cambia
- *  según dónde esté parado el aparato. */
-function ayerDe(fecha: string): string {
-  const [a, m, d] = fecha.split("-").map(Number);
-  return new Date(Date.UTC(a, m - 1, d - 1)).toISOString().slice(0, 10);
-}
-
-// Botones de la hoja: a ancho completo y de 48 px. Es lo que el chofer aprieta
+// Botones de la hoja: a ancho completo y de 48 px. Es lo que el conductor aprieta
 // manejando, con el pulgar y sin mirar mucho.
 const BOTON_PRINCIPAL =
   "flex h-12 w-full items-center justify-center gap-2 rounded-full bg-brand text-[15px] font-semibold text-brand-foreground shadow-[0_1px_2px_var(--brand-shadow)] transition-transform active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50";
@@ -148,17 +152,19 @@ const BOTON_RESULTADO =
   "flex h-12 min-w-0 items-center justify-center gap-1.5 rounded-full px-2.5 text-center text-sm font-semibold leading-tight transition-transform active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50";
 
 /** Con la última lectura más vieja que esto, el punto que se ve ya no es dónde
- *  está el chofer. */
+ *  está el conductor. */
 const MS_UBICACION_VIEJA = 12_000;
 
 /** A qué distancia de la parada se avisa que hay que contactar al receptor
  *  (FR-017).
  *
  *  Trescientos metros es más o menos una cuadra y media de Arica: lo suficiente
- *  para que el chofer alcance a llamar y a escuchar la respuesta antes de tener
+ *  para que el conductor alcance a llamar y a escuchar la respuesta antes de tener
  *  que estacionar, y no tanto como para que el aviso aparezca cuando todavía
  *  faltan cinco paradas. */
 const METROS_AVISO_CONTACTO = 300;
+// Cuánto queda a la vista el aviso del resultado de una llamada detectada.
+const MS_AVISO_LLAMADA = 8000;
 
 /** Precisión por encima de la cual el punto ya no ubica ni la manzana. */
 const PRECISION_DUDOSA_M = 40;
@@ -168,7 +174,7 @@ const PRECISION_DUDOSA_M = 40;
  *
  *  El estado de ubicación se dice DOS veces a propósito —con el icono tachado y
  *  con la palabra "Corregir"—. Un pedido sin ubicar no entra en ninguna ruta, así
- *  que si el chofer no se entera, ese paquete no sale de la camioneta; y una
+ *  que si el conductor no se entera, ese paquete no sale de la camioneta; y una
  *  marca que solo se distingue por el color no la ve nadie de reojo, a pleno sol,
  *  con el teléfono en una mano (la constitución lo pide explícitamente: los
  *  estados no pueden depender solo del color). */
@@ -187,7 +193,7 @@ function FilaPedido({
   return (
     <FilaDeslizable
       separador={!primera}
-      etiqueta={pedido.nombre}
+      etiqueta={nombreVisible(pedido)}
       onEliminar={onEliminar}
       className="bg-card"
     >
@@ -197,7 +203,7 @@ function FilaPedido({
         className="flex w-full items-center gap-3 px-3.5 py-3 text-left text-sm transition-colors active:bg-background"
       >
         <div className="min-w-0 flex-1">
-          <p className="truncate font-medium leading-tight">{pedido.nombre}</p>
+          <p className="truncate font-medium leading-tight">{nombreVisible(pedido)}</p>
           <p className="truncate text-xs text-muted">{pedido.direccion}</p>
           {sinUbicar ? (
             <p className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-warn">
@@ -234,7 +240,7 @@ const MS_CONFIRMACION = 3_000;
  *
  *  Antes esto se abría como una pantalla aparte encima de todo. Se movió acá
  *  porque abrir otra pantalla para cargar un pedido rompía lo único que la app
- *  del chofer sostiene: que todo pase en el mismo lugar, sobre el mapa. La razón
+ *  del conductor sostiene: que todo pase en el mismo lugar, sobre el mapa. La razón
  *  por la que en su momento salió de la hoja —"el formulario pelea con el gesto
  *  de arrastre"— ya no existe: la hoja se arrastra SOLO desde el tirador, así que
  *  ningún campo le roba el gesto a nada.
@@ -255,11 +261,14 @@ const MS_CONFIRMACION = 3_000;
 function VistaPedido({
   pedido,
   fecha,
+  ofInicial,
   onCerrar,
   onGuardado,
 }: {
   /** Sin esto, es uno nuevo. */
   pedido?: Pedido;
+  /** OF de una etiqueta que no estaba en la guía (spec 005). */
+  ofInicial?: string;
   /** Día de trabajo de un pedido nuevo. */
   fecha: string;
   onCerrar: () => void;
@@ -273,7 +282,7 @@ function VistaPedido({
     <>
       {/* Dos controles que hacen lo mismo, a propósito: la flecha de la
           izquierda es "volver a la lista" y la cruz de la derecha es "cerrar
-          esto". El chofer va a buscar una o la otra según de dónde venga, y
+          esto". El conductor va a buscar una o la otra según de dónde venga, y
           ninguna de las dos está donde el pulgar tape la primera línea del
           formulario. */}
       <div className="flex shrink-0 items-center gap-1 border-b border-divider px-2 py-2">
@@ -302,27 +311,49 @@ function VistaPedido({
           repartirlos él para dejar el botón de guardar clavado abajo y que solo
           scrollee la parte de los campos. */}
       <div className="min-h-0 flex-1">
-        <PedidoFormLocal pedido={pedido} fecha={fecha} onGuardado={onGuardado} />
+        <PedidoFormLocal pedido={pedido} fecha={fecha} ofInicial={ofInicial} onGuardado={onGuardado} />
       </div>
     </>
   );
 }
 
 export function PantallaEncomiendas({
-  choferId,
-  nombreChofer,
+  conductorId,
+  nombreConductor,
   fecha,
   direccionEmpresa,
+  whatsapp,
+  lecturaIA,
+  apkMinima,
+  apkUrl,
+  metaBono,
 }: {
-  choferId: string;
-  nombreChofer: string;
-  /** Siempre hoy: la app del chofer trabaja el día en curso. De los anteriores
+  conductorId: string;
+  nombreConductor: string;
+  /** Siempre hoy: la app del conductor trabaja el día en curso. De los anteriores
    *  solo se muestra el resumen del último. */
   fecha: string;
   direccionEmpresa: string | null;
+  /** false = el servidor no tiene las credenciales de Meta: no hay avisos y se
+   *  llama a todos (spec 013). */
+  whatsapp: boolean;
+  /** Hay clave de Anthropic: la guía y la etiqueta se leen de una foto (spec 005). */
+  lecturaIA: boolean;
+  /** Versión mínima de la APK (`APK_VERSION_MINIMA`) y de dónde bajarla
+   *  (`APK_URL`); null = sin exigencia (spec 015, US5). */
+  apkMinima: string | null;
+  apkUrl: string | null;
+  /** Entregas del día que dan el bono; null = la regla no tiene bono (spec 006). */
+  metaBono: number | null;
 }) {
-  const dia = useDiaTrabajo({ choferId, fecha });
+  const dia = useDiaTrabajo({ conductorId, fecha, whatsapp });
   const { paradas, activa, pedidos } = dia;
+  // Spec 007: con el día cerrado, lista de no entregados y borrado del teléfono.
+  const cierreDia = useCierreDia({
+    fecha,
+    hoyCerrado: dia.ruta?.cierre != null && pedidos.length > 0,
+    alBorrar: dia.recargar,
+  });
 
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
@@ -334,11 +365,16 @@ export function PantallaEncomiendas({
   // El cajón de la izquierda y los días que muestra. Los días se leen al abrir,
   // no al montar (ver BotonMenu más abajo).
   const [menuAbierto, setMenuAbierto] = useState(false);
+  const [buscandoOf, setBuscandoOf] = useState(false);
+  // Spec 005: cargar el día desde la guía y escanear cada etiqueta.
+  const [cargandoGuia, setCargandoGuia] = useState(false);
+  const [escaneando, setEscaneando] = useState(false);
+  const [ofParaNuevo, setOfParaNuevo] = useState<string | undefined>(undefined);
   const [dias, setDias] = useState<ResumenDia[]>([]);
   // Cuánto ocupan los avisos de arriba. Lo informa la propia pila: cambia con
   // cuántos hay y con el largo del mensaje de un fallo.
   const [altoNotificaciones, setAltoNotificaciones] = useState(0);
-  // Ya se marcó el número y falta que el chofer diga si contestó. Es el único
+  // Ya se marcó el número y falta que el conductor diga si contestó. Es el único
   // estado de flujo que no se puede deducir de los datos.
   const [esperandoResultadoDe, setEsperandoResultadoDe] = useState<string | null>(null);
   // Pedido para el que se está eligiendo QUÉ HACER con la parada que no se pudo
@@ -370,7 +406,7 @@ export function PantallaEncomiendas({
   } = useUbicacionActual(true);
 
   // Modo navegación (seguir la ubicación). Soltado a mano se queda soltado: el
-  // mapa espera donde el chofer lo dejó hasta que toque el botón de fijar.
+  // mapa espera donde el conductor lo dejó hasta que toque el botón de fijar.
   const [siguiendo, setSiguiendo] = useState(true);
   // Con una propuesta a la vista el mapa la muestra entera y no sigue a nadie.
   const enNavegacion = siguiendo && !propuesta;
@@ -421,11 +457,11 @@ export function PantallaEncomiendas({
   }, [activa]);
 
   // Recibe la posición CRUDA, no la pegada al camino: es la que decide si el
-  // chofer se salió de la ruta, y un punto pegado está sobre la ruta por
+  // conductor se salió de la ruta, y un punto pegado está sobre la ruta por
   // definición — alimentarlo con eso haría que un desvío no se detecte nunca.
   const navegacion = useNavegacion(!!destinoActivo, miUbicacion, destinoActivo);
 
-  // Con una propuesta a la vista la voz se calla: el chofer está parado
+  // Con una propuesta a la vista la voz se calla: el conductor está parado
   // decidiendo si la usa, y lo que sonaría son indicaciones de la ruta anterior.
   const voz = useVozNavegacion(!propuesta, navegacion.paso, navegacion.metrosAManiobra);
 
@@ -509,17 +545,13 @@ export function PantallaEncomiendas({
       (miUbicacion.precisionM != null && miUbicacion.precisionM > PRECISION_DUDOSA_M));
 
   // Resumen del día anterior: cuántas cerró y cuántas quedaron. No hay navegador
-  // de fechas — el chofer no vuelve a trabajar un día pasado, solo quiere saber
+  // de fechas — el conductor no vuelve a trabajar un día pasado, solo quiere saber
   // cómo terminó el último.
   useEffect(() => {
     void (async () => {
       try {
-        const diaAnterior = ayerDe(fecha);
-        const [ruta, pedidosAyer] = await Promise.all([
-          leerRuta(diaAnterior),
-          leerPedidos(diaAnterior),
-        ]);
-        const resumen = ruta ? resumirDia(ruta, pedidosAyer) : null;
+        // Del resumen guardado si el día ya se borró (spec 007), o de su ruta.
+        const resumen = await leerResumenDia(sumarDias(fecha, -1));
         setAyer(
           resumen && resumen.paradas > 0
             ? { entregadas: resumen.entregadas, noEntregadas: resumen.noEntregadas }
@@ -537,7 +569,7 @@ export function PantallaEncomiendas({
   // ------------------------------------------------------------------------
   // Se cuenta con reloj propio y se PAUSA con la app en segundo plano: al
   // finalizar un pedido se marca solo el teléfono del siguiente, así que el
-  // chofer se va a la app de llamadas y volvería con la ventana vencida sin
+  // conductor se va a la app de llamadas y volvería con la ventana vencida sin
   // haber tenido oportunidad de ver el aviso.
   //
   // `confirmar` se lee de un ref: la función cambia de identidad en cada
@@ -598,7 +630,7 @@ export function PantallaEncomiendas({
     return () => clearTimeout(temporizador);
   }, [confirmacion]);
 
-  // Envuelve una escritura del chofer: apaga los botones mientras corre y deja
+  // Envuelve una escritura del conductor: apaga los botones mientras corre y deja
   // el mensaje a la vista si falla.
   const correr = useCallback(async <T,>(accion: () => Promise<T>): Promise<T | null> => {
     setError(null);
@@ -612,6 +644,55 @@ export function PantallaEncomiendas({
       setGuardando(false);
     }
   }, []);
+
+  // Dentro de la APK (spec 015) la llamada sale directo y, al colgar, la app lee
+  // el registro de llamadas y marca sola si contestó. "No contestó" lleva derecho
+  // a las salidas, igual que el botón. Si no se puede saber, se pregunta.
+  const llamadaNativa = useLlamadaNativa({
+    marcar: async (pedidoId, resultado) => {
+      await correr(() => dia.marcarLlamada(pedidoId, resultado));
+      setEsperandoResultadoDe((actual) => (actual === pedidoId ? null : actual));
+      if (resultado === "no_contesto") setDandoResultadoDe(pedidoId);
+    },
+    alNoSaber: (pedidoId) => setEsperandoResultadoDe(pedidoId),
+  });
+  const { detectada: llamadaDetectada, olvidarDetectada } = llamadaNativa;
+
+  // Botón atrás de Android (APK, spec 015): cierra lo que esté abierto, de lo más
+  // reciente a lo más de fondo. Con una ruta en curso no saca de la app: un toque
+  // de más con el teléfono en el soporte no puede dejar al conductor afuera.
+  const alAtras = useRef<() => void>(() => {});
+  useEffect(() => {
+    alAtras.current = () => {
+      // El cierre de un día anterior no se salta; el de hoy queda para después.
+      if (cierreDia.pendiente) cierreDia.aplazar();
+      else if (buscandoOf) setBuscandoOf(false);
+      else if (escaneando) setEscaneando(false);
+      else if (cargandoGuia) setCargandoGuia(false);
+      else if (menuAbierto) setMenuAbierto(false);
+      else if (formPedido) setFormPedido(null);
+      else if (propuesta) setPropuesta(null);
+      else if (dandoResultadoDe) setDandoResultadoDe(null);
+      else if (esperandoResultadoDe) setEsperandoResultadoDe(null);
+      else if (paradas.length === 0) minimizarApp();
+    };
+  });
+  useEffect(() => alBotonAtras(() => alAtras.current()), []);
+
+  // APK más vieja que la mínima publicada: aviso con el enlace, sin frenar nada.
+  const [apkVieja, setApkVieja] = useState(false);
+  useEffect(() => {
+    if (!apkMinima) return;
+    void versionInstalada().then((v) => setApkVieja(esMasVieja(v, apkMinima)));
+  }, [apkMinima]);
+
+  // El aviso "Contestó · Corregir" queda unos segundos: lo que hay que hacer
+  // después (entregar o elegir una salida) ya está en pantalla.
+  useEffect(() => {
+    if (!llamadaDetectada) return;
+    const temporizador = window.setTimeout(olvidarDetectada, MS_AVISO_LLAMADA);
+    return () => clearTimeout(temporizador);
+  }, [llamadaDetectada, olvidarDetectada]);
 
   async function onContesto() {
     if (!activa) return;
@@ -627,7 +708,7 @@ export function PantallaEncomiendas({
     // diario. Lo que falta decidir es qué se hace con la parada.
     //
     // Salvo que ya estuviera marcada. Ahora se vuelve a esta pregunta cada vez
-    // que el chofer sale de las salidas, y volver a escribirla pisaría la hora
+    // que el conductor sale de las salidas, y volver a escribirla pisaría la hora
     // real de la llamada con la de ahora.
     if (activa.pedido.llamada !== "no_contesto") {
       await correr(() => dia.marcarLlamada(id, "no_contesto"));
@@ -638,8 +719,25 @@ export function PantallaEncomiendas({
   }
 
   function onLlamar(parada: Parada) {
-    window.location.href = telHref(parada.pedido.telefono);
+    if (esApp()) {
+      void llamadaNativa.llamar(parada.pedido.id, parada.pedido.telefono).then((via) => {
+        // Sin permiso de llamadas se abrió el marcador: se pregunta como siempre.
+        if (via === "marcador") setEsperandoResultadoDe(parada.pedido.id);
+      });
+      return;
+    }
+    void llamar(parada.pedido.telefono);
     setEsperandoResultadoDe(parada.pedido.id);
+  }
+
+  /** El resultado detectado estaba mal (un buzón de voz que "contestó", por
+   *  ejemplo): un toque lo da vuelta (spec 015, FR-006). */
+  async function onCorregirLlamada(llamada: LlamadaDetectada) {
+    olvidarDetectada();
+    const correcto = llamada.resultado === "contesto" ? "no_contesto" : "contesto";
+    await correr(() => dia.marcarLlamada(llamada.pedidoId, correcto));
+    if (correcto === "no_contesto") setDandoResultadoDe(llamada.pedidoId);
+    else setDandoResultadoDe((actual) => (actual === llamada.pedidoId ? null : actual));
   }
 
   /** Las dos salidas de una parada que no se pudo cerrar entregando.
@@ -696,17 +794,26 @@ export function PantallaEncomiendas({
     );
 
     const eventoId = await correr(() => dia.marcarResultado(id, "entregado"));
-    if (eventoId) setDeshacer({ pedidoId: id, eventoId, texto: "Entrega registrada" });
+    // La OF sigue a la vista mientras se puede deshacer: es el número que se
+    // anota al entregar (spec 003).
+    const of = activa.pedido.of;
+    if (eventoId) {
+      setDeshacer({ pedidoId: id, eventoId, texto: of ? `Entrega registrada · OF ${formatoOf(of)}` : "Entrega registrada" });
+    }
 
-    if (siguiente) {
-      window.location.href = telHref(siguiente.pedido.telefono);
+    // En la APK la llamada saldría sin tocar nada, con el conductor quizás todavía
+    // en la puerta: ahí la parada siguiente queda con "Llamar" como botón
+    // principal (spec 015, FR-008). En el navegador se abre el marcador, que
+    // igual espera el toque de llamar.
+    if (siguiente && siguiente.pedido.telefono && !esApp()) {
+      void llamar(siguiente.pedido.telefono);
       setEsperandoResultadoDe(siguiente.pedido.id);
     } else {
       setEsperandoResultadoDe(null);
     }
   }
 
-  /** Un pedido que el chofer deslizó hacia la izquierda y eliminó.
+  /** Un pedido que el conductor deslizó hacia la izquierda y eliminó.
    *
    *  Sirve tanto para los que están fuera de la ruta como para las paradas de la
    *  ruta del día: el almacén saca las dos cosas en una transacción y devuelve el
@@ -758,7 +865,7 @@ export function PantallaEncomiendas({
     // prometerle al receptor — todavía podía caerse por una dirección que no se
     // pudo ubicar.
     //
-    // No se espera el resultado: son treinta consultas al servidor y el chofer no
+    // No se espera el resultado: son treinta consultas al servidor y el conductor no
     // tiene por qué mirar una pantalla trabada mientras salen. Lo que salió y lo
     // que falló queda en el estado de cada pedido (dia.whatsapp), con su
     // botón de reintentar al lado.
@@ -816,7 +923,7 @@ export function PantallaEncomiendas({
         <p className="mx-auto mt-1 max-w-xs text-sm text-muted">{dia.error}</p>
         {/* Acá había un "Volver al inicio" al hub. Ahora el hub reenvía a esta
             misma pantalla, así que ese link era un rebote infinito justo para
-            el chofer que ya no puede trabajar. Las dos salidas reales son
+            el conductor que ya no puede trabajar. Las dos salidas reales son
             volver a intentar —el fallo suele ser el almacén del teléfono, que
             a veces anda al recargar— y salir de la sesión. */}
         <button
@@ -850,10 +957,10 @@ export function PantallaEncomiendas({
   // se escribe — es la resta, y una cifra más es una cifra que hay que descartar
   // antes de leer la que importa.
   //
-  // Vive arriba y no en la hoja porque es el único dato que el chofer quiere de
+  // Vive arriba y no en la hoja porque es el único dato que el conductor quiere de
   // reojo, manejando, sin abrir nada. Y se dibuja SIEMPRE que haya ruta, con
   // maniobra o sin ella: la versión anterior se escondía justo cuando había
-  // navegación, o sea justo cuando el chofer no puede abrir la hoja para
+  // navegación, o sea justo cuando el conductor no puede abrir la hoja para
   // buscarlo.
   //
   // En columna y no en fila: así ocupa el alto que el cartel ya tiene y no le
@@ -874,7 +981,7 @@ export function PantallaEncomiendas({
       </div>
     ) : null;
 
-  // Todo lo que la pantalla le tiene que decir al chofer, en una sola lista y en
+  // Todo lo que la pantalla le tiene que decir al conductor, en una sola lista y en
   // un solo lugar: cae desde el borde de arriba (ver PilaNotificaciones). Se
   // llaman notificaciones y no avisos: el aviso es el WhatsApp al receptor.
   //
@@ -889,7 +996,7 @@ export function PantallaEncomiendas({
   // Antes esto se dibujaba adentro de los controles de la parada activa, así que
   // sin ruta armada no se dibujaba en ningún lado: un pedido que no se pudo
   // guardar ni eliminar —el teléfono sin espacio, el navegador en modo privado—
-  // fallaba en silencio y el chofer volvía a intentarlo sin saber por qué.
+  // fallaba en silencio y el conductor volvía a intentarlo sin saber por qué.
   if (error) {
     notificaciones.push({
       id: `error:${error}`,
@@ -900,9 +1007,30 @@ export function PantallaEncomiendas({
     });
   }
   // Que WhatsApp esté caído no es una alarma —el sondeo reintenta solo— pero
-  // mientras lo esté no van a llegar respuestas, y el chofer tiene que saber que
+  // mientras lo esté no van a llegar respuestas, y el conductor tiene que saber que
   // esperarlas no sirve: lo que corresponde es llamar. Es lo único que quedó
   // visible del canal.
+  if (apkVieja) {
+    notificaciones.push({
+      id: "apk-vieja",
+      icono: <Download className="h-4 w-4 text-white/70" />,
+      texto: "Hay una versión nueva de la app para instalar.",
+      ...(apkUrl ? { accion: { etiqueta: "Bajar", onClick: () => window.open(apkUrl, "_blank") } } : {}),
+    });
+  }
+  if (llamadaDetectada) {
+    const contesto = llamadaDetectada.resultado === "contesto";
+    notificaciones.push({
+      id: `llamada:${llamadaDetectada.n}`,
+      icono: contesto ? (
+        <PhoneCall className="h-4 w-4 text-white/70" />
+      ) : (
+        <PhoneOff className="h-4 w-4 text-white/70" />
+      ),
+      texto: contesto ? "Contestó la llamada" : "No contestó la llamada",
+      accion: { etiqueta: "Corregir", onClick: () => void onCorregirLlamada(llamadaDetectada) },
+    });
+  }
   if (hayRuta && dia.errorWhatsapp) {
     notificaciones.push({
       id: "whatsapp",
@@ -925,7 +1053,7 @@ export function PantallaEncomiendas({
     notificaciones.push({
       id: `eliminado:${eliminado.pedido.id}`,
       icono: <Trash2 className="h-4 w-4 text-white/70" />,
-      texto: `Eliminado: ${eliminado.pedido.nombre}`,
+      texto: `Eliminado: ${nombreVisible(eliminado.pedido)}`,
       accion: {
         etiqueta: "Deshacer",
         icono: <Undo2 className="h-4 w-4" />,
@@ -987,7 +1115,7 @@ export function PantallaEncomiendas({
   ) : !hayRuta ? (
     <div className="space-y-2.5">
       <div>
-        <p className="text-sm font-semibold">Hola, {nombreChofer.split(" ")[0]}</p>
+        <p className="text-sm font-semibold">Hola, {nombreConductor.split(" ")[0]}</p>
         <p className="text-xs text-muted">
           {sinRutear.length === 0
             ? "No hay pedidos cargados ni ruta generada."
@@ -1001,9 +1129,11 @@ export function PantallaEncomiendas({
           lugares hacía dudar de si eran lo mismo. Queda el de abajo, que está
           donde se ven los pedidos, y acá solo se dice qué falta y cómo llegar. */}
       {sinRutear.length === 0 ? (
-        <p className="rounded-2xl bg-background px-3.5 py-3 text-xs text-muted">
-          Desliza esta hoja hacia arriba para cargar los pedidos del día.
-        </p>
+        // El día empieza por la guía (spec 005): es lo primero que hay que hacer.
+        <button type="button" onClick={() => setCargandoGuia(true)} className={BOTON_PRINCIPAL}>
+          <ClipboardList className="h-4 w-4" />
+          Cargar la guía
+        </button>
       ) : (
         <GenerarRutaLocal
           fecha={fecha}
@@ -1026,22 +1156,20 @@ export function PantallaEncomiendas({
     </div>
   ) : (
     <div className="space-y-3">
-      <div className="flex items-start gap-3">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-semibold tabular-nums text-brand-foreground">
-          {activa.secuencia}
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-lg font-semibold leading-tight">{activa.pedido.nombre}</p>
-          <p className="truncate text-sm text-muted">{activa.pedido.direccion}</p>
-          {/* Qué contestó ESTE RECEPTOR. Es lo primero que el chofer necesita al
+      <TarjetaParada
+        secuencia={activa.secuencia}
+        pedido={activa.pedido}
+        metrosAManiobra={navegacion.metrosAManiobra}
+        estado={
+          /* Qué contestó ESTE RECEPTOR. Es lo primero que el conductor necesita al
               llegar: saber si lo están esperando cambia lo que hace en la puerta.
               Cada estado lleva icono Y texto — a pleno sol, con el teléfono en
               una mano, el color solo no se distingue.
-              Lo que NO va acá es lo que el chofer acabó de tocar. Había un "No
+              Lo que NO va acá es lo que el conductor acabó de tocar. Había un "No
               contestó la llamada" y era ruido en el único renglón que se lee
               manejando: lo dijo él hace dos segundos, y los botones de abajo ya
-              están preguntando justamente por eso. */}
-          {activa.pedido.bloqueHorarioId ? (
+              están preguntando justamente por eso. */
+          activa.pedido.bloqueHorarioId ? (
             <p className={cn(LINEA_ESTADO, "text-brand")}>
               <Clock className="h-3 w-3 shrink-0" />
               Pidió {bloquePorId(activa.pedido.bloqueHorarioId)?.etiqueta ?? "un horario"}
@@ -1051,23 +1179,18 @@ export function PantallaEncomiendas({
               <Check className="h-3 w-3 shrink-0" />
               Estará en su domicilio
             </p>
-          ) : activa.pedido.llamada === "no_contesto" ? null : (
+          ) : !whatsapp || activa.pedido.llamada === "no_contesto" ? null : (
             <p className={cn(LINEA_ESTADO, "text-muted")}>
               <Phone className="h-3 w-3 shrink-0" />
               Sin respuesta todavía
             </p>
-          )}
-        </div>
-        {navegacion.metrosAManiobra != null && navegacion.metrosAManiobra > 0 ? (
-          <span className="shrink-0 rounded-full bg-brand-soft px-2.5 py-1 text-xs font-semibold tabular-nums text-brand">
-            {formatDistancia(navegacion.metrosAManiobra)}
-          </span>
-        ) : null}
-      </div>
+          )
+        }
+      />
 
       {/* FR-017: al aproximarse a un pedido pendiente de respuesta, avisar que
           hay que contactarlo. Se muestra ACÁ y no como notificación porque el
-          chofer está manejando y esta tarjeta es lo único que mira. */}
+          conductor está manejando y esta tarjeta es lo único que mira. */}
       {seAproximaSinContacto ? (
         <p className="flex items-start gap-2 rounded-xl bg-warn-bg px-3 py-2 text-sm font-medium text-warn">
           <Phone className="mt-0.5 h-4 w-4 shrink-0" />
@@ -1078,10 +1201,18 @@ export function PantallaEncomiendas({
       ) : null}
 
       {fase === "antes_llamar" ? (
-        <button onClick={() => onLlamar(activa)} className={BOTON_PRINCIPAL}>
-          <Phone className="h-4 w-4" />
-          Llamar
-        </button>
+        activa.pedido.telefono ? (
+          <button onClick={() => onLlamar(activa)} className={BOTON_PRINCIPAL}>
+            <Phone className="h-4 w-4" />
+            Llamar
+          </button>
+        ) : (
+          // Viene de la guía y su etiqueta no se escaneó: el teléfono está ahí.
+          <button onClick={() => setEscaneando(true)} className={BOTON_PRINCIPAL}>
+            <ScanLine className="h-4 w-4" />
+            Escanear la etiqueta para llamar
+          </button>
+        )
       ) : null}
 
       {fase === "esperando_resultado" ? (
@@ -1207,18 +1338,63 @@ export function PantallaEncomiendas({
 
       {menuAbierto ? (
         <MenuLateral
-          nombreChofer={nombreChofer}
+          nombreConductor={nombreConductor}
           dias={dias}
           fechaActiva={fecha}
           onCerrar={() => setMenuAbierto(false)}
           logout={logout}
+          onBuscarOf={() => {
+            setMenuAbierto(false);
+            setBuscandoOf(true);
+          }}
+        />
+      ) : null}
+
+      {cargandoGuia ? (
+        <CargarGuia
+          fecha={fecha}
+          lecturaIA={lecturaIA}
+          onCerrar={() => setCargandoGuia(false)}
+          onCreados={() => void dia.recargar()}
+        />
+      ) : null}
+
+      {escaneando ? (
+        <EscanearEtiqueta
+          fecha={fecha}
+          lecturaIA={lecturaIA}
+          onCerrar={() => setEscaneando(false)}
+          onCambio={() => void dia.recargar()}
+          onAgregarPedido={(of) => {
+            setEscaneando(false);
+            setOfParaNuevo(of);
+            setFormPedido("nuevo");
+          }}
+        />
+      ) : null}
+
+      {buscandoOf ? (
+        <BuscarOf
+          pedidos={pedidos}
+          secuenciaDe={new Map(paradas.map((p) => [p.pedido.id, p.secuencia] as const))}
+          onCerrar={() => setBuscandoOf(false)}
+        />
+      ) : null}
+
+      {cierreDia.pendiente ? (
+        <CierreDia
+          cierre={cierreDia.pendiente}
+          borrando={cierreDia.borrando}
+          error={cierreDia.error}
+          onConfirmar={() => void cierreDia.confirmar()}
+          onAplazar={cierreDia.aplazar}
         />
       ) : null}
 
       {/* La flecha de volver, el cartel de navegación con el resumen adentro, y
           los avisos del GPS. Se corren para abajo lo que ocupen los avisos, en
           vez de quedar tapados por ellos: el cartel de navegación es lo que el
-          chofer está leyendo para saber dónde doblar. */}
+          conductor está leyendo para saber dónde doblar. */}
       <div
         className="absolute inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] z-10 flex flex-col gap-2 transition-[margin-top] duration-200"
         style={{ marginTop: altoNotificaciones }}
@@ -1237,6 +1413,17 @@ export function PantallaEncomiendas({
               void leerDias().then(setDias);
             }}
           />
+          {/* Escanear la etiqueta de cada paquete (spec 005): dice su parada. */}
+          {pedidos.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => setEscaneando(true)}
+              aria-label="Escanear etiqueta"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-brand shadow-md active:bg-background"
+            >
+              <ScanLine className="h-4 w-4" />
+            </button>
+          ) : null}
           {navegacion.paso && !propuesta ? (
             <InstruccionNavegacion
               paso={navegacion.paso}
@@ -1307,6 +1494,7 @@ export function PantallaEncomiendas({
           formPedido ? (
             <VistaPedido
               pedido={formPedido === "nuevo" ? undefined : formPedido}
+              ofInicial={formPedido === "nuevo" ? ofParaNuevo : undefined}
               fecha={fecha}
               onCerrar={() => setFormPedido(null)}
               onGuardado={(aviso) => {
@@ -1351,6 +1539,7 @@ export function PantallaEncomiendas({
                   {entregadas} de {paradas.length}
                 </span>
               </div>
+              <MetaBono meta={metaBono} entregadas={pedidos.filter((p) => p.resultado === "entregado").length} />
 
               <ol className="overflow-hidden rounded-2xl bg-card shadow-soft">
                 {paradas.map((p, i) => {
@@ -1359,13 +1548,13 @@ export function PantallaEncomiendas({
                     <FilaDeslizable
                       key={p.pedido.id}
                       separador={i > 0}
-                      etiqueta={p.pedido.nombre}
+                      etiqueta={nombreVisible(p.pedido)}
                       onEliminar={() => void onEliminarPedido(p.pedido.id)}
                       // Una parada ya cerrada no se desliza. Lo que se ve ahí es
                       // el registro de lo que pasó en el día —cuántas se
                       // entregaron, cuántas no y por qué—, y es lo que el jefe
                       // va a mirar después: sacarlo de la lista con un gesto lo
-                      // haría desaparecer de la vista del chofer sin que nada
+                      // haría desaparecer de la vista del conductor sin que nada
                       // más cambie. Para eliminar hay que dejarla pendiente.
                       habilitado={p.pedido.resultado === "pendiente"}
                       className={cn(
@@ -1388,14 +1577,14 @@ export function PantallaEncomiendas({
                             p.pedido.resultado === "entregado" && "text-muted",
                           )}
                         >
-                          {p.pedido.nombre}
+                          {nombreVisible(p.pedido)}
                         </span>
                         <span className="block truncate text-xs text-muted">
                           {p.pedido.direccion}
                         </span>
                       </span>
                       {/* Lo que contestó el receptor, en la propia lista: es
-                          lo que el chofer mira para decidir el orden real y a
+                          lo que el conductor mira para decidir el orden real y a
                           quién llamar. Cada estado con icono, no solo color. */}
                       {p.pedido.resultado === "pendiente" ? (
                         p.pedido.bloqueHorarioId ? (
@@ -1432,10 +1621,12 @@ export function PantallaEncomiendas({
           </>
         ) : null}
 
+        {dia.ruta ? <AvisoSinEtiqueta pedidos={pedidos} /> : null}
+
         {/* Lo que quedó dudoso al armar la ruta, guardado CON la ruta (ver
             Ruta.advertencias). Se muestra en terreno y no solo en la
             previsualización porque es tres horas después, mirando la lista, que
-            el chofer se pregunta por qué falta un pedido. */}
+            el conductor se pregunta por qué falta un pedido. */}
         {dia.ruta?.advertencias?.length ? (
           <Seccion titulo="Revisar antes de seguir">
             <ul className="mb-2 grid gap-1.5">
@@ -1490,11 +1681,22 @@ export function PantallaEncomiendas({
 
           <button
             type="button"
-            onClick={() => setFormPedido("nuevo")}
+            onClick={() => setCargandoGuia(true)}
+            className="mb-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-card py-3.5 text-sm font-semibold text-brand shadow-soft transition-colors active:bg-brand-soft"
+          >
+            <ClipboardList className="h-4 w-4" />
+            Cargar la guía
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setOfParaNuevo(undefined);
+              setFormPedido("nuevo");
+            }}
             className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-separator bg-card py-3.5 text-sm font-semibold text-brand transition-colors active:bg-brand-soft"
           >
             <Plus className="h-4 w-4" />
-            Agregar pedido
+            Agregar pedido a mano
           </button>
         </Seccion>
 
@@ -1515,12 +1717,12 @@ export function PantallaEncomiendas({
         {/* Acá había una sección "Avisos por WhatsApp": tres contadores, la lista
             de los que no salieron y un botón de reintentar por pedido.
             Se fue completa. El estado de un mensaje saliente no es una decisión
-            del chofer —lo único que él hace con esa información es llamar, y eso
+            del conductor —lo único que él hace con esa información es llamar, y eso
             ya se lo dice la propia parada con el icono del teléfono—, y el
             reintento ahora corre solo en el sondeo (ver sincronizarWhatsapp).
             De todo eso queda visible una sola cosa, y arriba con los demás
             avisos: que el canal está caído, porque mientras lo esté no van a
-            llegar respuestas y esperarlas sí cambia lo que el chofer hace. */}
+            llegar respuestas y esperarlas sí cambia lo que el conductor hace. */}
 
         <Seccion titulo="Tu día">
           <div className="space-y-2">
@@ -1532,7 +1734,7 @@ export function PantallaEncomiendas({
 
             {/* FR-020: por qué el día no se puede cerrar todavía. Se muestra
                 solo cuando ya no quedan paradas por marcar, que es cuando el
-                chofer espera que el día se cierre solo y no entiende por qué no
+                conductor espera que el día se cierre solo y no entiende por qué no
                 lo hace. */}
             {dia.motivoNoCerrar && paradas.length > 0 && noEntregadas + entregadas === paradas.length ? (
               <div className="flex items-start gap-2.5 rounded-2xl bg-warn-bg px-3.5 py-3 text-sm text-warn">

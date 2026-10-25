@@ -13,7 +13,7 @@ import type { Aviso } from "@/types/db";
 // ES LA ÚNICA RUTA SIN SESIÓN, Y POR ESO ES LA QUE MÁS DESCONFÍA
 //
 // Meta llama desde sus servidores, sin cookies: la puerta no puede ser la sesión
-// del conductor (ver la excepción en lib/supabase/middleware.ts). Lo que la
+// del conductor (ver la excepción en lib/supabase/sesion-proxy.ts). Lo que la
 // reemplaza es la FIRMA: Meta manda un HMAC-SHA256 del cuerpo crudo con el
 // secreto de la app en `X-Hub-Signature-256`. Sin ese header válido no se procesa
 // nada, porque si no, cualquiera que conozca la URL podría inventar respuestas

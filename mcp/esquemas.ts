@@ -133,7 +133,7 @@ export const salidaRuta = {
     .array(z.array(z.number()).length(2))
     .optional()
     .describe(
-      "Pares [lng, lat] — orden GeoJSON, el mismo que usa lib/rutas.ts. " +
+      "Pares [lng, lat] — orden GeoJSON, el mismo que usa lib/geo/trazado.ts. " +
         "Invertirlos no da error: pone la ruta en el mar. Solo viene si se pidió " +
         "incluir_geometria.",
     ),

@@ -18,7 +18,7 @@ capas, para ubicar y revisar cualquier parte sin recorrer archivos sueltos.
 
 **Independent Test**: `npm test` incluye la prueba de arquitectura; suite y build verdes.
 
-1. **Given** `src/lib`, **When** se lista, **Then** solo hay carpetas de dominio (`auth`, `supabase`, `geo`, `rutas`, `whatsapp`, `encomiendas`, `conductores`, `comun`).
+1. **Given** `src/lib`, **When** se lista, **Then** solo hay carpetas de dominio (`auth`, `supabase`, `geo`, `rutas`, `whatsapp`, `nativo`, `encomiendas`, `conductores`, `comun`).
 2. **Given** un import que rompe una capa, **When** se corre `npm test`, **Then** falla nombrando archivo y regla.
 3. **Given** un concepto repetido (meses, token Mapbox, centro de Arica, rol, `FormState`, distancia), **When** se busca, **Then** hay una sola definición.
 4. **Given** la reorganización, **When** se reparte y se revisa el día, **Then** todo funciona igual.
@@ -41,7 +41,7 @@ Como revisor, quiero que ningún archivo concentre varias responsabilidades.
 
 **Independent Test**: ningún archivo de `src/` > 400 líneas sin excepción en `plan.md`.
 
-1. **Given** los 14 archivos de > 400 líneas, **When** se dividen, **Then** cada pieza tiene una responsabilidad y ≤ 400 líneas.
+1. **Given** los 13 archivos de > 400 líneas, **When** se dividen, **Then** cada pieza tiene una responsabilidad y ≤ 400 líneas.
 2. **Given** lógica de cálculo dentro de componentes, **When** se extrae, **Then** queda como función pura con pruebas.
 
 ### User Story 4 - Documentación igual al código (Priority: P3)

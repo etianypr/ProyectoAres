@@ -6,8 +6,10 @@ classDiagram
     <<IndexedDB · store dias · key fecha>>
     fecha : YYYY-MM-DD
     asignados : number
-    entregados : number
+    paradas : number
+    entregadas : number
     noEntregadas : number
+    inicio : ISO
     cierre : ISO
   }
   class empresa {
@@ -34,10 +36,10 @@ classDiagram
 | Store | Cambio |
 |---|---|
 | `dias` (nuevo) | `ResumenDia`. Sobrevive al día. Sin datos de personas |
-| `pedidos`, `rutas`, `whatsapp`, `fotos` (003) | se vacían para la fecha cerrada |
+| `pedidos` (con su aviso), `rutas`, `fotos` (003) | se vacían para la fecha cerrada |
 | `cola` | sin cambios; se conserva hasta enviarse |
 
-Versión: la siguiente libre de `idb.ts`. `STORES_DEL_DIA` lista los stores que borra el cierre; toda spec que agregue un store con datos de destinatarios lo registra ahí (003 `fotos`, 005 `lecturasPendientes`).
+Versión: v4 (la 003 pasa a v5). `noEntregadas` de un día borrado = asignados − entregadas (lo pendiente al cerrar también vuelve). `inicio` y `cierre` permiten sincronizar el día con el servidor cuando la ruta ya no está. `STORES_DEL_DIA` lista los stores que borra el cierre; toda spec que agregue un store con datos de destinatarios lo registra ahí (003 `fotos`, 005 `lecturasPendientes`).
 
 ## Servidor (Postgres) — próxima migración libre (`000N_cumplimiento.sql`)
 

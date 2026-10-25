@@ -1,4 +1,5 @@
-// Prueba intensiva del armado de ruta y la geometría: src/lib/rutas.ts real.
+// Prueba intensiva del armado de ruta y la geometría: los módulos reales de
+// lib/geo/trazado, lib/geo/mapbox/{direcciones,navegacion} y lib/rutas/orden-paradas.
 // Las llamadas a Mapbox se interceptan con un doble de fetch.
 process.env.NEXT_PUBLIC_MAPBOX_TOKEN = "pk.token-de-prueba";
 
@@ -11,11 +12,10 @@ import {
   distanciaAPolilinea,
   ajustarATrazado,
   recortarTrazado,
-  ordenarParadas,
-  matrizDistancias,
-  obtenerRutaCalles,
-  obtenerNavegacion,
-} from "@/lib/rutas";
+} from "@/lib/geo/trazado";
+import { ordenarParadas } from "@/lib/rutas/orden-paradas";
+import { matrizDistancias, obtenerRutaCalles } from "@/lib/geo/mapbox/direcciones";
+import { obtenerNavegacion } from "@/lib/geo/mapbox/navegacion";
 
 // Arica, coordenadas reales de la zona de reparto.
 const EMPRESA = { lat: -18.471152, lng: -70.289929 };
@@ -130,7 +130,7 @@ test("ajustarATrazado: una lectura con error lateral vuelve a la calle", () => {
 
 test("ajustarATrazado: desde adentro de la casa, el punto sale al inicio del camino", () => {
   // El caso real de arrancar el día: el trazado empieza donde Mapbox
-  // enganchó al chofer en la calle, y el GPS lo pone 45 m adentro del galpón.
+  // enganchó al conductor en la calle, y el GPS lo pone 45 m adentro del galpón.
   const geo = Array.from({ length: 40 }, (_, i) => [-70.2899, -18.4711 + i * 0.0002]);
   const enElGalpon = { lat: -18.4711, lng: -70.2899 + 0.00043 }; // ~45 m al este
 
@@ -200,7 +200,7 @@ test("ajustarATrazado: avanzando por el camino, el punto pegado también avanza"
 });
 
 test("ajustarATrazado: un hueco largo del GPS no deja el punto sin pegar", () => {
-  // El teléfono se suspendió (una llamada entrante) y el chofer avanzó 700 m
+  // El teléfono se suspendió (una llamada entrante) y el conductor avanzó 700 m
   // sin una sola lectura: la ventana de 300 m no alcanza. El respaldo global es
   // lo que evita que el punto quede suelto por el resto del tramo.
   const geo = Array.from({ length: 40 }, (_, i) => [-70.2899, -18.4711 + i * 0.0002]);
@@ -448,7 +448,7 @@ test("obtenerRutaCalles: null (no un trazado a medias) si un tramo falla", async
   };
   try {
     const r = await obtenerRutaCalles([EMPRESA, ...alAzar(30, 5)]);
-    assert.equal(r, null, "devolvió media ruta: el chofer vería una línea cortada");
+    assert.equal(r, null, "devolvió media ruta: el conductor vería una línea cortada");
   } finally {
     globalThis.fetch = original;
   }
@@ -575,7 +575,7 @@ test("obtenerNavegacion: avisos de voz del más lejano al más cercano", async (
   }
 });
 
-test("obtenerNavegacion: se traga cualquier fallo (corre en bucle mientras el chofer maneja)", async () => {
+test("obtenerNavegacion: se traga cualquier fallo (corre en bucle mientras el conductor maneja)", async () => {
   const original = globalThis.fetch;
   for (const respuesta of [
     () => { throw new Error("sin señal"); },
@@ -593,7 +593,7 @@ test("obtenerNavegacion: se traga cualquier fallo (corre en bucle mientras el ch
   }
 });
 
-test("obtenerNavegacion sin token no revienta la pantalla del chofer", async () => {
+test("obtenerNavegacion sin token no revienta la pantalla del conductor", async () => {
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
   delete process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
   try {

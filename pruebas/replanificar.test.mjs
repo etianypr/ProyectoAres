@@ -17,7 +17,7 @@ const idb = await import("@/lib/encomiendas/local/idb");
 const reloj = await import("./dobles/reloj.mjs");
 
 const HOY = "2026-08-20";
-const CHOFER = "11111111-1111-7111-8111-111111111111";
+const CONDUCTOR = "11111111-1111-7111-8111-111111111111";
 const BASE = { lat: -18.4783, lng: -70.2979 };
 
 const CLAVE = {
@@ -80,7 +80,7 @@ test("'Mañana' saca el pedido de lo que hay que visitar y avisa", async (t) => 
   aLaHora(10);
   const [a, b, c, d, e] = await rutaEnCurso();
 
-  await registrarDisponibilidad(b, { tipo: "manana" }, "wamid.B", CHOFER);
+  await registrarDisponibilidad(b, { tipo: "manana" }, "wamid.B", CONDUCTOR);
   const avisos = await replanificarRuta(HOY, [{ pedidoId: b, tipo: "manana" }]);
 
   assert.deepEqual(avisos, ["Cliente 2 pidió mañana: sale de la ruta de hoy."]);
@@ -94,7 +94,7 @@ test("un horario de la tarde manda el pedido al lugar donde se llega en ese bloq
   aLaHora(10);
   const [a, b, c, d, e] = await rutaEnCurso();
 
-  await registrarDisponibilidad(a, { tipo: "horario_indicado", bloqueHorarioId: "16-18" }, "wamid.A", CHOFER);
+  await registrarDisponibilidad(a, { tipo: "horario_indicado", bloqueHorarioId: "16-18" }, "wamid.A", CONDUCTOR);
   const avisos = await replanificarRuta(HOY, [{ pedidoId: a, tipo: "horario_indicado" }]);
 
   // La ruta termina antes de las 16:00: se lo deja al final, para cuando abra.
@@ -109,7 +109,7 @@ test("un horario que ya no se alcanza queda al final y pide llamar", async (t) =
   aLaHora(15);
   const [a, b, c, d, e] = await rutaEnCurso();
 
-  await registrarDisponibilidad(c, { tipo: "horario_indicado", bloqueHorarioId: "08-10" }, "wamid.C", CHOFER);
+  await registrarDisponibilidad(c, { tipo: "horario_indicado", bloqueHorarioId: "08-10" }, "wamid.C", CONDUCTOR);
   const [aviso] = await replanificarRuta(HOY, [{ pedidoId: c, tipo: "horario_indicado" }]);
 
   assert.deepEqual((await leerRuta(HOY)).orden, [a, b, d, e, c]);
@@ -120,9 +120,9 @@ test("lo ya entregado no se mueve al reordenar", async (t) => {
   t.after(reloj.descongelar);
   aLaHora(10);
   const [a, b, c, d, e] = await rutaEnCurso();
-  await marcarResultado({ fecha: HOY, pedidoId: a, choferId: CHOFER }, "entregado");
+  await marcarResultado({ fecha: HOY, pedidoId: a, conductorId: CONDUCTOR }, "entregado");
 
-  await registrarDisponibilidad(b, { tipo: "horario_indicado", bloqueHorarioId: "18-20" }, "wamid.B", CHOFER);
+  await registrarDisponibilidad(b, { tipo: "horario_indicado", bloqueHorarioId: "16-18" }, "wamid.B", CONDUCTOR);
   await replanificarRuta(HOY, [{ pedidoId: b, tipo: "horario_indicado" }]);
 
   const ruta = await leerRuta(HOY);
@@ -134,7 +134,7 @@ test("el trazado se vuelve a pedir con el orden nuevo; sin red queda el anterior
   t.after(reloj.descongelar);
   aLaHora(10);
   const [a] = await rutaEnCurso();
-  await registrarDisponibilidad(a, { tipo: "horario_indicado", bloqueHorarioId: "16-18" }, "wamid.A", CHOFER);
+  await registrarDisponibilidad(a, { tipo: "horario_indicado", bloqueHorarioId: "16-18" }, "wamid.A", CONDUCTOR);
 
   globalThis.fetch = async () => {
     throw new TypeError("sin red");

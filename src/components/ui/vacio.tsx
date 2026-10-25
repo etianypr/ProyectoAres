@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/comun/utils";
 
 // Estado vacío. Las páginas de listado ya tenían uno bueno (tarjeta centrada
 // con ícono y acción), pero dentro de las tarjetas del panel los "no hay

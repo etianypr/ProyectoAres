@@ -25,14 +25,11 @@ import { MoneyInput } from "@/components/ui/money-input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Field } from "@/components/ui/label";
-import { formatCLP, formatNumber } from "@/lib/format";
+import { formatCLP, formatNumber } from "@/lib/comun/format";
+import { MESES } from "@/lib/comun/fechas";
 import { nombrePeriodo, type ResumenPeriodo } from "@/lib/encomiendas/periodos";
-import { eliminarIngresoReal, guardarIngresoReal, type FormState } from "./actions";
-
-const MESES = [
-  "enero", "febrero", "marzo", "abril", "mayo", "junio",
-  "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
-];
+import type { FormState } from "@/lib/comun/forms";
+import { eliminarIngresoReal, guardarIngresoReal } from "./actions";
 
 /** Una liquidación vieja, imputada a un mes antes de que existieran los
  *  periodos (0035). Se muestra de solo lectura: no se convierte a periodo

@@ -1,3 +1,5 @@
+-- HISTÓRICA: los nombres "chofer"/"choferes" de este archivo se renombraron a
+-- "conductor"/"conductores" en 0006_conductor.sql (spec 002 US2). No se edita.
 -- ============================================================================
 -- 0003 — Asistencia de ruta y entrega: motivo de no entrega y la correlación
 --        temporal de WhatsApp, y los bloques horarios configurables.
@@ -39,7 +41,7 @@
 -- 4. El teléfono consulta sus respuestas, las escribe en IndexedDB y recién
 --    entonces confirma que las aplicó. Ahí la fila ya no hace falta.
 --
--- Ver la Decisión 7 de specs/001-asistencia-ruta-entrega/research.md para las
+-- Ver docs/WHATSAPP.md (Diseño) para las
 -- alternativas que se descartaron (empujar por Web Push o por Realtime, y
 -- empatar la respuesta por el número de teléfono del receptor).
 --

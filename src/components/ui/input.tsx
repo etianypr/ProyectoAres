@@ -1,5 +1,5 @@
 import * as React from "react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/comun/utils";
 
 // Compacto (40px): la app es densa en datos y así editar es más cómodo.
 // El foco es el momento clave: borde de marca + halo suave, con transición

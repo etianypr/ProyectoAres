@@ -1,34 +1,17 @@
-# Contrato: funciones nuevas del almacén local
+# Contrato: almacén del paquete (003)
 
-Interfaz que usan las pantallas. Las garantías son las que verifican las pruebas.
+Funciones nuevas del barril `src/lib/encomiendas/local/almacen`, en `almacen/paquete.ts` (todas en `enFila`, sin red).
 
-## `lib/encomiendas/local/paquete.ts` (puro, sin IndexedDB)
+| Función | Entrada | Salida | Efecto |
+|---|---|---|---|
+| `guardarPaquete` | `pedidoId`, `{ of?, referencia? }` | `{ ofRepetida: boolean }` | Escribe `of` (validada) y `referencia` en el pedido; avisa si la OF ya está en otro pedido del día |
+| `guardarFoto` | `pedidoId`, `Blob` (ya comprimido) | `fotoId` | Reemplaza la foto anterior del pedido y actualiza `Pedido.fotoId` en la misma transacción |
+| `leerFoto` | `fotoId` | `Blob \| null` | — |
+| `borrarFoto` | `pedidoId` | `void` | Quita la foto y deja `fotoId = null` |
+| `purgarFotosCerradas` | `fecha` | `number` (borradas) | Borra las fotos de pedidos cerrados y las huérfanas del día; se llama al vencer la ventana de deshacer |
+| `ofRepetida` | `fecha`, `of`, `exceptoId?` | `boolean` | — (el formulario avisa después de guardar) |
 
-| Función | Entrada → Salida | Garantía |
-|---|---|---|
-| `asignarNumeros(idsEnOrden, actuales)` | `string[]`, `Map<string, number>` → `Map<string, number>` | Si `actuales` está vacío: posición 1…N en el orden dado. Si no: conserva los existentes y da mayor + 1, + 2… a los que no tienen, en el orden de la ruta. Nunca cambia un número existente ni repite uno |
-| `describirPaquete(ref)` | `ReferenciaPaquete \| null` → `string` | "Bolsa gris grande · cinta roja"; partes faltantes se omiten; `null` → "sin referencia" |
-| `buscarPorNumero(pedidos, n)` | `Pedido[]`, `number` → `Pedido \| null` | Solo entre pedidos activos |
-| `ordenDeCarga(ruta, pedidos)` | `Ruta`, `Pedido[]` → `{pedido, cargado}[]` | Paradas pendientes de la ruta, del último al primero en el orden de visita |
+`guardarPedido` también acepta `of` y `referencia`; si no vienen, conserva los que tenía.
 
-## `lib/encomiendas/local/almacen/` (cambios y altas)
-
-| Función | Cambio | Garantía |
-|---|---|---|
-| `guardarRuta(entrada)` | asigna números con `asignarNumeros()` y conserva `cargados` | Dos confirmaciones en paralelo no producen números repetidos (corre en `enFila()`); reoptimizar no cambia números existentes; devuelve qué pedidos recibieron número nuevo para avisar al conductor |
-| `guardarPedido(datos, id?)` | conserva `numero` y `fotoId` al editar | Editar nunca cambia el número |
-| `restaurarPedido(eliminado, fecha)` | conserva el número | El pedido restaurado vuelve con su número |
-| `marcarCargado(fecha, pedidoId, cargado)` | **nueva** | Persiste la marca; idempotente |
-
-## `lib/encomiendas/local/fotos.ts` (cliente)
-
-| Función | Garantía |
-|---|---|
-| `comprimirFoto(archivo)` | Devuelve un JPEG ≤ 800 px de lado mayor |
-| `guardarFoto(pedidoId, blob)` | Devuelve el `fotoId`; reemplaza la foto anterior del pedido |
-| `leerFoto(fotoId)` | `Blob \| null` |
-| `borrarFoto(fotoId)` | Idempotente |
-| `purgarFotos()` | Borra huérfanas y las de pedidos no activos; devuelve cuántas borró |
-
-Nada de este contrato escribe en el store `cola` ni hace llamadas de red. El borrado de
-todo al cerrar el día es de la spec 007.
+`comprimirFoto(archivo: File): Promise<Blob>` vive en `local/foto.ts` (usa canvas; no es del
+almacén).

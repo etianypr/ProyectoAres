@@ -2,7 +2,7 @@
 //
 // Existe porque entrar ya no pasa por un menú: /conductor reenvía solo al
 // reparto, y ese reenvío hace dos consultas al servidor —la sesión y la ficha
-// del chofer— antes de poder dibujar nada. Sin esto, abrir la app desde el
+// del conductor— antes de poder dibujar nada. Sin esto, abrir la app desde el
 // ícono deja el teléfono en blanco hasta que el servidor contesta, que es
 // exactamente lo que parece una app rota.
 //

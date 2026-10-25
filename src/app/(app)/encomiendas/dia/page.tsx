@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { PageHeader } from "@/components/page-header";
+import { PageHeader } from "@/components/panel/page-header";
 import { Card } from "@/components/ui/card";
 import { ErrorDatos } from "@/components/ui/error-datos";
 import { buttonClass } from "@/components/ui/button";
 import { Package, BarChart3 } from "lucide-react";
-import { hoyChile } from "@/lib/format";
-import { DiaNav } from "@/components/encomiendas/dia-nav";
+import { esFecha, hoyChile } from "@/lib/comun/fechas";
+import { DiaNav } from "./_componentes/dia-nav";
 import { agruparPorDia } from "@/lib/encomiendas/pago";
 import { ActividadDia } from "../actividad-dia";
 
@@ -27,7 +27,7 @@ export default async function EncomiendasDiaPage({
 }) {
   const { fecha: fechaParam } = await searchParams;
   const hoy = hoyChile();
-  const fecha = fechaParam && /^\d{4}-\d{2}-\d{2}$/.test(fechaParam) ? fechaParam : hoy;
+  const fecha = fechaParam && esFecha(fechaParam) ? fechaParam : hoy;
 
   const supabase = await createClient();
 
@@ -46,7 +46,7 @@ export default async function EncomiendasDiaPage({
     // eso vive en encomienda_jornadas.
     supabase
       .from("encomienda_actividad")
-      .select("id, chofer_id, fecha, tipo, origen, chofer:choferes(id,nombre)")
+      .select("id, conductor_id, fecha, tipo, origen, conductor:conductores(id,nombre)")
       .eq("fecha", fecha),
     supabase.from("encomienda_pagos").select("*").eq("fecha", fecha),
     supabase
@@ -102,13 +102,13 @@ export default async function EncomiendasDiaPage({
         <div className="space-y-4">
           {porConductor.map((d) => (
             <ActividadDia
-              key={d.choferId ?? "sin"}
-              choferId={d.choferId}
-              choferNombre={d.eventos[0]?.chofer?.nombre ?? "Conductor eliminado"}
+              key={d.conductorId ?? "sin"}
+              conductorId={d.conductorId}
+              conductorNombre={d.eventos[0]?.conductor?.nombre ?? "Conductor eliminado"}
               fecha={fecha}
               eventos={d.eventos}
-              pago={pagos.find((p) => p.chofer_id === d.choferId) ?? null}
-              diaTrabajo={diasTrabajo.find((j) => j.chofer_id === d.choferId) ?? null}
+              pago={pagos.find((p) => p.conductor_id === d.conductorId) ?? null}
+              diaTrabajo={diasTrabajo.find((j) => j.conductor_id === d.conductorId) ?? null}
               regla={regla}
             />
           ))}

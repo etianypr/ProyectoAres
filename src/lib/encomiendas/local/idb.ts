@@ -2,11 +2,11 @@
 
 // Base local del módulo de encomiendas. Los pedidos (con nombre, teléfono y
 // dirección del destinatario), la ruta del día y la cola de actividad
-// pendiente de enviar viven en el TELÉFONO del chofer, no en el servidor —
-// ver el comentario de cabecera de la migración 0026 para el por qué.
+// pendiente de enviar viven en el TELÉFONO del conductor, no en el servidor, y
+// los del destinatario se borran al cerrar el día (spec 007, docs/PRIVACIDAD.md).
 //
 // IndexedDB y no localStorage: localStorage es sincrónico (traba la pantalla
-// mientras el chofer maneja), guarda solo texto y tiene ~5 MB. Acá se guardan
+// mientras el conductor maneja), guarda solo texto y tiene ~5 MB. Acá se guardan
 // objetos con el trazado de la ruta, que en un día de 30 paradas son
 // miles de coordenadas.
 //
@@ -19,9 +19,9 @@
 // Este módulo no se puede importar desde un componente de servidor:
 // IndexedDB no existe ahí. De ahí el "use client".
 
-import { hoyChile } from "@/lib/format";
+import { hoyChile } from "@/lib/comun/fechas";
 import { migrarV2, type AvisoV2, type PedidoV2, type RutaV2 } from "./almacen/migrar";
-import type { ActividadPorEnviar, Pedido, Ruta } from "./almacen/tipos";
+import type { ActividadPorEnviar, Foto, Pedido, ResumenDia, Ruta } from "./almacen/tipos";
 
 const NOMBRE_BASE = "pucarani-encomiendas";
 
@@ -34,11 +34,13 @@ const NOMBRE_BASE = "pucarani-encomiendas";
 //     mueve llamada, entrega y fecha de rutas.paradas, y el aviso del store
 //     "whatsapp", a cada pedido. Se borran el store "whatsapp" y el índice por
 //     estado, que ya no existen.
-const VERSION = 3;
+// v4: store "dias" (spec 007): el resumen que sobrevive al borrado del día.
+// v5: store "fotos" (spec 003), con índice por fecha para borrarlas con el día.
+const VERSION = 5;
 
 export const STORES = {
-  /** Pedidos cargados por el chofer. Clave: id (UUIDv7 del teléfono). Los ya
-   *  entregados se conservan como historial local del propio chofer. */
+  /** Pedidos cargados por el conductor. Clave: id (UUIDv7 del teléfono). Los ya
+   *  entregados se conservan como historial local del propio conductor. */
   pedidos: "pedidos",
   /** Una fila por día trabajado. Clave: fecha "YYYY-MM-DD" en hora de Chile. */
   rutas: "rutas",
@@ -46,13 +48,27 @@ export const STORES = {
    *  MISMO id que va a encomienda_actividad, que es lo que hace que reenviar
    *  no duplique el conteo. */
   cola: "cola",
+  /** Un ResumenDia por día ya borrado (spec 007). Clave: fecha. Solo cifras. */
+  dias: "dias",
+  /** Foto de cada paquete (spec 003). Clave: id; índice por fecha. */
+  fotos: "fotos",
 } as const satisfies { [S in Store]: S };
+
+/** Índice de `fotos` por día: las claves de un día sin cargar las imágenes. */
+export const INDICE_FOTOS_POR_FECHA = "por_fecha";
+
+/** Los stores con datos de destinatarios: el cierre del día los vacía para esa
+ *  fecha y el cierre de sesión, entero (spec 007). Toda spec que agregue un
+ *  store con datos de personas lo suma acá (003: fotos; 005: lecturas). */
+export const STORES_DEL_DIA = [STORES.pedidos, STORES.rutas, STORES.fotos] as const;
 
 /** Qué forma guarda cada store. Leer y escribir quedan tipados por store. */
 export type FilaDe = {
   pedidos: Pedido;
   rutas: Ruta;
   cola: ActividadPorEnviar;
+  dias: ResumenDia;
+  fotos: Foto;
 };
 
 export type Store = keyof FilaDe;
@@ -76,7 +92,7 @@ function abrir(): Promise<IDBDatabase> {
   const promesa = new Promise<IDBDatabase>((resolve, reject) => {
     // En navegación privada de iOS y en algunos WebView, indexedDB existe pero
     // open() falla; y en otros no existe del todo. Los dos casos terminan acá
-    // con un mensaje que el chofer puede accionar.
+    // con un mensaje que el conductor puede accionar.
     if (typeof indexedDB === "undefined") {
       reject(new ErrorAlmacenLocal(SIN_SOPORTE));
       return;
@@ -100,6 +116,14 @@ function abrir(): Promise<IDBDatabase> {
       }
       if (!base.objectStoreNames.contains(STORES.cola)) {
         base.createObjectStore(STORES.cola, { keyPath: "id" });
+      }
+      if (!base.objectStoreNames.contains(STORES.dias)) {
+        base.createObjectStore(STORES.dias, { keyPath: "fecha" });
+      }
+      if (!base.objectStoreNames.contains(STORES.fotos)) {
+        base
+          .createObjectStore(STORES.fotos, { keyPath: "id" })
+          .createIndex(INDICE_FOTOS_POR_FECHA, "fecha");
       }
 
       // La transacción de versión es atómica: si la migración falla, la base
@@ -190,14 +214,24 @@ export async function leerUno<S extends Store>(store: S, clave: string): Promise
   return valor ?? null;
 }
 
+/** Las claves de `fotos` de un día, sin cargar las imágenes. */
+export async function clavesFotosDe(fecha: string): Promise<string[]> {
+  const base = await abrir();
+  const tx = base.transaction(STORES.fotos, "readonly");
+  const indice = tx.objectStore(STORES.fotos).index(INDICE_FOTOS_POR_FECHA);
+  return pedir(indice.getAllKeys(IDBKeyRange.only(fecha))) as Promise<string[]>;
+}
+
 export type Escritor = {
   guardar: <S extends Store>(store: S, valor: FilaDe[S]) => void;
   borrar: (store: Store, clave: string) => void;
+  /** Vacía el store entero (cierre de sesión, spec 007). */
+  vaciar: (store: Store) => void;
 };
 
 // Escribe en uno o varios stores dentro de UNA transacción: o queda todo, o no
 // queda nada. Es lo que hace que marcar una entrega no pueda dejar el pedido
-// cerrado sin su evento en la cola (perdería plata del chofer) ni el evento sin
+// cerrado sin su evento en la cola (perdería plata del conductor) ni el evento sin
 // el pedido cerrado (lo mostraría dos veces).
 //
 // El callback es SINCRÓNICO a propósito y no puede usar await: una transacción
@@ -222,6 +256,7 @@ export async function escribir(
       trabajo({
         guardar: (store, valor) => void tx.objectStore(store).put(valor),
         borrar: (store, clave) => void tx.objectStore(store).delete(clave),
+        vaciar: (store) => void tx.objectStore(store).clear(),
       });
     } catch (e) {
       tx.abort();

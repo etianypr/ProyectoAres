@@ -1,5 +1,5 @@
 // El gesto de deslizar una fila hacia la izquierda para eliminarla
-// (`lib/deslizar.ts`), que es la parte del gesto que no necesita un teléfono.
+// (`lib/comun/deslizar.ts`), que es la parte del gesto que no necesita un teléfono.
 //
 // Se prueba acá porque las tres cosas que lo pueden arruinar no se ven leyendo
 // el componente, y en el teléfono se sienten como "la lista está rara":
@@ -16,9 +16,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 const { ANCHO_ACCION, UMBRAL_EJE, alSoltar, decidirEje, desplazamiento, umbralEliminar } =
-  await import("@/lib/deslizar");
+  await import("@/lib/comun/deslizar");
 
-// Un ancho de fila realista: la hoja del chofer en un teléfono común.
+// Un ancho de fila realista: la hoja del conductor en un teléfono común.
 const ANCHO_FILA = 340;
 
 // ------------------------------------------------------------------ el eje
@@ -100,7 +100,7 @@ test("sin poder medir la fila manda el piso, nunca una fracción de cero", () =>
 
 // ------------------------------------------------- el gesto completo
 test("desplazar la lista con el pulgar no elimina nada", () => {
-  // Lo que hace un chofer cien veces por día: el dedo sube 120 px y deriva 25 a
+  // Lo que hace un conductor cien veces por día: el dedo sube 120 px y deriva 25 a
   // la izquierda. Ni abre la fila ni la borra: la lista se lo lleva entero.
   assert.equal(decidirEje(-25, -120), "vertical");
 });

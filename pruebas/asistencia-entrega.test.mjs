@@ -5,7 +5,7 @@
 // el almacén y el enviador REALES, sobre IndexedDB de verdad, con un doble del
 // cliente de Supabase y el reloj controlado:
 //
-//  · un evento que se pierde es una entrega que el chofer hizo y no le pagan;
+//  · un evento que se pierde es una entrega que el conductor hizo y no le pagan;
 //  · un evento que se duplica es una entrega que se le paga dos veces.
 import "fake-indexeddb/auto";
 import test from "node:test";
@@ -37,7 +37,7 @@ const { espia } = await import("./dobles/supabase-client.mjs");
 const reloj = await import("./dobles/reloj.mjs");
 
 const HOY = "2026-08-20";
-const CHOFER = "11111111-1111-7111-8111-111111111111";
+const CONDUCTOR = "11111111-1111-7111-8111-111111111111";
 
 /** Cuánto retiene la app un evento para poder deshacerlo. Es el mismo valor que
  *  MS_DESHACER en use-dia-trabajo.ts; acá se repite porque ese archivo es un módulo
@@ -87,7 +87,7 @@ async function rutaCon(ids, fecha = HOY) {
   });
 }
 
-const marca = (pedidoId, fecha = HOY) => ({ fecha, pedidoId, choferId: CHOFER });
+const marca = (pedidoId, fecha = HOY) => ({ fecha, pedidoId, conductorId: CONDUCTOR });
 const pedido = async (id) => (await leerPedidos(HOY)).find((p) => p.id === id);
 // La visita (llamada, resultado, horas) vive en el pedido (spec 009).
 const paradaDe = pedido;
@@ -132,7 +132,7 @@ test("un receptor puede CONFIRMAR por WhatsApp y después no estar en la casa", 
   const [id] = await cargar(1);
   await rutaCon([id]);
 
-  await registrarDisponibilidad(id, { tipo: "confirmado" }, "wamid.R1", CHOFER);
+  await registrarDisponibilidad(id, { tipo: "confirmado" }, "wamid.R1", CONDUCTOR);
   await marcarResultado(marca(id), "no_entregado");
 
   const p = await pedido(id);
@@ -183,7 +183,7 @@ test("mandar una parada al final no la cierra: solo cambia de lugar", async () =
 // ===========================================================================
 
 test("dos toques seguidos con resultados DISTINTOS: manda el primero", async () => {
-  // Pasa de verdad: el chofer toca "No entregado", se arrepiente y toca
+  // Pasa de verdad: el conductor toca "No entregado", se arrepiente y toca
   // "Pedido finalizado" antes de que la pantalla se actualice. El segundo no puede cambiar nada — para
   // eso está deshacer, que además borra el evento.
   const [id] = await cargar(1);
@@ -342,13 +342,13 @@ test("sin señal el estado cambia igual y el evento queda pendiente", async () =
   await marcarResultado(marca(b), "no_entregado");
   await marcarResultado(marca(c), "no_entregado");
 
-  // El teléfono ya sabe todo: es lo que el chofer ve.
+  // El teléfono ya sabe todo: es lo que el conductor ve.
   assert.equal((await pedido(a)).resultado, "entregado");
   assert.equal((await pedido(b)).resultado, "no_entregado");
   assert.equal((await pedido(c)).resultado, "no_entregado");
 
   await assert.rejects(() => enviarActividadPendiente(), /sin red/);
-  assert.equal((await leerCola()).length, 3, "se perdió trabajo del chofer");
+  assert.equal((await leerCola()).length, 3, "se perdió trabajo del conductor");
 });
 
 test("al volver la señal llega todo, una sola vez", async () => {
@@ -407,15 +407,15 @@ test("el día NO se cierra en el servidor mientras quede algo por enviar", async
   await marcarResultado(marca(id), "entregado");
   await cerrarDia(HOY);
 
-  await sincronizarDiaTrabajo(CHOFER, HOY);
+  await sincronizarDiaTrabajo(CONDUCTOR, HOY);
   const diasTrabajo = espia.llamadas.filter((l) => l.tabla === "encomienda_jornadas");
   assert.equal(diasTrabajo.length, 1);
   assert.equal(diasTrabajo[0].filas.cerrada_en != null, true);
-  assert.deepEqual(diasTrabajo[0].opciones, { onConflict: "chofer_id,fecha" });
+  assert.deepEqual(diasTrabajo[0].opciones, { onConflict: "conductor_id,fecha" });
 });
 
 test("sin ruta generada no se abre ninguna día en el servidor", async () => {
-  await sincronizarDiaTrabajo(CHOFER, HOY);
+  await sincronizarDiaTrabajo(CONDUCTOR, HOY);
   assert.equal(espia.llamadas.length, 0);
 });
 
@@ -483,7 +483,7 @@ test("regenerar REABRE el día: entraron paradas nuevas", async () => {
 // ===========================================================================
 
 test("la primera acción del día se registra aunque no se entregue nada", async () => {
-  // De eso depende el fijo diario: el chofer salió, llamó a todos y no logró
+  // De eso depende el fijo diario: el conductor salió, llamó a todos y no logró
   // entregar nada. El día se trabajó.
   const [a, b] = await cargar(2);
   await rutaCon([a, b]);
@@ -526,7 +526,7 @@ test("'Mañana' cierra el pedido como no entregado y lo cuenta, con la ruta en c
   const [a, b] = await cargar(2);
   await rutaCon([a, b]);
 
-  assert.equal(await registrarDisponibilidad(a, { tipo: "manana" }, "wamid.M1", CHOFER), true);
+  assert.equal(await registrarDisponibilidad(a, { tipo: "manana" }, "wamid.M1", CONDUCTOR), true);
 
   const p = await pedido(a);
   assert.equal(p.disponibilidad, "manana");
@@ -543,7 +543,7 @@ test("'Mañana' sin señal queda en la cola y sale después", async () => {
   const [id] = await cargar(1);
   espia.responder = () => ({ error: { message: "sin red" } });
 
-  await registrarDisponibilidad(id, { tipo: "manana" }, "wamid.M1", CHOFER);
+  await registrarDisponibilidad(id, { tipo: "manana" }, "wamid.M1", CONDUCTOR);
   assert.equal((await pedido(id)).resultado, "no_entregado", "el cierre local no puede depender de la red");
   await assert.rejects(() => enviarActividadPendiente());
   assert.equal((await leerCola()).length, 1);
@@ -557,7 +557,7 @@ test("'Mañana' sobre un pedido ya entregado no cambia nada ni encola", async ()
   await rutaCon([id]);
   await marcarResultado(marca(id), "entregado");
 
-  assert.equal(await registrarDisponibilidad(id, { tipo: "manana" }, "wamid.M1", CHOFER), false);
+  assert.equal(await registrarDisponibilidad(id, { tipo: "manana" }, "wamid.M1", CONDUCTOR), false);
   assert.equal((await pedido(id)).resultado, "entregado");
   assert.equal((await leerCola()).filter((e) => e.tipo === "omision").length, 0);
 });

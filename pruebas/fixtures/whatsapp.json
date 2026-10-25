@@ -9,7 +9,7 @@
     "en producción y no en las pruebas.",
     "El payload de los botones lleva CONFIRMAR/RECHAZAR/HORARIO_<id> seguido del",
     "correlation_id: eso es lo que el servidor resuelve, y es lo único nuestro que",
-    "Meta llega a ver (ver contracts/whatsapp.md)."
+    "Meta llega a ver (ver docs/WHATSAPP.md)."
   ],
   "envio_ok": {
     "messaging_product": "whatsapp",
@@ -165,8 +165,8 @@
                   "interactive": {
                     "type": "list_reply",
                     "list_reply": {
-                      "id": "HORARIO_18-20:corr-0003",
-                      "title": "18:00 - 20:00",
+                      "id": "HORARIO_16-18:corr-0003",
+                      "title": "16:00 - 18:00",
                       "description": "Bloque de la tarde"
                     }
                   }

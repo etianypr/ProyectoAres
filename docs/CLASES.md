@@ -1,6 +1,6 @@
 # Clases: modelo esencial
 
-Vista mínima del modelo (2026-10-21, tras specs 008 a 012): solo las entidades, estados y módulos
+Vista mínima del modelo (2026-10-24: specs 008 a 013 y la APK de la 015): solo las entidades, estados y módulos
 que deciden el comportamiento. Campos secundarios, helpers y tipos de UI quedan fuera; el
 detalle está en el archivo citado. Fuente canónica junto a `docs/ARQUITECTURA.md`
 (constitución VI): cambiar un tipo o módulo de acá actualiza este archivo en el mismo cambio.
@@ -26,7 +26,7 @@ de la base conservan sus nombres viejos hasta la spec 002 (equivalencias en
 | Hecho que cuenta para el pago | `ActividadPorEnviar` (teléfono) → `Actividad` (servidor) |
 | Lo que valió el día · tarifa vigente · tarifa de un día | `PagoDelDia` · `ReglaDePago` · `TarifaDelDia` |
 | Avisos en la pantalla del conductor | `Notificacion` |
-| Conductor | `Conductor` (la base aún dice `chofer`, spec 002) |
+| Conductor | `Conductor` (tabla `conductores`, rol `conductor`; spec 002, migración 0006) |
 
 ## 1. Modelo de datos
 
@@ -40,6 +40,8 @@ classDiagram
       fecha: día de trabajo
       nombre · telefono · direccion
       lat · lng
+      of · referencia · fotoId
+      bultos · porPagar · montoPorPagar · origenCarga
       disponibilidad · bloqueHorarioId
       llamada: ResultadoLlamada
       resultado: ResultadoVisita
@@ -55,30 +57,44 @@ classDiagram
     class ActividadPorEnviar {
       <<store cola>>
       id: UUIDv7
-      choferId · fecha · hora
+      conductorId · fecha · hora
       tipo: TipoEvento
+    }
+    class Foto {
+      <<store fotos>>
+      id · pedidoId · fecha
+      blob: JPEG
+    }
+    class ResumenDia {
+      <<store dias>>
+      fecha: clave del día
+      asignados · paradas
+      entregadas · noEntregadas
+      porPagar · aCobrar · cobrado
+      porOrigen: conteo por origenCarga
+      inicio · cierre
     }
   }
   namespace Servidor_Postgres {
-    class Chofer {
-      <<tabla choferes>>
+    class Conductor {
+      <<tabla conductores>>
       id · user_id
       nombre · activo
     }
     class Actividad {
       <<tabla encomienda_actividad>>
       id = ActividadPorEnviar.id
-      chofer_id · fecha
+      conductor_id · fecha
       tipo · origen
     }
     class DiaTrabajo {
       <<tabla encomienda_jornadas>>
-      chofer_id · fecha
+      conductor_id · fecha
       inicio · cerrada_en
     }
     class PagoDelDia {
       <<tabla encomienda_pagos>>
-      chofer_id · fecha
+      conductor_id · fecha
       pedidos_entregados
       ingresos_totales · pago_total
       tarifa: TarifaDelDia
@@ -91,7 +107,7 @@ classDiagram
     class Aviso {
       <<tabla · copia temporal>>
       correlation_id = Pedido.aviso.codigo
-      chofer_id · pedido_id_local · fecha
+      conductor_id · pedido_id_local · fecha
       estado: EstadoAviso
       respuesta_accion: AccionWhatsApp
     }
@@ -99,9 +115,11 @@ classDiagram
   Ruta --> Pedido : orden
   Pedido ..> Aviso : aviso.codigo
   ActividadPorEnviar ..> Actividad : se envía, mismo id
-  Actividad "n" --> "1" Chofer
-  DiaTrabajo "n" --> "1" Chofer
-  PagoDelDia "n" --> "1" Chofer
+  Pedido ..> ResumenDia : al cerrar el día se resume y se borra
+  Pedido ..> Foto : fotoId
+  Actividad "n" --> "1" Conductor
+  DiaTrabajo "n" --> "1" Conductor
+  PagoDelDia "n" --> "1" Conductor
   Actividad ..> PagoDelDia : trigger congela el día
   ReglaDePago ..> PagoDelDia : se copia como TarifaDelDia
 ```
@@ -113,13 +131,16 @@ las tablas llevan `empresa_id` y RLS. Tipos de servidor: `src/types/db.ts`; del 
 
 | Dato | Dónde vive | Tipo |
 |---|---|---|
-| Destinatario, dirección, llamada, resultado y aviso | Teléfono · `pedidos` (un pedido = un día) | `Pedido` |
-| Orden de visita y trazado | Teléfono · `rutas` (una fila por día) | `Ruta` |
+| Destinatario, dirección, llamada, resultado y aviso | Teléfono · `pedidos` (un pedido = un día; se borra al cerrarlo) | `Pedido` |
+| Orden de visita y trazado | Teléfono · `rutas` (una fila por día; se borra al cerrarlo) | `Ruta` |
+| Cifras de un día ya borrado | Teléfono · `dias` (sobrevive) | `ResumenDia` |
+| Foto del paquete | Teléfono · `fotos` (se borra al cerrarse el pedido y con el día) | `Foto` |
 | Hecho de entregar u omitir | Teléfono · `cola` → Postgres (mismo id) | `ActividadPorEnviar` → `Actividad` |
 | Aviso esperando respuesta | Postgres, máx. 72 h (solo código, estado y respuesta) | `Aviso` |
 | Inicio y cierre del día | Postgres | `DiaTrabajo` |
 | Pago del día (lo escribe un trigger) | Postgres | `PagoDelDia` + `TarifaDelDia` |
 | Regla de pago vigente | Postgres, una fila | `ReglaDePago` |
+| Llamadas hechas (número, duración) | Registro de llamadas de Android: la APK lo lee al volver de la llamada y no lo copia | `EntradaRegistro` (en memoria) → `ResultadoLlamada` |
 
 ## 2. Estados
 
@@ -190,8 +211,13 @@ flowchart LR
     planificar["planificar · llegada estimada"]
     replan["replanificar · ruta en curso"]
     enviar["enviar"]
-    wsl["local/whatsapp"]
-    rutas["rutas · geocoding · plus-code"]
+    wsl["sincronizar-whatsapp"]
+    rutas["geo: trazado · geocoding · mapbox · plus-code<br/>rutas/orden-paradas"]
+  end
+  subgraph Nativo["APK · lib/nativo"]
+    nat["entorno · telefono · escaner"]
+    llamada["llamada · version (puras)"]
+    plugin["android/: plugin Telefono · escáner Google"]
   end
   subgraph Servidor["Servidor"]
     api["api/whatsapp<br/>send · status · webhook"]
@@ -215,6 +241,9 @@ flowchart LR
   generar --> planificar
   generar --> rutas
   conductor --> replan
+  conductor --> nat
+  conductor --> llamada
+  nat --> plugin
   replan --> planificar
   replan --> almacen
   rutas --> coord
@@ -233,7 +262,8 @@ flowchart LR
 
 Reglas de dependencia: el dominio puro no hace E/S; solo `almacen/` toca `idb`; el teléfono
 y `/api/whatsapp` comparten `contrato-whatsapp.ts`; toda consulta a Supabase va tipada por
-`Database`, sin casts.
+`Database`, sin casts; solo `lib/nativo/` importa `@capacitor/*` y ningún archivo de servidor
+lo usa.
 
 ## 4. Dónde está cada cosa
 
@@ -250,9 +280,23 @@ y `/api/whatsapp` comparten `contrato-whatsapp.ts`; toda consulta a Supabase va 
 | Operaciones del teléfono: lecturas, pedidos, ruta, terreno, aviso y disponibilidad, cola; migración v2 → v3 | `encomiendas/local/almacen/` (barril `index.ts`) |
 | Esquema Postgres para supabase-js | `src/types/db.ts` (`Database`) |
 | Cifras del panel a partir de pagos congelados | `encomiendas/pago.ts` |
+| Indicadores del período y comparación con el anterior: `calcularIndicadores`, `periodoAnterior` (spec 006) | `encomiendas/indicadores.ts`, `(app)/encomiendas/_componentes/indicadores.tsx` |
+| APK con respaldo web: `esApp`, `alBotonAtras`, `llamar`, `llamadasDesde`, `pantallaEncendida`, `escanearCodigo` | `nativo/entorno.ts`, `nativo/telefono.ts`, `nativo/escaner.ts` |
+| Contestó o no según el registro (≥ 5 s); aviso de APK vieja | `nativo/llamada.ts`, `nativo/version.ts` |
+| OF y referencia del paquete: `formatoOf`, `ofValida`, `textoReferencia`, `buscarPorOf` · listas `TIPOS_PAQUETE`, `TAMANOS_PAQUETE`, `COLORES_PAQUETE` | `encomiendas/paquete.ts`, `encomiendas/catalogos.ts` |
+| Paquete y foto en el teléfono: `guardarPaquete`, `ofRepetida`, `guardarFoto`, `purgarFotosCerradas` | `encomiendas/local/almacen/paquete.ts` |
+| Carga del día (spec 005): leer la guía, la etiqueta y su código de barras (puros) | `encomiendas/lectura/{guia,etiqueta,codigo-barras}.ts` |
+| Pedidos desde la guía y escaneo → "PARADA n de N": `crearDesdeGuia`, `aplicarLecturaEtiqueta`, `sinEtiquetaEscaneada`; dirección de la etiqueta: `cambiarDireccion` (`pedidos.ts`) | `encomiendas/local/almacen/carga.ts` |
+| Lectura de una foto: primero el texto en el teléfono (`leerImagen`, `textoDeFoto` con ML Kit, `etiquetaCompleta`) y, si no alcanza, la IA: esquemas, contrato, llamada a Claude (`server-only`) | `encomiendas/lectura/{esquemas,contrato,servidor}.ts`, `encomiendas/local/lectura-cliente.ts`, `src/app/api/lectura/route.ts` |
+| Cierre del día: no entregados, resumen y borrado; cierre de sesión | `encomiendas/local/almacen/borrado.ts` (`STORES_DEL_DIA` en `idb.ts`) |
+| Plugin nativo `Telefono` (Java) | `android/app/src/main/java/cl/pucarani/ares/TelefonoPlugin.java` |
+| Sesión y puertas (`exigirPanel`, `exigirConductor`); rol y destino por rol (`leerRol`, `inicioSegunRol`); ficha por usuario | `auth/sesion.ts`, `auth/roles.ts`, `auth/conductor-de-usuario.ts` |
+| Días "YYYY-MM-DD" en hora de Chile (`hoyChile`, `sumarDias`, `esFecha`), `MESES`; periodo del panel y su cookie | `comun/fechas.ts`, `comun/periodo.ts` (+ `periodo-servidor.ts`) |
+| Orden de paradas (exacto hasta 14 puntos; si no, construcción + mejora + sacudidas) | `rutas/orden-paradas/` |
+| Trazado en el teléfono: pegar al camino, rumbo, metros restantes · Mapbox: token, direcciones, navegación | `geo/trazado.ts` · `geo/mapbox/` |
+| Ubicar una dirección (`ubicarDireccion`): limpiar la consulta, `coincidenciaCalle` (tipeo acotado), catálogo de calles de Arica (`callesParecidas`, `largoDeCalle`) | `geo/geocoding/`: `ubicar.ts`, `consulta.ts`, `calles.ts` + `calles-arica.ts` (generado), `completar-numero.ts`, `mapbox.ts`, `nominatim.ts`, `codigo.ts`; `index.ts` es el barril |
 
 ## 5. Pendiente
 
-- `chofer` → `conductor` en código y base: spec 002 (US2).
 - `valor_pago` es `numeric`: PostgREST lo entrega como texto y `pago.ts` lo convierte.
 - Guía y etiqueta escaneadas, posición en la ruta: spec 005.

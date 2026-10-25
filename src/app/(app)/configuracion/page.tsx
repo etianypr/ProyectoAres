@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { PageHeader } from "@/components/page-header";
+import { PageHeader } from "@/components/panel/page-header";
 import { EmpresaForm } from "./empresa-form";
 import { BloquesHorariosForm } from "./bloques-horarios-form";
 

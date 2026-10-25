@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/comun/utils";
 
 // Ventana modal controlada por estado, para abrir un formulario SIN salir de la
 // pantalla en la que se está trabajando.

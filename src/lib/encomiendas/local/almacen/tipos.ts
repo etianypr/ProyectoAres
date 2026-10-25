@@ -6,6 +6,7 @@ import type {
   EstadoAviso,
   TipoEvento,
 } from "@/lib/encomiendas/catalogos";
+import type { ReferenciaPaquete } from "@/lib/encomiendas/paquete";
 import type { ResultadoVisita, ResultadoLlamada } from "@/lib/encomiendas/estados";
 import type { Trazado } from "@/lib/geo/coordenada";
 
@@ -21,7 +22,7 @@ export type Pedido = {
   telefono: string;
   direccion: string;
   /** null cuando la dirección no se pudo ubicar en el mapa: el pedido igual se
-   *  guarda (el chofer puede corregirla), pero no puede entrar en una ruta. */
+   *  guarda (el conductor puede corregirla), pero no puede entrar en una ruta. */
   lat: number | null;
   lng: number | null;
   notas: string | null;
@@ -44,6 +45,43 @@ export type Pedido = {
   horaResultado: string | null;
   /** ISO. Sirve para ordenar la lista. */
   cargadoEn: string;
+  /** Orden de flete de Starken, 9 dígitos sin separadores (spec 003). Es lo que
+   *  va impreso en la etiqueta: con ella se reconoce el paquete sin escribir nada
+   *  en él. null = no se cargó (a mano es opcional; la 005 la lee del código). */
+  of: string | null;
+  /** Cómo es el paquete, para encontrarlo rápido en la camioneta. */
+  referencia: ReferenciaPaquete | null;
+  /** La foto del paquete en el store `fotos`, o null. */
+  fotoId: string | null;
+  /** Cuántos bultos tiene el envío (etiqueta "Bulto N° 001/002"); null = no se sabe. */
+  bultos: number | null;
+  /** Qué bultos ya se escanearon (sus números): el mismo escaneado dos veces no
+   *  cuenta dos (spec 005). */
+  bultosEscaneados: number[];
+  /** true solo si la etiqueta dice POR PAGAR; null = no se leyó (por revisar). */
+  porPagar: boolean | null;
+  /** Lo que hay que cobrar; nunca se supone 0 (spec 005, FR-015). */
+  montoPorPagar: number | null;
+  /** Folio de la guía de la que salió. */
+  folioGuia: string | null;
+  /** De dónde salió el pedido: se cuenta en el resumen del día (sin datos). */
+  origenCarga: OrigenCarga;
+};
+
+/** guia_foto: la foto de la guía leída en el teléfono, sin IA (spec 005). */
+export type OrigenCarga = "guia_ia" | "guia_foto" | "guia_pegada" | "etiqueta" | "manual";
+
+export type { ReferenciaPaquete };
+
+/** Foto del paquete (store `fotos`). Solo en el teléfono: puede mostrar la
+ *  etiqueta, que es dato personal. Se borra al cerrarse el pedido y con el día. */
+export type Foto = {
+  id: string;
+  pedidoId: string;
+  /** Día de trabajo: el cierre del día borra las suyas (spec 007). */
+  fecha: string;
+  /** JPEG reducido en el teléfono (lado mayor 1280 px). */
+  blob: Blob;
 };
 
 export type Ruta = {
@@ -59,7 +97,7 @@ export type Ruta = {
   duracionS: number | null;
   /** Cuándo se generó la ruta por PRIMERA vez ese día: el comienzo de la
    *  día. Rehacer la ruta —porque entraron pedidos nuevos— no lo mueve, o
-   *  el inicio del día iría corriéndose cada vez que el chofer agrega algo. */
+   *  el inicio del día iría corriéndose cada vez que el conductor agrega algo. */
   inicio: string;
   /** Cuándo se cerró la última parada. null = la ruta sigue en curso.
    *
@@ -70,13 +108,45 @@ export type Ruta = {
   cierre: string | null;
   /** Qué quedó fuera o dudoso al armar esta ruta: pedidos sin ubicar, sin
    *  trazado, con un bloque horario que no se pudo respetar. Se guarda con la
-   *  ruta —y no solo se muestra en la previsualización— porque el chofer las
+   *  ruta —y no solo se muestra en la previsualización— porque el conductor las
    *  necesita en terreno, horas después de haber confirmado. */
   advertencias: string[];
   /** Cuántas propuestas se compararon para llegar a esta (1 a 3). Es lo que
-   *  distingue "no había alternativa útil" de "el chofer eligió entre tres"
+   *  distingue "no había alternativa útil" de "el conductor eligió entre tres"
    *  cuando después hay que entender por qué salió este orden. */
   propuestasComparadas: number;
+};
+
+/** Un día de trabajo en cifras. Es lo único que queda en el teléfono cuando el
+ *  día se borra (spec 007): sin nombres, teléfonos, direcciones ni OF. Store
+ *  `dias`, clave `fecha`. Mientras el día sigue en el teléfono se calcula de sus
+ *  pedidos (ver resumirDia). */
+export type ResumenDia = {
+  fecha: string;
+  /** Pedidos cargados ese día, en la ruta o fuera de ella. */
+  asignados: number;
+  /** Los que entraron en la ruta. */
+  paradas: number;
+  entregadas: number;
+  /** Con el día abierto, los marcados "no entregado". Con el día cerrado, todo
+   *  lo que no se entregó (vuelve a Starken): asignados − entregadas. */
+  noEntregadas: number;
+  /** Pedidos cuyo receptor contestó la llamada o respondió el aviso (spec 006).
+   *  null en días guardados antes de contarlo. */
+  contactados: number | null;
+  /** Pedidos POR PAGAR del día (spec 005). */
+  porPagar: number;
+  /** Lo que hay que cobrar: la suma de los montos POR PAGAR, en pesos. */
+  aCobrar: number;
+  /** La parte de aCobrar de los pedidos ya entregados. */
+  cobrado: number;
+  /** Cuántos pedidos entraron de cada forma (guía con foto, pegada, a mano…). */
+  porOrigen: Partial<Record<OrigenCarga, number>>;
+  /** Cuándo empezó la ruta. Lo usa la sincronización del día con el servidor
+   *  cuando la ruta ya se borró. */
+  inicio: string | null;
+  /** null = ese día quedó abierto. */
+  cierre: string | null;
 };
 
 /** Evento esperando salir a encomienda_actividad. Los nombres son los del
@@ -84,14 +154,14 @@ export type Ruta = {
 export type ActividadPorEnviar = {
   /** UUIDv7: el MISMO id que va a la base, para que reenviar no duplique. */
   id: string;
-  choferId: string;
+  conductorId: string;
   fecha: string;
   tipo: TipoEvento;
   /** ISO. Cuándo ocurrió de verdad, que puede ser mucho antes de poder
    *  enviarlo. */
   hora: string;
   /** ISO. Hasta esa hora el evento NO sale, aunque haya señal: es la ventana en
-   *  la que el chofer puede deshacer lo que acaba de marcar (ver
+   *  la que el conductor puede deshacer lo que acaba de marcar (ver
    *  deshacerResultado).
    *
    *  Se retiene en la cola y no en la pantalla porque un evento que solo existe

@@ -3,7 +3,7 @@
 //
 // La diferencia es DÓNDE se engancha. El de Supabase reemplaza el módulo entero
 // (ver el mapa DOBLES en ../loader.mjs) porque ese cliente arma consultas. Acá
-// el adaptador (src/lib/whatsapp.ts) hace un `fetch` y nada más, así que se
+// el adaptador (src/lib/whatsapp/meta.ts) hace un `fetch` y nada más, así que se
 // sustituye el fetch global y el adaptador REAL corre completo: la URL que
 // forma, los headers, el cuerpo de la plantilla y cómo interpreta un 429. Un
 // doble a nivel de módulo no probaría nada de eso — justo lo que se rompe

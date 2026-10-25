@@ -1,0 +1,85 @@
+# Compila la APK del conductor (spec 015).
+#
+# - A mano (Actions → APK → Run workflow) o con un tag `apk-v1.2.3`.
+# - Con los 4 secretos de firma: APK de release firmada (siempre con la misma
+#   clave, así una nueva se instala encima de la anterior). Sin ellos: APK de
+#   depuración, que sirve para probar.
+# - Con tag, además la publica en un Release.
+name: APK
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["apk-v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    env:
+      TIENE_FIRMA: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Versión
+        run: |
+          if [[ "$GITHUB_REF_NAME" == apk-v* ]]; then
+            echo "APK_VERSION=${GITHUB_REF_NAME#apk-v}" >> "$GITHUB_ENV"
+          else
+            echo "APK_VERSION=0.0.${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
+          fi
+          echo "APK_VERSION_CODE=${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
+
+      - run: npm ci
+      - run: npx cap sync android
+
+      - name: Clave de firma
+        if: env.TIENE_FIRMA == 'true'
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/ares.keystore"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/ares.keystore" >> "$GITHUB_ENV"
+
+      - name: Compilar (release firmada)
+        if: env.TIENE_FIRMA == 'true'
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+          cp app/build/outputs/apk/release/app-release.apk "../ares-${APK_VERSION}.apk"
+
+      - name: Compilar (depuración, sin firma)
+        if: env.TIENE_FIRMA != 'true'
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+          cp app/build/outputs/apk/debug/app-debug.apk "../ares-${APK_VERSION}-debug.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ares-${{ env.APK_VERSION }}
+          path: ares-*.apk
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/apk-v') && env.TIENE_FIRMA == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ares-*.apk

@@ -1,3 +1,5 @@
+-- HISTÓRICA: los nombres "chofer"/"choferes" de este archivo se renombraron a
+-- "conductor"/"conductores" en 0006_conductor.sql (spec 002 US2). No se edita.
 -- ============================================================================
 -- 0001 — Base: empresa, perfiles/roles, conductores, storage.
 --        Ejecutar en Supabase > SQL Editor del proyecto de ARES. Re-ejecutable.

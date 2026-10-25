@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { conductorDeLaApi } from "@/lib/api-conductor";
+import { conductorDeLaApi } from "@/lib/auth/api-conductor";
 import {
   MAX_RESPUESTAS_POR_CONSULTA,
   type BuzonRespuestas,
@@ -22,7 +22,7 @@ import {
 // se pierde, y el receptor no la va a repetir. Entonces el servidor tiene que
 // poder ACUMULAR las respuestas hasta que el teléfono aparezca — y en cuanto
 // existe ese buzón, venir a buscarlo alcanza. Ver la Decisión 7 de
-// specs/001-asistencia-ruta-entrega/research.md.
+// docs/WHATSAPP.md (Diseño).
 //
 // ----------------------------------------------------------------------------
 // POR QUÉ CONFIRMAR ES UN PASO APARTE
@@ -35,7 +35,7 @@ import {
 //
 // Es el mismo orden que ya tiene la cola de actividad (ver quitarDeCola en
 // lib/encomiendas/local/almacen/cola.ts): primero el dato queda firme donde lo va a
-// usar el chofer, y recién después se avisa que se puede olvidar.
+// usar el conductor, y recién después se avisa que se puede olvidar.
 //
 // ----------------------------------------------------------------------------
 // QUÉ SALE DE ACÁ
@@ -43,7 +43,7 @@ import {
 // Solo "a este pedido tuyo le contestaron esto": el id local del pedido, qué
 // botón tocó, el bloque si eligió uno, y cuándo. Ni el número del receptor ni su
 // nombre, porque el servidor no los tiene guardados (ver la migración 0003). Y
-// solo del `chofer_id` de quien pregunta: lo filtra esta ruta y lo vuelve a
+// solo del `conductor_id` de quien pregunta: lo filtra esta ruta y lo vuelve a
 // exigir RLS.
 
 export async function GET() {
@@ -55,7 +55,7 @@ export async function GET() {
   const { data, error } = await supabase
     .from("encomienda_whatsapp_correlaciones")
     .select("pedido_id_local, respuesta_accion, respuesta_bloque_id, respuesta_mensaje_id, respuesta_recibida_en")
-    .eq("chofer_id", conductor.choferId)
+    .eq("conductor_id", conductor.conductorId)
     // Solo las que YA tienen respuesta y el teléfono todavía no confirmó.
     .not("respuesta_mensaje_id", "is", null)
     .is("aplicada_en", null)
@@ -106,13 +106,13 @@ export async function POST(req: Request) {
 
   const supabase = await createClient();
 
-  // El filtro por chofer_id está además de RLS, no en su lugar: es lo que hace
+  // El filtro por conductor_id está además de RLS, no en su lugar: es lo que hace
   // que un id de mensaje adivinado no pueda confirmar (y por lo tanto ocultarle)
   // la respuesta de otro conductor.
   const { data, error } = await supabase
     .from("encomienda_whatsapp_correlaciones")
     .update({ aplicada_en: new Date().toISOString() })
-    .eq("chofer_id", conductor.choferId)
+    .eq("conductor_id", conductor.conductorId)
     .in("respuesta_mensaje_id", ids)
     .select("respuesta_mensaje_id");
 
@@ -132,7 +132,7 @@ export async function POST(req: Request) {
   await supabase
     .from("encomienda_whatsapp_correlaciones")
     .delete()
-    .eq("chofer_id", conductor.choferId)
+    .eq("conductor_id", conductor.conductorId)
     .in("respuesta_mensaje_id", ids);
 
   return NextResponse.json({ confirmadas: data?.length ?? 0 } satisfies ConfirmacionOk);

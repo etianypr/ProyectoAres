@@ -2,10 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { puedeOperarPanel } from "@/lib/auth";
-import { intNull, num, s, sReq } from "@/lib/form-helpers";
-import { hoyChile } from "@/lib/format";
-import { uuidv7 } from "@/lib/uuid";
+import { puedeOperarPanel } from "@/lib/auth/sesion";
+import { intNull, num, s, sReq, type FormState } from "@/lib/comun/forms";
+import { esFecha, hoyChile } from "@/lib/comun/fechas";
+import { uuidv7 } from "@/lib/comun/uuid";
 import { TIPOS_PAGO, esClave, type TipoEvento } from "@/lib/encomiendas/catalogos";
 import type { Tarifa } from "@/lib/encomiendas/pago";
 
@@ -20,8 +20,6 @@ import type { Tarifa } from "@/lib/encomiendas/pago";
 // actividad del día, así que no queda nada que confirmar: las cifras ya están.
 // Con eso se fue también el estado "por recalcular", que era la posibilidad de
 // que el snapshot y el cálculo al vuelo no coincidieran.
-
-export type FormState = { error?: string; ok?: boolean };
 
 // Las Server Actions son endpoints POST de la ruta donde se usan: cualquiera
 // con sesión puede invocarlas, el proxy no las filtra. RLS ya frena la
@@ -88,9 +86,9 @@ function leerTarifa(formData: FormData): { tarifa: Tarifa } | { error: string } 
 
 /** Los argumentos con los que la base valora un día con una tarifa dictada a
  *  mano (encomienda_valorar_dia, 0033). */
-function argumentosValorar(choferId: string, fecha: string, tarifa: Tarifa) {
+function argumentosValorar(conductorId: string, fecha: string, tarifa: Tarifa) {
   return {
-    p_chofer_id: choferId,
+    p_conductor_id: conductorId,
     p_fecha: fecha,
     p_valor_pedido: tarifa.valor_pedido,
     p_tipo_pago: tarifa.tipo_pago,
@@ -148,11 +146,11 @@ export async function agregarDiaManual(
     return { error: "No tienes permiso para cargar días." };
   }
 
-  const chofer_id = sReq(formData.get("chofer_id"));
-  if (!chofer_id) return { error: "Elige un conductor." };
+  const conductor_id = sReq(formData.get("conductor_id"));
+  if (!conductor_id) return { error: "Elige un conductor." };
 
   const fecha = sReq(formData.get("fecha"));
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return { error: "La fecha no es válida." };
+  if (!esFecha(fecha)) return { error: "La fecha no es válida." };
   // Comparación de strings sobre YYYY-MM-DD: ordena igual que por calendario y
   // evita construir un Date (que interpretaría la fecha en UTC y correría el
   // límite un día). hoyChile() ya viene en la zona del negocio.
@@ -213,7 +211,7 @@ export async function agregarDiaManual(
     };
   }
 
-  // Que el conductor exista. Sin esto, un chofer_id inventado revienta contra la
+  // Que el conductor exista. Sin esto, un conductor_id inventado revienta contra la
   // foreign key con un mensaje de Postgres en la cara.
   //
   // Antes acá se comprobaba además que tuviera asignada la categoría
@@ -221,9 +219,9 @@ export async function agregarDiaManual(
   // trabajo y cargarle un día de reparto a un conductor de taxis metía otra área
   // en esta liquidación. Con un solo negocio no hay a quién confundir.
   const { count: existe } = await supabase
-    .from("choferes")
+    .from("conductores")
     .select("id", { count: "exact", head: true })
-    .eq("id", chofer_id);
+    .eq("id", conductor_id);
   if (!existe) {
     return { error: "Ese conductor no existe." };
   }
@@ -242,7 +240,7 @@ export async function agregarDiaManual(
   const hora = horaRelleno(fecha);
   const filas = tipos.map((tipo) => ({
     id: uuidv7(),
-    chofer_id,
+    conductor_id,
     fecha,
     tipo,
     hora,
@@ -263,7 +261,7 @@ export async function agregarDiaManual(
   const { error: errBorrado } = await supabase
     .from("encomienda_actividad")
     .delete()
-    .eq("chofer_id", chofer_id)
+    .eq("conductor_id", conductor_id)
     .eq("fecha", fecha)
     .eq("origen", "manual");
   if (errBorrado) {
@@ -291,7 +289,7 @@ export async function agregarDiaManual(
   const { data: diaTrabajo, error: errLeer } = await supabase
     .from("encomienda_jornadas")
     .select("id, cerrada_en")
-    .eq("chofer_id", chofer_id)
+    .eq("conductor_id", conductor_id)
     .eq("fecha", fecha)
     .maybeSingle();
   if (errLeer) {
@@ -307,7 +305,7 @@ export async function agregarDiaManual(
           .eq("id", diaTrabajo.id)
       : await supabase
           .from("encomienda_jornadas")
-          .insert({ chofer_id, fecha, cerrada_en: ahora });
+          .insert({ conductor_id, fecha, cerrada_en: ahora });
     if (errDia) {
       return {
         error: `Se guardó el día, pero no se pudo cerrar el día de trabajo: ${errDia.message}`,
@@ -326,7 +324,7 @@ export async function agregarDiaManual(
   if (modo === "editada" && tarifa) {
     const { error: errTarifa } = await supabase.rpc(
       "encomienda_valorar_dia",
-      argumentosValorar(chofer_id, fecha, tarifa),
+      argumentosValorar(conductor_id, fecha, tarifa),
     );
     if (errTarifa) {
       return {
@@ -338,7 +336,7 @@ export async function agregarDiaManual(
     // Importa cuando el día YA existía con otra tarifa: elegir "regla actual"
     // tiene que significar eso, no "la que traía".
     const { error: errRepreciar } = await supabase.rpc("encomienda_repreciar_dia", {
-      p_chofer_id: chofer_id,
+      p_conductor_id: conductor_id,
       p_fecha: fecha,
     });
     if (errRepreciar) {
@@ -358,7 +356,7 @@ export async function agregarDiaManual(
  *  Es la vuelta atrás de un día cargado que no correspondía. Solo toca las
  *  filas de origen 'manual': lo que el teléfono registró en terreno no se puede
  *  borrar desde acá. */
-export async function eliminarDiaManual(choferId: string, fecha: string): Promise<FormState> {
+export async function eliminarDiaManual(conductorId: string, fecha: string): Promise<FormState> {
   if (!(await puedeOperarPanel())) {
     return { error: "No tienes permiso para borrar días." };
   }
@@ -368,7 +366,7 @@ export async function eliminarDiaManual(choferId: string, fecha: string): Promis
   const { error } = await supabase
     .from("encomienda_actividad")
     .delete()
-    .eq("chofer_id", choferId)
+    .eq("conductor_id", conductorId)
     .eq("fecha", fecha)
     .eq("origen", "manual");
   if (error) return { error: `No se pudo borrar la carga manual: ${error.message}` };
@@ -385,7 +383,7 @@ export async function eliminarDiaManual(choferId: string, fecha: string): Promis
   const { count: quedan, error: errConteo } = await supabase
     .from("encomienda_actividad")
     .select("id", { count: "exact", head: true })
-    .eq("chofer_id", choferId)
+    .eq("conductor_id", conductorId)
     .eq("fecha", fecha);
   if (errConteo) {
     return { error: `Se borró la actividad, pero quedó el día de trabajo: ${errConteo.message}` };
@@ -395,7 +393,7 @@ export async function eliminarDiaManual(choferId: string, fecha: string): Promis
     const { error: errDia } = await supabase
       .from("encomienda_jornadas")
       .delete()
-      .eq("chofer_id", choferId)
+      .eq("conductor_id", conductorId)
       .eq("fecha", fecha);
     if (errDia) {
       return { error: `Se borró la actividad, pero quedó el día de trabajo: ${errDia.message}` };
@@ -417,14 +415,14 @@ export async function eliminarDiaManual(choferId: string, fecha: string): Promis
  *  La cuenta la rehace la base —encomienda_repreciar_dia, que comprueba el rol
  *  por dentro— y no este código: es la misma función que corre el trigger, así
  *  que un día repreciado no puede quedar calculado distinto a uno nuevo. */
-export async function repreciarDia(choferId: string, fecha: string): Promise<FormState> {
+export async function repreciarDia(conductorId: string, fecha: string): Promise<FormState> {
   if (!(await puedeOperarPanel())) {
     return { error: "No tienes permiso para recalcular pagos." };
   }
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("encomienda_repreciar_dia", {
-    p_chofer_id: choferId,
+    p_conductor_id: conductorId,
     p_fecha: fecha,
   });
   if (error) return { error: `No se pudo recalcular: ${error.message}` };
@@ -445,7 +443,7 @@ export async function repreciarDia(choferId: string, fecha: string): Promise<For
  *  día, así que un día valorado a mano no puede quedar calculado con otra
  *  aritmética. */
 export async function repreciarDiaConTarifa(
-  choferId: string,
+  conductorId: string,
   fecha: string,
   formData: FormData,
 ): Promise<FormState> {
@@ -459,7 +457,7 @@ export async function repreciarDiaConTarifa(
   const supabase = await createClient();
   const { error } = await supabase.rpc(
     "encomienda_valorar_dia",
-    argumentosValorar(choferId, fecha, leida.tarifa),
+    argumentosValorar(conductorId, fecha, leida.tarifa),
   );
   if (error) return { error: `No se pudo recalcular: ${error.message}` };
 
@@ -496,7 +494,7 @@ export async function guardarReglaPago(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  // RLS ya frena el insert de un chofer, pero devolvería un mensaje de Postgres
+  // RLS ya frena el insert de un conductor, pero devolvería un mensaje de Postgres
   // en la cara. Mejor decirlo de frente, igual que el resto de este archivo.
   if (!(await puedeOperarPanel())) {
     return { error: "No tienes permiso para cambiar las reglas de pago." };
@@ -608,8 +606,6 @@ export async function eliminarIngresoReal(periodoId: string): Promise<FormState>
 // es todo lo que hacen.
 // ----------------------------------------------------------------------------
 
-const FECHA = /^\d{4}-\d{2}-\d{2}$/;
-
 /** Crea un periodo, o mueve las fechas de uno que ya existe.
  *
  *  Que dos periodos no se pisen NO se comprueba acá: lo rechaza la base con la
@@ -629,8 +625,8 @@ export async function guardarPeriodoFacturacion(
   const fecha_inicio = sReq(formData.get("fecha_inicio"));
   const fecha_fin = sReq(formData.get("fecha_fin"));
 
-  if (!FECHA.test(fecha_inicio)) return { error: "Pon la fecha de inicio del periodo." };
-  if (!FECHA.test(fecha_fin)) return { error: "Pon la fecha de término del periodo." };
+  if (!esFecha(fecha_inicio)) return { error: "Pon la fecha de inicio del periodo." };
+  if (!esFecha(fecha_fin)) return { error: "Pon la fecha de término del periodo." };
   // Comparar strings YYYY-MM-DD es comparar fechas, y no arrastra la zona
   // horaria del servidor a una decisión que es de calendario.
   if (fecha_fin < fecha_inicio) {

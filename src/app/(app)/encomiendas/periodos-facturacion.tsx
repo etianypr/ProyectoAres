@@ -27,8 +27,8 @@ import {
 import {
   eliminarPeriodoFacturacion,
   guardarPeriodoFacturacion,
-  type FormState,
 } from "./actions";
+import type { FormState } from "@/lib/comun/forms";
 
 const NUEVO = "";
 

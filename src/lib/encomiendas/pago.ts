@@ -27,7 +27,7 @@ import type { Actividad, ReglaDePago, TarifaDelDia } from "@/types/db";
 import type { TipoEvento } from "@/lib/encomiendas/catalogos";
 
 /** Cómo cerró el día un conductor. Sale de contar los eventos que el teléfono
- *  registró en encomienda_actividad para ese (chofer, fecha) — ver 0026.
+ *  registró en encomienda_actividad para ese (conductor, fecha) — ver 0026.
  *
  *  Ya no existe un "sinCerrar": las paradas que el conductor no llegó a cerrar
  *  viven en su teléfono y nunca se envían, así que el servidor no las conoce.
@@ -92,7 +92,7 @@ export function ingresoEstimado(entregados: number, valorPorEntrega: number): nu
 //
 // Con la actividad en eventos la pregunta desaparece: una fila en
 // encomienda_actividad SOLO existe si el conductor hizo algo en terreno, aunque
-// haya sido nada más que llamar. Si no salió, no hay filas y ese (chofer, fecha)
+// haya sido nada más que llamar. Si no salió, no hay filas y ese (conductor, fecha)
 // simplemente no aparece. Así que todo lo que llega hasta acá es un día
 // trabajado, por definición.
 
@@ -148,7 +148,7 @@ export function calcularPagoDia(
   return { base, dia, bono, total: base + dia + bono };
 }
 
-/** Cuenta los eventos de un (chofer, fecha). Los de tipo "llamada" no suman ni
+/** Cuenta los eventos de un (conductor, fecha). Los de tipo "llamada" no suman ni
  *  restan: están para probar que el conductor salió, y eso ya lo dice el hecho
  *  de que exista aunque sea una fila. */
 export function contarActividad(eventos: { tipo: TipoEvento }[]): ConteoDia {
@@ -158,12 +158,12 @@ export function contarActividad(eventos: { tipo: TipoEvento }[]): ConteoDia {
   };
 }
 
-export type EventoActividad = Pick<Actividad, "chofer_id" | "fecha" | "tipo" | "origen">;
+export type EventoActividad = Pick<Actividad, "conductor_id" | "fecha" | "tipo" | "origen">;
 
 export type DiaActividad<T extends EventoActividad> = {
   /** null si el conductor fue eliminado después (la FK es on delete set null,
    *  ver 0026): el día se sigue viendo, pero no se puede liquidar. */
-  choferId: string | null;
+  conductorId: string | null;
   fecha: string;
   conteo: ConteoDia;
   /** Los eventos crudos del día, para las pantallas que muestran horas. */
@@ -187,11 +187,11 @@ export function agruparPorDia<T extends EventoActividad>(eventos: T[]): DiaActiv
   const mapa = new Map<string, DiaActividad<T>>();
 
   for (const evento of eventos) {
-    const clave = `${evento.fecha}|${evento.chofer_id ?? ""}`;
+    const clave = `${evento.fecha}|${evento.conductor_id ?? ""}`;
     let dia = mapa.get(clave);
     if (!dia) {
       dia = {
-        choferId: evento.chofer_id,
+        conductorId: evento.conductor_id,
         fecha: evento.fecha,
         conteo: { entregados: 0, omitidos: 0 },
         eventos: [],

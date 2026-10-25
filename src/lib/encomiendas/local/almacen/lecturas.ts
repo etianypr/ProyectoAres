@@ -3,8 +3,8 @@
 // su cuenta.
 
 import { STORES, leerTodos, leerUno } from "../idb";
-import { alDia, rutaAlDia } from "./migrar";
-import type { Pedido, Ruta } from "./tipos";
+import { alDia, diaAlDia, rutaAlDia } from "./migrar";
+import type { Pedido, ResumenDia, Ruta } from "./tipos";
 
 export async function leerPedido(id: string): Promise<Pedido | null> {
   const pedido = await leerUno(STORES.pedidos, id);
@@ -22,6 +22,12 @@ export async function leerTodosLosPedidos(): Promise<Pedido[]> {
 export async function leerPedidos(fecha: string): Promise<Pedido[]> {
   const pedidos = await leerTodosLosPedidos();
   return pedidos.filter((p) => p.fecha === fecha);
+}
+
+/** El resumen guardado de un día ya borrado (spec 007), o null. */
+export async function leerDiaGuardado(fecha: string): Promise<ResumenDia | null> {
+  const dia = await leerUno(STORES.dias, fecha);
+  return dia ? diaAlDia(dia) : null;
 }
 
 export async function leerRuta(fecha: string): Promise<Ruta | null> {

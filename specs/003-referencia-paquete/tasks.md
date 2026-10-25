@@ -1,142 +1,93 @@
 ---
-
-description: "Tareas de número y referencia de cada paquete"
+description: "Tareas: OF y referencia del paquete"
 ---
 
-# Tasks: Número y referencia de cada paquete
+# Tasks: OF y referencia del paquete
 
-**Input**: Documentos de diseño de `specs/003-referencia-paquete/`
+**Input**: `specs/003-referencia-paquete/` (spec, plan, research, data-model, contracts, quickstart)
 
-**Prerequisites**: `plan.md`, `spec.md`, `research.md`, `data-model.md`,
-`contracts/almacen-paquete.md`, `quickstart.md`. **Spec 002 Fase 1–2 + US1 terminadas.**
+**Tests**: incluidos (constitución III: datos del pedido y privacidad).
 
-**Tests**: Incluidos (constitución III): unicidad y fijeza del número, migración de la base
-local, borrado de fotos y que nada nuevo viaje al servidor.
-
-**Organization**: Por historia de usuario. El orden de las fases sigue las dependencias:
-describir el paquete (US2) → numerar y cargar (US3) → verlo en la parada (US1). Las tres
-forman el MVP.
-
-**Actualizado 2026-10-20**: el número es la posición en la ruta optimizada (no una
-secuencia propia) y todo se borra al cerrar el día (spec 007).
+**Prerrequisito**: spec 002 Fase 1–2 + US1 (`_componentes/`, `_hooks/`). Cada fase cierra con
+`npm test`, `npm run lint` y `npm run build` en verde. Sin commits salvo pedido.
 
 ## Format: `[ID] [P?] [Story] Description`
-
-- **[P]**: se puede hacer en paralelo (archivos distintos, sin dependencias)
-- **[Story]**: historia de usuario (US1–US4)
 
 ---
 
 ## Phase 1: Setup
 
-- [ ] T001 Comprobar el prerrequisito (spec 002 Fase 1–2 + US1: existe `pruebas/arquitectura.test.mjs`, los componentes del conductor están en `src/app/(conductor)/conductor/encomiendas/_componentes/`) y registrar la línea base (`npm test`, `npm run lint`, `npm run build`) en `specs/003-referencia-paquete/quickstart.md`
+- [x] T001 [P] Agregar `TIPOS_PAQUETE`, `TAMANOS_PAQUETE` y `COLORES_PAQUETE` (con etiqueta, como las demás listas) a `src/lib/encomiendas/catalogos.ts`
 
 ---
 
-## Phase 2: Foundational (Blocking Prerequisites)
+## Phase 2: Foundational
 
-**⚠️ CRITICAL**: Ninguna historia empieza antes de cerrar esta fase.
+- [x] T002 En `src/lib/encomiendas/local/almacen/tipos.ts`, agregar a `Pedido` los campos `of`, `referencia` y `fotoId` (tipos de `data-model.md`) y el tipo `Foto`; en `almacen/migrar.ts`, `alDia()` los completa con `null`
+- [x] T003 En `src/lib/encomiendas/local/idb.ts`, subir a `VERSION = 5` con el store `fotos` (índice `por_fecha`, para borrar las del día sin cargar imágenes), agregarlo a `STORES`, a `FilaDe` y a `STORES_DEL_DIA` (y borrar sus filas en `almacen/borrado.ts`); la actualización desde v4 solo crea el store
+- [x] T004 [P] Crear `src/lib/encomiendas/paquete.ts` con `formatoOf`, `ofValida`, `textoReferencia` y `buscarPorOf` según `data-model.md`
+- [x] T005 [P] Crear `pruebas/paquete.test.mjs` para las funciones de T004 (OF con espacios o guiones, 8 y 10 dígitos inválidos, referencia parcial, nota recortada, búsqueda con menos de 3 dígitos, varios resultados) y la migración (quedó en `pruebas/idb-version.test.mjs`: una base v3 abre en v5 sin perder nada, con `dias` y `fotos` vacíos)
 
-- [ ] T002 [P] Agregar a `src/lib/encomiendas/config.ts` las constantes `TIPOS_PAQUETE` (caja, bolsa, sobre, otro), `TAMANOS_PAQUETE` (chico, mediano, grande), `COLORES_PAQUETE` (café, blanco, negro, gris, amarillo, azul, rojo, verde, transparente) y el tipo `ReferenciaPaquete` de `data-model.md` §1
-- [ ] T003 Subir `src/lib/encomiendas/local/idb.ts` a la siguiente `VERSION` libre con el store `fotos` (agregarlo a `STORES_DEL_DIA` si la 007 ya existe) (clave `id`, índice `por_pedido`), con el patrón "si no existe, crear" de `onupgradeneeded` (si la spec 007 se implementa a la vez, agregar también su store de resumen diario); escribir `pruebas/idb-version.test.mjs`: una base v2 con pedidos, rutas, cola y whatsapp abre en v3 sin perder nada y con el store nuevo
-- [ ] T004 [P] Crear `src/lib/encomiendas/local/paquete.ts` con `asignarNumeros`, `describirPaquete`, `buscarPorNumero` y `ordenDeCarga` según `contracts/almacen-paquete.md`, y `pruebas/paquete.test.mjs`: primera numeración = posiciones 1…N; reoptimización con números existentes los conserva y da mayor + 1 a los nuevos en orden de ruta; nunca repite ni cambia un número; textos de `describirPaquete` con partes faltantes y sin referencia; búsqueda solo entre activos; orden de carga inverso al orden de visita
-- [ ] T005 Extender `src/lib/encomiendas/local/almacen/`: campos `numero`, `referencia`, `fotoId` en `Pedido` (`referencia` y `fotoId` también en `DatosPedido`; **`numero` no**, lo asigna el almacén); `cargados` en `Ruta`; valores por defecto en `alDia()` y `rutaAlDia()`; `guardarRuta()` numera con `asignarNumeros()` dentro de `enFila()`, conserva `cargados` y devuelve qué pedidos recibieron número nuevo; `guardarPedido()` conserva `numero` y `fotoId` al editar; `restaurarPedido()` conserva el número. Pruebas en `pruebas/3-almacen.test.mjs`: primera confirmación numera 1…N, dos confirmaciones en paralelo no repiten números, reoptimizar no cambia números, pedido tardío recibe N+1, editar y restaurar conservan, pedidos v2 se numeran en la siguiente confirmación
-
-**Checkpoint**: `npm test` en verde con las pruebas nuevas.
+**Checkpoint**: dominio y almacenamiento listos.
 
 ---
 
-## Phase 3: User Story 2 - Describir el paquete en pocos toques (Priority: P1) 🎯 MVP
+## Phase 3: User Story 1 - Ver en la parada qué paquete buscar y su OF (P1) 🎯 MVP
 
-**Goal**: Cada pedido sale del formulario con referencia y, si se quiere, foto.
+**Goal**: la parada activa muestra OF y referencia en lo más grande.
 
-**Independent Test**: Cargar un pedido con referencia de tres toques, nota y foto; reabrirlo y editar.
+**Independent Test**: `quickstart.md` pasos 3–4.
 
-- [ ] T006 [P] [US2] Crear `src/app/(conductor)/conductor/encomiendas/_componentes/paquete-chips.tsx`: selector de tipo, tamaño y color con botones grandes; cada color lleva su nombre escrito (no depende solo del color, constitución); un segundo toque deselecciona
-- [ ] T007 [P] [US2] Crear `src/lib/encomiendas/local/fotos.ts` (`comprimirFoto`, `guardarFoto`, `leerFoto`, `borrarFoto`, `purgarFotos`) y `pruebas/fotos.test.mjs`: guardar y leer, reemplazar la foto de un pedido, purgar huérfanas, purgar las de pedidos entregados o rechazados y conservar las de activos
-- [ ] T008 [US2] Crear `src/app/(conductor)/conductor/encomiendas/_componentes/foto-paquete.tsx`: tomar con `<input type="file" accept="image/*" capture="environment">`, miniatura, ver ampliada, quitar; si no hay espacio, avisa y el pedido se guarda sin foto
-- [ ] T009 [US2] Crear `src/app/(conductor)/conductor/encomiendas/_componentes/seccion-paquete.tsx` (`paquete-chips`, nota de hasta 40 caracteres, `foto-paquete`, y el número solo si el pedido ya lo tiene) y montarla en `pedido-form-local.tsx` pasando `referencia` y `fotoId` a `guardarPedido()`; la sección vive en su propio archivo para no agrandar `pedido-form-local.tsx` (617 líneas)
-- [ ] T010 [P] [US2] Agregar en `pruebas/4-envio.test.mjs` la comprobación de que los eventos que salen de la cola tienen exactamente las claves de hoy (`id`, `chofer_id` —o `conductor_id` si ya corrió 002-US2—, `fecha`, `tipo`, `hora`; ver `aFila()` en `src/lib/encomiendas/local/enviar.ts`): ni número, ni referencia, ni foto (FR-010)
+- [x] T006 [US1] Crear `src/app/(conductor)/conductor/encomiendas/_componentes/tarjeta-parada.tsx` (sale de la parte "activa" de `pantalla.tsx`): OF con `formatoOf` y `textoReferencia` arriba en la letra más grande, "sin referencia" sin espacio extra, miniatura de la foto que se amplía con un toque; nombre y dirección debajo
+- [x] T007 [US1] En la confirmación de "Pedido finalizado" (`pantalla.tsx` o su componente de la 002), mantener la OF visible hasta que se cierre el aviso de deshacer (US1-4)
 
 ---
 
-## Phase 4: User Story 3 - Numerar y cargar en el orden de la ruta (Priority: P1) 🎯 MVP
+## Phase 4: User Story 2 - Describir el paquete en pocos toques (P1) 🎯 MVP
 
-**Goal**: Al confirmar la ruta, cada paquete recibe su posición como número, que se escribe con rotulador siguiendo la lista de carga.
+**Goal**: OF opcional y referencia en el formulario del pedido; foto solo en el teléfono.
 
-**Independent Test**: Ruta de cinco paradas → lista 5, 4, 3, 2, 1 con número grande; marcar; agregar un pedido y rehacer: números y marcas siguen, el nuevo es el 6.
+**Independent Test**: `quickstart.md` pasos 2 y 5.
 
-- [ ] T011 [US3] Agregar `marcarCargado(fecha, pedidoId, cargado)` en `src/lib/encomiendas/local/almacen/` con pruebas en `pruebas/3-almacen.test.mjs` (persiste, idempotente, sobrevive a rehacer la ruta)
-- [ ] T012 [US3] Crear `_componentes/lista-carga.tsx` con `ordenDeCarga()` y `marcarCargado()`: número en lo más grande ("escríbelo en el paquete"), referencia y marca; abrirla automáticamente después de la primera confirmación de ruta del día (`vista-previa-ruta.tsx` / `generar-ruta-local.tsx`) y dejarla accesible desde la hoja de la pantalla principal
-- [ ] T013 [US3] Cuando `guardarRuta()` informa pedidos con número nuevo después de la primera numeración (pedidos tardíos), mostrar el aviso "Escribe el #N en este paquete" con la pila de avisos existente (`_componentes/avisos.tsx`)
-
----
-
-## Phase 5: User Story 1 - Ver en la parada qué paquete buscar (Priority: P1) 🎯 MVP
-
-**Goal**: La tarjeta de la parada empieza con "#12 · Bolsa gris grande · cinta roja".
-
-**Independent Test**: Tres pedidos con referencia, ruta confirmada, avanzar parada por parada: cada tarjeta muestra número y referencia antes que la dirección.
-
-- [ ] T014 [US1] Sacar la tarjeta de la parada activa de `src/app/(conductor)/conductor/encomiendas/pantalla.tsx` a `_componentes/parada-activa.tsx` **sin cambiar su comportamiento** (suite en verde); anotar en `specs/002-reestructuracion-codigo/tasks.md` (T037) que esta parte ya está hecha
-- [ ] T015 [US1] En `_componentes/parada-activa.tsx`, mostrar primero "#N" y `describirPaquete()` en el tamaño de letra más grande de la tarjeta, la miniatura de la foto (se amplía con un toque) y "sin referencia" en pequeño cuando falta
-- [ ] T016 [P] [US1] Mostrar el número del pedido en las filas de la lista de la ruta (en `pantalla.tsx` o en el componente de fila que exista después de 002-US1)
-- [ ] T017 [US1] Al abrir la app (`_hooks/use-dia-trabajo.ts`), correr `purgarFotos()`
-
-**Checkpoint**: MVP completo (US2 + US3 + US1). Se puede medir SC-001 en terreno.
+- [x] T008 [US2] En `src/lib/encomiendas/local/almacen/pedidos.ts`, `guardarPaquete(pedidoId, { of, referencia })` según `contracts/almacen-paquete.md` (valida con `ofValida`, devuelve `ofRepetida`); exportarla en `almacen/index.ts`
+- [x] T009 [P] [US2] Crear `src/lib/encomiendas/local/foto.ts` con `comprimirFoto(file)` (canvas, lado mayor 1280 px, JPEG 0,7)
+- [x] T010 [US2] Crear `src/lib/encomiendas/local/almacen/paquete.ts` (junto con `guardarPaquete`; antes `fotos.ts`) con `guardarFoto`, `leerFoto`, `borrarFoto` y `purgarFotosCerradas` (contrato); la foto del pedido cerrado se borra cuando vence la ventana de deshacer (`purgarFotosCerradas` desde `confirmar` en `use-dia-trabajo.ts`), así deshacer no la pierde; `borrarPedido` la borra solo si no se restaura (dentro de la ventana de deshacer se conserva)
+- [x] T011 [US2] **Corregida (2026-10-24)**: el formulario manual solo lleva la OF opcional; la descripción y la foto salen del escaneo (005). `campos-paquete.tsx` (tipo, tamaño, color, nota, foto) queda para la pantalla del escaneo sin IA (005 T024). Texto original: en el formulario del pedido (`_componentes/pedido-form-local.tsx` + `campos-paquete.tsx`): campo OF (numérico, 9 dígitos, opcional) con el aviso de OF repetida; selectores de tipo, tamaño y color (un toque cada uno); nota de hasta 40 caracteres; "Foto del paquete" (cámara del teléfono) con quitar y reemplazar
+- [x] T012 [US2] Pruebas en `pruebas/paquete.test.mjs` para el almacén: `guardarPaquete` (válida, inválida, repetida), foto reemplazada borra la anterior, foto borrada al marcar resultado, conservada al restaurar
 
 ---
 
-## Phase 6: User Story 4 - Encontrar a qué parada pertenece un paquete (Priority: P3)
+## Phase 5: User Story 3 - Encontrar la parada de un paquete por su OF (P3)
 
-- [ ] T018 [US4] Crear `_componentes/buscar-numero.tsx` (teclado numérico, resultado con nombre, dirección y lugar en el orden de visita) con `buscarPorNumero()`, accesible desde la hoja de la pantalla principal
+**Goal**: buscar con los últimos dígitos de la OF.
+
+**Independent Test**: `quickstart.md` paso 6.
+
+- [x] T013 [US3] Crear `src/app/(conductor)/conductor/encomiendas/_componentes/buscar-of.tsx` (teclado numérico; resultados con número de parada, nombre y referencia; "ninguno coincide" si no hay) y abrirlo desde el menú lateral del conductor
 
 ---
 
-## Phase 7: Polish & Cross-Cutting Concerns
+## Phase 6: Polish
 
-- [ ] T019 [P] Actualizar `docs/ARQUITECTURA.md` §2 (Teléfono) y `docs/CLASES.md` (IndexedDB: store `fotos`, campos nuevos, borrado diario) y el estado de la 003 en `docs/HOJA-DE-RUTA.md`
-- [ ] T020 Ajustar `pruebas/arquitectura.test.mjs` si algún archivo nuevo o tocado lo requiere (ninguno debe pasar de 400 líneas)
-- [ ] T021 Correr `quickstart.md` completo (automático, teléfono, sin conexión, revisión de red) y registrar el resultado; dejar anotado que SC-001 y SC-003 se miden en la primera semana de uso real
+- [x] T014 [P] Actualizar `docs/CLASES.md` (Pedido + `of`, `referencia`, `fotoId`; store `fotos`) y `docs/ARQUITECTURA.md` (IndexedDB v4)
+- [x] T015 [P] Actualizar `docs/HOJA-DE-RUTA.md` y `specs/README.md` con el estado de la 003
+- [ ] T016 `npm test`, `npm run lint`, `npm run build` y `quickstart.md` en el teléfono (incluido el tiempo de SC-001 en terreno). **Parcial (2026-10-24)**: pruebas, lint y build en verde; en la APK, el formulario (OF validada en vivo, tres toques → "Bolsa gris grande · cinta roja"), la tarjeta de la parada con OF, referencia y foto que se amplía, y la búsqueda "6789" → parada 2, con datos cargados directo en el teléfono y sin red. Falta: tomar una foto real con la cámara, el aviso de OF repetida y la OF en "Entrega registrada" en un día real, y SC-001
 
 ---
 
 ## Dependencies & Execution Order
 
-```text
-Phase 1 (T001)
-   │
-Phase 2 (T002–T005)   T002 ∥ T004; T003 → T005; T004 → T005
-   │
-US2 (T006–T010)       T006 ∥ T007 ∥ T010; T007 → T008 → T009
-   │
-US3 (T011–T013)       T011 → T012; T013 después de T012
-   │
-US1 (T014–T017)       T014 → T015; T016 y T017 después de T014
-   │
-US4 (T018)            ← puede empezar después de Phase 2
-   │
-Polish (T019–T021)
-```
+- Setup → Foundational (T002 antes que T003; T004/T005 en paralelo) → US1 y US2 → US3 → Polish.
+- **US1** necesita T002 y T004; **US2** necesita T002–T004; **US3** necesita T004.
+- T006, T007 y T011 tocan la pantalla del conductor: en orden, no en paralelo.
 
-## Parallel Opportunities
+### Parallel Opportunities
 
-- Phase 2: T002 y T004 en paralelo; T003 y T004 antes de T005.
-- US2: T006, T007 y T010 en paralelo.
-- US4 depende solo de Phase 2.
+- T001, T004, T005 y T009 en paralelo (archivos distintos).
+- T014 y T015 en paralelo.
 
 ## Implementation Strategy
 
-### MVP
-
-Phases 1–5 (US2 + US3 + US1): referencia al cargar, número escrito al confirmar la ruta,
-visibles en la parada. Con eso ya se mide en terreno si baja el tiempo de búsqueda (SC-001).
-
-### Incremental Delivery
-
-1. Base de datos local y lógica pura (Phase 2), con pruebas.
-2. Describir (US2) → numerar y cargar (US3) → ver en la parada (US1) → **probar en una
-   día real**.
-3. Búsqueda por número (US4) según lo que muestre el día real.
-
-Cada tarea es un commit; ninguna se commitea hasta que el responsable del producto lo pida.
+1. **MVP**: US1 + US2 → OF y referencia cargadas a mano y visibles en cada parada.
+2. US3 (búsqueda) después.
+3. Con la 005, la OF y la referencia llegan solas desde la etiqueta; esta spec no cambia.

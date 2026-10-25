@@ -1,5 +1,5 @@
 import { type NextRequest } from "next/server";
-import { updateSession } from "@/lib/supabase/middleware";
+import { updateSession } from "@/lib/supabase/sesion-proxy";
 
 // En Next.js 16 el "middleware" se llama Proxy y vive en src/proxy.ts.
 export async function proxy(request: NextRequest) {

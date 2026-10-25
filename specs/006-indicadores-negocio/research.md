@@ -7,7 +7,7 @@
 - **Alternatives**: política de lectura para el rol conductor (expone toda la regla).
 
 ## R2. Asignados
-- **Decision**: al cerrar, `sincronizarJornada()` (`lib/encomiendas/local/enviar.ts`) agrega `asignados` = pedidos del día (activos + cerrados en la ruta) al upsert de `encomienda_jornadas`. La política `encomienda_jornadas_chofer_update` ya permite la escritura.
+- **Decision**: al cerrar, `sincronizarDiaTrabajo()` (`lib/encomiendas/local/enviar.ts`) agrega `asignados` = pedidos del día (activos + cerrados en la ruta) al upsert de `encomienda_jornadas`. La política `encomienda_jornadas_conductor_update` ya permite la escritura.
 - **Rationale**: un número; viaja en la misma llamada que el cierre.
 
 ## R3. Duración del día

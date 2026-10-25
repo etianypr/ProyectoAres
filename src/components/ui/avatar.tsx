@@ -1,7 +1,7 @@
 import { UserRound } from "lucide-react";
 
-// Avatar de persona (chofer): foto si existe, si no una silueta por defecto.
-export function ChoferAvatar({
+// Avatar de persona (conductor): foto si existe, si no una silueta por defecto.
+export function ConductorAvatar({
   src,
   name,
   size = 40,

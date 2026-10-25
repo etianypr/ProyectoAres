@@ -1,75 +1,84 @@
-# Implementation Plan: Número y referencia de cada paquete
+# Implementation Plan: OF y referencia del paquete (003)
 
-**Branch**: `003-referencia-paquete` · **Spec**: [spec.md](spec.md)
+**Branch**: `003-referencia-paquete` | **Date**: 2026-10-24 | **Spec**: [spec.md](spec.md)
 
 ## Summary
 
-`guardarRuta()` numera los pedidos con su posición en la primera confirmación del día y los
-deja fijos (tardíos: mayor + 1). Referencia por toques y foto opcional. Tarjeta de parada con
-"#12 · Bolsa gris grande"; lista de carga inversa con marcas; búsqueda por número. Todo en
-IndexedDB (store `fotos`, siguiente versión libre), borrado al cerrar el día (007). Servidor sin cambios.
+El pedido suma la OF (opcional a mano), una referencia de cómo es el paquete y una foto. La
+tarjeta de la parada activa muestra OF y referencia en lo más grande y la OF sigue a la vista al
+marcar la entrega. Búsqueda de la parada por los últimos dígitos de la OF. Nada se escribe en el
+paquete. Decisiones en [research.md](research.md).
+
+**Prerrequisito**: spec 002 Fase 1–2 + US1 (carpetas `_componentes/` y `_hooks/` del conductor).
 
 ## Technical Context
 
-- **Stack**: TypeScript 5, React 19.2, Next.js 16.4. Sin dependencias nuevas (foto con
-  `<input capture>` + `<canvas>`).
-- **Storage**: IndexedDB: store `fotos` en la siguiente versión libre de `idb.ts` (v4: la v3 la tomó la
-  spec 009), registrado en `STORES_DEL_DIA` (spec 007). Postgres sin cambios.
-- **Testing**: `node:test` + `fake-indexeddb`.
-- **Performance**: guardar < 100 ms; foto ≤ 150 KB; ≤ 60 fotos vivas.
-- **Constraints**: offline; números únicos y fijos aun con doble toque; compatible con v2.
-- **Prerrequisito**: spec 002 Fase 1–2 + US1.
+- **Stack**: TypeScript 5, Next.js 16.4, IndexedDB; sin dependencias nuevas. Android (APK de la
+  015) o navegador.
+- **Storage**: `Pedido` + `of`, `referencia`, `fotoId`; store nuevo `fotos` (IndexedDB v5; la v4 la tomó la 007).
+- **Testing**: `node:test` + `fake-indexeddb` (almacén, migración v5, referencia, búsqueda).
+- **Constraints**: sin conexión; fotos ≤ ~150 KB; todo se borra con el día (007).
 
 ## Constitution Check
 
-I PASS (3 toques, número grande) · II PASS (no toca estados) · III PASS (pruebas de unicidad,
-fijeza, migración de versión, cola sin campos nuevos) · IV PASS (sin proveedores) · V PASS (solo
-teléfono, borrado diario) · VI PASS (diagrama y datos abajo).
+| Principio | Estado | Evidencia |
+|---|---|---|
+| I. Conductor | PASS | Referencia en 3 toques; OF y referencia lo primero de la parada |
+| II. Verdad de la entrega | PASS | No toca resultados ni disponibilidad |
+| III. Pruebas | PASS | `pruebas/paquete.test.mjs`, migración v5 |
+| IV. Servicios externos | PASS | Sin proveedores |
+| V. Datos y cumplimiento | PASS | OF, referencia y foto solo en el teléfono; fotos se borran al cerrar el pedido y el día |
+| VI. Arquitectura verificable | PASS | Diagrama y tabla abajo; `docs/CLASES.md` y `docs/ARQUITECTURA.md` en T013 |
 
-## Límites afectados
+## Diagrama (✱ = nuevo o cambia)
 
 ```mermaid
 flowchart LR
-  FORM["pedido-form-local + _componentes/seccion-paquete ✱"] --> ALM
-  RUTA["vista-previa-ruta → _componentes/lista-carga ✱"] --> ALM
-  PARADA["_componentes/parada-activa ✱ (sale de pantalla.tsx)"] --> PAQ
-  ALM["local/almacen/ · guardarRuta numera ✱ · marcarCargado ✱"] --> PAQ["local/paquete.ts ✱ (puro)"]
-  ALM --> IDB[("IndexedDB ✱ · pedidos · rutas · cola · whatsapp · fotos")]
-  FOT["local/fotos.ts ✱"] --> IDB
-  ALM -. "cola sin cambios" .-> SRV[("Servidor")]
+  FORM["_componentes/pedido-form ✱<br/>OF · tipo · tamaño · color · nota · foto"]
+  TAR["_componentes/tarjeta-parada ✱<br/>OF + referencia + miniatura"]
+  BUS["_componentes/buscar-of ✱"]
+  ALM["almacen/ ✱ guardarPaquete · fotos"]
+  PURA["paquete.ts ✱ textoReferencia · formatoOf · buscarPorOf"]
+  IDB[("IndexedDB v5 ✱<br/>pedidos (+of, referencia, fotoId) · fotos ✱")]
+  FORM --> ALM --> IDB
+  TAR --> PURA
+  BUS --> PURA
+  TAR --> ALM
 ```
 
-## Datos
+## Snapshot de datos
 
 | Dónde | Objeto | Cambio |
 |---|---|---|
-| IndexedDB | base | siguiente versión libre |
-| IndexedDB | `pedidos` | + `numero`, `referencia`, `fotoId` (lectura tolerante) |
-| IndexedDB | `rutas` | + `cargados: string[]` |
-| IndexedDB | `fotos` (nuevo) | `{id, pedidoId, imagen: Blob, creadaEn}`, índice `por_pedido` |
+| IndexedDB | `pedidos` | + `of`, `referencia`, `fotoId` (completados por `alDia`) |
+| IndexedDB | `fotos` | nuevo (v5): `{ id, pedidoId, fecha, blob }` |
+| `catalogos.ts` | `TIPOS_PAQUETE`, `TAMANOS_PAQUETE`, `COLORES_PAQUETE` | nuevos |
+| Postgres | — | sin cambios |
 
-Detalle: [data-model.md](data-model.md) · funciones: [contracts/almacen-paquete.md](contracts/almacen-paquete.md).
+Detalle en [data-model.md](data-model.md); API del almacén en
+[contracts/almacen-paquete.md](contracts/almacen-paquete.md).
 
 ## Project Structure
 
 ```text
 src/lib/encomiendas/
-├── config.ts                 ✱ TIPOS_PAQUETE, TAMANOS_PAQUETE, COLORES_PAQUETE, ReferenciaPaquete
+├── catalogos.ts                         ✱ listas del paquete
+├── paquete.ts                           ✱ textoReferencia · formatoOf · ofValida · buscarPorOf (puras)
 └── local/
-    ├── idb.ts                ✱ siguiente VERSION, store fotos en STORES_DEL_DIA
-    ├── almacen.ts            ✱ tipos, alDia, guardarRuta (numera, conserva cargados), marcarCargado
-    ├── paquete.ts            ✱ NUEVO puro: asignarNumeros, describirPaquete, buscarPorNumero, ordenDeCarga
-    └── fotos.ts              ✱ NUEVO: comprimir, guardar, leer, borrar, purgar
+    ├── idb.ts                           ✱ v5: store fotos
+    ├── foto.ts                          ✱ comprimirFoto (canvas)
+    └── almacen/
+        ├── tipos.ts · migrar.ts         ✱ campos nuevos y alDia
+        ├── pedidos.ts                   ✱ guardarPedido conserva of y referencia
+        └── paquete.ts                   ✱ guardarPaquete · ofRepetida · guardarFoto · leerFoto · borrarFoto · purgarFotosCerradas
 src/app/(conductor)/conductor/encomiendas/
-├── pedido-form-local.tsx     ✱ monta seccion-paquete
-├── pantalla.tsx              ✱ usa parada-activa, lista de carga, búsqueda
-└── _componentes/             ✱ parada-activa, seccion-paquete, paquete-chips, foto-paquete, lista-carga, buscar-numero
-pruebas/                      ✱ paquete.test.mjs, fotos.test.mjs, idb-version.test.mjs, 3-almacen (ampliado), 4-envio (cola)
+├── _componentes/pedido-form-local.tsx   ✱ OF arriba de todo
+├── _componentes/campos-paquete.tsx      ✱ tipo · tamaño · color · nota · foto
+├── _componentes/tarjeta-parada.tsx      ✱ (sale de pantalla.tsx)
+├── _componentes/buscar-of.tsx           ✱ (desde el menú lateral)
+└── _hooks/use-foto-paquete.ts           ✱ URL de la foto guardada o recién tomada
+pruebas/paquete.test.mjs · pruebas/idb-version.test.mjs (v3 → v5)   ✱
 ```
 
-La numeración vive en `guardarRuta()` (ya corre en `enFila()`): el número es la posición de
-la ruta confirmada. La tarjeta de parada sale de `pantalla.tsx` (adelanta 002-T037).
-
-## Complexity Tracking
-
-No aplica.
+**Structure Decision**: dominio puro en `paquete.ts`; IndexedDB solo en `almacen/`; UI en
+`_componentes/` (estructura de la 002).

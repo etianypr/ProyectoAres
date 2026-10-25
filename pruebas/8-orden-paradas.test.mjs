@@ -1,6 +1,6 @@
 // Calidad del orden de paradas. No alcanza con que devuelva una permutación
 // válida (eso lo cubre 2-rutas.test.mjs): lo que importa es cuánto se maneja de
-// más, que es plata y horas del chofer.
+// más, que es plata y horas del conductor.
 //
 // La vara de abajo es el ÓPTIMO REAL, calculado por fuerza bruta (todas las
 // permutaciones) con una implementación independiente de la del código. Es la
@@ -8,7 +8,7 @@
 // bien".
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ordenarParadas } from "@/lib/rutas";
+import { ordenarParadas } from "@/lib/rutas/orden-paradas";
 import { distanciaMetros } from "@/lib/geo/coordenada";
 
 // Igual que en el código: hasta 14 puntos se resuelve exacto.
@@ -174,7 +174,7 @@ test("con matriz de calles, el orden elegido es el mejor MEDIDO POR CALLE", () =
 });
 
 test("el mismo día da SIEMPRE la misma ruta", () => {
-  // Si no, el chofer regenera y le cambia el orden sin motivo, y deja de
+  // Si no, el conductor regenera y le cambia el orden sin motivo, y deja de
   // confiar en la propuesta.
   for (const n of [9, 20, 31]) {
     const puntos = puntosDelDia(n, 4242);

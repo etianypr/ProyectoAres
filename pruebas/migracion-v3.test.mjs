@@ -148,7 +148,9 @@ test("el día en curso sigue igual en pantalla: misma cuenta y mismo cierre pend
   const dia = almacen.resumirDia(ruta, pedidos);
   assert.deepEqual(
     { paradas: dia.paradas, entregadas: dia.entregadas, noEntregadas: dia.noEntregadas },
-    { paradas: 3, entregadas: 1, noEntregadas: 0 },
+    // E (rechazado por WhatsApp, fuera de la ruta) también vuelve a Starken: cuenta
+    // como no entregado del día (spec 007).
+    { paradas: 3, entregadas: 1, noEntregadas: 1 },
   );
   assert.equal(almacen.rutaTerminada(ruta, pedidos), false);
 });
@@ -160,7 +162,10 @@ test("se borran el índice por estado y el store de avisos aparte", async () => 
     s.onerror = () => reject(s.error);
   });
   try {
-    assert.equal(base.version, 3);
+    // Las versiones siguientes llegan en la misma apertura: v2 → v3 → v4 (007) → v5 (003).
+    assert.equal(base.version, 5);
+    assert.equal(base.objectStoreNames.contains("dias"), true, "falta el store de días");
+    assert.equal(base.objectStoreNames.contains("fotos"), true, "falta el store de fotos");
     const tx = base.transaction("pedidos", "readonly");
     assert.equal(tx.objectStore("pedidos").indexNames.contains("por_estado"), false);
     assert.equal(base.objectStoreNames.contains("whatsapp"), false, "quedó el store de avisos aparte");

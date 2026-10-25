@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { PageHeader } from "@/components/page-header";
+import { PageHeader } from "@/components/panel/page-header";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Kpi } from "@/components/ui/kpi";
@@ -8,8 +8,11 @@ import { Vacio } from "@/components/ui/vacio";
 import { ErrorDatos } from "@/components/ui/error-datos";
 import { buttonClass } from "@/components/ui/button";
 import { Package, CalendarRange, Truck, Wallet, CircleDollarSign, Pencil } from "lucide-react";
-import { formatCLP, formatDate, formatNumber, formatTime, hoyChile, sumarDias } from "@/lib/format";
-import { getPeriodo, rangoPeriodo, etiquetaPeriodo } from "@/lib/periodo";
+import { formatCLP, formatDate, formatNumber, formatTime } from "@/lib/comun/format";
+import { hoyChile, MESES_CORTOS, sumarDias } from "@/lib/comun/fechas";
+import { rangoPeriodo, etiquetaPeriodo } from "@/lib/comun/periodo";
+import { calcularIndicadores, periodoAnterior } from "@/lib/encomiendas/indicadores";
+import { getPeriodo } from "@/lib/comun/periodo-servidor";
 import {
   agruparPorDia,
   tarifaDelDia,
@@ -23,23 +26,19 @@ import {
   type ResumenPeriodo,
 } from "@/lib/encomiendas/periodos";
 import type { DiaTrabajo, PagoDelDia } from "@/types/db";
-import { AgregarDia, type ChoferOpcion } from "./agregar-dia";
+import { AgregarDia, type ConductorOpcion } from "./agregar-dia";
 import { ReglaPago } from "./regla-pago";
 import { CompararIngresos } from "./comparar-ingresos";
 import { GraficoDias } from "./grafico-dias";
+import { IndicadoresPeriodo } from "./_componentes/indicadores";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Encomiendas" };
 
-const MES_CORTO = [
-  "ene", "feb", "mar", "abr", "may", "jun",
-  "jul", "ago", "sep", "oct", "nov", "dic",
-];
-
 type Dia = {
   fecha: string;
-  choferId: string | null;
-  choferNombre: string;
+  conductorId: string | null;
+  conductorNombre: string;
   conteo: ConteoDia;
   /** Las cifras que la base congeló para este día (0031): ingreso estimado y
    *  desglose del pago. Esta pantalla NO las recalcula — lee lo que se escribió
@@ -71,6 +70,8 @@ export default async function EncomiendasPage() {
   // Dashboard y en Finanzas. Esta página no monta ningún selector propio.
   const periodo = await getPeriodo();
   const { desde, hasta } = rangoPeriodo(periodo);
+  // El período anterior del mismo largo, para comparar los indicadores (spec 006).
+  const previo = rangoPeriodo(periodoAnterior(periodo));
 
   const supabase = await createClient();
 
@@ -108,13 +109,16 @@ export default async function EncomiendasPage() {
     { data: reglasData, error: errorReglas },
     { data: pagosData, error: errorPagos },
     { data: diasTrabajoData, error: errorDiasTrabajo },
-    { data: choferesData, error: errorChoferes },
+    { data: conductoresData, error: errorConductores },
     { data: ingresosRealesData, error: errorIngresosReales },
     { data: pagosPeriodosData },
+    { data: actividadPrevia },
+    { data: diasPrevios },
+    { data: pagosPrevios },
   ] = await Promise.all([
     supabase
       .from("encomienda_actividad")
-      .select("chofer_id, fecha, tipo, origen, chofer:choferes(id,nombre)")
+      .select("conductor_id, fecha, tipo, origen, hora, conductor:conductores(id,nombre)")
       .gte("fecha", desde)
       .lte("fecha", hasta),
     // Hay una sola (0031). Se pide igual porque el diálogo la necesita para
@@ -131,11 +135,11 @@ export default async function EncomiendasPage() {
       .gte("fecha", desde)
       .lte("fecha", hasta),
     // Para el selector de "Agregar día": todos los conductores. En el sistema del
-    // que salió este proyecto esta consulta iba por chofer_categorias, porque
-    // había tres líneas de trabajo y un chofer de taxis no debía aparecer en la
+    // que salió este proyecto esta consulta iba por conductor_categorias, porque
+    // había tres líneas de trabajo y un conductor de taxis no debía aparecer en la
     // liquidación del reparto. Acá el reparto es el único negocio.
     supabase
-      .from("choferes")
+      .from("conductores")
       .select("id, nombre, activo"),
     // Lo que Starken liquidó de verdad. Se piden TODAS las filas y no las del
     // mes: desde la 0035 se imputan a un periodo de facturación, no a un mes, así
@@ -157,6 +161,19 @@ export default async function EncomiendasPage() {
           .gte("fecha", spanPeriodos.desde)
           .lte("fecha", spanPeriodos.hasta)
       : Promise.resolve({ data: [], error: null }),
+    // El período anterior, solo para los indicadores: si falla, se comparan
+    // contra nada y la pantalla lo dice ("sin dato del período anterior").
+    supabase
+      .from("encomienda_actividad")
+      .select("conductor_id, fecha, tipo, origen, hora")
+      .gte("fecha", previo.desde)
+      .lte("fecha", previo.hasta),
+    supabase.from("encomienda_jornadas").select("*").gte("fecha", previo.desde).lte("fecha", previo.hasta),
+    supabase
+      .from("encomienda_pagos")
+      .select("conductor_id, fecha, ingresos_totales, pago_total")
+      .gte("fecha", previo.desde)
+      .lte("fecha", previo.hasta),
   ]);
 
   // Las tres primeras consultas son la plata: la actividad son los días
@@ -192,7 +209,7 @@ export default async function EncomiendasPage() {
   // Solo conductores activos: uno dado de baja no debería aparecer como opción
   // para cargarle días nuevos. Su historial y sus liquidaciones ya cargadas
   // siguen intactos — eso sale de la actividad, no de esta lista.
-  const choferesEncomiendas: ChoferOpcion[] = (choferesData ?? [])
+  const conductoresEncomiendas: ConductorOpcion[] = (conductoresData ?? [])
     .filter((c) => c.activo)
     .map((c) => ({ id: c.id, nombre: c.nombre }))
     .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
@@ -203,11 +220,11 @@ export default async function EncomiendasPage() {
   // mandan aunque la regla haya cambiado diez veces desde entonces.
   const dias: Dia[] = agruparPorDia(actividadData ?? []).map((d) => ({
     fecha: d.fecha,
-    choferId: d.choferId,
-    choferNombre: d.eventos[0]?.chofer?.nombre ?? "Conductor eliminado",
+    conductorId: d.conductorId,
+    conductorNombre: d.eventos[0]?.conductor?.nombre ?? "Conductor eliminado",
     conteo: d.conteo,
-    cifras: pagos.find((p) => p.fecha === d.fecha && p.chofer_id === d.choferId) ?? null,
-    diaTrabajo: diasTrabajo.find((j) => j.fecha === d.fecha && j.chofer_id === d.choferId) ?? null,
+    cifras: pagos.find((p) => p.fecha === d.fecha && p.conductor_id === d.conductorId) ?? null,
+    diaTrabajo: diasTrabajo.find((j) => j.fecha === d.fecha && j.conductor_id === d.conductorId) ?? null,
     manuales: d.manuales,
     total: d.eventos.length,
   }));
@@ -230,6 +247,13 @@ export default async function EncomiendasPage() {
 
   const valorVigente = valorPedido(regla);
 
+  const indicadores = calcularIndicadores({ actividad: actividadData ?? [], dias: diasTrabajo, pagos });
+  const indicadoresPrevios = calcularIndicadores({
+    actividad: actividadPrevia ?? [],
+    dias: diasPrevios ?? [],
+    pagos: pagosPrevios ?? [],
+  });
+
   // Serie del gráfico, atada al mismo periodo: en vista de MES un palo por
   // cada día del mes (los días sin actividad quedan como huecos, que es justo
   // lo que conviene ver); en vista de AÑO, uno por mes.
@@ -249,7 +273,7 @@ export default async function EncomiendasPage() {
           const idxUltimo = indicePeriodoDe(`${pref}-${ultimo}`, periodos);
           return {
             clave: pref,
-            etiqueta: MES_CORTO[i],
+            etiqueta: MESES_CORTOS[i],
             periodoIdx: idxPrimero >= 0 && idxPrimero === idxUltimo ? idxPrimero : -1,
             pedidos: dias
               .filter((d) => d.fecha.startsWith(pref))
@@ -325,9 +349,9 @@ export default async function EncomiendasPage() {
   const porConductor = [
     ...dias
       .reduce((mapa, d) => {
-        const clave = d.choferId ?? "sin";
+        const clave = d.conductorId ?? "sin";
         const acum = mapa.get(clave) ?? {
-          nombre: d.choferNombre,
+          nombre: d.conductorNombre,
           diasTrabajados: 0,
           entregados: 0,
           ingresos: 0,
@@ -448,6 +472,10 @@ export default async function EncomiendasPage() {
       </div>
 
       <div className="mt-4">
+        <IndicadoresPeriodo actual={indicadores} anterior={indicadoresPrevios} />
+      </div>
+
+      <div className="mt-4">
         <GraficoDias
           etiqueta={etiquetaPeriodo(periodo)}
           serie={serie}
@@ -467,16 +495,16 @@ export default async function EncomiendasPage() {
               {/* Va acá y no en la cabecera de la página porque es esta tabla
                   la que va a cambiar: se carga un día y aparece una fila. */}
               <AgregarDia
-                choferes={choferesEncomiendas}
+                conductores={conductoresEncomiendas}
                 // Sin esto, una consulta fallida deja la lista vacía y el botón
                 // se desactiva diciendo "ningún conductor tiene la categoría",
                 // que es una afirmación sobre datos que no se pudieron leer.
-                errorChoferes={errorChoferes?.message ?? null}
+                errorConductores={errorConductores?.message ?? null}
                 regla={regla}
                 hoy={hoyChile()}
                 diasConocidos={dias.map((d) => ({
                   fecha: d.fecha,
-                  choferId: d.choferId,
+                  conductorId: d.conductorId,
                   entregados: d.conteo.entregados,
                   omitidos: d.conteo.omitidos,
                   manuales: d.manuales,
@@ -514,6 +542,7 @@ export default async function EncomiendasPage() {
                     <th className="px-4 py-2.5 text-right font-medium">No entreg.</th>
                     <th className="px-4 py-2.5 text-right font-medium">Ingresos</th>
                     <th className="px-4 py-2.5 text-right font-medium">A pagar</th>
+                    <th className="px-4 py-2.5 text-right font-medium">Margen</th>
                     <th className="px-4 py-2.5 font-medium">Origen</th>
                     <th className="px-4 py-2.5 font-medium">
                       <span className="sr-only">Editar</span>
@@ -523,7 +552,7 @@ export default async function EncomiendasPage() {
                 <tbody className="divide-y divide-border">
                   {dias.map((d) => {
                     return (
-                      <tr key={`${d.fecha}-${d.choferId ?? "sin"}`} className="hover:bg-background">
+                      <tr key={`${d.fecha}-${d.conductorId ?? "sin"}`} className="hover:bg-background">
                         {/* La fecha ya no es un enlace: era el único acceso a
                             la vista del día y no lo parecía —texto negro, sin
                             ícono— así que la mitad de la tabla se veía como
@@ -532,7 +561,7 @@ export default async function EncomiendasPage() {
                         <td className="whitespace-nowrap px-4 py-3 font-medium">
                           {formatDate(d.fecha)}
                         </td>
-                        <td className="px-4 py-3 text-muted">{d.choferNombre}</td>
+                        <td className="px-4 py-3 text-muted">{d.conductorNombre}</td>
                         {/* De cuándo a cuándo salió la ruta. Reemplaza a la
                             lista de horas de cada entrega: con la ruta hecha de
                             corrido, ese par es todo lo que dice algo. */}
@@ -575,9 +604,14 @@ export default async function EncomiendasPage() {
                             <span className="font-normal text-muted">Al terminar</span>
                           ) : (
                             <Badge tone="red">
-                              {d.choferId ? "Sin regla" : "Sin conductor"}
+                              {d.conductorId ? "Sin regla" : "Sin conductor"}
                             </Badge>
                           )}
+                        </td>
+                        {/* Lo que deja el día: ingreso estimado menos lo que se
+                            le paga al conductor (spec 006, US3). */}
+                        <td className="px-4 py-3 text-right tabular-nums">
+                          {d.cifras ? formatCLP(d.cifras.ingresos_totales - d.cifras.pago_total) : "—"}
                         </td>
                         {/* Lo único que queda por distinguir del día es de dónde
                             salieron sus números: un día del teléfono son

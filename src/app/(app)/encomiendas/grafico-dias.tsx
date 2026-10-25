@@ -22,8 +22,8 @@ import { useState } from "react";
 import { Package } from "lucide-react";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { Vacio } from "@/components/ui/vacio";
-import { cn } from "@/lib/utils";
-import { formatCLP, formatNumber } from "@/lib/format";
+import { cn } from "@/lib/comun/utils";
+import { formatCLP, formatNumber } from "@/lib/comun/format";
 import {
   COLOR_CORTE_PERIODO,
   COLOR_PERIODO,

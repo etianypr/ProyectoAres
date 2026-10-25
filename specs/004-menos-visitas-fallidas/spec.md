@@ -1,8 +1,10 @@
 # Feature Specification: Menos visitas fallidas
 
-**Branch**: `004-menos-visitas-fallidas` · **Created**: 2026-10-20 · **Status**: Draft · **Input**: segundo dolor del negocio, visitas fallidas (`docs/HOJA-DE-RUTA.md`).
+**Branch**: `004-menos-visitas-fallidas` · **Created**: 2026-10-20 · **Status**: Postergada a la fase de WhatsApp (2026-10-24) · **Input**: segundo dolor del negocio, visitas fallidas (`docs/HOJA-DE-RUTA.md`).
 
 **Decisiones**
+- **Postergada (2026-10-24)** a la fase de WhatsApp, junto con el chip del negocio: hasta
+  entonces se llama (spec 013). La lista de no entregados (US3) la construye la 007 (FR-002).
 - El aviso automático de la 001 (Meta) está construido pero inactivo; esta spec no lo espera.
 - Sin historial entre días: todo se borra al cerrar (spec 007). Lo no entregado vuelve en otra guía.
 - Autorización de Starken para Meta: solo en modo "lanzamiento oficial" (spec 007 FR-009).
@@ -58,7 +60,7 @@ Responsable del producto: cuando Meta habilite el envío automático, la app lo 
 
 **Why this priority**: depende de un trámite externo; el código ya existe (001).
 
-**Independent Test**: con el automático configurado en prueba → al cargar un pedido sale el aviso; el botón manual dice "ya avisado (automático)".
+**Independent Test**: con el automático configurado en prueba → al confirmar la ruta sale el aviso (spec 010); el botón manual dice "ya avisado (automático)".
 
 **Acceptance Scenarios**:
 
@@ -70,8 +72,8 @@ Responsable del producto: cuando Meta habilite el envío automático, la app lo 
 
 - Teléfono inválido o sin WhatsApp → ofrecer llamar o SMS.
 - No vuelve a la app tras abrir WhatsApp → queda "abierto HH:MM"; la app no afirma que se envió.
-- "No estaré hoy" → no disponible; se sugiere sacarlo de la ruta, sin borrarlo.
-- Entrega a un tercero (vecino, conserje): [NEEDS CLARIFICATION: ¿Starken lo acepta? Si sí, es un resultado nuevo que cuenta como entregado].
+- "Mañana" → queda no entregado y sale de la ruta (specs 010 y 012).
+- Entrega a un tercero (vecino, conserje): cuenta como **entregado** (decidido 2026-10-24); no es un resultado nuevo.
 - Varias paradas cerca (pasaje) → "llegando" para cada una dentro del umbral, en orden.
 
 ## Requirements *(mandatory)*

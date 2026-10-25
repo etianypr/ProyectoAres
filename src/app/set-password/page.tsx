@@ -2,26 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createBrowserClient } from "@supabase/ssr";
-import type { Database } from "@/types/db";
+import { createClientSinSesionEnUrl as crearClienteSinAutoDeteccion } from "@/lib/supabase/client";
+import { inicioSegunRol, leerRol } from "@/lib/auth/roles";
 import { Bus, KeyRound } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Field } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
-// Cliente dedicado con detectSessionInUrl:false — el manejo del link lo
-// hacemos a mano abajo (ver por qué en el useEffect). Nada más en la app
-// depende de este comportamiento, así que no se toca el cliente compartido.
-function crearClienteSinAutoDeteccion() {
-  return createBrowserClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { auth: { detectSessionInUrl: false } },
-  );
-}
-
 // Página a la que llega el link del correo de invitación/reseteo (ver
-// invitarChofer en choferes/actions.ts). El link entrega la sesión en el
+// invitarConductor en conductores/actions.ts). El link entrega la sesión en el
 // fragmento de la URL (#access_token=...&type=invite).
 //
 // Por qué NO se deja la auto-detección por defecto: si quien abre el link
@@ -100,11 +89,8 @@ export default function SetPasswordPage() {
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    const { data: perfil } = user
-      ? await supabase.from("perfiles").select("rol").eq("id", user.id).maybeSingle()
-      : { data: null };
-
-    router.replace(perfil?.rol === "chofer" ? "/conductor" : "/");
+    const rol = user ? await leerRol(supabase, user.id) : null;
+    router.replace(inicioSegunRol(rol));
     router.refresh();
   }
 

@@ -1,6 +1,6 @@
 // El contrato con Meta, de las dos puntas: lo que sale y lo que entra.
 //
-// Corre el adaptador REAL de src/lib/whatsapp.ts contra un doble del fetch
+// Corre el adaptador REAL de src/lib/whatsapp/meta.ts contra un doble del fetch
 // global (ver pruebas/dobles/meta-whatsapp.mjs), así que lo que se comprueba es
 // la URL que arma, los headers, el cuerpo de la plantilla, los índices de los
 // botones y cómo interpreta cada error. Un doble a nivel de módulo no probaría
@@ -22,7 +22,8 @@ const {
   enviarAvisoDisponibilidad,
   enviarListaHorarios,
   configMeta,
-} = await import("@/lib/whatsapp");
+  whatsappActivo,
+} = await import("@/lib/whatsapp/meta");
 
 const {
   BLOQUES_HORARIOS,
@@ -65,6 +66,17 @@ const ultimoCuerpo = () => meta.llamadas.at(-1).cuerpo;
 // Configuración
 // ===========================================================================
 
+test("con token y número, WhatsApp está activo para la pantalla del conductor", () => {
+  assert.equal(whatsappActivo(), true);
+  const numero = process.env.WHATSAPP_PHONE_NUMBER_ID;
+  delete process.env.WHATSAPP_PHONE_NUMBER_ID;
+  try {
+    assert.equal(whatsappActivo(), false, "sin número no hay desde dónde mandar");
+  } finally {
+    process.env.WHATSAPP_PHONE_NUMBER_ID = numero;
+  }
+});
+
 test("sin token configurado no se manda nada, y no se lanza", async () => {
   // Es la situación normal en desarrollo: la app tiene que funcionar igual y el
   // conductor sigue repartiendo, solo que sin avisos.
@@ -72,6 +84,7 @@ test("sin token configurado no se manda nada, y no se lanza", async () => {
   delete process.env.WHATSAPP_TOKEN;
   try {
     assert.equal(configMeta(), null);
+    assert.equal(whatsappActivo(), false, "la pantalla seguiría intentando avisar (spec 013)");
     const r = await enviarAvisoDisponibilidad(AVISO, yaMismo);
     assert.equal(r.ok, false);
     assert.equal(r.reintentable, false, "reintentar no va a configurar el token");
@@ -265,11 +278,11 @@ test("la lista de horarios sale como mensaje interactivo, no como plantilla", as
   assert.ok(c.interactive.action.button.length > 0);
 });
 
-test("la lista trae los seis bloques con su payload resoluble", async () => {
+test("la lista trae los cinco bloques con su payload resoluble", async () => {
   await enviarListaHorarios({ telefono: "+56912340001", correlationId: "corr-3" }, yaMismo);
   const filas = ultimoCuerpo().interactive.action.sections[0].rows;
 
-  assert.equal(filas.length, 6);
+  assert.equal(filas.length, 5);
   assert.deepEqual(
     filas.map((f) => f.title),
     BLOQUES_HORARIOS.map((b) => b.etiqueta),
@@ -297,7 +310,7 @@ test("solo se ofrecen los bloques que el jefe dejó activos", async () => {
     {
       telefono: "+56912340001",
       correlationId: "corr-3",
-      bloques: bloquesActivos(["08-10", "18-20"]),
+      bloques: bloquesActivos(["08-10", "16-18"]),
     },
     yaMismo,
   );
@@ -305,7 +318,7 @@ test("solo se ofrecen los bloques que el jefe dejó activos", async () => {
 
   assert.deepEqual(
     filas.map((f) => f.title),
-    ["08:00 - 10:00", "18:00 - 20:00"],
+    ["08:00 - 10:00", "16:00 - 18:00"],
   );
 });
 
@@ -315,19 +328,19 @@ test("los bloques salen en orden del día, no en el que se guardaron", async () 
     {
       telefono: "+56912340001",
       correlationId: "corr-3",
-      bloques: bloquesActivos(["18-20", "08-10", "12-14"]),
+      bloques: bloquesActivos(["16-18", "08-10", "12-14"]),
     },
     yaMismo,
   );
   assert.deepEqual(
     ultimoCuerpo().interactive.action.sections[0].rows.map((f) => f.title),
-    ["08:00 - 10:00", "12:00 - 14:00", "18:00 - 20:00"],
+    ["08:00 - 10:00", "12:00 - 14:00", "16:00 - 18:00"],
   );
 });
 
 test("sin ningún bloque activo NO se manda una lista vacía", async () => {
   // Meta la rechazaría con un error confuso. Y no es un problema de red: es una
-  // configuración que alguien tiene que arreglar, y el chofer necesita saberlo
+  // configuración que alguien tiene que arreglar, y el conductor necesita saberlo
   // para llamar por teléfono.
   const r = await enviarListaHorarios(
     { telefono: "+56912340001", correlationId: "corr-3", bloques: bloquesActivos([]) },
@@ -343,8 +356,8 @@ test("sin ningún bloque activo NO se manda una lista vacía", async () => {
 test("bloquesActivos: null son los seis, vacío es ninguno", () => {
   // La diferencia importa: confundirlas haría que desmarcar todo volviera a
   // ofrecer los seis, que es lo contrario de lo que el jefe pidió.
-  assert.equal(bloquesActivos(null).length, 6);
-  assert.equal(bloquesActivos(undefined).length, 6);
+  assert.equal(bloquesActivos(null).length, 5);
+  assert.equal(bloquesActivos(undefined).length, 5);
   assert.equal(bloquesActivos([]).length, 0);
   assert.equal(bloquesActivos(["10-12"]).length, 1);
   // Un id que ya no existe no aparece de la nada.
@@ -379,7 +392,7 @@ test("un 500 se reintenta", async () => {
 });
 
 test("no se reintenta para siempre: dos reintentos y se abandona", async () => {
-  // Si Meta sigue diciendo que no, el chofer necesita enterarse para llamar por
+  // Si Meta sigue diciendo que no, el conductor necesita enterarse para llamar por
   // teléfono, no que la app siga insistiendo sola.
   meta.responder = () => errorMeta(500, { error: { message: "boom" } });
 
@@ -491,7 +504,7 @@ test("una fila de la lista de horarios trae su bloque", () => {
   assert.deepEqual(leido, {
     accion: "HORARIO",
     correlationId: "corr-0003",
-    bloqueHorarioId: "18-20",
+    bloqueHorarioId: "16-18",
   });
   assert.equal(disponibilidadDe(leido), "horario_indicado");
 });
@@ -559,7 +572,7 @@ test("el payload de ida y el de vuelta usan el MISMO formato", () => {
   // Si se separaran, el webhook dejaría de reconocer los botones que el
   // adaptador manda y las respuestas se perderían en silencio. Es el motivo por
   // el que el codec vive en un solo archivo compartido.
-  const ida = payloadBoton("HORARIO", "corr-0003", "18-20");
+  const ida = payloadBoton("HORARIO", "corr-0003", "16-18");
   const vuelta = payloadDelWebhook(fixtures.respuesta_horario_lista);
   assert.equal(ida, vuelta);
 });

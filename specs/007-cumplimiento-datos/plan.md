@@ -36,8 +36,8 @@ flowchart LR
   subgraph TEL["Teléfono"]
     CIERRE["_componentes/cierre-dia.tsx ✱<br/>No entregados"]
     BOR["lib/encomiendas/local/borrado.ts ✱"]
-    LOGIN["/login · BorradoLocal ✱"]
-    IDB[("IndexedDB<br/>pedidos · rutas · whatsapp · fotos → vaciar ✱<br/>cola (se conserva) · dias ✱")]
+    LOGIN["Sin acceso / cerrar sesión · BorradoLocal ✱"]
+    IDB[("IndexedDB<br/>pedidos · rutas · fotos → vaciar ✱<br/>cola (se conserva) · dias ✱")]
     CIERRE --> BOR --> IDB
     LOGIN --> BOR
   end
@@ -56,7 +56,7 @@ flowchart LR
 | Dónde | Objeto | Cambio |
 |---|---|---|
 | IndexedDB | `dias` | nuevo: `ResumenDia` |
-| IndexedDB | `pedidos`, `rutas`, `whatsapp`, `fotos` | vaciados por fecha al cerrar |
+| IndexedDB | `pedidos` (con su aviso), `rutas`, `fotos` | vaciados por fecha al cerrar |
 | IndexedDB | `cola` | sin cambios |
 | Postgres | `empresa` | `+modo_operacion`, `+proveedores_datos` |
 
@@ -70,13 +70,12 @@ src/
 ├── lib/encomiendas/
 │   ├── config.ts                    ✱ PROVEEDORES, proveedorHabilitado(), validarPlantilla()
 │   └── local/
-│       ├── idb.ts                   ✱ store dias + STORES_DEL_DIA (siguiente versión)
-│       └── borrado.ts               ✱ NUEVO noEntregadosDelDia, cerrarYBorrarDia, diasSinCerrar, borrarDatosDestinatarios
+│       ├── idb.ts                   ✱ store dias + STORES_DEL_DIA (v4)
+│       └── almacen/borrado.ts       ✱ NUEVO noEntregadosDelDia, cerrarYBorrarDia, diasPorBorrar, borrarDatosDestinatarios
 ├── app/(conductor)/conductor/encomiendas/
-│   ├── _hooks/use-dia-trabajo.ts        ✱ cierre → lista → borrado; cierre de días anteriores al abrir
-│   └── _componentes/cierre-dia.tsx  ✱ NUEVO lista "No entregados" + confirmar
-├── app/login/
-│   └── borrado-local.tsx            ✱ NUEVO borra datos de destinatarios al llegar a /login
+│   ├── _hooks/use-cierre-dia.ts     ✱ NUEVO cierre → lista → borrado; días anteriores al abrir
+│   └── _componentes/cierre-dia.tsx · lista-no-entregados.tsx  ✱ NUEVO
+├── app/(conductor)/borrado-local.tsx ✱ NUEVO borra al confirmar el servidor que no hay acceso (R3)
 ├── app/(app)/configuracion/
 │   ├── privacidad-form.tsx          ✱ NUEVO proveedores + modo
 │   └── actions.ts                   ✱ guardarPrivacidad (puedeOperarPanel)

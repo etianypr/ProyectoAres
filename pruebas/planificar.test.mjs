@@ -56,7 +56,7 @@ test("un bloque que ya pasó no reordena la ruta: el pedido va al final", () => 
 });
 
 test("con varios horarios, ubicar uno no deja fuera al otro", () => {
-  const orden = ubicarConHorario([], [P("tarde", 1, "18-20"), P("manana", 10, "10-12")], H(9, 30), metros);
+  const orden = ubicarConHorario([], [P("tarde", 1, "16-18"), P("manana", 10, "10-12")], H(9, 30), metros);
 
   assert.deepEqual(ids(orden), ["manana", "tarde"]);
   assert.deepEqual(fueraDeHorario(orden, H(9, 30), metros), []);

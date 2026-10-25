@@ -2,11 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { puedeOperarPanel } from "@/lib/auth";
-import { s, sReq } from "@/lib/form-helpers";
+import { puedeOperarPanel } from "@/lib/auth/sesion";
+import { s, sReq, type FormState } from "@/lib/comun/forms";
 import { BLOQUES_HORARIOS } from "@/lib/encomiendas/config";
-
-export type FormState = { error?: string; ok?: boolean };
 
 // RLS (empresa_write_admin_op) ya frena a un conductor, pero un UPDATE bloqueado
 // devuelve "0 filas, sin error" y la acción contestaría {ok:true} sin haber

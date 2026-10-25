@@ -6,7 +6,7 @@
 // "la vista previa no carga" — sin decir cuál de las tres fue:
 //
 //   1. EL ORDEN. Mapbox pide longitud y DESPUÉS latitud. Invertido, el punto no
-//      da error: cae en el mar frente a Somalía y el chofer ve un mapa azul.
+//      da error: cae en el mar frente a Somalía y el conductor ve un mapa azul.
 //   2. EL ESCAPADO. Los paréntesis y las comas del marcador van literales. Si
 //      alguien arma este trozo con URLSearchParams o encodeURIComponent, Mapbox
 //      contesta 422 y no se dibuja nada.
@@ -22,7 +22,7 @@ import assert from "node:assert/strict";
 const TOKEN = "pk.prueba";
 process.env.NEXT_PUBLIC_MAPBOX_TOKEN = TOKEN;
 
-const { urlMapaEstatico, ZOOM_PUNTO } = await import("@/lib/mapa-estatico");
+const { urlMapaEstatico, ZOOM_PUNTO } = await import("@/lib/geo/mapbox/mapa-estatico");
 
 // Una dirección real de la operación en Arica.
 const PUNTO = { lat: -18.478_2, lng: -70.310_5 };
@@ -106,7 +106,7 @@ test("la atribución de Mapbox y OpenStreetMap no se puede apagar desde acá", (
 
 test("sin coordenadas de verdad no se arma ninguna URL", () => {
   // Un pedido sin ubicar llega acá con null, y el componente no puede reventarle
-  // el formulario al chofer por eso.
+  // el formulario al conductor por eso.
   for (const malo of [
     { lat: Number.NaN, lng: -70.31 },
     { lat: -18.47, lng: Number.POSITIVE_INFINITY },

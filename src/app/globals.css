@@ -237,7 +237,7 @@
   background: var(--accent);
 }
 
-/* Patente: se lee como una placa, que es como la nombra el chofer. */
+/* Patente: se lee como una placa, que es como la nombra el conductor. */
 .placa {
   font-family: var(--font-cifras), ui-monospace, monospace;
   letter-spacing: 0.08em;

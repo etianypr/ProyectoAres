@@ -1,12 +1,9 @@
 import * as React from "react";
-import { cn } from "@/lib/utils";
-import { evaluarVenc } from "@/lib/vencimientos";
-import { formatDate } from "@/lib/format";
+import { cn } from "@/lib/comun/utils";
 
-// Quedan dos: el Badge genérico y el de vencimiento (la licencia del conductor).
-// Los de cotización, viaje, factura y estado de pedido se fueron con los negocios
-// que no son parte de esta empresa. El de pedido, además, valoraba un estado que
-// ya no existe: los pedidos viven en el teléfono del conductor, no en la base.
+// Badge genérico. El de vencimiento de la licencia vive con la pantalla de
+// conductores (_componentes/vencimiento-badge.tsx): una primitiva de ui no
+// conoce reglas del negocio.
 
 export const tones = {
   gray: { wrap: "bg-[#ececef] text-[#6e6e73]", dot: "#86868b" },
@@ -45,19 +42,4 @@ export function Badge({
       {children}
     </span>
   );
-}
-
-export function VencimientoBadge({ fecha }: { fecha: string | null }) {
-  if (!fecha) return <span className="text-xs text-muted">Sin dato</span>;
-  const ev = evaluarVenc(fecha);
-  if (!ev) return <span className="text-xs text-muted">Sin dato</span>;
-  if (ev.estado === "vencido")
-    return <Badge tone="red">Vencido · {formatDate(fecha)}</Badge>;
-  if (ev.estado === "por_vencer")
-    return (
-      <Badge tone="amber">
-        Vence en {ev.dias} día{ev.dias === 1 ? "" : "s"}
-      </Badge>
-    );
-  return <Badge tone="green">Vigente · {formatDate(fecha)}</Badge>;
 }

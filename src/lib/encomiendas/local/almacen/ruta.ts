@@ -2,47 +2,99 @@ import { resultadoCerrado } from "@/lib/encomiendas/estados";
 import type { Trazado } from "@/lib/geo/coordenada";
 import { STORES, escribir, leerTodos } from "../idb";
 import { enFila } from "./fila";
-import { leerPedidos, leerRuta, leerTodosLosPedidos, pedidosEnOrden } from "./lecturas";
-import { rutaAlDia } from "./migrar";
-import type { Pedido, Ruta } from "./tipos";
+import { leerDiaGuardado, leerPedidos, leerRuta, leerTodosLosPedidos, pedidosEnOrden } from "./lecturas";
+import { diaAlDia, rutaAlDia } from "./migrar";
+import type { Pedido, ResumenDia, Ruta } from "./tipos";
 
-/** Un día ya trabajado, resumido en las tres cifras que se leen de un vistazo.
+/** Los días de este teléfono, del más nuevo al más viejo: los ya borrados
+ *  (store `dias`, spec 007) y los que todavía tienen su ruta.
  *
- *  Es lo que llena la lista de días del menú lateral. Solo cifras: los pedidos
- *  de un día pasado —nombres, teléfonos, direcciones— no hacen falta para
- *  decir cómo salió, y no tenerlos a mano es también no poder mostrarlos por
- *  error en una pantalla que se abre con el teléfono desbloqueado. */
-export type ResumenDia = {
-  fecha: string;
-  paradas: number;
-  entregadas: number;
-  noEntregadas: number;
-  /** null = ese día quedó abierto. Pasa cuando el chofer cerró la app sin
-   *  marcar la última parada, y es justamente lo que hay que poder ver. */
-  cierre: string | null;
-};
-
-/** Los días que este teléfono tiene guardados, del más nuevo al más viejo.
- *
- *  Un día es una ruta armada: sin ruta no hubo día que resumir. Las cifras
- *  salen de los pedidos de esa ruta. */
+ *  Solo cifras: los pedidos de un día pasado —nombres, teléfonos, direcciones—
+ *  no hacen falta para decir cómo salió. Un día con ruta es un día; sin ruta y
+ *  sin resumen guardado no hubo día que resumir. */
 export async function leerDias(): Promise<ResumenDia[]> {
-  const [rutas, pedidos] = await Promise.all([leerTodos(STORES.rutas), leerTodosLosPedidos()]);
-  return rutas
-    .map(rutaAlDia)
-    .map((ruta) => resumirDia(ruta, pedidos))
-    .sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
+  const [guardados, rutas, pedidos] = await Promise.all([
+    leerTodos(STORES.dias),
+    leerTodos(STORES.rutas),
+    leerTodosLosPedidos(),
+  ]);
+  const porFecha = new Map(guardados.map((d) => [d.fecha, diaAlDia(d)] as const));
+  for (const ruta of rutas.map(rutaAlDia)) {
+    const vivo = resumirDia(ruta, pedidos);
+    const guardado = porFecha.get(ruta.fecha);
+    porFecha.set(ruta.fecha, guardado ? sumarResumenes(guardado, vivo) : vivo);
+  }
+  return [...porFecha.values()].sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
+}
+
+/** El resumen de un día: el guardado, el de su ruta, o los dos sumados. */
+export async function leerResumenDia(fecha: string): Promise<ResumenDia | null> {
+  const [guardado, ruta, pedidos] = await Promise.all([
+    leerDiaGuardado(fecha),
+    leerRuta(fecha),
+    leerPedidos(fecha),
+  ]);
+  const vivo = ruta ? resumirDia(ruta, pedidos) : null;
+  if (guardado && vivo) return sumarResumenes(guardado, vivo);
+  return vivo ?? guardado;
 }
 
 /** Las cifras de un día a partir de su ruta y sus pedidos. */
 export function resumirDia(ruta: Ruta, pedidos: Pedido[]): ResumenDia {
-  const enRuta = pedidosEnOrden(ruta, pedidos);
+  return cifrasDelDia(ruta.fecha, ruta, pedidos);
+}
+
+/** Cifras de una fecha. `pedidos` puede traer otros días: se filtran. */
+export function cifrasDelDia(fecha: string, ruta: Ruta | null, pedidos: Pedido[]): ResumenDia {
+  const delDia = pedidos.filter((p) => p.fecha === fecha);
+  const entregadas = delDia.filter((p) => p.resultado === "entregado").length;
+  const cerrado = ruta?.cierre != null;
+  // Cobros: un POR PAGAR sin monto leído suma 0, nunca se supone (spec 005 FR-015).
+  const porPagar = delDia.filter((p) => p.porPagar === true);
+  const monto = (ps: Pedido[]) => ps.reduce((suma, p) => suma + (p.montoPorPagar ?? 0), 0);
+  const porOrigen: ResumenDia["porOrigen"] = {};
+  for (const p of delDia) porOrigen[p.origenCarga] = (porOrigen[p.origenCarga] ?? 0) + 1;
   return {
-    fecha: ruta.fecha,
-    paradas: enRuta.length,
-    entregadas: enRuta.filter((p) => p.resultado === "entregado").length,
-    noEntregadas: enRuta.filter((p) => p.resultado === "no_entregado").length,
-    cierre: ruta.cierre,
+    fecha,
+    asignados: delDia.length,
+    paradas: pedidosEnOrden(ruta, delDia).length,
+    entregadas,
+    // Con el día abierto, lo pendiente todavía puede entregarse; cerrado, vuelve.
+    noEntregadas: cerrado
+      ? delDia.length - entregadas
+      : delDia.filter((p) => p.resultado === "no_entregado").length,
+    contactados: delDia.filter((p) => p.llamada === "contesto" || p.aviso.estado === "respondido").length,
+    porPagar: porPagar.length,
+    aCobrar: monto(porPagar),
+    cobrado: monto(porPagar.filter((p) => p.resultado === "entregado")),
+    porOrigen,
+    inicio: ruta?.inicio ?? null,
+    cierre: ruta?.cierre ?? null,
+  };
+}
+
+function sumarConteos(a: ResumenDia["porOrigen"], b: ResumenDia["porOrigen"]): ResumenDia["porOrigen"] {
+  const suma = { ...a };
+  for (const [origen, n] of Object.entries(b) as [keyof typeof b, number][]) suma[origen] = (suma[origen] ?? 0) + n;
+  return suma;
+}
+
+/** Un día que se borró y después se volvió a abrir (entró un pedido tarde): las
+ *  cifras se suman, el inicio es el primero y el estado es el de ahora. */
+export function sumarResumenes(antes: ResumenDia, ahora: ResumenDia): ResumenDia {
+  return {
+    fecha: antes.fecha,
+    asignados: antes.asignados + ahora.asignados,
+    paradas: antes.paradas + ahora.paradas,
+    entregadas: antes.entregadas + ahora.entregadas,
+    noEntregadas: antes.noEntregadas + ahora.noEntregadas,
+    contactados: antes.contactados == null || ahora.contactados == null ? null : antes.contactados + ahora.contactados,
+    porPagar: antes.porPagar + ahora.porPagar,
+    aCobrar: antes.aCobrar + ahora.aCobrar,
+    cobrado: antes.cobrado + ahora.cobrado,
+    porOrigen: sumarConteos(antes.porOrigen, ahora.porOrigen),
+    inicio: antes.inicio ?? ahora.inicio,
+    cierre: ahora.cierre,
   };
 }
 
@@ -65,9 +117,10 @@ export type EntradaRuta = {
 // cada pedido, así que rehacer la ruta no los toca.
 export function guardarRuta(entrada: EntradaRuta): Promise<Ruta> {
   return enFila(async () => {
-    const [anterior, pedidos] = await Promise.all([
+    const [anterior, pedidos, borrado] = await Promise.all([
       leerRuta(entrada.fecha),
       leerPedidos(entrada.fecha),
+      leerDiaGuardado(entrada.fecha),
     ]);
     const cerrados = pedidosEnOrden(anterior, pedidos)
       .filter((p) => resultadoCerrado(p.resultado))
@@ -78,7 +131,7 @@ export function guardarRuta(entrada: EntradaRuta): Promise<Ruta> {
       fecha: entrada.fecha,
       orden: [...cerrados, ...entrada.pedidoIdsEnOrden.filter((id) => !yaCerrado.has(id))],
       // Si el servicio de rutas no respondió, conservar el trazado anterior le
-      // sirve más al chofer que un mapa en blanco (mismo criterio que hoy tiene
+      // sirve más al conductor que un mapa en blanco (mismo criterio que hoy tiene
       // generarRuta en el servidor).
       trazado: entrada.trazado ?? anterior?.trazado ?? null,
       distanciaM: entrada.distanciaM ?? anterior?.distanciaM ?? null,
@@ -86,13 +139,14 @@ export function guardarRuta(entrada: EntradaRuta): Promise<Ruta> {
       // La primera generación del día manda: es el comienzo del día. Si
       // se pisara en cada rehacer, agregar un pedido a media tarde diría que el
       // conductor empezó a esa hora.
-      inicio: anterior?.inicio ?? new Date().toISOString(),
+      // Un día ya borrado que se reabre conserva su inicio (spec 007).
+      inicio: anterior?.inicio ?? borrado?.inicio ?? new Date().toISOString(),
       // Rehacer la ruta REABRE el día: si entraron paradas nuevas, el día
       // no estaba terminada. El servidor la vuelve a valorar cuando se cierre
       // otra vez (0032).
       cierre: null,
       // Las advertencias son de ESTE cálculo y reemplazan a las anteriores: una
-      // dirección que el chofer ya corrigió no puede seguir avisando.
+      // dirección que el conductor ya corrigió no puede seguir avisando.
       advertencias: entrada.advertencias ?? [],
       propuestasComparadas: entrada.propuestasComparadas ?? 1,
     };

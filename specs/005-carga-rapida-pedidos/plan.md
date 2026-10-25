@@ -11,10 +11,10 @@
 
 ## Technical Context
 
-- **Stack**: TypeScript 5, React 19.2, Next.js 16.4.2. Nuevas dependencias: `zxing-wasm` (código de barras), `@anthropic-ai/sdk` (servidor).
+- **Stack**: TypeScript 5, React 19.2, Next.js 16.4.2. Nuevas dependencias: `@anthropic-ai/sdk` (servidor). El código de barras lo lee el escáner de la spec 015 (`lib/nativo/escaner.ts`).
 - **Storage**: IndexedDB: campos nuevos en `pedidos`; store transitorio `lecturasPendientes`. Postgres sin cambios.
 - **Testing**: `node:test`; fixtures anonimizados en `pruebas/fixtures/lectura/`; prueba manual con ≥ 50 etiquetas (SC-003).
-- **Platform**: PWA en iPhone (Safari); endpoint Node en el servidor Next.js.
+- **Platform**: APK Android (spec 015) y navegador; endpoint Node en el servidor Next.js.
 - **Performance**: código de barras ≤ 1 s sin red; lectura IA ≤ 3 s con señal.
 - **Constraints**: OF solo del código (o impreso confirmado); sin fotos ni cuerpos en servidor/logs; offline-first.
 - **Scale**: ≤ 60 etiquetas + 1–3 fotos de guía por día.
@@ -30,7 +30,7 @@
 | V. Datos y cumplimiento | PASS | Solo campos necesarios; nada guardado en servidor; Anthropic registrado en `docs/PRIVACIDAD.md` §3; autorización al lanzamiento (007) |
 | VI. Arquitectura verificable | PASS | Diagrama y snapshot abajo; actualizar `docs/ARQUITECTURA.md` y `docs/CLASES.md` |
 
-**Prerrequisitos**: spec 002 Fase 1–2 + US1; spec 003 (referencia y numeración); spec 007 US1 (borrado diario).
+**Prerrequisitos**: spec 002 Fase 1–2 + US1; spec 003 (OF y referencia); spec 007 US1 (borrado diario).
 
 ## Diagrama (límites afectados)
 
@@ -38,7 +38,7 @@
 flowchart LR
   subgraph TEL["Teléfono"]
     UI["_componentes/cargar-guia · escanear-etiqueta ✱"]
-    CB["lectura/codigo-barras ✱<br/>zxing-wasm"]
+    CB["lectura/codigo-barras ✱<br/>escáner de la 015"]
     PR["lectura/guia · etiqueta ✱<br/>parsers puros"]
     LC["local/lectura-cliente ✱<br/>reduce imagen · cola de reintento"]
     ALM["local/almacen ✱<br/>pedidos + campos 005"]
@@ -75,18 +75,17 @@ src/
 │   │   ├── codigo-barras.ts      puro: 26 dígitos → {of, bulto, agencia}
 │   │   ├── guia.ts               puro: texto → LineaGuia[] + avisos
 │   │   ├── etiqueta.ts           puro: texto → campos de etiqueta
-│   │   ├── esquemas.ts           JSON schema de guía y etiqueta (contrato)
+│   │   ├── esquemas.ts           JSON schema de guía y etiqueta (contrato) · pendiente (IA)
 │   │   └── servidor.ts           [server-only] llamada a Claude
 │   └── local/
-│       ├── almacen.ts            campos 005, crearDesdeGuia, aplicarLecturaEtiqueta
+│       ├── almacen/carga.ts      campos 005, crearDesdeGuia, aplicarLecturaEtiqueta
 │       └── lectura-cliente.ts    reducir imagen, POST /api/lectura, reintentos
 ├── app/api/lectura/route.ts      POST, conductor autenticado
 └── app/(conductor)/conductor/encomiendas/
-    ├── _componentes/cargar-guia.tsx · revisar-guia.tsx · escanear-etiqueta.tsx · resultado-escaneo.tsx
-    └── _hooks/use-escaner.ts     cámara + zxing-wasm
+    └── _componentes/cargar-guia.tsx (pegar → revisar → crear → ubicar) · escanear-etiqueta.tsx (escáner → PARADA n de N → completar)
 
 pruebas/
-├── lectura-codigo-barras.test.mjs · lectura-guia.test.mjs · lectura-etiqueta.test.mjs
+├── lectura.test.mjs (código de barras, guía, etiqueta) · carga.test.mjs (almacén)
 ├── lectura-endpoint.test.mjs     contrato, sin logs, validación
 └── fixtures/lectura/             textos y respuestas anonimizados
 ```

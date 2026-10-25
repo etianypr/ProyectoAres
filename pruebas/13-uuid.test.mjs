@@ -4,8 +4,8 @@
 // estuvieran mal formados o se repitieran, se rompe esa garantía.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { uuidv7 } from "@/lib/uuid";
-import { cn } from "@/lib/utils";
+import { uuidv7 } from "@/lib/comun/uuid";
+import { cn } from "@/lib/comun/utils";
 
 const FORMATO = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -25,7 +25,7 @@ test("declara versión 7 y variante RFC", () => {
 
 test("no se repite ni generando miles seguidos", () => {
   // Es LA garantía de la idempotencia: dos eventos con el mismo id serían uno
-  // solo para el servidor, y se perdería una entrega del sueldo del chofer.
+  // solo para el servidor, y se perdería una entrega del sueldo del conductor.
   const ids = new Set();
   for (let i = 0; i < 20_000; i++) ids.add(uuidv7());
   assert.equal(ids.size, 20_000, "hubo ids repetidos");

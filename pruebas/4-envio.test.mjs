@@ -13,7 +13,7 @@ const idb = await import("@/lib/encomiendas/local/idb");
 const { espia } = await import("./dobles/supabase-client.mjs");
 
 const HOY = "2026-08-06";
-const CHOFER = "11111111-1111-7111-8111-111111111111";
+const CONDUCTOR = "11111111-1111-7111-8111-111111111111";
 
 async function limpiar() {
   for (const store of Object.values(idb.STORES)) {
@@ -41,7 +41,7 @@ async function encolar(n) {
   }
   await guardarRuta({ fecha: HOY, pedidoIdsEnOrden: ids, trazado: null, distanciaM: null, duracionS: null });
   for (const id of ids) {
-    await marcarResultado({ fecha: HOY, pedidoId: id, choferId: CHOFER }, "entregado");
+    await marcarResultado({ fecha: HOY, pedidoId: id, conductorId: CONDUCTOR }, "entregado");
   }
   return ids;
 }
@@ -66,11 +66,11 @@ test("manda los eventos con las columnas exactas de encomienda_actividad", async
   for (const f of filas) {
     // Sin motivo desde la spec 012: se entregó o no. La columna queda en la base
     // con su default null hasta que se borre (002 T051).
-    assert.deepEqual(Object.keys(f).sort(), ["chofer_id", "fecha", "hora", "id", "tipo"]);
+    assert.deepEqual(Object.keys(f).sort(), ["conductor_id", "fecha", "hora", "id", "tipo"]);
     assert.ok(!("origen" in f), "no debe mandar 'origen': la base pone 'app' por defecto");
-    assert.ok(!("choferId" in f), "quedó el nombre del dominio local en vez de la columna");
+    assert.ok(!("conductorId" in f), "quedó el nombre del dominio local en vez de la columna");
     assert.equal(f.fecha, HOY);
-    assert.equal(f.chofer_id, CHOFER);
+    assert.equal(f.conductor_id, CONDUCTOR);
     assert.match(f.hora, /^\d{4}-\d{2}-\d{2}T/);
     assert.ok(["entrega", "omision", "llamada"].includes(f.tipo));
   }
@@ -85,7 +85,7 @@ test("un evento encolado ANTES de la spec 012, con motivo, sale sin él", async 
   await escribir([STORES.cola], ({ guardar }) =>
     guardar(STORES.cola, {
       id: "00000000-0000-7000-8000-0000000000aa",
-      choferId: CHOFER,
+      conductorId: CONDUCTOR,
       fecha: HOY,
       tipo: "omision",
       motivo: "rechazo",

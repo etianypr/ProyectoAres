@@ -20,7 +20,8 @@ import { Clock, Save } from "lucide-react";
 import { BLOQUES_HORARIOS } from "@/lib/encomiendas/config";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { guardarBloquesHorarios, type FormState } from "./actions";
+import type { FormState } from "@/lib/comun/forms";
+import { guardarBloquesHorarios } from "./actions";
 
 export function BloquesHorariosForm({
   empresaId,

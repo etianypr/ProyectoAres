@@ -1,87 +1,35 @@
-# Data Model: Número y referencia de cada paquete
+# Data Model: OF y referencia del paquete (003)
 
-Todo lo de esta feature vive en el IndexedDB del teléfono y **se borra al cerrar el día**
-(spec 007). **El servidor no cambia.**
+Modelo completo: `docs/CLASES.md`.
 
-```mermaid
-classDiagram
-  class pedidos {
-    <<store · key id>>
-    id, nombre, telefono, direccion, lat, lng, notas
-    estado, disponibilidad, bloqueHorarioId, cargadoEn
-    +numero : 1..N posición al numerar la ruta · null si aún no entra a una ruta
-    +referencia : ReferenciaPaquete · null
-    +fotoId : string · null
-  }
-  class ReferenciaPaquete {
-    tipo : caja | bolsa | sobre | otro | null
-    tamano : chico | mediano | grande | null
-    color : string | null
-    nota : string | null  (≤ 40)
-  }
-  class rutas {
-    <<store · key fecha>>
-    fecha, paradas, trazado, …
-    +cargados : string[]  (ids de pedidos)
-  }
-  class fotos {
-    <<store nuevo · key id>>
-    id : UUIDv7
-    pedidoId  (índice por_pedido)
-    imagen : Blob JPEG ≤ 150 KB
-    creadaEn : ISO
-  }
-  pedidos *-- ReferenciaPaquete
-  pedidos --> fotos : fotoId
-  rutas --> pedidos : cargados[]
-```
-
-## 1. Campos nuevos en `pedidos`
+## `Pedido` (store `pedidos`) — campos nuevos
 
 | Campo | Tipo | Regla |
 |---|---|---|
-| `numero` | entero ≥ 1 \| null | Se asigna en `guardarRuta()`: en la primera confirmación del día, la posición en la ruta; después, mayor + 1 para los que no tienen. **No cambia durante el día.** Único entre los pedidos del día |
-| `referencia` | `ReferenciaPaquete \| null` | Opcional. Cada parte puede faltar. `nota` recortada a 40 caracteres |
-| `fotoId` | string \| null | Id en el store `fotos`. Se conserva al editar el pedido si el formulario no lo cambia |
+| `of` | `string \| null` | 9 dígitos sin separadores; opcional; aviso (no bloqueo) si otro pedido del día tiene la misma |
+| `referencia` | `{ tipo, tamano, color, nota } \| null` | `tipo` ∈ caja · bolsa · sobre · otro; `tamano` ∈ chico · mediano · grande; `color` ∈ café · blanco · negro · gris · amarillo · azul · rojo · verde · transparente; `nota` ≤ 40 caracteres; cada campo puede ser `null` |
+| `fotoId` | `string \| null` | id en el store `fotos` |
 
-`alDia()` completa `numero: null`, `referencia: null` y `fotoId: null` cuando faltan.
+`alDia()` completa los tres con `null` en pedidos anteriores (sin migración del store).
 
-`guardarPedido()` rearma el pedido desde el formulario y conserva a mano `estado`,
-`disponibilidad`, `bloqueHorarioId` y `cargadoEn`; suma `numero` (siempre del anterior) y
-`fotoId` (del formulario si viene, si no del anterior). **No asigna números.**
-
-## 2. Campo nuevo en `rutas`
+## `Foto` (store `fotos`, IndexedDB v5)
 
 | Campo | Tipo | Regla |
 |---|---|---|
-| `cargados` | `string[]` | Ids de pedidos marcados como cargados ese día. `guardarRuta()` lo conserva al rehacer la ruta, filtrando ids que ya no están en ella. `rutaAlDia()` completa `[]` |
+| `id` | UUIDv7 | clave |
+| `pedidoId` | string | — |
+| `fecha` | día de trabajo | índice `por_fecha`: el borrado del día (007) busca las claves sin cargar las imágenes |
+| `blob` | `Blob` JPEG | ≤ 1280 px, calidad 0,7 |
 
-## 3. Store nuevo `fotos`
+- Una foto por pedido (reemplazar borra la anterior).
+- Se borra al cerrarse el pedido (entregado o no entregado) cuando vence la ventana de deshacer,
+  al eliminar el pedido sin restaurar (la purga siguiente o el cierre del día) y al cerrar el día.
+  Restaurar dentro del deshacer la conserva.
 
-| Campo | Tipo | Regla |
-|---|---|---|
-| `id` | UUIDv7 | Clave |
-| `pedidoId` | string | Índice `por_pedido` |
-| `imagen` | Blob (JPEG) | ≤ 800 px de lado mayor, calidad 0,6 |
-| `creadaEn` | ISO | Referencia para auditoría del borrado |
+## Funciones puras (`paquete.ts`)
 
-Borrado (FR-011, research R5): al dejar de estar activo su pedido, las huérfanas al abrir la
-app, y todas al cerrar el día (spec 007).
-
-## 4. Lo que NO cambia
-
-- `cola`: los eventos siguen siendo `{id, choferId, fecha, tipo, hora}`; número,
-  referencia y foto **no** viajan (prueba en T010).
-- `whatsapp`: sin cambios.
-- Postgres: sin cambios.
-
-## 5. Transiciones del número
-
-```text
-alta del pedido              ──► numero = null
-primera confirmación de ruta ──► numero = posición en la ruta (1…N)        (dentro de enFila)
-reoptimizar / rehacer ruta   ──► con número: se conserva · sin número: mayor + 1
-editar el pedido             ──► se conserva
-eliminado y restaurado       ──► se conserva (mismo día)
-cierre del día               ──► se borra con el pedido (spec 007)
-```
+- `formatoOf("123456789")` → `"123 456 789"` · `ofValida(texto)` → 9 dígitos o `null`.
+- `textoReferencia(ref)` → `"Bolsa gris grande · cinta roja"`; `null` sin datos.
+- `buscarPorOf(pedidos, digitos)` → pedidos pendientes cuya OF termina en esos dígitos (≥ 3).
+- `notaPaquete(texto)` (recorta a 40) · `referenciaOVacia(ref)` (sin datos → `null`).
+- La referencia concuerda en género: "Caja blanca chica", "Sobre blanco chico"; tipo "otro" se lee "Paquete".

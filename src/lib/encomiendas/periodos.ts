@@ -4,9 +4,10 @@
 //
 // Ojo con el nombre: acá "periodo" es un CORTE DE FACTURACIÓN, de fecha a
 // fecha. El periodo global de la app —el mes que fija el selector de la barra
-// superior— es otra cosa y vive en lib/periodo.ts.
+// superior— es otra cosa y vive en lib/comun/periodo.ts.
 
 import type { PeriodoFacturacion } from "@/types/db";
+import { MESES, MESES_CORTOS } from "@/lib/comun/fechas";
 
 /** Lo mínimo para ubicar y pintar un periodo. Los componentes de cliente
  *  reciben esto y no la fila entera: no necesitan el empresa_id ni las marcas
@@ -69,8 +70,8 @@ export function nombrePeriodoCorto(p: { fecha_inicio: string; fecha_fin: string 
   const [, mi, di] = partes(p.fecha_inicio);
   const [, mf, df] = partes(p.fecha_fin);
   return mi === mf
-    ? `${di}–${df} ${MES_CORTO[mi - 1]}`
-    : `${di} ${MES_CORTO[mi - 1]} – ${df} ${MES_CORTO[mf - 1]}`;
+    ? `${di}–${df} ${MESES_CORTOS[mi - 1]}`
+    : `${di} ${MESES_CORTOS[mi - 1]} – ${df} ${MESES_CORTOS[mf - 1]}`;
 }
 
 /** En qué periodo cae una fecha `YYYY-MM-DD`, o -1 si no cae en ninguno.
@@ -95,16 +96,6 @@ export function periodosEnRango<T extends Periodo>(
 ): T[] {
   return periodos.filter((p) => p.fecha_inicio <= hasta && p.fecha_fin >= desde);
 }
-
-const MESES = [
-  "enero", "febrero", "marzo", "abril", "mayo", "junio",
-  "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
-];
-
-const MES_CORTO = [
-  "ene", "feb", "mar", "abr", "may", "jun",
-  "jul", "ago", "sep", "oct", "nov", "dic",
-];
 
 /** [año, mes, día] de un `YYYY-MM-DD`, sin pasar por Date: un `new Date(
  *  "2026-05-01")` se interpreta en UTC y en Chile muestra el 30 de abril. */

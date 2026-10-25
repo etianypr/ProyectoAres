@@ -24,7 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Field } from "@/components/ui/label";
-import { formatCLP, formatNumber } from "@/lib/format";
+import { formatCLP, formatNumber } from "@/lib/comun/format";
 import {
   calcularPagoDia,
   ingresoEstimado,
@@ -40,7 +40,7 @@ import {
 } from "./campos-tarifa";
 import { agregarDiaManual } from "./actions";
 
-export type ChoferOpcion = { id: string; nombre: string };
+export type ConductorOpcion = { id: string; nombre: string };
 
 /** Con qué tarifa se valora el día que se está cargando. Lo lee el servidor del
  *  campo modo_tarifa (ver agregarDiaManual). */
@@ -52,7 +52,7 @@ type ModoTarifa = "dia" | "actual" | "editada";
  *  general de abajo del formulario es el que queda. */
 export type DiaConocido = {
   fecha: string;
-  choferId: string | null;
+  conductorId: string | null;
   entregados: number;
   omitidos: number;
   /** Cuántos de los eventos de ese día ya eran carga manual. */
@@ -66,17 +66,17 @@ export type DiaConocido = {
 };
 
 export function AgregarDia({
-  choferes,
-  errorChoferes,
+  conductores,
+  errorConductores,
   regla,
   diasConocidos,
   hoy,
 }: {
-  choferes: ChoferOpcion[];
+  conductores: ConductorOpcion[];
   /** Mensaje si la lista de conductores no se pudo leer. Una lista vacía por
    *  un error y una lista vacía porque nadie tiene la categoría se veían igual,
    *  y el aviso afirmaba lo segundo sin saberlo. */
-  errorChoferes?: string | null;
+  errorConductores?: string | null;
   /** La regla de pago, o null si todavía no se configuró (0031). Sin ella no se
    *  puede cargar un día: la base no le escribiría cifras y quedaría un día
    *  trabajado que no suma ni se puede pagar. */
@@ -101,9 +101,9 @@ export function AgregarDia({
   // escribir un formulario entero antes de decir que no se puede.
   const bloqueo = regla == null
     ? "Configura primero la regla de pago: sin ella no se puede calcular el día."
-    : errorChoferes
-      ? `No se pudo leer la lista de conductores: ${errorChoferes}`
-      : choferes.length === 0
+    : errorConductores
+      ? `No se pudo leer la lista de conductores: ${errorConductores}`
+      : conductores.length === 0
         ? "Ningún conductor tiene la categoría 'Encomiendas' asignada."
         : null;
 
@@ -126,7 +126,7 @@ export function AgregarDia({
 
       {abierto && regla ? (
         <DialogoAgregarDia
-          choferes={choferes}
+          conductores={conductores}
           regla={regla}
           diasConocidos={diasConocidos}
           hoy={hoy}
@@ -146,7 +146,7 @@ export function AgregarDia({
 }
 
 function DialogoAgregarDia({
-  choferes,
+  conductores,
   regla,
   diasConocidos,
   hoy,
@@ -157,7 +157,7 @@ function DialogoAgregarDia({
   onCerrar,
   onGuardado,
 }: {
-  choferes: ChoferOpcion[];
+  conductores: ConductorOpcion[];
   regla: ReglaDePago;
   diasConocidos: DiaConocido[];
   hoy: string;
@@ -168,7 +168,7 @@ function DialogoAgregarDia({
   onCerrar: () => void;
   onGuardado: () => void;
 }) {
-  const [choferId, setChoferId] = useState(choferes[0]?.id ?? "");
+  const [conductorId, setConductorId] = useState(conductores[0]?.id ?? "");
   const [fecha, setFecha] = useState(hoy);
   const [entregados, setEntregados] = useState("");
   const [omitidos, setOmitidos] = useState("");
@@ -196,7 +196,7 @@ function DialogoAgregarDia({
   // Lo que ya hay registrado de ese (conductor, día). Si viene del teléfono, lo
   // que se cargue acá se suma; si ya era carga manual, la reemplaza. Las dos
   // cosas hay que decirlas antes de apretar Guardar, no después.
-  const yaHay = diasConocidos.find((d) => d.fecha === fecha && d.choferId === choferId);
+  const yaHay = diasConocidos.find((d) => d.fecha === fecha && d.conductorId === conductorId);
   const delTelefono = yaHay ? yaHay.total - yaHay.manuales : 0;
 
   // "Mantener la del día" solo existe si el día YA tiene una: al cambiar la
@@ -270,15 +270,15 @@ function DialogoAgregarDia({
                 required
               />
             </Field>
-            <Field label="Conductor" htmlFor="chofer_id">
+            <Field label="Conductor" htmlFor="conductor_id">
               <Select
-                id="chofer_id"
-                name="chofer_id"
-                value={choferId}
-                onChange={(e) => setChoferId(e.target.value)}
+                id="conductor_id"
+                name="conductor_id"
+                value={conductorId}
+                onChange={(e) => setConductorId(e.target.value)}
                 required
               >
-                {choferes.map((c) => (
+                {conductores.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.nombre}
                   </option>
@@ -416,7 +416,7 @@ function DialogoAgregarDia({
             <Button type="button" variant="outline" onClick={onCerrar} disabled={pending}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={pending || !choferId}>
+            <Button type="submit" disabled={pending || !conductorId}>
               <Save className="h-4 w-4" />
               {pending ? "Guardando…" : "Guardar día"}
             </Button>

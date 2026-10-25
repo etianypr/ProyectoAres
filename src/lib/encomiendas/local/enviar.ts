@@ -1,6 +1,6 @@
 "use client";
 
-// El único puente entre el teléfono y el servidor en el módulo del chofer. Todo
+// El único puente entre el teléfono y el servidor en el módulo del conductor. Todo
 // lo demás (pedidos, direcciones, orden de la ruta, trazado) se queda en el
 // teléfono y no sale nunca; por acá salen solo los eventos de actividad, que no
 // llevan un dato personal: quién, qué día, qué pasó y a qué hora. Sin motivo:
@@ -16,7 +16,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { leerCola, leerRuta, quitarDeCola, type ActividadPorEnviar } from "./almacen";
+import { leerCola, leerDiaGuardado, leerResumenDia, leerRuta, quitarDeCola, type ActividadPorEnviar } from "./almacen";
 
 // Un tope por consulta para no armar un cuerpo enorme con una conexión mala:
 // un día completo sin señal son ~60 eventos, así que en la práctica va
@@ -31,7 +31,7 @@ const MS_REINTENTO = 60_000;
 function aFila(e: ActividadPorEnviar) {
   return {
     id: e.id,
-    chofer_id: e.choferId,
+    conductor_id: e.conductorId,
     fecha: e.fecha,
     tipo: e.tipo,
     hora: e.hora,
@@ -52,21 +52,27 @@ export type ResultadoEnvioCola = {
  *  mismo estado no hace nada. Con la cola de eventos hace falta porque cada
  *  evento es una fila distinta que hay que poder tachar de a una; acá hay un
  *  solo dato que siempre se puede volver a escribir entero. */
-export async function sincronizarDiaTrabajo(choferId: string, fecha: string): Promise<void> {
-  const ruta = await leerRuta(fecha);
+export async function sincronizarDiaTrabajo(conductorId: string, fecha: string): Promise<void> {
+  // Si el día ya se borró (spec 007), el inicio y el cierre siguen en su resumen.
+  const ruta = (await leerRuta(fecha)) ?? (await leerDiaGuardado(fecha));
   // Sin ruta generada no hay día que abrir. Un día que solo tiene llamadas
   // sueltas lo levanta el barrido nocturno del servidor.
-  if (!ruta) return;
+  if (!ruta?.inicio) return;
+
+  // Dos conteos sin datos personales para los indicadores del panel (spec 006).
+  const resumen = await leerResumenDia(fecha);
 
   const supabase = createClient();
   const { error } = await supabase.from("encomienda_jornadas").upsert(
     {
-      chofer_id: choferId,
+      conductor_id: conductorId,
       fecha,
       inicio: ruta.inicio,
       cerrada_en: ruta.cierre,
+      asignados: resumen?.asignados ?? null,
+      contactados: resumen?.contactados ?? null,
     },
-    { onConflict: "chofer_id,fecha" },
+    { onConflict: "conductor_id,fecha" },
   );
 
   if (error) throw new Error(error.message);
@@ -97,7 +103,7 @@ export async function enviarActividadPendiente(): Promise<ResultadoEnvioCola> {
 
 export type EstadoEnvio = {
   /** Eventos todavía sin confirmar en el servidor. 0 = todo al día. La pantalla
-   *  lo muestra: para el chofer es la diferencia entre "mi trabajo está
+   *  lo muestra: para el conductor es la diferencia entre "mi trabajo está
    *  registrado" y "lo tengo anotado pero nadie más lo sabe". */
   pendientes: number;
   enviando: boolean;
@@ -110,14 +116,14 @@ export type EstadoEnvio = {
 };
 
 // Mantiene la cola vaciándose sola: al montar, cuando vuelve la conexión,
-// cuando el chofer regresa a la app y cada minuto mientras quede algo.
+// cuando el conductor regresa a la app y cada minuto mientras quede algo.
 //
 // `activo` es "esta pantalla es la de HOY". Importa más que antes: el día
 // se manda con el estado que tiene el teléfono, así que sincronizar mirando un
 // día viejo podría reabrir un día que el servidor ya cerró.
 export function useEnvioActividad(
   activo: boolean,
-  choferId: string,
+  conductorId: string,
   fecha: string,
 ): EstadoEnvio {
   const [pendientes, setPendientes] = useState(0);
@@ -156,7 +162,7 @@ export function useEnvioActividad(
         //
         // Si quedó algo, el reintento del minuto siguiente vuelve a pasar por acá
         // y cierra entonces.
-        if (quedaron === 0) await sincronizarDiaTrabajo(choferId, fecha);
+        if (quedaron === 0) await sincronizarDiaTrabajo(conductorId, fecha);
       } catch (e) {
         setError(e instanceof Error ? e.message : "No se pudo enviar la actividad.");
         // El contador tiene que seguir a la vista aunque el envío falle: es la
@@ -171,7 +177,7 @@ export function useEnvioActividad(
         setEnviando(false);
       }
     })();
-  }, [choferId, fecha]);
+  }, [conductorId, fecha]);
 
   useEffect(() => {
     if (!activo) return;

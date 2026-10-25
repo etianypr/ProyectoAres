@@ -22,7 +22,7 @@ import type {
   TipoPago,
 } from "@/lib/encomiendas/catalogos";
 
-export type RolUsuario = "admin" | "operador" | "chofer";
+export type RolUsuario = "admin" | "operador" | "conductor";
 
 export interface Perfil {
   id: string; // = auth.users.id
@@ -54,13 +54,13 @@ export interface Empresa {
   updated_at: string;
 }
 
-/** El conductor. Se llama "chofer" en el código y en la base porque así se llama
+/** El conductor. Se llama "conductor" en el código y en la base porque así se llama
  *  en la ley chilena (licencia de conducir clase A) y porque renombrarlo obligaba
  *  a tocar las cuatro tablas que lo referencian; en la interfaz dice "conductor". */
-export interface Chofer {
+export interface Conductor {
   id: string;
   empresa_id: string;
-  /** Cuenta de acceso del conductor (rol 'chofer'), si la tiene. Sin ella no
+  /** Cuenta de acceso del conductor (rol 'conductor'), si la tiene. Sin ella no
    *  puede entrar a /conductor, que es donde registra su día. */
   user_id: string | null;
   /** Correo con el que se invitó/vinculó su login (no viene de auth.users). */
@@ -92,7 +92,7 @@ export interface Actividad {
    *  pueda contarlo dos veces. */
   id: string;
   empresa_id: string;
-  chofer_id: string | null;
+  conductor_id: string | null;
   /** Día de trabajo en fecha local de Chile (hoyChile()), no derivada de la
    *  hora del servidor: una entrega de las 21:30 en Arica ya es del día
    *  siguiente en UTC y el pago se movería de día. */
@@ -132,13 +132,13 @@ export interface Actividad {
  *
  *  Se borra al cerrar el día, y como máximo 72 horas después de crearse si
  *  el día nunca se cierra. Ver la migración 0003 y la Decisión 7 de
- *  specs/001-asistencia-ruta-entrega/research.md. */
+ *  docs/WHATSAPP.md (Diseño). */
 export interface Aviso {
   /** Aleatorio. Es lo único nuestro que Meta llega a ver: viaja dentro del
    *  payload del botón y vuelve con la respuesta. */
   correlation_id: string;
   empresa_id: string;
-  chofer_id: string;
+  conductor_id: string;
   /** El id que el TELÉFONO le puso al pedido (UUIDv7). No hay ninguna fila en
    *  toda la base que lo asocie a una persona. */
   pedido_id_local: string;
@@ -227,12 +227,17 @@ export interface IngresoReal {
 export interface DiaTrabajo {
   id: string;
   empresa_id: string;
-  chofer_id: string | null;
+  conductor_id: string | null;
   fecha: string;
   /** Cuándo se generó la ruta. null en días levantados desde la oficina. */
   inicio: string | null;
   /** Cuándo se cerró la última parada. null = sigue en curso. */
   cerrada_en: string | null;
+  /** Pedidos del día, que manda el teléfono al cerrar (spec 006). null = día
+   *  anterior a la migración 0007. */
+  asignados: number | null;
+  /** Pedidos cuyo receptor contestó la llamada o respondió el aviso (spec 006). */
+  contactados: number | null;
   created_at: string;
 }
 
@@ -246,7 +251,7 @@ export interface DiaTrabajo {
 export interface PagoDelDia {
   id: string;
   empresa_id: string;
-  chofer_id: string | null;
+  conductor_id: string | null;
   fecha: string;
   pedidos_entregados: number;
   pedidos_no_entregados: number;
@@ -287,7 +292,7 @@ export type TarifaDelDia = Pick<
 
 /** Un corte de facturación: de qué fecha a qué fecha.
  *
- *  Es distinto del periodo global de la app (lib/periodo.ts), que es un mes del
+ *  Es distinto del periodo global de la app (lib/comun/periodo.ts), que es un mes del
  *  calendario y vive en una cookie. Este lo dicta quien factura y puede empezar
  *  y terminar cualquier día.
  *
@@ -315,12 +320,12 @@ export interface PeriodoFacturacion {
  *  mapeado es la misma forma, aceptada como Record. */
 type Fila<T> = { [K in keyof T]: T[K] };
 
-/** Clave foránea hacia choferes(id). El nombre es el que Postgres pone solo. */
-type HaciaChofer<T extends string> = {
-  foreignKeyName: `${T}_chofer_id_fkey`;
-  columns: ["chofer_id"];
+/** Clave foránea hacia conductores(id). El nombre es el que Postgres pone solo. */
+type HaciaConductor<T extends string> = {
+  foreignKeyName: `${T}_conductor_id_fkey`;
+  columns: ["conductor_id"];
   isOneToOne: false;
-  referencedRelation: "choferes";
+  referencedRelation: "conductores";
   referencedColumns: ["id"];
 };
 
@@ -336,13 +341,13 @@ export type Database = {
     Tables: {
       perfiles: Tabla<Perfil>;
       empresa: Tabla<Empresa>;
-      choferes: Tabla<Chofer>;
-      encomienda_actividad: Tabla<Actividad, [HaciaChofer<"encomienda_actividad">]>;
-      encomienda_jornadas: Tabla<DiaTrabajo, [HaciaChofer<"encomienda_jornadas">]>;
-      encomienda_pagos: Tabla<PagoDelDia, [HaciaChofer<"encomienda_pagos">]>;
+      conductores: Tabla<Conductor>;
+      encomienda_actividad: Tabla<Actividad, [HaciaConductor<"encomienda_actividad">]>;
+      encomienda_jornadas: Tabla<DiaTrabajo, [HaciaConductor<"encomienda_jornadas">]>;
+      encomienda_pagos: Tabla<PagoDelDia, [HaciaConductor<"encomienda_pagos">]>;
       encomienda_whatsapp_correlaciones: Tabla<
         Aviso,
-        [HaciaChofer<"encomienda_whatsapp_correlaciones">]
+        [HaciaConductor<"encomienda_whatsapp_correlaciones">]
       >;
       encomienda_reglas_pago: Tabla<ReglaDePago>;
       encomienda_ingresos_reales: Tabla<IngresoReal>;
@@ -350,13 +355,18 @@ export type Database = {
     };
     Views: { [_ in never]: never };
     Functions: {
+      /** Meta de entregas del bono, legible por el conductor (0007, spec 006). */
+      encomienda_meta_entregas_dia: {
+        Args: Record<string, never>;
+        Returns: number | null;
+      };
       encomienda_repreciar_dia: {
-        Args: { p_chofer_id: string; p_fecha: string };
+        Args: { p_conductor_id: string; p_fecha: string };
         Returns: undefined;
       };
       encomienda_valorar_dia: {
         Args: {
-          p_chofer_id: string;
+          p_conductor_id: string;
           p_fecha: string;
           p_valor_pedido: number;
           p_tipo_pago: TipoPago;

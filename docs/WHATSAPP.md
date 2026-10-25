@@ -1,8 +1,13 @@
 # WhatsApp: plantilla y despliegue
 
 Lo que la app necesita de Meta y de Supabase para el aviso al receptor (spec 010). Código:
-`src/lib/whatsapp.ts` (envío), `src/app/api/whatsapp/*` (rutas), `local/replanificar.ts`
+`src/lib/whatsapp/meta.ts` (envío), `src/app/api/whatsapp/*` (rutas), `local/replanificar.ts`
 (qué hace cada respuesta con la ruta).
+
+**Estado (2026-10-24): en pausa.** Falta el número propio (chip) y el token de Meta. Sin
+`WHATSAPP_TOKEN` y `WHATSAPP_PHONE_NUMBER_ID` la app funciona **sin WhatsApp** (spec 013): no
+manda avisos ni consulta respuestas, y el conductor llama. Al cargar las variables en Vercel y
+volver a publicar, los avisos se activan solos.
 
 ## Plantilla del aviso
 
@@ -22,7 +27,7 @@ posición (`ACCIONES_WHATSAPP` en `catalogos.ts`). Si se reordenan en Meta, las 
 llegan cambiadas.
 
 "Otro horario" no necesita otra plantilla: tocarlo abre la ventana de 24 h y el servidor
-manda la lista de bloques (08–10 … 18–20, los que el jefe dejó activos).
+manda la lista de bloques (08–10 … 16–18, los que el jefe dejó activos).
 
 ## Qué hace cada respuesta
 
@@ -34,6 +39,31 @@ manda la lista de bloques (08–10 … 18–20, los que el jefe dejó activos).
 | (no contesta) | sigue `pendiente_respuesta` | no cambia; al acercarse, "llámalo" |
 
 El teléfono baja las respuestas cada 30 s con la app abierta.
+
+## Diseño (por qué funciona así)
+
+- **El teléfono busca las respuestas; el servidor no las empuja.** La respuesta llega al
+  servidor (Meta solo hace webhooks a una URL pública) y el pedido vive en el teléfono. Al
+  enviar el aviso, el servidor guarda una fila `Aviso` (`encomienda_whatsapp_correlaciones`)
+  con un **código opaco** que viaja en el payload del botón; el webhook la resuelve sin ningún
+  dato personal y guarda ahí la respuesta. El teléfono consulta `GET /api/whatsapp/status`,
+  aplica en IndexedDB y **recién después** confirma con un `POST` (si se queda sin batería en
+  medio, la respuesta vuelve a bajar). Push o Realtime se descartaron: en la periferia de Arica
+  hay red que no llega a ningún lado, y una respuesta empujada sin nadie escuchando se pierde.
+- **Por qué un código y no el teléfono del receptor:** guardar el número (aunque sea hasheado)
+  convertiría la tabla en un registro de destinatarios. El código es aleatorio y no revela nada;
+  tampoco se le manda a Meta el id interno del pedido.
+- **Idempotencia:** el webhook descarta respuestas repetidas por el id del mensaje con un índice
+  único (Meta reintenta); el teléfono lleva `aviso.respuestasAplicadas` por pedido.
+- **Qué no se guarda:** nombre y teléfono viajan en el `POST /api/whatsapp/send`, se usan para
+  llamar a Meta y no se persisten.
+- **El horario es un segundo paso:** el primer mensaje tiene que ser una plantilla aprobada, que
+  admite como máximo **3 botones**. Tocar "Otro horario" abre la ventana de 24 h y recién ahí se
+  manda la lista de bloques (mensaje interactivo); la disponibilidad sigue en
+  `pendiente_respuesta` hasta que elige uno.
+- **Payload de los botones** (`payloadBoton` en `config.ts`): `CONFIRMAR:<código>`,
+  `MANANA:<código>`, `HORARIO:<código>` y, en la lista, `HORARIO_<bloque>:<código>`. El
+  `RECHAZAR` de antes de la spec 010 se lee como `MANANA`.
 
 ## Orden de despliegue
 

@@ -63,7 +63,7 @@ for (const [tabla, deberia] of [
   // Del otro negocio. Mismo motivo: acá no van.
   ["viajes", false],
   ["facturas", false],
-  ["chofer_categorias", false],
+  ["conductor_categorias", false],
 ]) {
   const { error } = await db.from(tabla).select("*").limit(1);
   const existe = !error || !/does not exist|Could not find the table/i.test(error.message);
@@ -75,7 +75,7 @@ for (const [tabla, deberia] of [
 // ---------------------------------------------------------------------------
 console.log("\n=== 2. Las consultas exactas del código ===");
 for (const [tabla, select, quien] of [
-  ["encomienda_actividad", "chofer_id, fecha, tipo, origen", "encomiendas/actions.ts"],
+  ["encomienda_actividad", "conductor_id, fecha, tipo, origen", "encomiendas/actions.ts"],
   ["encomienda_reglas_pago", "valor_pedido", "valor por entrega"],
   [
     "encomienda_ingresos_reales",
@@ -84,17 +84,17 @@ for (const [tabla, select, quien] of [
   ],
   [
     "encomienda_actividad",
-    "chofer_id, fecha, tipo, origen, chofer:choferes(id,nombre)",
+    "conductor_id, fecha, tipo, origen, conductor:conductores(id,nombre)",
     "/encomiendas",
   ],
   [
     "encomienda_actividad",
-    "id, chofer_id, fecha, tipo, origen, hora, created_at, chofer:choferes(id,nombre)",
+    "id, conductor_id, fecha, tipo, origen, hora, created_at, conductor:conductores(id,nombre)",
     "/encomiendas/dia",
   ],
   [
     "encomienda_pagos",
-    "id, empresa_id, chofer_id, fecha, pedidos_entregados, pedidos_no_entregados, ingresos_totales, pago_base, pago_dia, pago_bono, pago_total, calculado_en, regla_valor_pedido, regla_tipo_pago, regla_valor_pago, regla_monto_dia, regla_meta_entregas_dia, regla_bono_monto",
+    "id, empresa_id, conductor_id, fecha, pedidos_entregados, pedidos_no_entregados, ingresos_totales, pago_base, pago_dia, pago_bono, pago_total, calculado_en, regla_valor_pedido, regla_tipo_pago, regla_valor_pago, regla_monto_dia, regla_meta_entregas_dia, regla_bono_monto",
     "tipo PagoDelDia",
   ],
   [
@@ -102,13 +102,13 @@ for (const [tabla, select, quien] of [
     "id, empresa_id, tipo_pago, valor_pago, valor_pedido, monto_dia, meta_entregas_dia, bono_monto, created_at, updated_at",
     "tipo ReglaDePago",
   ],
-  ["encomienda_jornadas", "id, chofer_id, fecha, inicio, cerrada_en", "tipo DiaTrabajo"],
+  ["encomienda_jornadas", "id, conductor_id, fecha, inicio, cerrada_en", "tipo DiaTrabajo"],
   [
     "encomienda_periodos_facturacion",
     "id, fecha_inicio, fecha_fin",
     "periodos de facturación",
   ],
-  ["choferes", "id, nombre, activo", "selector de Agregar día"],
+  ["conductores", "id, nombre, activo", "selector de Agregar día"],
 ]) {
   const { error } = await db.from(tabla).select(select).limit(1);
   if (error) mal(`${quien}: ${error.message}`);
@@ -117,8 +117,8 @@ for (const [tabla, select, quien] of [
 
 console.log("\n=== 3. Columnas que el código ESCRIBE ===");
 for (const [tabla, columnas] of Object.entries({
-  encomienda_actividad: ["id", "chofer_id", "fecha", "tipo", "hora", "origen"],
-  encomienda_jornadas: ["chofer_id", "fecha", "inicio", "cerrada_en"],
+  encomienda_actividad: ["id", "conductor_id", "fecha", "tipo", "hora", "origen"],
+  encomienda_jornadas: ["conductor_id", "fecha", "inicio", "cerrada_en"],
   encomienda_reglas_pago: [
     "tipo_pago", "valor_pago", "valor_pedido", "monto_dia", "meta_entregas_dia", "bono_monto",
   ],
@@ -140,13 +140,13 @@ console.log("\n=== 4. Las funciones de la base ===");
 // escribe directo contra la base. Si estas dos no están, los días se registran
 // pero no se valoran nunca y nadie cobra.
 for (const [fn, args] of [
-  ["encomienda_repreciar_dia", { p_chofer_id: null, p_fecha: "2000-01-01" }],
+  ["encomienda_repreciar_dia", { p_conductor_id: null, p_fecha: "2000-01-01" }],
   [
     "encomienda_valorar_dia",
-    { p_chofer_id: null, p_fecha: "2000-01-01", p_valor_pedido: 1, p_tipo_pago: "monto_fijo", p_valor_pago: 0 },
+    { p_conductor_id: null, p_fecha: "2000-01-01", p_valor_pedido: 1, p_tipo_pago: "monto_fijo", p_valor_pago: 0 },
   ],
 ]) {
-  // Se llama con chofer_id null a propósito: la función existe si responde
+  // Se llama con conductor_id null a propósito: la función existe si responde
   // CUALQUIER cosa que no sea "no la encuentro". Con la llave service_role el
   // control de rol de adentro la rechaza, y eso también prueba que existe.
   const { error } = await db.rpc(fn, args);
@@ -194,7 +194,7 @@ if (errCronWsp) {
 console.log("\n=== 5. Valores fuera de los check de la base ===");
 const { data: actividad } = await db
   .from("encomienda_actividad")
-  .select("chofer_id, fecha, tipo, origen, hora, chofer:choferes(id,nombre)");
+  .select("conductor_id, fecha, tipo, origen, hora, conductor:conductores(id,nombre)");
 const raros = (actividad ?? []).filter(
   (a) => !["entrega", "omision", "llamada"].includes(a.tipo) || !["app", "manual"].includes(a.origen),
 );
@@ -236,7 +236,7 @@ else {
 
   // Cada día tiene que traer la tarifa con la que se calculó. Sin ella no se
   // puede auditar, y cualquier recálculo lo movería a la regla de hoy.
-  const sinTarifa = pagos.filter((p) => p.chofer_id && p.regla_valor_pedido == null);
+  const sinTarifa = pagos.filter((p) => p.conductor_id && p.regla_valor_pedido == null);
   if (sinTarifa.length) mal(`${sinTarifa.length} liquidación(es) sin la tarifa con la que se calcularon`);
   else ok("todas las liquidaciones traen su tarifa congelada");
 
@@ -273,12 +273,12 @@ if (abiertasViejas.length) {
 } else ok(`${diasTrabajo?.length ?? 0} días de trabajo, ninguna vieja quedó abierta`);
 
 // Días con actividad y sin día de trabajo: no se valoran nunca.
-const clavesDia = new Set((diasTrabajo ?? []).map((j) => `${j.chofer_id}|${j.fecha}`));
+const clavesDia = new Set((diasTrabajo ?? []).map((j) => `${j.conductor_id}|${j.fecha}`));
 const sinDiaTrabajo = [
   ...new Set(
     (actividad ?? [])
-      .filter((a) => a.chofer_id && a.fecha < hoyCl)
-      .map((a) => `${a.chofer_id}|${a.fecha}`)
+      .filter((a) => a.conductor_id && a.fecha < hoyCl)
+      .map((a) => `${a.conductor_id}|${a.fecha}`)
       .filter((k) => !clavesDia.has(k)),
   ),
 ];
@@ -310,14 +310,14 @@ if (!reglaData) {
       "    'A pagar' queda en $0. Se carga en /encomiendas, botón 'Regla de pago'.",
   );
 }
-const porFecha = new Map((pagos ?? []).map((p) => [`${p.chofer_id}|${p.fecha}`, p]));
+const porFecha = new Map((pagos ?? []).map((p) => [`${p.conductor_id}|${p.fecha}`, p]));
 for (const d of agruparPorDia(actividad ?? [])) {
   // La tarifa de cada día es la SUYA, no la regla de hoy: es lo que va a mostrar
   // el panel. Si el día todavía no está valorado, se usa la regla como vista previa.
-  const tarifa = tarifaDelDia(porFecha.get(`${d.choferId}|${d.fecha}`)) ?? reglaData;
+  const tarifa = tarifaDelDia(porFecha.get(`${d.conductorId}|${d.fecha}`)) ?? reglaData;
   const pago = calcularPagoDia(d.conteo, tarifa);
   console.log(
-    `  ${d.fecha}  ${d.eventos[0]?.chofer?.nombre ?? "Conductor eliminado"}  ` +
+    `  ${d.fecha}  ${d.eventos[0]?.conductor?.nombre ?? "Conductor eliminado"}  ` +
       `${d.conteo.entregados} entregados · ${d.conteo.omitidos} no entregados · ` +
       `ingresos $${ingresoEstimado(d.conteo.entregados, valorPedido(tarifa)).toLocaleString("es-CL")} · ` +
       `a pagar $${pago.total.toLocaleString("es-CL")}${tarifa ? "" : "  [Sin regla]"}` +
@@ -420,7 +420,7 @@ if (anon) {
     "encomienda_reglas_pago",
     "encomienda_ingresos_reales",
     "encomienda_whatsapp_correlaciones",
-    "choferes",
+    "conductores",
   ]) {
     const { data, error } = await publico.from(tabla).select("*").limit(1);
     if (error || (data?.length ?? 0) === 0) ok(`${tabla}: un anónimo no lee nada`);
