@@ -1,17 +1,17 @@
 "use client";
 
-// El teléfono lee la foto de la guía o de la etiqueta (spec 005). La guía va
-// primero a la IA (ver leerImagen); la etiqueta, lo más barato primero:
+// El teléfono lee la foto de la guía o de la etiqueta (spec 005).
 //
-//   1. En la APK, el texto se lee EN EL TELÉFONO (ML Kit, lib/nativo): gratis,
-//      sin señal y sin que la foto salga del teléfono. Ese texto pasa por las
-//      mismas reglas que el texto pegado (leerGuia, leerEtiqueta).
-//   2. Solo si eso no alcanza —en el navegador, o si faltó el nombre, el
-//      teléfono o el pago— y la IA está encendida, la foto va a /api/lectura.
-//
-// Medido el 2026-10-24 (contador de tokens): una etiqueta con Claude Opus 5 son
-// ~2.000 tokens de entrada (~US$0,02) y una foto de la guía ~5.000. Con el paso
-// 1, la IA queda para las fotos que el teléfono no pudo leer.
+//   · El TEXTO de la foto sale de Google Cloud Vision (/api/texto: el lector de
+//     Google Lens, sin salir de la app) y, sin señal o sin clave, del lector
+//     del teléfono (ML Kit). Pasa por las mismas reglas que el texto pegado
+//     (leerGuia, leerEtiqueta).
+//   · Etiqueta: con ese texto alcanza si trae nombre, teléfono y pago; si no, y
+//     la IA está encendida, la foto va a /api/lectura (Haiku).
+//   · Guía: manda la IA (Opus, ~US$3 al mes); el texto sirve de control
+//     gratis: si trae una OF que la IA no leyó, la foto se relee. Con un lector
+//     solo, cada foto a la pantalla daba una cantidad distinta de líneas (14,
+//     6…; terreno 2026-10-25).
 //
 // Sin nada que leer lanza ErrorLectura y la pantalla ofrece pegar el texto; la
 // parada ya se sabe por el código de barras.
@@ -33,29 +33,25 @@ export class ErrorLectura extends Error {
   }
 }
 
-/** Quién leyó la foto: el teléfono (gratis) o la IA (se paga por foto). */
-export type FuenteLectura = "telefono" | "ia";
+/** Quién leyó la foto: un lector de texto (Cloud Vision o el del teléfono) o
+ *  la IA. */
+export type FuenteLectura = "texto" | "ia";
 
 export type LecturaFoto =
   | { tipo: "guia"; guia: GuiaLeida; fuente: FuenteLectura }
   | { tipo: "etiqueta"; etiqueta: LecturaEtiqueta & { referencia: ReferenciaPaquete | null }; fuente: FuenteLectura };
 
-/** Lee la foto: primero en el teléfono y, si no alcanza y `ia` lo permite, con
- *  la IA. Si la IA falla pero el teléfono leyó algo, se devuelve eso. */
+/** Lee la foto (ver la cabecera). Si la IA falla pero hubo texto, se devuelve
+ *  lo que dio el texto. */
 export async function leerImagen(tipo: TipoLectura, foto: Blob, { ia }: { ia: boolean }): Promise<LecturaFoto> {
   const reducida = await comprimirFoto(foto, LADO_MAXIMO[tipo]);
 
-  // La guía, al revés: manda la IA (barata). El lector del teléfono, con una
-  // foto a la pantalla, daba una cantidad distinta de líneas en cada foto (14,
-  // 6…; terreno 2026-10-25), así que solo sirve de control —gratis—: si vio
-  // una OF que la IA no trajo, la foto se relee con el modelo fino. Sin IA o
-  // sin señal, queda lo del teléfono.
   if (tipo === "guia" && ia) {
     const [lectura, texto] = await Promise.all([
       pedirIA(tipo, reducida)
         .then(desdeIA)
         .catch((e: unknown) => (e instanceof Error ? e : new ErrorLectura("No se pudo leer la foto.", 0))),
-      textoDeFoto(reducida),
+      textoDeLaFoto(reducida),
     ]);
     const local = texto ? desdeTexto(tipo, texto) : null;
     if (lectura instanceof Error) {
@@ -72,7 +68,7 @@ export async function leerImagen(tipo: TipoLectura, foto: Blob, { ia }: { ia: bo
     return lectura;
   }
 
-  const texto = await textoDeFoto(reducida);
+  const texto = await textoDeLaFoto(reducida);
   const local = texto ? desdeTexto(tipo, texto) : null;
   if (local && suficiente(local)) return local;
 
@@ -88,9 +84,33 @@ export async function leerImagen(tipo: TipoLectura, foto: Blob, { ia }: { ia: bo
   throw new ErrorLectura("No se pudo leer el texto de la foto. Saca otra más derecha y con luz, o pega el texto.", 422);
 }
 
+/** El texto de la foto: Cloud Vision y, si no está o no hay señal, el lector
+ *  del teléfono. */
+async function textoDeLaFoto(reducida: Blob): Promise<string | null> {
+  return (await textoEnLaNube(reducida)) ?? (await textoDeFoto(reducida));
+}
+
+/** Sin clave en el servidor (503) no se vuelve a preguntar hasta recargar. */
+let nubeApagada = false;
+
+async function textoEnLaNube(reducida: Blob): Promise<string | null> {
+  if (nubeApagada) return null;
+  const datos = new FormData();
+  datos.set("imagen", reducida, "foto.jpg");
+  try {
+    const res = await fetch("/api/texto", { method: "POST", body: datos });
+    if (res.status === 503) nubeApagada = true;
+    if (!res.ok) return null;
+    const { texto } = (await res.json()) as { texto?: string };
+    return texto?.trim() ? texto : null;
+  } catch {
+    return null;
+  }
+}
+
 function desdeTexto(tipo: TipoLectura, texto: string): LecturaFoto {
-  if (tipo === "guia") return { tipo, guia: leerGuia(texto), fuente: "telefono" };
-  return { tipo, etiqueta: { ...leerEtiqueta(texto), referencia: null }, fuente: "telefono" };
+  if (tipo === "guia") return { tipo, guia: leerGuia(texto), fuente: "texto" };
+  return { tipo, etiqueta: { ...leerEtiqueta(texto), referencia: null }, fuente: "texto" };
 }
 
 /** La guía sirve con una línea leída (el conductor revisa la lista y agrega otra

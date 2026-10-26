@@ -16,6 +16,7 @@ flowchart LR
     MAPBOX["Mapbox"] 
     OSM["OSM / Nominatim"]
     GOOGLE["Google Geocoding"]
+    VISION["Google Cloud Vision"]
     META["Meta WhatsApp"]
     CLAUDE["Anthropic (Claude)"]
   end
@@ -25,6 +26,7 @@ flowchart LR
     API["api/whatsapp · send · status · webhook"]
     LECT["api/lectura (spec 005)"]
     GEO["api/geocodificar (spec 016)"]
+    TXT["api/texto (spec 005)"]
   end
   subgraph SB["Supabase"]
     PG[("Postgres + RLS + triggers de pago")]
@@ -33,6 +35,7 @@ flowchart LR
   LOCAL -- "dirección" --> MAPBOX
   LOCAL -- "dirección" --> OSM
   LOCAL -- "dirección que los otros no ubicaron (tránsito)" --> GEO --> GOOGLE
+  LOCAL -- "foto de etiqueta o guía (tránsito)" --> TXT --> VISION
   LOCAL -- "actividad / día (RLS)" --> PG
   LOCAL -- "nombre + teléfono en tránsito" --> API --> META
   META -- "respuesta" --> API --> PG
@@ -164,7 +167,7 @@ src/
 ├── proxy.ts                      sesión Supabase por request (lib/supabase/sesion-proxy)
 ├── app/(app)/                    panel: encomiendas (dia/_componentes) · conductores (_componentes) · configuracion · @modal
 ├── app/(conductor)/conductor/    PWA y APK: encomiendas (pantalla · _componentes · _hooks · _mapa) · diagnostico (APK)
-├── app/api/                      whatsapp (send · status · webhook) · lectura (IA, spec 005) · geocodificar (Google, spec 016)
+├── app/api/                      whatsapp (send · status · webhook) · lectura (IA, spec 005) · geocodificar (Google, spec 016) · texto (Cloud Vision, spec 005)
 ├── components/                   ui (primitivas) · direccion (campo y vista previa) · panel (marco del panel)
 ├── lib/                          una carpeta por dominio, sin archivos sueltos
 │   ├── auth/                     sesion · roles · acciones (login/logout) · api-conductor · conductor-de-usuario
@@ -182,7 +185,7 @@ src/
 public/sw.js                      caché de /conductor para abrir sin señal
 capacitor.config.ts · capacitor/www/   APK: URL que abre · página sin señal
 android/ · .github/workflows/apk.yml   proyecto Android y su build (README)
-mcp/ · pruebas/ (610) · supabase/migrations/ (0001–0007) · specs/
+mcp/ · pruebas/ (615) · supabase/migrations/ (0001–0007) · specs/
 ```
 
 Reglas de capas (A1–A10): `pruebas/arquitectura.test.mjs`. Estructura objetivo y lo que falta:

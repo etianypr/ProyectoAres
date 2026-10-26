@@ -105,6 +105,16 @@ export function Resultado({
 
   async function completarConTexto() {
     const leido = leerEtiqueta(textoEtiqueta);
+    // Lo más peligroso de copiar y pegar: que quede pegada la etiqueta anterior y
+    // este paquete se lleve el nombre y el teléfono de otra persona. Si el texto
+    // trae otra OF, no se aplica.
+    if (leido.ofImpresa && leido.ofImpresa !== codigo.of) {
+      setErrorIA(
+        `El texto pegado es de la OF ${formatoOf(leido.ofImpresa)}, no de este paquete (OF ${formatoOf(codigo.of)}). Copia el de esta etiqueta.`,
+      );
+      return;
+    }
+    setErrorIA(null);
     // El bulto del código manda; escrita a mano la OF, vale el de la etiqueta.
     const nuevo = await aplicarLecturaEtiqueta(fecha, { ...leido, of: codigo.of, bulto: codigo.bulto ?? leido.bulto });
     if (nuevo) onCambio(nuevo);

@@ -18,7 +18,7 @@ permitido en `next.config.ts`).
 | Comando | |
 |---|---|
 | `npm run dev` / `build` / `lint` | desarrollo, build, eslint |
-| `npm test` | 610 pruebas sin red ni base (~35 s) |
+| `npm test` | 615 pruebas sin red ni base (~35 s) |
 | `npm run test:base` | esquema de encomiendas contra la base real (solo lectura) |
 | `npm run test:esquema` | esquema completo contra `src/types/db.ts` |
 | `npm run sondear` | mide proveedores de direcciones con direcciones reales de Arica |
@@ -90,6 +90,7 @@ cifras). El primer usuario registrado es admin.
 | Proveedor | Variable | Uso |
 |---|---|---|
 | Mapbox | `NEXT_PUBLIC_MAPBOX_TOKEN` (pública; restringir por URL) | mapa, direcciones, navegación |
+| Google Cloud Vision | `GOOGLE_VISION_KEY` o la misma `GOOGLE_MAPS_KEY` (servidor) | texto de las fotos de etiquetas y guía (el lector de Google Lens, spec 005) |
 | Google Geocoding | `GOOGLE_MAPS_KEY` (servidor) | último recurso para ubicar direcciones que Mapbox y OSM no numeran (spec 016) |
 | OpenStreetMap / Nominatim | — | segunda opinión de direcciones; catálogo de calles (Overpass, solo al regenerarlo) |
 | WhatsApp (Meta Cloud API) | ver `.env.example` | webhook listo; envío pendiente de verificación de negocio y token permanente |

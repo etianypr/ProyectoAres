@@ -33,6 +33,7 @@ Solo sobreviven conteos (asignados, entregados, no entregados).
 |---|---|---|---|---|---|
 | Mapbox (en uso) | dirección, coordenadas | teléfono | EE.UU. | a verificar | pendiente |
 | OpenStreetMap/Nominatim (en uso) | dirección | teléfono | UK/UE | a verificar | pendiente |
+| Google Cloud Vision (en uso; spec 005; lee el texto de las fotos) | fotos de guía y etiquetas (OF, destino, destinatario, teléfono, dirección, pago) | servidor (tránsito, `/api/texto`) | EE.UU. | según términos de Google Cloud | pendiente |
 | Google Geocoding (en uso; spec 016; solo direcciones que Mapbox y OSM no ubicaron) | dirección (sin nombre ni teléfono) | servidor (tránsito, `/api/geocodificar`) | EE.UU. | según términos de Google Maps Platform | pendiente |
 | Meta WhatsApp Cloud API (inactivo) | teléfono, nombre, id correlación | servidor | EE.UU. | según Meta | pendiente |
 | Anthropic (en uso, piloto; spec 005; solo las fotos que el teléfono no pudo leer) | fotos de guía y etiquetas (OF, destino, destinatario, teléfono, dirección, pago) | servidor (tránsito, `/api/lectura`) | EE.UU. | ≤30 días API; cero retención a solicitar | pendiente |

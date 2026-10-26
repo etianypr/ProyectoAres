@@ -10,7 +10,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { AlertTriangle, Camera, ClipboardPaste, Loader2, Plus, Trash2, X } from "lucide-react";
+import { AlertTriangle, Camera, ClipboardPaste, Images, Loader2, Plus, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/comun/utils";
 import { armarGuia, leerGuia, limpiarDestino, type LineaGuia } from "@/lib/encomiendas/lectura/guia";
 import { formatoOf, ofValida } from "@/lib/encomiendas/paquete";
@@ -53,6 +53,7 @@ export function CargarGuia({
   // Foto: en la APK siempre (lee el teléfono); en el navegador, solo con IA.
   const conFoto = lecturaIA || esApp();
   const entradaFoto = useRef<HTMLInputElement>(null);
+  const entradaFotos = useRef<HTMLInputElement>(null);
 
   const malas = useMemo(() => lineas.filter((l) => !ofValida(l.of) || !l.destino.trim()).length, [lineas]);
   const ocupado = paso.tipo === "ubicando";
@@ -65,27 +66,39 @@ export function CargarGuia({
     setPaso({ tipo: "revisar" });
   }
 
-  /** Una foto más de la guía: sus líneas se suman a las que ya hay (la guía
-   *  larga no entra en una foto) y las repetidas se juntan. */
-  async function leerFoto(archivo: File | undefined) {
-    if (!archivo) return;
+  /** Una o varias fotos de la guía (la del día suele ser de 3), leídas al mismo
+   *  tiempo: sus líneas se suman a las que ya hay y las repetidas —fotos que se
+   *  superponen— se juntan por OF. Al final se compara con el MONTO NETO. */
+  async function leerFotos(archivos: File[]) {
+    if (archivos.length === 0) return;
     setLeyendo(true);
     setError(null);
     try {
-      const r = await leerImagen("guia", archivo, { ia: lecturaIA });
-      if (r.tipo !== "guia") throw new Error("Respuesta inesperada.");
-      const nueva = r.guia;
-      const unida = armarGuia([...lineas, ...nueva.lineas], folio ?? nueva.folio, nueva.totalDeclarado);
+      const leidas = await Promise.allSettled(archivos.map((a) => leerImagen("guia", a, { ia: lecturaIA })));
+      const guias = leidas.flatMap((r) => (r.status === "fulfilled" && r.value.tipo === "guia" ? [r.value] : []));
+      const fallidas = leidas.length - guias.length;
+      if (guias.length === 0) {
+        const motivo = leidas.find((r) => r.status === "rejected");
+        throw motivo?.status === "rejected" && motivo.reason instanceof Error ? motivo.reason : new Error("No se pudo leer la foto.");
+      }
+      const nuevas = guias.flatMap((g) => g.guia.lineas);
+      const total = guias.find((g) => g.guia.totalDeclarado != null)?.guia.totalDeclarado ?? null;
+      const unida = armarGuia([...lineas, ...nuevas], folio ?? guias.find((g) => g.guia.folio)?.guia.folio ?? null, total);
       setLineas(unida.lineas);
-      setAvisos(unida.avisos);
+      setAvisos(
+        fallidas > 0
+          ? [`${fallidas} de ${leidas.length} fotos no se pudieron leer: sácalas de nuevo con "Agregar otra foto".`, ...unida.avisos]
+          : unida.avisos,
+      );
       setFolio(unida.folio);
-      setFuente((antes) => (antes === "ia" ? antes : r.fuente));
+      setFuente((antes) => (antes === "ia" || guias.some((g) => g.fuente === "ia") ? "ia" : guias[0].fuente));
       setPaso({ tipo: "revisar" });
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo leer la foto.");
     } finally {
       setLeyendo(false);
       if (entradaFoto.current) entradaFoto.current.value = "";
+      if (entradaFotos.current) entradaFotos.current.value = "";
     }
   }
 
@@ -99,7 +112,7 @@ export function CargarGuia({
     try {
       const { creados, yaEstaban } = await crearDesdeGuia(validas, fecha, {
         folio,
-        origen: fuente === "ia" ? "guia_ia" : fuente === "telefono" ? "guia_foto" : "guia_pegada",
+        origen: fuente === "ia" ? "guia_ia" : fuente === "texto" ? "guia_foto" : "guia_pegada",
       });
       onCreados();
       // Una por una, como al cargar a mano: el geocodificador respeta el límite
@@ -155,7 +168,16 @@ export function CargarGuia({
           accept="image/*"
           capture="environment"
           className="hidden"
-          onChange={(e) => void leerFoto(e.target.files?.[0])}
+          onChange={(e) => void leerFotos([...(e.target.files ?? [])])}
+        />
+        {/* Las fotos ya sacadas, de la galería: se eligen las 3 de una vez. */}
+        <input
+          ref={entradaFotos}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={(e) => void leerFotos([...(e.target.files ?? [])])}
         />
         {leyendo ? (
           <p className="flex items-center gap-2 rounded-xl bg-brand-soft px-3 py-2 text-sm font-medium text-brand">
@@ -172,15 +194,24 @@ export function CargarGuia({
                 <button
                   type="button"
                   disabled={leyendo}
-                  onClick={() => entradaFoto.current?.click()}
+                  onClick={() => entradaFotos.current?.click()}
                   className={BOTON}
                 >
+                  <Images className="h-4 w-4" />
+                  Elegir las fotos de la guía
+                </button>
+                <button
+                  type="button"
+                  disabled={leyendo}
+                  onClick={() => entradaFoto.current?.click()}
+                  className="flex h-11 w-full items-center justify-center gap-2 rounded-full border border-separator bg-card text-sm font-semibold text-brand disabled:opacity-50"
+                >
                   <Camera className="h-4 w-4" />
-                  Foto de la guía
+                  Sacar una foto
                 </button>
                 <p className="text-xs text-muted">
-                  Saca la foto a la pantalla de la guía, derecha y con toda la lista. Si no entra, saca
-                  otra después con &ldquo;Agregar otra foto&rdquo;. O pega el texto:
+                  Saca las fotos a la pantalla de la guía (derechas, que se superpongan un poco) y elígelas
+                  todas juntas: se leen al mismo tiempo y las líneas repetidas se juntan. O pega el texto:
                 </p>
               </>
             ) : null}
