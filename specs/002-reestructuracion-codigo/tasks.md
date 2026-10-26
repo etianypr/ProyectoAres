@@ -59,7 +59,7 @@ borra su excepción en `pruebas/arquitectura.test.mjs`.
 ## Phase 5: US3 - Archivos revisables (P2)
 
 - [x] T031 [P] [US3] (hecha en 008) `local/almacen.ts` → `almacen/{fila,tipos,migrar,pedidos,ruta,terreno,disponibilidad,cola,index}.ts`
-- [ ] T032 [P] [US3] `local/generar-ruta.ts` → `generar-ruta/{partida,ubicar-pedidos,estrategias,index}.ts`
+- [x] T032 [P] [US3] `local/generar-ruta.ts` → `generar-ruta/{partida,ubicar-pedidos,estrategias,index}.ts` Hecho (2026-10-25): `tipos`, `partida`, `ubicar-pedidos`, `estrategias`, `index` (el barril conserva la ruta de importación). Sale de A7
 - [x] T033 [P] [US3] `geo/geocoding/index.ts` (1.010 líneas) → `consulta`, `calles` (spec 016), `tipos`, `codigo` (Plus Codes), `mapbox`, `nominatim`, `completar-numero`, `ubicar`; `index.ts` queda como barril con la cabecera (2026-10-25). Sale de las excepciones de A7
 - [x] T034 [P] [US3] (adelantada en T011) `rutas/orden-paradas.ts` → `orden-paradas/{exacto,construccion,mejora,perturbacion}.ts`
 - [ ] T035 [US3] Cifras del día de `pantalla.tsx` → `resumirDia` (ya existe en `almacen/ruta.ts`) y notificaciones → `_hooks/notificaciones-pantalla.ts`, puros con pruebas

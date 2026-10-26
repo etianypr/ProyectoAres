@@ -9,7 +9,7 @@ Orden de trabajo: `docs/HOJA-DE-RUTA.md`. Comandos en Claude Code: `/speckit-spe
 |---|---|---|---|---|
 | [015](015-app-android/spec.md) app Android (APK) | llamar con un toque y resultado automático, abrir sin señal, pantalla encendida, escáner | en curso | 27/30 | probar llamadas con chip (T019) |
 | [016](016-ubicar-direcciones/spec.md) ubicar direcciones | tipeo de la guía (ceros, deptos, nombres incompletos o con una letra cambiada) y calles cortas sin numerar | en curso (Google conectado) | 11/13 | clave de Google y prueba de un día real |
-| [002](002-reestructuracion-codigo/spec.md) reestructuración | `lib/` por dominio, archivos chicos, nombres del glosario | en curso (US1 y renombrado a conductor hechos) | 21/51 | tablas `encomienda_*` al glosario (T049) |
+| [002](002-reestructuracion-codigo/spec.md) reestructuración | `lib/` por dominio, archivos chicos, nombres del glosario | en curso (US1 y renombrado a conductor hechos) | 34/51 | tablas `encomienda_*` al glosario (T049) |
 | [003](003-referencia-paquete/spec.md) OF y referencia del paquete | OF y descripción en cada parada, búsqueda por OF; sin número escrito | hecha (falta día real) | 15/16 | foto con la cámara y SC-001 en terreno |
 | [005](005-carga-rapida-pedidos/spec.md) carga rápida | guía → ruta → escaneo de etiqueta (+ IA) | en curso (falta probar en terreno) | 32/34 | probar con ≥ 50 etiquetas reales (T030) y el quickstart (T031) |
 | [006](006-indicadores-negocio/spec.md) indicadores | entregas sobre asignado, contactados, rendimiento, margen, bono | hecha (falta quickstart y margen contra la base) | 13/15 | — |

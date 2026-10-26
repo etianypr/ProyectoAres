@@ -44,7 +44,6 @@ const EXC_A7 = [
   "app/(app)/encomiendas/actividad-dia.tsx",
   "app/(app)/conductores/conductor-panel.tsx",
   "components/direccion/direccion-input.tsx",
-  "lib/encomiendas/local/generar-ruta.ts",
 ];
 /** A9: ciclos entre carpetas de lib (como "a>b"). */
 const EXC_A9 = [];

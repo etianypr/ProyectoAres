@@ -174,7 +174,7 @@ src/
 │   ├── supabase/                 server · client · admin · sesion-proxy
 │   ├── comun/                    fechas · format · forms · utils · uuid · deslizar · telefono · periodo · periodo-servidor
 │   ├── encomiendas/              catalogos · estados · pago · periodos · config · paquete · contrato-whatsapp · lectura/ (guía, etiqueta, código de barras)
-│   │   └── local/                idb · almacen/ (lecturas, pedidos, ruta, terreno…) · generar-ruta · planificar · replanificar · enviar · sincronizar-whatsapp
+│   │   └── local/                idb · almacen/ (lecturas, pedidos, ruta, terreno…) · generar-ruta/ (partida, ubicar-pedidos, estrategias) · planificar · replanificar · enviar · sincronizar-whatsapp
 │   ├── geo/                      coordenada · trazado · plus-code · marcar · openrouteservice · geocoding/ (consulta · calles · calles-arica generado · mapbox · nominatim · codigo · google · completar-numero · ubicar)
 │   │   └── mapbox/               token · direcciones · navegacion · mapa-estatico
 │   ├── rutas/orden-paradas/      exacto · construccion · mejora · perturbacion
