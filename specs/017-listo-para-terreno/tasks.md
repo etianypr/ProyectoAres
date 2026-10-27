@@ -10,7 +10,7 @@ description: "Tareas: listo para terreno"
 
 - [x] T001 Corregir la dirección de un pedido de la guía no pide nombre ni teléfono (llegan con la etiqueta); sin OF siguen siendo obligatorios (`pedido-form-local.tsx`)
 - [x] T002 Guía → paquetes: tarjeta "Cargar el auto" (`_componentes/progreso-carga.tsx`, `avanceCarga`) con escaneados/total, botón para seguir y OF que faltan; el escáner muestra el contador y "Escanear el siguiente paquete"; al terminar la guía, "Armar la ruta" o "Escanear los paquetes"
-- [x] T003 Las fotos de la guía van todas en UNA consulta (`leerFotos`, `leerFotosGuia`, hasta 6, 4 MB en total). Medido con 3 fotos de una guía de 20 líneas: 20/20 y US$0,051 contra US$0,063 en tres consultas (−20 %)
+- [x] T003 Las fotos de la guía van todas en UNA consulta (`leerFotos`, `leerFotosGuia`, hasta 6, 4 MB en total). Corregido tras la prueba: la cámara y la galería SUMAN fotos a una bandeja con miniaturas (`_componentes/fotos-guia.tsx`) y se leen juntas con "Leer las N fotos juntas"; antes la cámara leía cada foto apenas se sacaba. Medido con 3 fotos de una guía de 20 líneas: 20/20 y US$0,051 contra US$0,063 en tres consultas (−20 %)
 
 ## US1 · Errores
 

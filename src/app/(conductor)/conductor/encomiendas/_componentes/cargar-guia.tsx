@@ -10,15 +10,15 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { AlertTriangle, Camera, ClipboardPaste, Images, Loader2, Plus, Trash2, X } from "lucide-react";
+import { AlertTriangle, ClipboardPaste, Loader2, Plus, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/comun/utils";
 import { armarGuia, leerGuia, limpiarDestino, type LineaGuia } from "@/lib/encomiendas/lectura/guia";
 import { formatoOf, ofValida } from "@/lib/encomiendas/paquete";
 import { crearDesdeGuia, fijarCoordenadas } from "@/lib/encomiendas/local/almacen";
 import { ubicarDireccion } from "@/lib/geo/geocoding";
 import { leerFotosGuia, type FuenteLectura } from "@/lib/encomiendas/local/lectura-cliente";
-import { MAX_FOTOS_GUIA } from "@/lib/encomiendas/lectura/contrato";
 import { esApp } from "@/lib/nativo/entorno";
+import { BandejaFotos, BotonesFoto, useFotosGuia } from "./fotos-guia";
 
 type Paso =
   | { tipo: "texto" }
@@ -65,6 +65,9 @@ export function CargarGuia({
   const conFoto = lecturaIA || esApp();
   const entradaFoto = useRef<HTMLInputElement>(null);
   const entradaFotos = useRef<HTMLInputElement>(null);
+  /** Fotos juntadas y todavía sin leer (ver fotos-guia.tsx). */
+  const bandeja = useFotosGuia();
+  const { fotos } = bandeja;
 
   const malas = useMemo(() => lineas.filter((l) => !ofValida(l.of) || !l.destino.trim()).length, [lineas]);
   const ocupado = paso.tipo === "ubicando";
@@ -82,16 +85,20 @@ export function CargarGuia({
     setPaso({ tipo: "revisar" });
   }
 
-  /** Una o varias fotos de la guía (la del día suele ser de 3), TODAS en una
+  /** Suma fotos a las juntadas, sin leerlas: se sacan de a una (o se eligen de
+   *  la galería) y se leen todas juntas con "Leer las N fotos juntas". */
+  function agregarFotos(archivos: File[]) {
+    if (entradaFoto.current) entradaFoto.current.value = "";
+    if (entradaFotos.current) entradaFotos.current.value = "";
+    if (archivos.length > 0) setError(bandeja.agregar(archivos));
+  }
+
+  /** Las fotos juntadas de la guía (la del día suele ser de 3), TODAS en una
    *  sola consulta a la IA (terreno 2026-10-27). Sus líneas se suman a las que
    *  ya hay y las repetidas se juntan por OF. Al final se compara con el MONTO
    *  NETO, que se conserva aunque esté en una foto anterior (spec 017, E11). */
   async function leerFotos(archivos: File[]) {
     if (archivos.length === 0) return;
-    if (archivos.length > MAX_FOTOS_GUIA) {
-      setError(`Elige hasta ${MAX_FOTOS_GUIA} fotos de una vez; las demás, con "Agregar otra foto".`);
-      return;
-    }
     setLeyendo(true);
     setError(null);
     try {
@@ -104,13 +111,12 @@ export function CargarGuia({
       setFolio(unida.folio);
       setTotal(totalGuia);
       setFuente((antes) => (antes === "ia" || r.fuente === "ia" ? "ia" : r.fuente));
+      bandeja.vaciar();
       setPaso({ tipo: "revisar" });
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo leer la foto.");
     } finally {
       setLeyendo(false);
-      if (entradaFoto.current) entradaFoto.current.value = "";
-      if (entradaFotos.current) entradaFotos.current.value = "";
     }
   }
 
@@ -180,7 +186,7 @@ export function CargarGuia({
           accept="image/*"
           capture="environment"
           className="hidden"
-          onChange={(e) => void leerFotos([...(e.target.files ?? [])])}
+          onChange={(e) => agregarFotos([...(e.target.files ?? [])])}
         />
         {/* Las fotos ya sacadas, de la galería: se eligen las 3 de una vez. */}
         <input
@@ -189,7 +195,7 @@ export function CargarGuia({
           accept="image/*"
           multiple
           className="hidden"
-          onChange={(e) => void leerFotos([...(e.target.files ?? [])])}
+          onChange={(e) => agregarFotos([...(e.target.files ?? [])])}
         />
         {leyendo ? (
           <p className="flex items-center gap-2 rounded-xl bg-brand-soft px-3 py-2 text-sm font-medium text-brand">
@@ -199,31 +205,30 @@ export function CargarGuia({
         ) : null}
         {error && paso.tipo === "texto" ? <p className="text-sm text-danger">{error}</p> : null}
 
+        {conFoto ? (
+          <BandejaFotos
+            fotos={fotos}
+            leyendo={leyendo}
+            onQuitar={bandeja.quitar}
+            onLeer={() => void leerFotos(fotos.map((f) => f.archivo))}
+            clase={BOTON}
+          />
+        ) : null}
+
         {paso.tipo === "texto" ? (
           <>
             {conFoto ? (
               <>
-                <button
-                  type="button"
-                  disabled={leyendo}
-                  onClick={() => entradaFotos.current?.click()}
-                  className={BOTON}
-                >
-                  <Images className="h-4 w-4" />
-                  Elegir las fotos de la guía
-                </button>
-                <button
-                  type="button"
-                  disabled={leyendo}
-                  onClick={() => entradaFoto.current?.click()}
-                  className="flex h-11 w-full items-center justify-center gap-2 rounded-full border border-separator bg-card text-sm font-semibold text-brand disabled:opacity-50"
-                >
-                  <Camera className="h-4 w-4" />
-                  Sacar una foto
-                </button>
+                <BotonesFoto
+                  camara={fotos.length === 0 ? "Sacar una foto" : "Sacar otra foto"}
+                  deshabilitado={leyendo || bandeja.lleno}
+                  onCamara={() => entradaFoto.current?.click()}
+                  onGaleria={() => entradaFotos.current?.click()}
+                />
                 <p className="text-xs text-muted">
-                  Saca las fotos a la pantalla de la guía (derechas, que se superpongan un poco) y elígelas
-                  todas juntas: se leen al mismo tiempo y las líneas repetidas se juntan. O pega el texto:
+                  Saca una foto por cada parte de la guía (derechas, que se superpongan un poco). Se van
+                  juntando arriba y se leen todas en una sola consulta; las líneas repetidas se juntan.
+                  O pega el texto:
                 </p>
               </>
             ) : null}
@@ -289,15 +294,12 @@ export function CargarGuia({
               })}
             </ul>
             {conFoto ? (
-              <button
-                type="button"
-                disabled={leyendo}
-                onClick={() => entradaFoto.current?.click()}
-                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-card py-3 text-sm font-medium text-brand shadow-soft disabled:opacity-50"
-              >
-                <Camera className="h-4 w-4" />
-                Agregar otra foto de la guía
-              </button>
+              <BotonesFoto
+                camara="Sacar otra foto"
+                deshabilitado={leyendo || bandeja.lleno}
+                onCamara={() => entradaFoto.current?.click()}
+                onGaleria={() => entradaFotos.current?.click()}
+              />
             ) : null}
             <button
               type="button"
@@ -344,13 +346,20 @@ export function CargarGuia({
 
       <div className="border-t border-divider px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
         {paso.tipo === "texto" ? (
-          <button type="button" disabled={!texto.trim()} onClick={leer} className={BOTON}>
+          <button type="button" disabled={!texto.trim() || leyendo} onClick={leer} className={BOTON}>
             <ClipboardPaste className="h-4 w-4" />
             Leer la guía
           </button>
         ) : paso.tipo === "revisar" ? (
-          <button type="button" disabled={lineas.length === 0 || malas > 0} onClick={() => void crear()} className={BOTON}>
-            {malas > 0
+          <button
+            type="button"
+            disabled={lineas.length === 0 || malas > 0 || fotos.length > 0 || leyendo}
+            onClick={() => void crear()}
+            className={BOTON}
+          >
+            {fotos.length > 0
+              ? "Primero lee las fotos de arriba"
+              : malas > 0
               ? `Corrige ${malas} ${malas === 1 ? "línea" : "líneas"}`
               : `Crear ${lineas.length} ${lineas.length === 1 ? "pedido" : "pedidos"}`}
           </button>
