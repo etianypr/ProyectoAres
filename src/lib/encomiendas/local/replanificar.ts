@@ -67,12 +67,20 @@ export async function replanificarRuta(
     if (desde) {
       const metros = metrosEstimados(desde);
       const minuto = minutoDelDia(ahora);
-      const nuevo = ubicarConHorario(
-        pendientes.filter((p) => !bloquePorId(p.bloqueHorarioId)),
-        pendientes.filter((p) => bloquePorId(p.bloqueHorarioId)),
+      // La parada que se está atendiendo —la primera pendiente— no se mueve por
+      // la respuesta de OTRO cliente: el botón que el conductor está por tocar
+      // es de ella, y si otra pasaba adelante "Pedido finalizado" marcaba la
+      // equivocada (spec 017, E6). Si la que respondió es ella, sí se mueve.
+      const primera = pendientes[0];
+      const atendiendo = primera && !respuestas.some((r) => r.pedidoId === primera.id) ? primera : undefined;
+      const resto = atendiendo ? pendientes.slice(1) : pendientes;
+      const reordenados = ubicarConHorario(
+        resto.filter((p) => !bloquePorId(p.bloqueHorarioId)),
+        resto.filter((p) => bloquePorId(p.bloqueHorarioId)),
         minuto,
-        metros,
+        atendiendo ? metrosEstimados(coord(atendiendo)) : metros,
       );
+      const nuevo = atendiendo ? [atendiendo, ...reordenados] : reordenados;
       fuera = new Set(fueraDeHorario(nuevo, minuto, metros).map((p) => p.id));
       guardada = await ordenarRuta(fecha, nuevo.map((p) => p.id));
     }

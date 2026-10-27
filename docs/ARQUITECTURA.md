@@ -185,7 +185,7 @@ src/
 public/sw.js                      caché de /conductor para abrir sin señal
 capacitor.config.ts · capacitor/www/   APK: URL que abre · página sin señal
 android/ · .github/workflows/apk.yml   proyecto Android y su build (README)
-mcp/ · pruebas/ (615) · supabase/migrations/ (0001–0007) · specs/
+mcp/ · pruebas/ (622) · supabase/migrations/ (0001–0007) · specs/
 ```
 
 Reglas de capas (A1–A10): `pruebas/arquitectura.test.mjs`. Estructura objetivo y lo que falta:

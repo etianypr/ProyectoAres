@@ -38,6 +38,7 @@ import {
   MapPinOff,
   MessageCircleOff,
   PackageCheck,
+  Pencil,
   Route,
   Phone,
   PhoneCall,
@@ -59,6 +60,8 @@ import { PilaNotificaciones, type Notificacion } from "./_componentes/notificaci
 import { FilaDeslizable } from "./_componentes/fila-deslizable";
 import { Seccion } from "./_componentes/seccion";
 import {
+  avanceCarga,
+  retenerEvento,
   leerDias,
   leerResumenDia,
   type ResumenDia,
@@ -91,8 +94,9 @@ import { BuscarOf } from "./_componentes/buscar-of";
 import { CargarGuia } from "./_componentes/cargar-guia";
 import { EscanearEtiqueta } from "./_componentes/escanear-etiqueta";
 import { CierreDia } from "./_componentes/cierre-dia";
+import { useFechaDelDia } from "./_hooks/use-fecha-del-dia";
 import { MetaBono } from "./_componentes/meta-bono";
-import { AvisoSinEtiqueta } from "./_componentes/aviso-sin-etiqueta";
+import { ProgresoCarga } from "./_componentes/progreso-carga";
 import { TarjetaParada } from "./_componentes/tarjeta-parada";
 import { formatoOf, nombreVisible } from "@/lib/encomiendas/paquete";
 import { CAJA_CARRIL, InstruccionNavegacion } from "./_componentes/instruccion-navegacion";
@@ -320,7 +324,7 @@ function VistaPedido({
 export function PantallaEncomiendas({
   conductorId,
   nombreConductor,
-  fecha,
+  fecha: fechaDelServidor,
   direccionEmpresa,
   whatsapp,
   lecturaIA,
@@ -346,7 +350,15 @@ export function PantallaEncomiendas({
   /** Entregas del día que dan el bono; null = la regla no tiene bono (spec 006). */
   metaBono: number | null;
 }) {
+  // E1 (spec 017): la fecha la decide el teléfono, no el HTML (que puede ser
+  // de ayer). No cambia en medio de una ruta empezada y abierta.
+  const rutaEnCursoRef = useRef(false);
+  const rutaEnCurso = useCallback(() => rutaEnCursoRef.current, []);
+  const fecha = useFechaDelDia(fechaDelServidor, rutaEnCurso);
   const dia = useDiaTrabajo({ conductorId, fecha, whatsapp });
+  useEffect(() => {
+    rutaEnCursoRef.current = Boolean(dia.ruta?.inicio && !dia.ruta.cierre);
+  }, [dia.ruta]);
   const { paradas, activa, pedidos } = dia;
   // Spec 007: con el día cerrado, lista de no entregados y borrado del teléfono.
   const cierreDia = useCierreDia({
@@ -595,12 +607,16 @@ export function PantallaEncomiendas({
       desde = Date.now();
       temporizador = window.setTimeout(vencer, restante);
     };
+    // El evento en la cola sigue la misma cuenta: retenido sin plazo mientras la
+    // app está atrás, y con lo que le quedaba al volver. Si no, salía al
+    // servidor con el aviso todavía a la vista (spec 017, E2).
     const alCambiarVisibilidad = () => {
       if (document.hidden) {
         clearTimeout(temporizador);
         restante = Math.max(0, restante - (Date.now() - desde));
+        void retenerEvento(deshacer.eventoId, "9999-12-31T00:00:00.000Z");
       } else {
-        arrancar();
+        void retenerEvento(deshacer.eventoId, new Date(Date.now() + restante).toISOString()).then(arrancar);
       }
     };
 
@@ -620,7 +636,12 @@ export function PantallaEncomiendas({
   // que uno que se fue.
   useEffect(() => {
     if (!eliminado) return;
-    const temporizador = window.setTimeout(() => setEliminado(null), MS_DESHACER);
+    // Vencida la ventana, si el borrado dejó la ruta sin pendientes el día se
+    // cierra como cuando se marca la última parada (spec 017, E7).
+    const temporizador = window.setTimeout(() => {
+      setEliminado(null);
+      void confirmarRef.current();
+    }, MS_DESHACER);
     return () => clearTimeout(temporizador);
   }, [eliminado]);
 
@@ -837,7 +858,8 @@ export function PantallaEncomiendas({
     if (!deshacer) return;
     const { pedidoId, eventoId } = deshacer;
     setDeshacer(null);
-    await correr(() => dia.deshacer(pedidoId, eventoId));
+    const deshecho = await correr(() => dia.deshacer(pedidoId, eventoId));
+    if (deshecho === false) setError("Ya se había enviado: no se puede deshacer. Si fue un error, avisa a la oficina.");
     // Volver a la parada reabierta como si no hubiera pasado nada: si venía de
     // "contestó", el paso que corresponde es finalizar; si no, llamar.
     setEsperandoResultadoDe(null);
@@ -1208,10 +1230,39 @@ export function PantallaEncomiendas({
           </button>
         ) : (
           // Viene de la guía y su etiqueta no se escaneó: el teléfono está ahí.
-          <button onClick={() => setEscaneando(true)} className={BOTON_PRINCIPAL}>
-            <ScanLine className="h-4 w-4" />
-            Escanear la etiqueta para llamar
-          </button>
+          // Si la etiqueta está dañada o no hay cómo leerla, la parada igual se
+          // tiene que poder cerrar o completar a mano (spec 017, E3): si no,
+          // traba todas las que siguen.
+          <div className="space-y-2">
+            <button onClick={() => setEscaneando(true)} className={BOTON_PRINCIPAL}>
+              <ScanLine className="h-4 w-4" />
+              Escanear la etiqueta para llamar
+            </button>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                onClick={() => setFormPedido(activa.pedido)}
+                className={cn(BOTON_RESULTADO, "border border-separator bg-card text-brand")}
+              >
+                <Pencil className="h-4 w-4 shrink-0" />
+                Teléfono
+              </button>
+              <button
+                disabled={guardando}
+                onClick={onPedidoFinalizado}
+                className={cn(BOTON_RESULTADO, "border border-separator bg-card text-ok")}
+              >
+                <PackageCheck className="h-4 w-4 shrink-0" />
+                Entregado
+              </button>
+              <button
+                disabled={guardando}
+                onClick={() => setDandoResultadoDe(activa.pedido.id)}
+                className={cn(BOTON_RESULTADO, "border border-separator bg-card text-danger")}
+              >
+                No se pudo
+              </button>
+            </div>
+          </div>
         )
       ) : null}
 
@@ -1354,6 +1405,11 @@ export function PantallaEncomiendas({
         <CargarGuia
           fecha={fecha}
           lecturaIA={lecturaIA}
+          hayRuta={dia.ruta != null}
+          onEscanearPaquetes={() => {
+            setCargandoGuia(false);
+            setEscaneando(true);
+          }}
           onCerrar={() => setCargandoGuia(false)}
           onCreados={() => void dia.recargar()}
         />
@@ -1363,6 +1419,7 @@ export function PantallaEncomiendas({
         <EscanearEtiqueta
           fecha={fecha}
           lecturaIA={lecturaIA}
+          avance={avanceCarga(pedidos)}
           onCerrar={() => setEscaneando(false)}
           onCambio={() => void dia.recargar()}
           onAgregarPedido={(of) => {
@@ -1527,6 +1584,7 @@ export function PantallaEncomiendas({
               </div>
             ) : null}
 
+            <ProgresoCarga pedidos={pedidos} onEscanear={() => setEscaneando(true)} />
             <Seccion titulo="Ruta del día">
               <div className="mb-2.5 flex items-center gap-3">
                 <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#ececef]">
@@ -1620,8 +1678,6 @@ export function PantallaEncomiendas({
             </Seccion>
           </>
         ) : null}
-
-        {dia.ruta ? <AvisoSinEtiqueta pedidos={pedidos} /> : null}
 
         {/* Lo que quedó dudoso al armar la ruta, guardado CON la ruta (ver
             Ruta.advertencias). Se muestra en terreno y no solo en la

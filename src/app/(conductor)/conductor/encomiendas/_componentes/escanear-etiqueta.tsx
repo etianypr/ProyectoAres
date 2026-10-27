@@ -29,6 +29,7 @@ const BOTON =
 export function EscanearEtiqueta({
   fecha,
   lecturaIA,
+  avance,
   onCerrar,
   onCambio,
   onAgregarPedido,
@@ -36,6 +37,8 @@ export function EscanearEtiqueta({
   fecha: string;
   /** Con IA, una foto de la etiqueta completa el pedido. */
   lecturaIA: boolean;
+  /** Paquetes de la guía escaneados sobre el total: el contador de la carga. */
+  avance: { escaneados: number; total: number };
   onCerrar: () => void;
   /** Cambió un pedido: la pantalla lo vuelve a leer. */
   onCambio: () => void;
@@ -93,6 +96,11 @@ export function EscanearEtiqueta({
     >
       <div className="flex items-center gap-2 px-4 pb-2">
         <h2 className="min-w-0 flex-1 text-lg font-semibold">Escanear etiqueta</h2>
+        {avance.total > 0 ? (
+          <span className="shrink-0 rounded-full bg-brand-soft px-2.5 py-1 text-sm font-semibold tabular-nums text-brand">
+            {avance.escaneados}/{avance.total}
+          </span>
+        ) : null}
         <button
           type="button"
           onClick={onCerrar}
@@ -172,7 +180,11 @@ export function EscanearEtiqueta({
       <div className="border-t border-divider px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
         <button type="button" onClick={() => void escanear()} disabled={fase.tipo === "escaneando"} className={BOTON}>
           <ScanLine className="h-4 w-4" />
-          {fase.tipo === "resultado" || fase.tipo === "noEsta" ? "Escanear otra" : "Escanear"}
+          {fase.tipo === "resultado" || fase.tipo === "noEsta"
+            ? avance.total > 0 && avance.escaneados >= avance.total
+              ? "Todos escaneados · escanear otra"
+              : "Escanear el siguiente paquete"
+            : "Escanear"}
         </button>
       </div>
     </div>,

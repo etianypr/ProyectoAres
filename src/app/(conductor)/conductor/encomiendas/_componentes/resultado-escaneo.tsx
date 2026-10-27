@@ -65,16 +65,25 @@ export function Resultado({
       const respuesta = await leerImagen("etiqueta", archivo, { ia: lecturaIA });
       if (respuesta.tipo !== "etiqueta") throw new Error("Respuesta inesperada.");
       const { etiqueta } = respuesta;
-      // La OF manda la del código; si la foto dice otra, puede ser otro paquete.
-      setOfDistinta(etiqueta.ofImpresa && etiqueta.ofImpresa !== codigo.of ? etiqueta.ofImpresa : null);
+      // La OF manda la del código. Si la foto dice otra, es la etiqueta de otro
+      // paquete: no se aplica (si no, este se llevaba el nombre y el teléfono de
+      // otra persona; spec 017, E4).
+      if (etiqueta.ofImpresa && etiqueta.ofImpresa !== codigo.of) {
+        setOfDistinta(etiqueta.ofImpresa);
+        return;
+      }
+      setOfDistinta(null);
       const nuevo = await aplicarLecturaEtiqueta(fecha, {
         ...etiqueta,
         of: codigo.of,
+        ofConfirmada: etiqueta.ofImpresa === codigo.of,
         bulto: codigo.bulto ?? etiqueta.bulto,
       });
       if (nuevo) {
         if (!nuevo.pedido.fotoId) await guardarFoto(nuevo.pedido.id, await comprimirFoto(archivo));
-        onCambio((await aplicarLecturaEtiqueta(fecha, { of: codigo.of, bulto: null })) ?? nuevo);
+        const refrescado = await aplicarLecturaEtiqueta(fecha, { of: codigo.of, bulto: null });
+        // El refresco no trae la dirección de la etiqueta: el aviso se conserva (E5).
+        onCambio(refrescado ? { ...refrescado, direccionDistinta: nuevo.direccionDistinta } : nuevo);
       }
     } catch (e) {
       setErrorIA(e instanceof Error ? e.message : "No se pudo leer la foto.");
@@ -116,7 +125,12 @@ export function Resultado({
     }
     setErrorIA(null);
     // El bulto del código manda; escrita a mano la OF, vale el de la etiqueta.
-    const nuevo = await aplicarLecturaEtiqueta(fecha, { ...leido, of: codigo.of, bulto: codigo.bulto ?? leido.bulto });
+    const nuevo = await aplicarLecturaEtiqueta(fecha, {
+      ...leido,
+      of: codigo.of,
+      ofConfirmada: leido.ofImpresa === codigo.of,
+      bulto: codigo.bulto ?? leido.bulto,
+    });
     if (nuevo) onCambio(nuevo);
     setPegando(false);
     setTextoEtiqueta("");
@@ -135,7 +149,7 @@ export function Resultado({
       });
       if (paquete.fotoNueva) await guardarFoto(p.id, paquete.fotoNueva);
       const nuevo = await aplicarLecturaEtiqueta(fecha, { of: codigo.of, bulto: null });
-      if (nuevo) onCambio(nuevo);
+      if (nuevo) onCambio({ ...nuevo, direccionDistinta: r.direccionDistinta });
       setDescribiendo(false);
     } finally {
       setGuardando(false);
@@ -199,7 +213,7 @@ export function Resultado({
       {ofDistinta ? (
         <p className="flex items-start gap-1.5 rounded-xl bg-danger-bg px-3 py-2 text-sm font-medium text-danger">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          La foto dice OF {formatoOf(ofDistinta)}: puede ser otra etiqueta. Revisa que sea este paquete.
+          La foto es de la OF {formatoOf(ofDistinta)}, no de este paquete: no se usó. Saca la foto a la etiqueta de este paquete.
         </p>
       ) : null}
 
@@ -220,6 +234,19 @@ export function Resultado({
         >
           {leyendo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
           {leyendo ? "Leyendo la etiqueta…" : "Foto de la etiqueta"}
+        </button>
+      ) : null}
+      {/* Con los datos ya cargados se puede volver a leer: si la primera lectura
+          salió mal, una foto de ESTA etiqueta la corrige (spec 017, E4). */}
+      {(lecturaIA || esApp()) && !faltanDatos ? (
+        <button
+          type="button"
+          disabled={leyendo}
+          onClick={() => entradaFoto.current?.click()}
+          className="flex w-full items-center justify-center gap-2 py-1 text-sm font-medium text-brand disabled:opacity-60"
+        >
+          {leyendo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+          {leyendo ? "Leyendo la etiqueta…" : "Leer la etiqueta de nuevo"}
         </button>
       ) : null}
       {errorIA ? <p className="text-sm text-danger">{errorIA}</p> : null}

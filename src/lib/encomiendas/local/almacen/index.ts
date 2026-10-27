@@ -72,10 +72,11 @@ export {
   registrarDisponibilidad,
   reiniciarDisponibilidad,
 } from "./disponibilidad";
-export { leerCola, quitarDeCola } from "./cola";
+export { leerCola, quitarDeCola, retenerEvento } from "./cola";
 export {
   aplicarLecturaEtiqueta,
   crearDesdeGuia,
+  avanceCarga,
   sinEtiquetaEscaneada,
   type LecturaParaAplicar,
   type LineaParaCrear,

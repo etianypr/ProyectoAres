@@ -237,8 +237,12 @@ export function PedidoFormLocal({
    *  se puede tocar con el formulario a medio llenar. Escrito dos veces, uno de
    *  los dos se iba a quedar atrás. */
   function loQueFalta(): string | null {
-    if (!campos.nombre.trim()) return "El nombre del destinatario es obligatorio.";
-    if (!campos.telefono.trim()) return "El teléfono es obligatorio.";
+    // Con OF (pedido de la guía), el nombre y el teléfono llegan al escanear la
+    // etiqueta: no se piden para corregir la dirección (terreno 2026-10-27).
+    // Sin OF son lo único que identifica al pedido.
+    const conOf = Boolean(of ?? pedido?.of);
+    if (!conOf && !campos.nombre.trim()) return "El nombre del destinatario es obligatorio.";
+    if (!conOf && !campos.telefono.trim()) return "El teléfono es obligatorio.";
     if (!campos.direccion.trim()) return "La dirección es obligatoria.";
     if (ofEscrita && !of) return "La OF tiene 9 dígitos. Revísala o déjala vacía.";
     return null;
@@ -413,7 +417,10 @@ export function PedidoFormLocal({
           ) : null}
         </Field>
 
-        <Field label="Nombre del destinatario" htmlFor="pl_nombre">
+        <Field
+          label={of || pedido?.of ? "Nombre del destinatario (lo trae la etiqueta)" : "Nombre del destinatario"}
+          htmlFor="pl_nombre"
+        >
           <Input
             id="pl_nombre"
             value={campos.nombre}

@@ -72,6 +72,9 @@ export function crearDesdeGuia(
 export type LecturaParaAplicar = {
   of: string;
   bulto: number | null;
+  /** La etiqueta leída trae impresa la misma OF del código: es de ESTE paquete
+   *  y lo que dice corrige lo leído antes (spec 017, E4). */
+  ofConfirmada?: boolean;
   bultosTotal?: number | null;
   destinatario?: string | null;
   telefono?: string | null;
@@ -97,9 +100,6 @@ const comparable = (t: string) =>
     .replace(/[^\w]/g, "")
     .toUpperCase();
 
-/** Enlaza la etiqueta con su pedido del día por la OF y completa lo que falte.
- *  Lo que el conductor ya escribió no se pisa; la dirección distinta no se
- *  cambia sola (se avisa). null = la OF no está en el día. */
 /** Los pedidos de la guía cuya etiqueta todavía no se escaneó (spec 005, US5):
  *  si no están en el auto, faltan y hay que avisarle a Starken. Solo los que
  *  siguen por visitar; un pedido cargado a mano no tiene etiqueta que esperar. */
@@ -107,6 +107,17 @@ export function sinEtiquetaEscaneada(pedidos: Pedido[]): Pedido[] {
   return pedidos.filter(
     (p) => p.origenCarga.startsWith("guia") && p.bultosEscaneados.length === 0 && p.resultado === "pendiente",
   );
+}
+
+/** Enlaza la etiqueta con su pedido del día por la OF y completa lo que falte.
+ *  Lo ya cargado no se pisa, salvo con una etiqueta de OF confirmada (es la
+ *  fuente); la dirección distinta no se cambia sola (se avisa). null = la OF
+ *  no está en el día. */
+/** Paquetes de la guía escaneados sobre el total de los que siguen por visitar:
+ *  el contador de "cargar el auto" (terreno 2026-10-27). */
+export function avanceCarga(pedidos: Pedido[]): { escaneados: number; total: number } {
+  const deLaGuia = pedidos.filter((p) => p.origenCarga.startsWith("guia") && p.resultado === "pendiente");
+  return { escaneados: deLaGuia.filter((p) => p.bultosEscaneados.length > 0).length, total: deLaGuia.length };
 }
 
 export function aplicarLecturaEtiqueta(fecha: string, lectura: LecturaParaAplicar): Promise<ResultadoEscaneo | null> {
@@ -121,8 +132,8 @@ export function aplicarLecturaEtiqueta(fecha: string, lectura: LecturaParaAplica
         : pedido.bultosEscaneados;
     const actualizado: Pedido = {
       ...pedido,
-      nombre: pedido.nombre || lectura.destinatario || "",
-      telefono: pedido.telefono || lectura.telefono || "",
+      nombre: (lectura.ofConfirmada && lectura.destinatario) || pedido.nombre || lectura.destinatario || "",
+      telefono: (lectura.ofConfirmada && lectura.telefono) || pedido.telefono || lectura.telefono || "",
       bultos: lectura.bultosTotal ?? pedido.bultos,
       bultosEscaneados: escaneados,
       porPagar: lectura.porPagar !== undefined && lectura.porPagar !== null ? lectura.porPagar : pedido.porPagar,

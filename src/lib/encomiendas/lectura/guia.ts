@@ -99,11 +99,17 @@ export function armarGuia(
   for (const cruda of crudas) {
     const of = cruda.of.replace(/\D/g, "");
     const destino = limpiarDestino(cruda.destino);
-    if (porOf.has(of)) {
+    const linea = { of, destino, dudosa: of.length !== LARGO_OF || destino === "" };
+    const antes = porOf.get(of);
+    if (antes) {
       repetidas++;
+      // Donde dos fotos se superponen, una puede traer el destino cortado en el
+      // borde: queda la mejor lectura, no la primera (spec 017, E11).
+      const mejor = (antes.dudosa && !linea.dudosa) || (antes.dudosa === linea.dudosa && linea.destino.length > antes.destino.length);
+      if (mejor) porOf.set(of, linea);
       continue;
     }
-    porOf.set(of, { of, destino, dudosa: of.length !== LARGO_OF || destino === "" });
+    porOf.set(of, linea);
   }
   const lineas = [...porOf.values()];
 

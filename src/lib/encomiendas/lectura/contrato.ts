@@ -14,8 +14,12 @@ export type RespuestaLectura =
 
 export type ErrorLecturaApi = { error: string };
 
-/** Límite de la foto que acepta el servidor (Vercel corta en 4,5 MB). */
+/** Límite de lo que acepta el servidor por consulta, todas las fotos juntas
+ *  (Vercel corta en 4,5 MB). */
 export const BYTES_MAXIMOS_FOTO = 4 * 1024 * 1024;
+
+/** Fotos de la guía que van juntas en una consulta. */
+export const MAX_FOTOS_GUIA = 6;
 
 /** Lado mayor de la foto reducida en el teléfono. La guía tiene letra chica,
  *  pero 2000 px alcanzan (Haiku la reduce a ~1568 igual, y para el modelo fino

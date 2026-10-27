@@ -19,6 +19,15 @@ export function nuevoEvento(
  *  `choferId`: se lee igual, para que lo que quedó sin enviar salga una vez. */
 type EventoGuardado = ActividadPorEnviar & { choferId?: string };
 
+/** Corre la retención de un evento que todavía está en la cola (no hace nada si
+ *  ya salió). La usa el aviso de deshacer: con la app en segundo plano el evento
+ *  se retiene sin plazo y al volver se le da lo que le quedaba (spec 017, E2). */
+export function retenerEvento(id: string, hasta: string): Promise<void> {
+  return escribir([STORES.cola], ({ actualizar }) => {
+    actualizar(STORES.cola, id, (evento) => ({ ...evento, retenidoHasta: hasta }));
+  });
+}
+
 export async function leerCola(): Promise<ActividadPorEnviar[]> {
   const eventos = (await leerTodos(STORES.cola)).map((e: EventoGuardado) => {
     if (e.conductorId || !e.choferId) return e;

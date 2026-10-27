@@ -16,7 +16,8 @@ import { armarGuia, leerGuia, limpiarDestino, type LineaGuia } from "@/lib/encom
 import { formatoOf, ofValida } from "@/lib/encomiendas/paquete";
 import { crearDesdeGuia, fijarCoordenadas } from "@/lib/encomiendas/local/almacen";
 import { ubicarDireccion } from "@/lib/geo/geocoding";
-import { leerImagen, type FuenteLectura } from "@/lib/encomiendas/local/lectura-cliente";
+import { leerFotosGuia, type FuenteLectura } from "@/lib/encomiendas/local/lectura-cliente";
+import { MAX_FOTOS_GUIA } from "@/lib/encomiendas/lectura/contrato";
 import { esApp } from "@/lib/nativo/entorno";
 
 type Paso =
@@ -31,12 +32,17 @@ const BOTON =
 export function CargarGuia({
   fecha,
   lecturaIA,
+  hayRuta,
+  onEscanearPaquetes,
   onCerrar,
   onCreados,
 }: {
   fecha: string;
   /** La IA está encendida: lee la foto si el teléfono no pudo. */
   lecturaIA: boolean;
+  /** Ya hay ruta armada: al terminar se sigue directo a escanear los paquetes. */
+  hayRuta: boolean;
+  onEscanearPaquetes: () => void;
   onCerrar: () => void;
   /** Se crearon pedidos: la pantalla los vuelve a leer. */
   onCreados: () => void;
@@ -46,6 +52,8 @@ export function CargarGuia({
   const [lineas, setLineas] = useState<LineaGuia[]>([]);
   const [avisos, setAvisos] = useState<string[]>([]);
   const [folio, setFolio] = useState<string | null>(null);
+  /** MONTO NETO de la guía (= cantidad de paquetes), de la foto que lo traiga. */
+  const [total, setTotal] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [leyendo, setLeyendo] = useState(false);
   /** Quién leyó las fotos de esta carga (null = texto pegado). */
@@ -63,35 +71,32 @@ export function CargarGuia({
     setLineas(guia.lineas);
     setAvisos(guia.avisos);
     setFolio(guia.folio);
+    setTotal(guia.totalDeclarado);
     setPaso({ tipo: "revisar" });
   }
 
-  /** Una o varias fotos de la guía (la del día suele ser de 3), leídas al mismo
-   *  tiempo: sus líneas se suman a las que ya hay y las repetidas —fotos que se
-   *  superponen— se juntan por OF. Al final se compara con el MONTO NETO. */
+  /** Una o varias fotos de la guía (la del día suele ser de 3), TODAS en una
+   *  sola consulta a la IA (terreno 2026-10-27). Sus líneas se suman a las que
+   *  ya hay y las repetidas se juntan por OF. Al final se compara con el MONTO
+   *  NETO, que se conserva aunque esté en una foto anterior (spec 017, E11). */
   async function leerFotos(archivos: File[]) {
     if (archivos.length === 0) return;
+    if (archivos.length > MAX_FOTOS_GUIA) {
+      setError(`Elige hasta ${MAX_FOTOS_GUIA} fotos de una vez; las demás, con "Agregar otra foto".`);
+      return;
+    }
     setLeyendo(true);
     setError(null);
     try {
-      const leidas = await Promise.allSettled(archivos.map((a) => leerImagen("guia", a, { ia: lecturaIA })));
-      const guias = leidas.flatMap((r) => (r.status === "fulfilled" && r.value.tipo === "guia" ? [r.value] : []));
-      const fallidas = leidas.length - guias.length;
-      if (guias.length === 0) {
-        const motivo = leidas.find((r) => r.status === "rejected");
-        throw motivo?.status === "rejected" && motivo.reason instanceof Error ? motivo.reason : new Error("No se pudo leer la foto.");
-      }
-      const nuevas = guias.flatMap((g) => g.guia.lineas);
-      const total = guias.find((g) => g.guia.totalDeclarado != null)?.guia.totalDeclarado ?? null;
-      const unida = armarGuia([...lineas, ...nuevas], folio ?? guias.find((g) => g.guia.folio)?.guia.folio ?? null, total);
+      const r = await leerFotosGuia(archivos, { ia: lecturaIA });
+      if (r.tipo !== "guia") throw new Error("Respuesta inesperada.");
+      const totalGuia = r.guia.totalDeclarado ?? total;
+      const unida = armarGuia([...lineas, ...r.guia.lineas], folio ?? r.guia.folio, totalGuia);
       setLineas(unida.lineas);
-      setAvisos(
-        fallidas > 0
-          ? [`${fallidas} de ${leidas.length} fotos no se pudieron leer: sácalas de nuevo con "Agregar otra foto".`, ...unida.avisos]
-          : unida.avisos,
-      );
+      setAvisos(unida.avisos);
       setFolio(unida.folio);
-      setFuente((antes) => (antes === "ia" || guias.some((g) => g.fuente === "ia") ? "ia" : guias[0].fuente));
+      setTotal(totalGuia);
+      setFuente((antes) => (antes === "ia" || r.fuente === "ia" ? "ia" : r.fuente));
       setPaso({ tipo: "revisar" });
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo leer la foto.");
@@ -321,7 +326,11 @@ export function CargarGuia({
                 : ""}
               {paso.yaEstaban > 0 ? ` · ${paso.yaEstaban} ya estaban cargados` : ""}.
             </p>
-            <p className="text-sm text-muted">Ahora arma la ruta y escanea cada etiqueta.</p>
+            <p className="text-sm text-muted">
+              {hayRuta
+                ? "Sigue: escanea cada paquete para saber su parada."
+                : "Sigue: arma la ruta del día y después escanea cada paquete para saber su parada."}
+            </p>
           </div>
         ) : null}
       </div>
@@ -339,9 +348,15 @@ export function CargarGuia({
               : `Crear ${lineas.length} ${lineas.length === 1 ? "pedido" : "pedidos"}`}
           </button>
         ) : paso.tipo === "listo" ? (
-          <button type="button" onClick={onCerrar} className={BOTON}>
-            Listo
-          </button>
+          hayRuta ? (
+            <button type="button" onClick={onEscanearPaquetes} className={BOTON}>
+              Escanear los paquetes
+            </button>
+          ) : (
+            <button type="button" onClick={onCerrar} className={BOTON}>
+              Armar la ruta
+            </button>
+          )
         ) : null}
       </div>
     </div>,

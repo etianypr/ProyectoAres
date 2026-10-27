@@ -18,7 +18,7 @@ permitido en `next.config.ts`).
 | Comando | |
 |---|---|
 | `npm run dev` / `build` / `lint` | desarrollo, build, eslint |
-| `npm test` | 615 pruebas sin red ni base (~35 s) |
+| `npm test` | 622 pruebas sin red ni base (~35 s) |
 | `npm run test:base` | esquema de encomiendas contra la base real (solo lectura) |
 | `npm run test:esquema` | esquema completo contra `src/types/db.ts` |
 | `npm run sondear` | mide proveedores de direcciones con direcciones reales de Arica |

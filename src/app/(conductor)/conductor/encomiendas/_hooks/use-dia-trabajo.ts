@@ -110,7 +110,8 @@ export type DiaEnCurso = {
   /** null = se puede cerrar el día. Si no, el motivo, mostrable. */
   motivoNoCerrar: string | null;
   /** Reabre la parada y borra su evento. Solo funciona dentro de la ventana. */
-  deshacer: (pedidoId: string, eventoId: string) => Promise<void>;
+  /** false = ya no se podía (el evento había salido o estaba saliendo). */
+  deshacer: (pedidoId: string, eventoId: string) => Promise<boolean>;
   /** La parada sigue pendiente pero pasa a ser la última: el conductor va a
    *  reintentarla al terminar el resto. */
   dejarParaElFinal: (pedidoId: string) => Promise<void>;
@@ -303,10 +304,12 @@ export function useDiaTrabajo({
 
   const onDeshacer = useCallback(
     async (pedidoId: string, eventoId: string) => {
+      let deshecho = false;
       await unaSolaVez(`deshacer:${eventoId}`, async () => {
-        await deshacerResultado({ fecha, pedidoId }, eventoId);
+        deshecho = await deshacerResultado({ fecha, pedidoId }, eventoId);
         await recargar();
       });
+      return deshecho;
     },
     [fecha, recargar, unaSolaVez],
   );
@@ -410,6 +413,9 @@ export function useDiaTrabajo({
       if (r.cambios.length > 0) {
         const avisos = await replanificarRuta(fecha, r.cambios);
         if (avisos.length > 0) setCambiosRuta((previos) => [...previos, ...avisos]);
+        // Un "Mañana" pudo cerrar la última parada pendiente: el día se cierra
+        // igual que al marcarla a mano (spec 017, E7).
+        await confirmar();
       }
 
       // Los que tocaron "indicar un horario" necesitan el segundo mensaje: la
@@ -442,7 +448,7 @@ export function useDiaTrabajo({
     } finally {
       whatsappEnVueloRef.current = false;
     }
-  }, [fecha, conductorId, recargar]);
+  }, [fecha, conductorId, recargar, confirmar]);
 
   const vistoCambioRuta = useCallback(() => setCambiosRuta((previos) => previos.slice(1)), []);
 

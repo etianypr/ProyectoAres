@@ -227,6 +227,9 @@ export type Escritor = {
   borrar: (store: Store, clave: string) => void;
   /** Vacía el store entero (cierre de sesión, spec 007). */
   vaciar: (store: Store) => void;
+  /** Lee una fila y la reescribe DENTRO de la transacción; si ya no está, no
+   *  hace nada (nunca revive una fila que otro borró). */
+  actualizar: <S extends Store>(store: S, clave: string, cambio: (fila: FilaDe[S]) => FilaDe[S]) => void;
 };
 
 // Escribe en uno o varios stores dentro de UNA transacción: o queda todo, o no
@@ -257,6 +260,13 @@ export async function escribir(
         guardar: (store, valor) => void tx.objectStore(store).put(valor),
         borrar: (store, clave) => void tx.objectStore(store).delete(clave),
         vaciar: (store) => void tx.objectStore(store).clear(),
+        actualizar: (store, clave, cambio) => {
+          const deposito = tx.objectStore(store);
+          const lectura = deposito.get(clave);
+          lectura.onsuccess = () => {
+            if (lectura.result) deposito.put(cambio(lectura.result));
+          };
+        },
       });
     } catch (e) {
       tx.abort();

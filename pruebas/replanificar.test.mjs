@@ -143,3 +143,16 @@ test("el trazado se vuelve a pedir con el orden nuevo; sin red queda el anterior
   assert.equal(avisos.length, 1, "sin red el conductor igual tiene que ver el aviso");
   assert.deepEqual((await leerRuta(HOY)).trazado, [[BASE.lng, BASE.lat]]);
 });
+
+test("la respuesta de OTRO cliente no mueve la parada que se está atendiendo (spec 017, E6)", async (t) => {
+  t.after(reloj.descongelar);
+  aLaHora(10);
+  const [a, b, c, d, e] = await rutaEnCurso();
+  // El conductor está en la puerta de A y E elige el primer bloque: E puede
+  // adelantarse a todos menos a A, que es la que tiene el botón a la vista.
+  await registrarDisponibilidad(e, { tipo: "horario_indicado", bloqueHorarioId: "10-12" }, "wamid.E", CONDUCTOR);
+  await replanificarRuta(HOY, [{ pedidoId: e, tipo: "horario_indicado" }]);
+  const orden = (await leerRuta(HOY)).orden;
+  assert.equal(orden[0], a);
+  assert.deepEqual([...orden].sort(), [a, b, c, d, e].sort());
+});

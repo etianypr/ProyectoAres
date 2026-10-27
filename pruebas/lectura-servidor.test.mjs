@@ -5,7 +5,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-const { leerFoto, lecturaIADisponible, LecturaIlegible } = await import("@/lib/encomiendas/lectura/servidor");
+const { leerFoto, leerFotos, lecturaIADisponible, LecturaIlegible } = await import("@/lib/encomiendas/lectura/servidor");
 
 const FOTO = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]);
 const fetchOriginal = globalThis.fetch;
@@ -143,4 +143,16 @@ test("un rechazo o una respuesta sin forma es foto ilegible", async () => {
   await assert.rejects(() => leerFoto("etiqueta", FOTO, "image/jpeg"), LecturaIlegible);
   instalar(JSON.stringify(ETIQUETA), { stop_reason: "max_tokens" });
   await assert.rejects(() => leerFoto("etiqueta", FOTO, "image/jpeg"), LecturaIlegible);
+});
+
+test("varias fotos de la guía van en UNA consulta, con la instrucción una sola vez", async () => {
+  // Terreno 2026-10-27: las 3 fotos del día juntas; la IA une las filas
+  // repetidas donde las fotos se superponen.
+  instalar(JSON.stringify({ folio: "1000001", totalDeclarado: 3, lineas: [] }));
+  await leerFotos("guia", [1, 2, 3].map(() => ({ datos: FOTO, mediaType: "image/jpeg" })));
+  assert.equal(pedidos.length, 1);
+  const contenido = pedidos[0].cuerpo.messages[0].content;
+  assert.deepEqual(contenido.map((c) => c.type), ["image", "image", "image", "text"]);
+  assert.match(contenido[3].text, /^Son 3 fotos de la MISMA guía/);
+  assert.equal(pedidos[0].cuerpo.max_tokens, 8192);
 });

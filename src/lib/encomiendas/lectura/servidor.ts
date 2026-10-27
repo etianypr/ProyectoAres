@@ -83,19 +83,35 @@ const INSTRUCCIONES: Record<TipoLectura, string> = {
 /** Lee la foto (JPEG ya reducido en el teléfono). Lanza LecturaIlegible si no se
  *  pudo, y deja pasar los errores de la API (red, cuota) para que la ruta los
  *  conteste como 503. */
+type MediaFoto = "image/jpeg" | "image/png" | "image/webp";
+
 export async function leerFoto(
   tipo: TipoLectura,
   foto: Uint8Array,
-  mediaType: "image/jpeg" | "image/png" | "image/webp",
+  mediaType: MediaFoto,
+  opciones: { alta?: boolean } = {},
+): Promise<RespuestaLectura> {
+  return leerFotos(tipo, [{ datos: foto, mediaType }], opciones);
+}
+
+/** Varias fotos de la MISMA guía en una sola consulta (terreno 2026-10-27):
+ *  la instrucción y el formato se mandan una vez y no una por foto, y la IA
+ *  junta las filas repetidas donde las fotos se superponen. Cada imagen cuesta
+ *  lo mismo; lo que se ahorra es lo repetido y las idas y vueltas. */
+export async function leerFotos(
+  tipo: TipoLectura,
+  fotos: { datos: Uint8Array; mediaType: MediaFoto }[],
   { alta = false }: { alta?: boolean } = {},
 ): Promise<RespuestaLectura> {
+  const varias = tipo === "guia" && fotos.length > 1;
   const formato = tipo === "guia" ? zodOutputFormat(GuiaIA) : zodOutputFormat(EtiquetaIA);
   const modelo = modeloPara(tipo, alta);
   let respuesta;
   try {
     respuesta = await cliente().messages.parse({
       model: modelo,
-      max_tokens: 4096,
+      // Una guía de 60 líneas en varias fotos son ~3.000 tokens de salida.
+      max_tokens: varias ? 8192 : 4096,
       // Leer una foto no necesita razonar: sin pensamiento es más rápido y barato.
       thinking: { type: "disabled" },
       // Haiku no acepta `effort` (verificado en la API de modelos): con él, la
@@ -108,8 +124,16 @@ export async function leerFoto(
         {
           role: "user",
           content: [
-            { type: "image", source: { type: "base64", media_type: mediaType, data: Buffer.from(foto).toString("base64") } },
-            { type: "text", text: INSTRUCCIONES[tipo] },
+            ...fotos.map((f) => ({
+              type: "image" as const,
+              source: { type: "base64" as const, media_type: f.mediaType, data: Buffer.from(f.datos).toString("base64") },
+            })),
+            {
+              type: "text",
+              text: varias
+                ? `Son ${fotos.length} fotos de la MISMA guía, en orden, y pueden superponerse: devuelve cada fila una sola vez. ${INSTRUCCIONES[tipo]}`
+                : INSTRUCCIONES[tipo],
+            },
           ],
         },
       ],

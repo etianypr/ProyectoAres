@@ -121,6 +121,10 @@ export function deshacerResultado(
       leerUno(STORES.cola, eventoId),
     ]);
     if (!ruta || !pedido || !enCola) return false;
+    // Vencida la retención el evento ya puede estar subiendo (el envío corre
+    // fuera de esta fila): borrarlo acá y volver a marcar contaría la entrega
+    // dos veces en el servidor (spec 017, E2). Sin retención no hay deshacer.
+    if (!enCola.retenidoHasta || enCola.retenidoHasta <= new Date().toISOString()) return false;
 
     // Si este era el último pedido, marcarlo cerró el día (ver la pantalla
     // del conductor). Al reabrirlo, el día vuelve a estar en curso: sin esto el
