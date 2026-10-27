@@ -72,7 +72,7 @@ export {
   registrarDisponibilidad,
   reiniciarDisponibilidad,
 } from "./disponibilidad";
-export { leerCola, quitarDeCola, retenerEvento } from "./cola";
+export { apartarRechazado, leerCola, leerRechazados, quitarDeCola, retenerEvento } from "./cola";
 export {
   aplicarLecturaEtiqueta,
   crearDesdeGuia,

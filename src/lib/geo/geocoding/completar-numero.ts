@@ -1,6 +1,7 @@
 // Unir las listas de los proveedores y buscar el número escrito en la calle
 // que se quiso decir ("Linderos 3536"; spec 016 con el catálogo de calles).
 
+import { tope } from "@/lib/comun/tope";
 import { callesParecidas } from "./calles";
 import {
   coincidenciaCalle,
@@ -121,7 +122,7 @@ async function puertaEnCalle(
   if (!url) return null;
 
   try {
-    const res = await fetch(url, { signal: senal });
+    const res = await fetch(url, { signal: tope(8_000, senal) });
     if (!res.ok) return null;
     const datos = (await res.json()) as { features?: FeatureV6[] };
     const puertas = (datos.features ?? [])

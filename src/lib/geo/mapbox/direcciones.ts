@@ -13,6 +13,7 @@
 // maniobras y no había voz posible.
 import type { Coordenada, Trazado } from "@/lib/geo/coordenada";
 import { tokenMapbox } from "./token";
+import { tope } from "@/lib/comun/tope";
 
 const DIRECTIONS = "https://api.mapbox.com/directions/v5/mapbox";
 const MATRIX = "https://api.mapbox.com/directions-matrix/v1/mapbox";
@@ -84,7 +85,7 @@ export async function matrizDistancias(puntos: Coordenada[]): Promise<number[][]
   const query = new URLSearchParams({ annotations: "distance", access_token: token });
 
   try {
-    const res = await fetch(`${MATRIX}/driving/${coords}?${query}`);
+    const res = await fetch(`${MATRIX}/driving/${coords}?${query}`, { signal: tope(15_000) });
     if (!res.ok) return null;
     const datos = (await res.json()) as { distances?: (number | null)[][] };
     if (!Array.isArray(datos.distances)) return null;
@@ -132,7 +133,7 @@ export async function obtenerRutaCalles(
   for (const tramo of enTramos(puntosOrdenados, MAX_PUNTOS_POR_CONSULTA)) {
     let ruta: { geometry: { coordinates: Trazado }; distance: number; duration: number };
     try {
-      const res = await fetch(urlDirections(tramo, {}));
+      const res = await fetch(urlDirections(tramo, {}), { signal: tope(15_000) });
       if (!res.ok) return null;
       ruta = (await res.json()).routes?.[0];
     } catch (e) {

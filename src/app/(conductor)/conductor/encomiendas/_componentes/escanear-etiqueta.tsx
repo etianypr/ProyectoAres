@@ -55,7 +55,15 @@ export function EscanearEtiqueta({
         setFase({ tipo: "escribir", error: "Ese código no es de una etiqueta de Starken." });
         return;
       }
-      const r = await aplicarLecturaEtiqueta(fecha, codigo);
+      let r: ResultadoEscaneo | null;
+      try {
+        r = await aplicarLecturaEtiqueta(fecha, codigo);
+      } catch {
+        // Si falla el guardado local, no puede quedar "Abriendo el escáner…"
+        // para siempre (spec 017, E12).
+        setFase({ tipo: "escribir", error: "No se pudo guardar en el teléfono. Intenta de nuevo." });
+        return;
+      }
       if (!r) {
         setFase({ tipo: "noEsta", of: codigo.of });
         return;
@@ -72,7 +80,7 @@ export function EscanearEtiqueta({
       return;
     }
     setFase({ tipo: "escaneando" });
-    const leido = await escanearCodigo();
+    const leido = await escanearCodigo().catch(() => null);
     if (leido) await procesar(leido);
     else setFase({ tipo: "escribir", error: null });
   }, [procesar]);

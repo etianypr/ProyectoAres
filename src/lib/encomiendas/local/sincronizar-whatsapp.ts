@@ -42,6 +42,7 @@ import {
   type PedidoEnvio,
   type RespuestaPendiente,
 } from "@/lib/encomiendas/contrato-whatsapp";
+import { tope } from "@/lib/comun/tope";
 
 // ----------------------------------------------------------------------------
 // Lo que devuelve GET /api/whatsapp/status
@@ -212,6 +213,7 @@ async function pedir(
   let res: Response;
   try {
     res = await fetch(url, {
+      signal: tope(15_000),
       ...opciones,
       headers: { "Content-Type": "application/json", ...(opciones.headers ?? {}) },
       // La sesión va en cookie; sin esto el servidor no sabe quién pregunta.

@@ -21,6 +21,7 @@ import { etiquetaCompleta, leerEtiqueta, type LecturaEtiqueta } from "@/lib/enco
 import { faltanEnLaPrimera, guiaDesdeIA, leerGuia, type GuiaLeida } from "@/lib/encomiendas/lectura/guia";
 import type { ReferenciaPaquete } from "@/lib/encomiendas/paquete";
 import { textoDeFoto } from "@/lib/nativo/telefono";
+import { tope } from "@/lib/comun/tope";
 import { comprimirFoto } from "./foto";
 
 export class ErrorLectura extends Error {
@@ -129,7 +130,7 @@ async function textoEnLaNube(reducida: Blob): Promise<string | null> {
   const datos = new FormData();
   datos.set("imagen", reducida, "foto.jpg");
   try {
-    const res = await fetch("/api/texto", { method: "POST", body: datos });
+    const res = await fetch("/api/texto", { method: "POST", body: datos, signal: tope(15_000) });
     if (res.status === 503) nubeApagada = true;
     if (!res.ok) return null;
     const { texto } = (await res.json()) as { texto?: string };
@@ -164,7 +165,8 @@ async function pedirIA(tipo: TipoLectura, fotos: Blob | Blob[], { revisar = fals
 
   let respuesta: Response;
   try {
-    respuesta = await fetch("/api/lectura", { method: "POST", body: datos });
+    // Varias fotos con el modelo grande tardan ~10 s; releer, otro tanto.
+    respuesta = await fetch("/api/lectura", { method: "POST", body: datos, signal: tope(60_000) });
   } catch {
     throw new ErrorLectura("Sin señal: no se pudo leer la foto. Pega el texto o intenta con señal.", 0);
   }

@@ -83,6 +83,10 @@ export type DiaEnCurso = {
   activa: Parada | null;
   /** Cuántas entregas quedaron guardadas sin llegar al servidor. */
   sinEnviar: number;
+  /** Último fallo del envío (spec 017, E8). */
+  errorEnvio: string | null;
+  /** Registros que el servidor rechazó y quedaron aparte. */
+  rechazados: number;
   enviando: boolean;
   intentar: () => void;
   recargar: () => Promise<void>;
@@ -155,7 +159,13 @@ export function useDiaTrabajo({
   const [fechaCargada, setFechaCargada] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const { pendientes: sinEnviar, enviando, intentar } = useEnvioActividad(true, conductorId, fecha);
+  const {
+    pendientes: sinEnviar,
+    enviando,
+    intentar,
+    error: errorEnvio,
+    rechazados,
+  } = useEnvioActividad(true, conductorId, fecha);
 
   const [errorWhatsapp, setErrorWhatsapp] = useState<string | null>(null);
   const [cambiosRuta, setCambiosRuta] = useState<string[]>([]);
@@ -445,6 +455,9 @@ export function useDiaTrabajo({
       if (r.aplicadas > 0 || r.pedirHorarios.length > 0 || faltantes.length > 0) {
         await recargar();
       }
+    } catch (e) {
+      // Sin esto el rechazo quedaba sin manejar (spec 017, E12).
+      setErrorWhatsapp(e instanceof Error ? e.message : "No se pudo revisar WhatsApp.");
     } finally {
       whatsappEnVueloRef.current = false;
     }
@@ -457,9 +470,8 @@ export function useDiaTrabajo({
   // para enterarse de que un receptor contestó.
   useEffect(() => {
     if (!whatsapp) return;
-    void sincronizarWhatsapp();
-
     const alVolver = () => void sincronizarWhatsapp();
+    const primera = window.setTimeout(alVolver, 0);
     window.addEventListener("online", alVolver);
     document.addEventListener("visibilitychange", alVolver);
     const sondeo = setInterval(alVolver, MS_SONDEO_WHATSAPP);
@@ -468,6 +480,7 @@ export function useDiaTrabajo({
       window.removeEventListener("online", alVolver);
       document.removeEventListener("visibilitychange", alVolver);
       clearInterval(sondeo);
+      clearTimeout(primera);
     };
   }, [sincronizarWhatsapp, whatsapp]);
 
@@ -527,6 +540,8 @@ export function useDiaTrabajo({
     paradas,
     activa,
     sinEnviar,
+    errorEnvio,
+    rechazados,
     enviando,
     intentar,
     recargar,

@@ -170,6 +170,9 @@ export type ActividadPorEnviar = {
    *  enteraría nunca. Acá, en cambio, la próxima apertura lo encuentra vencido y
    *  lo manda. */
   retenidoHasta?: string;
+  /** El servidor lo rechazó mientras los demás pasaban (spec 017, E8): queda
+   *  aparte para no trabar la cola y se muestra para avisarle a la oficina. */
+  rechazado?: string;
 };
 
 /** El aviso de WhatsApp de un pedido: uno por pedido, y su estado dice en qué

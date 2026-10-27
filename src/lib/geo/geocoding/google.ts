@@ -13,6 +13,7 @@
 // La clave (GOOGLE_MAPS_KEY) vive solo en el servidor: el teléfono pregunta por
 // /api/geocodificar, que llama a googleDirecto. Este módulo no lee la clave.
 
+import { tope } from "@/lib/comun/tope";
 import { RECUADRO_ARICA } from "@/lib/geo/coordenada";
 import { esLaCalleEscrita, partirCalleYNumero } from "./consulta";
 import type { SugerenciaDireccion } from "./tipos";
@@ -70,7 +71,7 @@ export async function googleDirecto(consulta: string, clave: string): Promise<Su
     key: clave,
   });
   try {
-    const res = await fetch(`${GOOGLE_GEOCODE}?${params}`);
+    const res = await fetch(`${GOOGLE_GEOCODE}?${params}`, { signal: tope(8_000) });
     if (!res.ok) return [];
     const datos = (await res.json()) as { status?: string; results?: ResultadoGoogle[] };
     if (datos.status !== "OK") return [];
@@ -87,6 +88,7 @@ export async function conGoogle(consulta: string): Promise<SugerenciaDireccion[]
   if (typeof window === "undefined" || !partirCalleYNumero(consulta)) return [];
   try {
     const res = await fetch("/api/geocodificar", {
+      signal: tope(12_000),
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ direccion: consulta }),

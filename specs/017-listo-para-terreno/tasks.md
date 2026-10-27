@@ -21,10 +21,10 @@ description: "Tareas: listo para terreno"
 - [x] T014 E5 se conserva el aviso de dirección distinta tras la foto
 - [x] T015 E6 la respuesta de otro cliente no mueve la parada en curso (`replanificar.ts`)
 - [x] T016 E7 el día se cierra tras un "Mañana" o un borrado
-- [ ] T017 E8 errores de sincronización visibles; evento rechazado aislado
-- [ ] T018 E9 tope de tiempo en todas las consultas
+- [x] T017 E8 errores de sincronización visibles; evento rechazado aislado (solo si los demás pasan; si fallan todos, es sesión o permisos y se informa) — `apartarRechazado`, `leerRechazados`
+- [x] T018 E9 tope de tiempo en todas las consultas (`lib/comun/tope.ts`: 8–15 s; lectura con IA 60 s)
 - [x] T019 E10–E11 fotos de la guía de a una; OF repetida queda la mejor; total de la guía se conserva
-- [ ] T020 E12 promesas sin manejar (escáner, WhatsApp, cerrar sesión sin señal, botón atrás al ubicar)
+- [x] T020 E12 promesas sin manejar (escáner, WhatsApp, cerrar sesión sin señal, botón atrás al ubicar)
 
 ## US2 · Navegación
 

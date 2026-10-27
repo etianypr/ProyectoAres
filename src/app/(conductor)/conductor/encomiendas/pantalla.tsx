@@ -372,6 +372,8 @@ export function PantallaEncomiendas({
   // La vista de formulario abierta dentro de la hoja: "nuevo" o el pedido que se
   // está corrigiendo. null = cerrada.
   const [formPedido, setFormPedido] = useState<"nuevo" | Pedido | null>(null);
+  /** La carga de la guía está ubicando direcciones: no se puede cerrar. */
+  const [guiaOcupada, setGuiaOcupada] = useState(false);
   const [propuesta, setPropuesta] = useState<PropuestaRuta | null>(null);
   const [alturaCerrada, setAlturaCerrada] = useState(140);
   // El cajón de la izquierda y los días que muestra. Los días se leen al abrir,
@@ -689,7 +691,11 @@ export function PantallaEncomiendas({
       if (cierreDia.pendiente) cierreDia.aplazar();
       else if (buscandoOf) setBuscandoOf(false);
       else if (escaneando) setEscaneando(false);
-      else if (cargandoGuia) setCargandoGuia(false);
+      // Mientras se ubican las direcciones la X está deshabilitada; el botón
+      // atrás tampoco la cierra (spec 017, E12).
+      else if (cargandoGuia) {
+        if (!guiaOcupada) setCargandoGuia(false);
+      }
       else if (menuAbierto) setMenuAbierto(false);
       else if (formPedido) setFormPedido(null);
       else if (propuesta) setPropuesta(null);
@@ -1406,6 +1412,7 @@ export function PantallaEncomiendas({
           fecha={fecha}
           lecturaIA={lecturaIA}
           hayRuta={dia.ruta != null}
+          onOcupado={setGuiaOcupada}
           onEscanearPaquetes={() => {
             setCargandoGuia(false);
             setEscaneando(true);
@@ -1819,7 +1826,11 @@ export function PantallaEncomiendas({
                       : `${dia.sinEnviar} registros sin enviar`}
                   </p>
                   <p className="text-xs opacity-90">
-                    Está guardado en tu teléfono. Se envía solo en cuanto haya señal.
+                    {/* Un rechazo del servidor no es "falta señal": se dice lo
+                        que pasó, para que avise a la oficina (spec 017, E8). */}
+                    {dia.errorEnvio && !/fetch|network|red|señal|timeout|abort/i.test(dia.errorEnvio)
+                      ? `El servidor no lo aceptó: ${dia.errorEnvio}. Si sigue, cierra sesión y vuelve a entrar, o avisa a la oficina.`
+                      : "Está guardado en tu teléfono. Se envía solo en cuanto haya señal."}
                   </p>
                 </div>
                 <button
@@ -1830,6 +1841,17 @@ export function PantallaEncomiendas({
                 >
                   {dia.enviando ? "Enviando…" : "Reintentar"}
                 </button>
+              </div>
+            ) : null}
+
+            {dia.rechazados > 0 ? (
+              <div className="flex items-start gap-2.5 rounded-2xl bg-danger-bg px-3.5 py-3 text-sm text-danger">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <p className="min-w-0 flex-1">
+                  {dia.rechazados === 1
+                    ? "1 registro fue rechazado por el servidor y quedó aparte. Avisa a la oficina."
+                    : `${dia.rechazados} registros fueron rechazados por el servidor y quedaron aparte. Avisa a la oficina.`}
+                </p>
               </div>
             ) : null}
           </div>

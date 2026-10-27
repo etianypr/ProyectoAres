@@ -28,6 +28,18 @@ export function retenerEvento(id: string, hasta: string): Promise<void> {
   });
 }
 
+/** Los eventos que el servidor rechazó (ver ActividadPorEnviar.rechazado). */
+export async function leerRechazados(): Promise<ActividadPorEnviar[]> {
+  return (await leerTodos(STORES.cola)).filter((e) => e.rechazado);
+}
+
+/** Aparta un evento que el servidor rechazó, con el motivo. */
+export function apartarRechazado(id: string, motivo: string): Promise<void> {
+  return escribir([STORES.cola], ({ actualizar }) => {
+    actualizar(STORES.cola, id, (evento) => ({ ...evento, rechazado: motivo }));
+  });
+}
+
 export async function leerCola(): Promise<ActividadPorEnviar[]> {
   const eventos = (await leerTodos(STORES.cola)).map((e: EventoGuardado) => {
     if (e.conductorId || !e.choferId) return e;
@@ -41,7 +53,7 @@ export async function leerCola(): Promise<ActividadPorEnviar[]> {
       // deshacer. Se filtra acá, en la única puerta de la cola, para que ni el
       // envío ni el contador de "sin enviar" tengan que saber que existe una
       // ventana de arrepentimiento.
-      .filter((e) => !e.retenidoHasta || e.retenidoHasta <= ahora)
+      .filter((e) => !e.rechazado && (!e.retenidoHasta || e.retenidoHasta <= ahora))
       // Más viejos primero: si algo se cae a mitad de un envío grande, lo que se
       // fue es lo más antiguo y la cola queda coherente.
       .sort((a, b) => a.hora.localeCompare(b.hora))

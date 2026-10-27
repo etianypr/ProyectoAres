@@ -2,6 +2,7 @@
 // tramo desde donde está el conductor hasta la parada activa.
 import type { Coordenada, Trazado } from "@/lib/geo/coordenada";
 import { urlDirections } from "./direcciones";
+import { tope } from "@/lib/comun/tope";
 
 /** Aviso de voz de una maniobra, tal como lo entrega Mapbox. */
 export type AvisoVoz = {
@@ -87,11 +88,13 @@ export async function obtenerNavegacion(
     | { geometry?: { coordinates?: Trazado }; legs?: { steps?: PasoCrudo[] }[] }
     | undefined;
   try {
-    let res = conRumbo ? await fetch(urlDirections([origen, destino], conRumbo)) : null;
+    // Tope de 8 s: con 4G inestable una consulta colgada bloqueaba todo
+    // recálculo hacia ese destino (spec 017, N6).
+    let res = conRumbo ? await fetch(urlDirections([origen, destino], conRumbo), { signal: tope(8_000) }) : null;
     // Si el rumbo dejó a la consulta sin ninguna calzada que cumpla (pasa con
     // un rumbo viejo, o estando dentro de un estacionamiento), se reintenta sin
     // él: mejor una ruta imperfecta que ninguna instrucción en pantalla.
-    if (!res || !res.ok) res = await fetch(urlDirections([origen, destino], comunes));
+    if (!res || !res.ok) res = await fetch(urlDirections([origen, destino], comunes), { signal: tope(8_000) });
     if (!res.ok) return null;
     ruta = (await res.json()).routes?.[0];
   } catch {

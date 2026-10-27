@@ -16,7 +16,16 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { leerCola, leerDiaGuardado, leerResumenDia, leerRuta, quitarDeCola, type ActividadPorEnviar } from "./almacen";
+import {
+  apartarRechazado,
+  leerCola,
+  leerDiaGuardado,
+  leerRechazados,
+  leerResumenDia,
+  leerRuta,
+  quitarDeCola,
+  type ActividadPorEnviar,
+} from "./almacen";
 
 // Un tope por consulta para no armar un cuerpo enorme con una conexión mala:
 // un día completo sin señal son ~60 eventos, así que en la práctica va
@@ -90,11 +99,27 @@ export async function enviarActividadPendiente(): Promise<ResultadoEnvioCola> {
   // ignoreDuplicates hace que PostgREST use "on conflict do nothing": si un
   // evento de este lote ya había llegado en un intento anterior que se cortó
   // antes de poder vaciar la cola, se ignora en silencio en vez de fallar.
-  const { error } = await supabase
-    .from("encomienda_actividad")
-    .upsert(lote.map(aFila), { onConflict: "id", ignoreDuplicates: true });
+  const subir = (eventos: ActividadPorEnviar[]) =>
+    supabase.from("encomienda_actividad").upsert(eventos.map(aFila), { onConflict: "id", ignoreDuplicates: true });
+  const { error } = await subir(lote);
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    // Sin código es la red: se reintenta todo más tarde. Con código, el servidor
+    // rechazó algo y, como el lote es todo o nada, UN evento malo trababa a
+    // todos para siempre (spec 017, E8). Se prueba de a uno: si algunos pasan,
+    // los que no se apartan; si no pasa ninguno, el problema es de todos
+    // (sesión, permisos) y se informa sin apartar nada.
+    if (!error.code || lote.length === 1) throw new Error(error.message);
+    const malos: ActividadPorEnviar[] = [];
+    for (const evento of lote) {
+      const r = await subir([evento]);
+      if (r.error) malos.push(evento);
+      else await quitarDeCola([evento.id]);
+    }
+    if (malos.length === lote.length) throw new Error(error.message);
+    for (const evento of malos) await apartarRechazado(evento.id, error.message);
+    return { enviados: lote.length - malos.length, pendientes: cola.length - lote.length };
+  }
 
   // Recién ahora, con la confirmación del servidor en mano.
   await quitarDeCola(lote.map((e) => e.id));
@@ -109,6 +134,8 @@ export type EstadoEnvio = {
   enviando: boolean;
   /** Último fallo. No es una alarma: la cola reintenta sola. */
   error: string | null;
+  /** Eventos que el servidor rechazó y quedaron aparte: hay que avisar. */
+  rechazados: number;
   /** Fuerza un intento ahora. Hay que llamarlo después de cada marcarResultado /
    *  marcarLlamada para que el evento salga en el momento y no espere al
    *  siguiente reintento. */
@@ -129,6 +156,7 @@ export function useEnvioActividad(
   const [pendientes, setPendientes] = useState(0);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [rechazados, setRechazados] = useState(0);
   // Sin este candado, volver a la app con el reintento periódico ya corriendo
   // mandaría el mismo lote dos veces en paralelo.
   const enVueloRef = useRef(false);
@@ -175,6 +203,7 @@ export function useEnvioActividad(
       } finally {
         enVueloRef.current = false;
         setEnviando(false);
+        void leerRechazados().then((r) => setRechazados(r.length), () => {});
       }
     })();
   }, [conductorId, fecha]);
@@ -195,5 +224,5 @@ export function useEnvioActividad(
     };
   }, [activo, intentar]);
 
-  return { pendientes, enviando, error, intentar };
+  return { pendientes, enviando, error, rechazados, intentar };
 }

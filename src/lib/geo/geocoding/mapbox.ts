@@ -1,6 +1,7 @@
 // Mapbox (geocodificación v6): sugerencias mientras se escribe y la consulta de
 // una dirección completa. Ver la cabecera de ./index.ts.
 
+import { tope } from "@/lib/comun/tope";
 import { tokenMapbox } from "@/lib/geo/mapbox/token";
 import { comoPlusCode } from "./codigo";
 import { calleDeLaConsulta, esLaCalleEscrita, normalizarConsulta } from "./consulta";
@@ -174,7 +175,7 @@ export async function sugerirDirecciones(
   if (!url) return [];
 
   try {
-    const res = await fetch(url, { signal: senal });
+    const res = await fetch(url, { signal: tope(8_000, senal) });
     if (!res.ok) return [];
     const datos = (await res.json()) as { features?: FeatureV6[] };
     const sugerencias = (datos.features ?? []).flatMap((f) => aSugerencia(f, calleDeLaConsulta(q)));
@@ -203,7 +204,7 @@ export async function conMapbox(direccion: string): Promise<SugerenciaDireccion[
   if (!url) return [];
 
   try {
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: tope(8_000) });
     if (!res.ok) return [];
     const datos = (await res.json()) as { features?: FeatureV6[] };
     return (datos.features ?? []).flatMap((f) => aSugerencia(f, calleDeLaConsulta(direccion)));

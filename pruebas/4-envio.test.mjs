@@ -173,3 +173,32 @@ test("un fallo en el lote 2 conserva exactamente lo que no se confirmó", async 
   await assert.rejects(() => enviarActividadPendiente());
   assert.equal((await leerCola()).length, 50, "perdió los 50 que nunca se confirmaron");
 });
+
+// Spec 017, E8: el lote es todo o nada, así que un evento que el servidor
+// rechaza trababa la cola para siempre.
+test("un evento rechazado queda aparte y los demás salen", async () => {
+  await encolar(3);
+  const malo = (await leerCola())[1].id;
+  espia.responder = (filas) =>
+    filas.some((f) => f.id === malo) ? { error: { message: "violates check constraint", code: "23514" } } : { error: null };
+
+  const r = await enviarActividadPendiente();
+  assert.deepEqual([r.enviados, r.pendientes], [2, 0]);
+  assert.deepEqual((await leerCola()).map((e) => e.id), [], "la cola ya no lo intenta");
+  const { leerRechazados } = await import("@/lib/encomiendas/local/almacen");
+  assert.deepEqual((await leerRechazados()).map((e) => e.id), [malo]);
+});
+
+test("si el servidor rechaza todo (sesión vencida), no se aparta nada", async () => {
+  await encolar(2);
+  espia.responder = () => ({ error: { message: "JWT expired", code: "PGRST301" } });
+  await assert.rejects(enviarActividadPendiente(), /JWT expired/);
+  assert.equal((await leerCola()).length, 2);
+});
+
+test("sin señal (error sin código) no se prueba de a uno", async () => {
+  await encolar(2);
+  espia.responder = () => ({ error: { message: "TypeError: Failed to fetch", code: "" } });
+  await assert.rejects(enviarActividadPendiente(), /Failed to fetch/);
+  assert.equal(espia.llamadas.length, 1);
+});

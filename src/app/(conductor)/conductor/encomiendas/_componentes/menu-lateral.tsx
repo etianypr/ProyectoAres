@@ -102,7 +102,14 @@ export function MenuLateral({
       setErrorSalida("No se pudieron borrar los datos del teléfono. Intenta de nuevo.");
       return;
     }
-    await logout();
+    try {
+      await logout();
+    } catch {
+      // Sin señal el cierre de sesión no llega al servidor: que no quede
+      // "Saliendo…" para siempre (spec 017, E12).
+      setSaliendo(false);
+      setErrorSalida("Los datos del teléfono ya se borraron, pero sin señal no se pudo cerrar la sesión. Intenta de nuevo con señal.");
+    }
   }
 
   if (typeof document === "undefined") return null;

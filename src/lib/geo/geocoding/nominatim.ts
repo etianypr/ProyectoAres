@@ -1,6 +1,7 @@
 // OpenStreetMap (Nominatim): nombres de calle y puntos de interés. Ver la
 // cabecera de ./index.ts.
 
+import { tope } from "@/lib/comun/tope";
 import { esPlusCode } from "./codigo";
 import { normalizarConsulta } from "./consulta";
 import { BBOX_ARICA, CANDIDATOS_POR_PROVEEDOR, MIN_CARACTERES, type SugerenciaDireccion } from "./tipos";
@@ -47,7 +48,7 @@ async function pedirNominatim(
   try {
     const res = await fetch(`${NOMINATIM_URL}?${params}`, {
       headers: { "User-Agent": USER_AGENT },
-      signal: senal,
+      signal: tope(10_000, senal),
     });
     if (!res.ok) return null;
     const datos = await res.json();

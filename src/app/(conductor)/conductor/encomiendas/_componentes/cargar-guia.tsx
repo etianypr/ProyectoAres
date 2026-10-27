@@ -8,7 +8,7 @@
 // si no alcanza, con la IA (ver lectura-cliente). Sin foto, el texto se copia de
 // la guía con Google Lens ("Copiar texto") y se pega acá.
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AlertTriangle, Camera, ClipboardPaste, Images, Loader2, Plus, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/comun/utils";
@@ -33,6 +33,7 @@ export function CargarGuia({
   fecha,
   lecturaIA,
   hayRuta,
+  onOcupado,
   onEscanearPaquetes,
   onCerrar,
   onCreados,
@@ -42,6 +43,8 @@ export function CargarGuia({
   lecturaIA: boolean;
   /** Ya hay ruta armada: al terminar se sigue directo a escanear los paquetes. */
   hayRuta: boolean;
+  /** Avisa mientras se ubican las direcciones (no se puede cerrar). */
+  onOcupado?: (ocupado: boolean) => void;
   onEscanearPaquetes: () => void;
   onCerrar: () => void;
   /** Se crearon pedidos: la pantalla los vuelve a leer. */
@@ -65,6 +68,10 @@ export function CargarGuia({
 
   const malas = useMemo(() => lineas.filter((l) => !ofValida(l.of) || !l.destino.trim()).length, [lineas]);
   const ocupado = paso.tipo === "ubicando";
+  useEffect(() => {
+    onOcupado?.(ocupado);
+    return () => onOcupado?.(false);
+  }, [ocupado, onOcupado]);
 
   function leer() {
     const guia = leerGuia(texto);
