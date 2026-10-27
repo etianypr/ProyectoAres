@@ -17,7 +17,8 @@ sequenceDiagram
   C-->>S: tool_use proponer {candidato: "c3", confianza, motivo}
   S-->>T: propuesta
   T->>T: interpretar(): la coordenada es la del candidato c3; confianza ≤ la del candidato
-  T->>T: seAplicaSola? → cambiarDireccion(id, nueva, punto, nota) : sugerencia
+  T->>T: el conductor ve lo que decía, la propuesta y el mapa → Confirmar / Descartar
+  T->>T: Confirmar → aplicarCorreccion: cambiarDireccion(id, nueva, punto, nota)
 ```
 
 ## Estructuras
@@ -27,7 +28,9 @@ CandidatoIA   { id: "c1"…; direccion; detalle; lat; lng; confianza; coincideNu
 MensajeIA     user: texto | tool_result[] · assistant: text | tool_use[]   (≤ 13 mensajes, ≤ 60.000 caracteres)
 ResultadoIA   propuesta { candidato; direccion; confianza: alta|media|baja; motivo }
               | sin_arreglo { motivo } | error { mensaje }
-seAplicaSola  confianza alta, o media con candidato "aproximada" y número que no contradice
+PropuestaCorreccion { pedidoId; nombre; original; direccion; lat; lng; enLaCuadra; segura; motivo }
+esSegura      confianza alta, o media con candidato "aproximada" y número que no contradice
+              (marca la propuesta; "Confirmar las N que coinciden" las confirma juntas)
 ```
 
 ## Decisiones

@@ -61,6 +61,7 @@ import { FilaDeslizable } from "./_componentes/fila-deslizable";
 import { Seccion } from "./_componentes/seccion";
 import {
   avanceCarga,
+  sinEtiquetaEscaneada,
   retenerEvento,
   leerDias,
   leerResumenDia,
@@ -101,6 +102,7 @@ import { TarjetaParada } from "./_componentes/tarjeta-parada";
 import { formatoOf, nombreVisible } from "@/lib/encomiendas/paquete";
 import { CAJA_CARRIL, InstruccionNavegacion } from "./_componentes/instruccion-navegacion";
 import { BotonCorregirIA } from "./_componentes/corregir-ia";
+import { AvisoCargarAuto } from "./_componentes/aviso-cargar-auto";
 import { PedidoFormLocal } from "./_componentes/pedido-form-local";
 import { GenerarRutaLocal } from "./_componentes/generar-ruta-local";
 import { VistaPreviaRuta } from "./_componentes/vista-previa-ruta";
@@ -384,6 +386,8 @@ export function PantallaEncomiendas({
   // Spec 005: cargar el día desde la guía y escanear cada etiqueta.
   const [cargandoGuia, setCargandoGuia] = useState(false);
   const [escaneando, setEscaneando] = useState(false);
+  /** Recién armada la ruta: cuántos paquetes de la guía falta escanear (abre el aviso). */
+  const [pedirCarga, setPedirCarga] = useState<number | null>(null);
   const [ofParaNuevo, setOfParaNuevo] = useState<string | undefined>(undefined);
   const [dias, setDias] = useState<ResumenDia[]>([]);
   // Cuánto ocupan los avisos de arriba. Lo informa la propia pila: cambia con
@@ -692,6 +696,7 @@ export function PantallaEncomiendas({
       if (cierreDia.pendiente) cierreDia.aplazar();
       else if (buscandoOf) setBuscandoOf(false);
       else if (escaneando) setEscaneando(false);
+      else if (pedirCarga != null) setPedirCarga(null);
       // Mientras se ubican las direcciones la X está deshabilitada; el botón
       // atrás tampoco la cierra (spec 017, E12).
       else if (cargandoGuia) {
@@ -891,6 +896,10 @@ export function PantallaEncomiendas({
     await confirmarRutaLocal(propuesta);
     await dia.recargar();
     setPropuesta(null);
+    // Armada la ruta, lo que sigue es cargar el auto: se abre el aviso con el
+    // botón para escanear los paquetes (terreno 2026-10-27).
+    const faltan = sinEtiquetaEscaneada(propuesta.paradas).length;
+    if (faltan > 0) setPedirCarga(faltan);
     // Acá se cumple FR-007: el aviso sale en cuanto el pedido queda ubicado
     // DENTRO de una ruta, no al cargarlo. Antes de eso no hay nada que
     // prometerle al receptor — todavía podía caerse por una dirección que no se
@@ -1433,6 +1442,17 @@ export function PantallaEncomiendas({
         />
       ) : null}
 
+      {pedirCarga != null && !escaneando ? (
+        <AvisoCargarAuto
+          faltan={pedirCarga}
+          onEscanear={() => {
+            setPedirCarga(null);
+            setEscaneando(true);
+          }}
+          onDespues={() => setPedirCarga(null)}
+        />
+      ) : null}
+
       {escaneando ? (
         <EscanearEtiqueta
           fecha={fecha}
@@ -1744,21 +1764,13 @@ export function PantallaEncomiendas({
                     : "Arma la ruta para que entren."}{" "}
                 Desliza uno hacia la izquierda para eliminarlo.
               </p>
-              {/* Spec 018: la IA busca en Mapbox, OSM y Google y corrige las que
-                  puede asegurar; las dudosas quedan como sugerencia. */}
+              {/* Spec 018: la IA busca en Mapbox, OSM y Google y propone; el
+                  conductor confirma cada corrección. */}
               {lecturaIA && sinUbicar > 0 ? (
                 <BotonCorregirIA
                   fecha={fecha}
                   cuantas={sinUbicar}
-                  onCorregidas={(n) => {
-                    void dia.recargar();
-                    if (n > 0) {
-                      setConfirmacion((c) => ({
-                        texto: n === 1 ? "1 dirección corregida con IA" : `${n} direcciones corregidas con IA`,
-                        n: (c?.n ?? 0) + 1,
-                      }));
-                    }
-                  }}
+                  onAplicada={() => void dia.recargar()}
                 />
               ) : null}
               {/* Spec 017, R4: un pedido que llega con la ruta andando entra

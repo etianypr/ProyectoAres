@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 
 const { conversacionValida, MAX_VUELTAS } = await import("@/lib/geo/direccion-ia/contrato");
 const { corregirConIA, interpretar, IANoDisponible } = await import("@/lib/geo/direccion-ia/cliente");
-const { corregirSinUbicar, seAplicaSola } = await import("@/lib/encomiendas/local/corregir-direcciones");
+const { corregirSinUbicar, esSegura, aplicarCorreccion } = await import("@/lib/encomiendas/local/corregir-direcciones");
 const almacen = await import("@/lib/encomiendas/local/almacen");
 const idb = await import("@/lib/encomiendas/local/idb");
 
@@ -137,40 +137,48 @@ async function pedido(direccion, punto = null) {
   );
 }
 
-test("corregirSinUbicar: aplica solo la segura y deja la dudosa como sugerencia", async () => {
+test("corregirSinUbicar: propone y NO cambia nada; el conductor confirma (terreno 2026-10-27)", async () => {
   const segura = await pedido("AV STA MARIA 2150");
   const dudosa = await pedido("PJE 3 CASA 12");
+  const barrio = await pedido("POB LA CHIMBA");
   const yaUbicado = await pedido("Calle Real 1", { lat: -18.47, lng: -70.3 });
   const vistos = [];
   const r = await corregirSinUbicar(HOY, {
     corregir: async (d) => {
       vistos.push(d);
-      return d.startsWith("AV")
-        ? { tipo: "propuesta", candidato: SANTA_MARIA, direccion: "Avenida Santa María 2150", confianza: "alta", motivo: "m" }
-        : { tipo: "propuesta", candidato: { ...SANTA_MARIA, confianza: "baja" }, direccion: "Pasaje 3", confianza: "baja", motivo: "Solo el barrio." };
+      if (d.startsWith("AV")) {
+        return { tipo: "propuesta", candidato: SANTA_MARIA, direccion: "Avenida Santa María 2150", confianza: "alta", motivo: "m" };
+      }
+      if (d.startsWith("PJE")) {
+        return { tipo: "propuesta", candidato: { ...SANTA_MARIA, coincideNumero: false }, direccion: "Pasaje 3 1200", confianza: "media", motivo: "Otro número." };
+      }
+      return { tipo: "propuesta", candidato: { ...SANTA_MARIA, confianza: "baja" }, direccion: "La Chimba", confianza: "baja", motivo: "Solo el barrio." };
     },
   });
-  assert.equal(r.corregidas, 1);
-  assert.equal(r.sugerencias.length, 1);
   assert.ok(!vistos.includes(yaUbicado.direccion), "intentó corregir uno ya ubicado");
+  const porId = Object.fromEntries(r.propuestas.map((p) => [p.pedidoId, p.segura]));
+  assert.deepEqual(porId, { [segura.id]: true, [dudosa.id]: false }, "un barrio no se propone; la dudosa va marcada");
+  assert.equal(r.sinArreglo, 1);
+  // Nada cambió todavía.
+  const antes = await almacen.leerPedidos(HOY);
+  assert.ok(antes.filter((p) => p.id !== yaUbicado.id).every((p) => p.lat == null), "se aplicó algo sin confirmar");
+  void barrio;
 
-  const delDia = await almacen.leerPedidos(HOY);
-  const p1 = delDia.find((p) => p.id === segura.id);
+  // El conductor confirma la segura.
+  await aplicarCorreccion(r.propuestas.find((p) => p.pedidoId === segura.id));
+  const p1 = (await almacen.leerPedidos(HOY)).find((p) => p.id === segura.id);
   assert.equal(p1.direccion, "Avenida Santa María 2150");
   assert.equal(p1.lat, SANTA_MARIA.lat);
-  assert.match(p1.notas, /decía «AV STA MARIA 2150»/);
-  const p2 = delDia.find((p) => p.id === dudosa.id);
-  assert.equal(p2.lat, null, "la dudosa se aplicó sola");
-  assert.equal(p2.direccion, "PJE 3 CASA 12");
+  assert.match(p1.notas, /confirmada; decía «AV STA MARIA 2150»/);
 });
 
-test("seAplicaSola: la puerta, o la cuadra con el número; nunca el barrio", () => {
+test("esSegura: la puerta, o la cuadra con el número; nunca el barrio", () => {
   const p = (confianza, candidato) => ({ tipo: "propuesta", candidato: { ...SANTA_MARIA, ...candidato }, direccion: "d", confianza, motivo: "m" });
-  assert.equal(seAplicaSola(p("alta", {})), true);
-  assert.equal(seAplicaSola(p("media", { confianza: "aproximada", coincideNumero: null })), true);
-  assert.equal(seAplicaSola(p("media", { confianza: "aproximada", coincideNumero: false })), false);
-  assert.equal(seAplicaSola(p("media", { confianza: "exacta", coincideNumero: false })), false);
-  assert.equal(seAplicaSola(p("baja", { confianza: "baja" })), false);
+  assert.equal(esSegura(p("alta", {})), true);
+  assert.equal(esSegura(p("media", { confianza: "aproximada", coincideNumero: null })), true);
+  assert.equal(esSegura(p("media", { confianza: "aproximada", coincideNumero: false })), false);
+  assert.equal(esSegura(p("media", { confianza: "exacta", coincideNumero: false })), false);
+  assert.equal(esSegura(p("baja", { confianza: "baja" })), false);
 });
 
 test("corregirSinUbicar: sin IA en el servidor no sigue con las demás", async () => {

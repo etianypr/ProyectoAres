@@ -1,9 +1,11 @@
 "use client";
 
-// Las líneas leídas de la guía, para revisarlas antes de crear los pedidos: OF y
-// destino editables, y las dudosas marcadas.
+// Las líneas leídas de la guía, para revisarlas antes de crear los pedidos. Cada
+// línea se lee como texto, con un lápiz para editarla al lado del basurero
+// (terreno 2026-10-27); las que tienen un problema se abren ya editables.
 
-import { AlertTriangle, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { AlertTriangle, Check, Pencil, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/comun/utils";
 import type { LineaGuia } from "@/lib/encomiendas/lectura/guia";
 import { formatoOf, ofValida } from "@/lib/encomiendas/paquete";
@@ -26,6 +28,16 @@ export function LineasGuia({
   /** Lo que va entre la lista y "Agregar una línea" (los botones de foto). */
   children?: React.ReactNode;
 }) {
+  /** Las líneas abiertas con el lápiz. */
+  const [abiertas, setAbiertas] = useState<Set<number>>(new Set());
+  const alternar = (i: number) =>
+    setAbiertas((s) => {
+      const nuevo = new Set(s);
+      if (nuevo.has(i)) nuevo.delete(i);
+      else nuevo.add(i);
+      return nuevo;
+    });
+
   return (
     <>
       {avisos.map((a) => (
@@ -41,30 +53,53 @@ export function LineasGuia({
       <ul className="divide-y divide-divider overflow-hidden rounded-2xl bg-card shadow-soft">
         {lineas.map((l, i) => {
           const of = ofValida(l.of);
+          const mala = !of || !l.destino.trim();
+          const editando = mala || abiertas.has(i);
           return (
-            <li key={i} className={cn("flex items-start gap-2 px-3 py-2.5", (!of || !l.destino.trim()) && "bg-warn-bg")}>
-              <div className="min-w-0 flex-1 space-y-1">
-                <input
-                  aria-label="OF"
-                  inputMode="numeric"
-                  value={of ? formatoOf(of) : l.of}
-                  onChange={(e) => onCambiar(i, { of: e.target.value })}
-                  className="w-full bg-transparent text-sm font-semibold tabular-nums outline-none"
-                  placeholder="OF (9 dígitos)"
-                />
-                <input
-                  aria-label="Destino"
-                  value={l.destino}
-                  onChange={(e) => onCambiar(i, { destino: e.target.value })}
-                  className="w-full bg-transparent text-sm text-muted outline-none"
-                  placeholder="Destino"
-                />
-              </div>
+            <li key={i} className={cn("flex items-start gap-1 px-3 py-2.5", mala && "bg-warn-bg")}>
+              {editando ? (
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <input
+                    aria-label="OF"
+                    inputMode="numeric"
+                    value={of ? formatoOf(of) : l.of}
+                    onChange={(e) => onCambiar(i, { of: e.target.value })}
+                    className="w-full rounded-lg border border-separator bg-background px-2 py-1.5 text-sm font-semibold tabular-nums outline-none focus:border-brand"
+                    placeholder="OF (9 dígitos)"
+                  />
+                  <input
+                    aria-label="Destino"
+                    value={l.destino}
+                    onChange={(e) => onCambiar(i, { destino: e.target.value })}
+                    className="w-full rounded-lg border border-separator bg-background px-2 py-1.5 text-sm outline-none focus:border-brand"
+                    placeholder="Destino"
+                  />
+                </div>
+              ) : (
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold tabular-nums">{of ? formatoOf(of) : l.of}</p>
+                  <p className="text-sm text-muted">{l.destino}</p>
+                </div>
+              )}
+              {/* El lápiz al lado del basurero; abierta, se cierra con el visto. */}
+              {!mala ? (
+                <button
+                  type="button"
+                  onClick={() => alternar(i)}
+                  aria-label={editando ? "Listo" : "Editar la línea"}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-brand active:bg-background"
+                >
+                  {editando ? <Check className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
+                </button>
+              ) : null}
               <button
                 type="button"
-                onClick={() => onQuitar(i)}
+                onClick={() => {
+                  setAbiertas(new Set());
+                  onQuitar(i);
+                }}
                 aria-label="Quitar la línea"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted active:bg-background"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted active:bg-background"
               >
                 <Trash2 className="h-4 w-4" />
               </button>

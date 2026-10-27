@@ -1,9 +1,11 @@
 "use client";
 
 // El final de "Cargar la guía": ubicando las direcciones, corrigiendo con IA las
-// que no se ubicaron (spec 018) y el resumen.
+// que no se ubicaron (spec 018), el resumen y las correcciones a confirmar.
 
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import type { PropuestaCorreccion } from "@/lib/encomiendas/local/corregir-direcciones";
+import { ConfirmarCorrecciones } from "./confirmar-correcciones";
 
 export type FinGuia =
   | { tipo: "ubicando"; hechos: number; total: number }
@@ -13,13 +15,20 @@ export type FinGuia =
       creados: number;
       ubicados: number;
       yaEstaban: number;
-      /** Ubicadas por la IA (ya contadas en `ubicados`). */
-      corregidas: number;
-      /** Lo que la IA sugiere y el conductor tiene que confirmar. */
-      sugerencias: string[];
+      /** Lo que la IA propone; el conductor confirma cada una. */
+      propuestas: PropuestaCorreccion[];
     };
 
-export function VistaFinGuia({ paso, hayRuta }: { paso: FinGuia; hayRuta: boolean }) {
+export function VistaFinGuia({
+  paso,
+  hayRuta,
+  onAplicada,
+}: {
+  paso: FinGuia;
+  hayRuta: boolean;
+  /** Se confirmó una corrección: la pantalla vuelve a leer los pedidos. */
+  onAplicada: () => void;
+}) {
   if (paso.tipo !== "listo") {
     const corrigiendo = paso.tipo === "corrigiendo";
     return (
@@ -42,21 +51,10 @@ export function VistaFinGuia({ paso, hayRuta }: { paso: FinGuia; hayRuta: boolea
       </p>
       <p className="text-sm text-muted">
         {paso.ubicados} ubicados en el mapa
-        {paso.corregidas > 0 ? ` (${paso.corregidas} corregidos con IA)` : ""}
-        {faltan > 0 ? ` · ${faltan} por revisar (aparecen como "Sin ubicar" en la lista)` : ""}
+        {faltan > 0 ? ` · ${faltan} sin ubicar (aparecen como "Sin ubicar" en la lista)` : ""}
         {paso.yaEstaban > 0 ? ` · ${paso.yaEstaban} ya estaban cargados` : ""}.
       </p>
-      {paso.sugerencias.length > 0 ? (
-        <div className="space-y-1.5 rounded-2xl bg-brand-soft px-3 py-2.5 text-left text-sm text-brand">
-          <p className="flex items-center gap-1.5 font-semibold">
-            <Sparkles className="h-4 w-4" />
-            La IA sugiere (confírmalas al corregir el pedido):
-          </p>
-          {paso.sugerencias.map((s) => (
-            <p key={s}>{s}</p>
-          ))}
-        </div>
-      ) : null}
+      <ConfirmarCorrecciones propuestas={paso.propuestas} onAplicada={onAplicada} />
       <p className="text-sm text-muted">
         {hayRuta
           ? "Sigue: escanea cada paquete para saber su parada."

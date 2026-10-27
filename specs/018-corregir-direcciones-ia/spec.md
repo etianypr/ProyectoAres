@@ -12,7 +12,7 @@ unas 3 quedan "Sin ubicar" (spec 016) y el conductor las corrige a mano, una por
 | Hoy | Debe |
 |---|---|
 | Al cargar la guía, las que el buscador no ubicó quedan "Sin ubicar" | La IA las intenta corregir con Mapbox, OpenStreetMap, Google y el catálogo de calles de Arica |
-| Corregir es escribir la dirección de nuevo | Se aplica sola la que el buscador de siempre también aceptaría (la puerta, o la cuadra con el número); las dudosas quedan como sugerencia a la vista |
+| Corregir es escribir la dirección de nuevo | La IA propone y el conductor **confirma cada una** viendo lo que decía, lo que propone, por qué y el punto en el mapa; las dudosas van marcadas. Nada se aplica solo (pedido del dueño, 2026-10-27) |
 | — | "Corregir con IA" también en "Pedidos fuera de la ruta", para las de etiquetas o cargadas a mano |
 
 ## Reglas
@@ -22,11 +22,14 @@ unas 3 quedan "Sin ubicar" (spec 016) y el conductor las corrige a mano, una por
 - El texto original queda en las notas del pedido.
 - A Anthropic va solo la dirección y lo que devolvieron los buscadores; sin nombre ni teléfono.
 
-## Pantalla "Cargar la guía" (mismo pedido)
+## Pantalla "Cargar la guía" (mismos pedidos)
 
 Sacar foto y Galería, grandes y al centro; "Pegar el texto de Google Lens" es un botón aparte.
+Cada línea leída se ve como texto con un lápiz (editar) al lado del basurero; las que tienen
+un problema se abren ya editables. Al confirmar la ruta se abre "Ruta lista. Ahora carga el
+auto" con el botón "Escanear los N paquetes".
 
 ## Criterios
 
 - SC-001: en una guía real, la mitad o más de las "Sin ubicar" quedan ubicadas sin tocarlas.
-- SC-002: ninguna corrección aplicada sola cae en otra calle.
+- SC-002: ninguna corrección confirmada cae en otra calle.

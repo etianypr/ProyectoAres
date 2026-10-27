@@ -154,26 +154,17 @@ export function CargarGuia({
         }
       }
       onCreados();
-      // Las que no se ubicaron, con IA (spec 018): solo se aplica sola la
-      // corrección segura; las dudosas quedan como sugerencia.
-      let corregidas = 0;
-      let sugerencias: string[] = [];
-      if (lecturaIA && ubicados < creados.length) {
-        const r = await corregirSinUbicar(fecha, {
-          alAvanzar: (hechos, total) => setPaso({ tipo: "corrigiendo", hechos, total }),
-        });
-        corregidas = r.corregidas;
-        sugerencias = r.sugerencias;
-        onCreados();
-      }
-      setPaso({
-        tipo: "listo",
-        creados: creados.length,
-        ubicados: ubicados + corregidas,
-        yaEstaban,
-        corregidas,
-        sugerencias,
-      });
+      // Las que no se ubicaron, con IA (spec 018): la IA propone y el
+      // conductor confirma cada una (ver confirmar-correcciones.tsx).
+      const propuestas =
+        lecturaIA && ubicados < creados.length
+          ? (
+              await corregirSinUbicar(fecha, {
+                alAvanzar: (hechos, total) => setPaso({ tipo: "corrigiendo", hechos, total }),
+              })
+            ).propuestas
+          : [];
+      setPaso({ tipo: "listo", creados: creados.length, ubicados, yaEstaban, propuestas });
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudieron crear los pedidos.");
       setPaso({ tipo: "revisar" });
@@ -316,7 +307,7 @@ export function CargarGuia({
         ) : null}
 
         {paso.tipo === "ubicando" || paso.tipo === "corrigiendo" || paso.tipo === "listo" ? (
-          <VistaFinGuia paso={paso} hayRuta={hayRuta} />
+          <VistaFinGuia paso={paso} hayRuta={hayRuta} onAplicada={onCreados} />
         ) : null}
       </div>
 

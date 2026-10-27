@@ -8,7 +8,7 @@ Orden de trabajo: `docs/HOJA-DE-RUTA.md`. Comandos en Claude Code: `/speckit-spe
 | Spec | Qué | Estado | Tareas | Abierto |
 |---|---|---|---|---|
 | [015](015-app-android/spec.md) app Android (APK) | llamar con un toque y resultado automático, abrir sin señal, pantalla encendida, escáner | en curso | 27/30 | probar llamadas con chip (T019) |
-| [018](018-corregir-direcciones-ia/spec.md) corregir direcciones con IA | las "Sin ubicar" se corrigen con Mapbox, OSM, Google y el catálogo de calles | hecha (falta día real) | 7/8 | probar con una guía real |
+| [018](018-corregir-direcciones-ia/spec.md) corregir direcciones con IA | las "Sin ubicar" se corrigen con Mapbox, OSM, Google y el catálogo de calles | hecha (falta día real) | 9/10 | probar con una guía real |
 | [017](017-listo-para-terreno/spec.md) listo para terreno | errores del flujo, navegación fluida, rutas por calle y con horarios | en curso | 25/27 | prueba en terreno (T051) |
 | [016](016-ubicar-direcciones/spec.md) ubicar direcciones | tipeo de la guía (ceros, deptos, nombres incompletos o con una letra cambiada) y calles cortas sin numerar | en curso (Google conectado) | 11/13 | clave de Google y prueba de un día real |
 | [002](002-reestructuracion-codigo/spec.md) reestructuración | `lib/` por dominio, archivos chicos, nombres del glosario | en curso (US1 y renombrado a conductor hechos) | 34/51 | tablas `encomienda_*` al glosario (T049) |
