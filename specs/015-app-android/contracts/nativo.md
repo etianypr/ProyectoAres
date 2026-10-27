@@ -14,6 +14,7 @@ comportamiento actual.
 | `pantallaEncendida(on): Promise<void>` | `Telefono.pantallaEncendida` | nada (en el navegador lo hace `use-pantalla-encendida.ts` con Screen Wake Lock) |
 | `textoDeFoto(foto: Blob): Promise<string \| null>` | `Telefono.leerTexto` (ML Kit, modelo latino dentro de la APK; sin red) | `null` (la 005 sigue con la IA o el texto pegado) |
 | `escanearCodigo(): Promise<string \| null>` | ML Kit `scan()` (Code 128, ITF); instala el módulo de Google si falta | `null` (la 005 ofrece escribirlo o suma un lector web) |
+| `hablarNativo(texto, urgente): Promise<boolean>` · `callarNativo()` · `hayVozNativa()` | `Telefono.hablar` / `callar` (TextToSpeech de Android; spec 017) | `false`: la pantalla usa `speechSynthesis` |
 | `resultadoDeLlamada(entradas, desdeMs)` | pura: ver data-model (el plugin ya filtró por número) | pura |
 
 ## Plugin `Telefono` (Java, `android/`)
@@ -24,6 +25,8 @@ comportamiento actual.
 | `llamadasDesde` | `{ numero: string, desdeMs: number }` | `{ llamadas: { duracionS: number, tipo: "saliente" \| "entrante" \| "perdida" \| "otra", fechaMs: number }[] }` (solo ese número, máx. 5, más recientes primero) | `READ_CALL_LOG` |
 | `pantallaEncendida` | `{ encendida: boolean }` | `{}` | — |
 | `leerTexto` | `{ imagen: string }` (JPEG en base64) | `{ texto: string }` (renglones en orden de lectura) | — |
+| `hablar` | `{ texto: string, urgente: boolean }` | `{}`; `urgente` corta lo que suena, si no se encola; baja la música mientras habla. Error `"sin_voz"` sin motor de voz en español | — |
+| `callar` | — | `{}` | — |
 | `checkPermissions` | — | `{ llamadas, registro, ubicacion }` (`granted` · `denied` · `prompt`); `ubicacion` = `ACCESS_FINE_LOCATION`, solo para el diagnóstico (el WebView no trae `navigator.permissions`) | — |
 
 - El plugin filtra por número en el teléfono y **no devuelve otros números** del registro.

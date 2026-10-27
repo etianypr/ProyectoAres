@@ -9,7 +9,7 @@ Fuente canónica de límites, datos y carpetas (constitución VI). Tipos y módu
 flowchart LR
   subgraph TEL["Teléfono · APK Android o navegador · /conductor"]
     UI["pantalla.tsx + hooks"] --> LOCAL["lib/encomiendas/local"] --> IDB[("IndexedDB<br/>pedidos · rutas · cola · dias · fotos")]
-    UI --> NAT["lib/nativo"] --> PLUG["android/ · plugin Telefono<br/>llamar · registro de llamadas · pantalla<br/>texto de fotos (ML Kit) · escáner de Google"]
+    UI --> NAT["lib/nativo"] --> PLUG["android/ · plugin Telefono<br/>llamar · registro de llamadas · pantalla<br/>texto de fotos (ML Kit) · voz de manejo · escáner de Google"]
     SW["sw.js · caché de /conductor"]
   end
   subgraph EXT["Proveedores"]
@@ -58,7 +58,9 @@ de OpenStreetMap con `npm run calles`; Overpass solo recibe el recuadro). Flujo:
 `…vercel.app/conductor`): cada deploy le llega solo. Lo nativo está en `android/` (plugin propio
 `Telefono` en Java y el escáner de Google, ML Kit) y la web lo usa solo a través de
 `src/lib/nativo/`, que fuera de la APK cae a lo de la web (`tel:`, preguntar "¿Contestó?",
-Screen Wake Lock). `public/sw.js` guarda páginas y estáticos de `/conductor` (red primero, caché
+Screen Wake Lock, `speechSynthesis`). La voz de las indicaciones en la APK es la de Android
+(TextToSpeech, baja la música mientras habla): el WebView no trae una síntesis que suene (spec 017).
+`public/sw.js` guarda páginas y estáticos de `/conductor` (red primero, caché
 sin señal) para abrir la ruta en modo avión; sin nada guardado se ve
 `capacitor/www/sin-senal.html`. Reinstalar hace falta solo si cambia `android/`; entonces
 `APK_VERSION_MINIMA` y `APK_URL` (Vercel) hacen que la app lo avise.
@@ -176,7 +178,7 @@ src/
 │   ├── encomiendas/              catalogos · estados · pago · periodos · config · paquete · contrato-whatsapp · lectura/ (guía, etiqueta, código de barras)
 │   │   └── local/                idb · almacen/ (lecturas, pedidos, ruta, terreno…) · generar-ruta/ (partida, ubicar-pedidos, estrategias) · planificar · replanificar · enviar · sincronizar-whatsapp
 │   ├── geo/                      coordenada · trazado · plus-code · marcar · openrouteservice · geocoding/ (consulta · calles · calles-arica generado · mapbox · nominatim · codigo · google · completar-numero · ubicar)
-│   │   └── mapbox/               token · direcciones · navegacion · mapa-estatico
+│   │   └── mapbox/               token · direcciones · navegacion · recorrido (paso en curso, lo que falta) · mapa-estatico
 │   ├── rutas/orden-paradas/      exacto · construccion · mejora · perturbacion
 │   ├── whatsapp/                 meta · correlacion
 │   ├── conductores/              vencimientos

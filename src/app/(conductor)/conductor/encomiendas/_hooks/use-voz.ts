@@ -12,9 +12,13 @@
 // dos o tres anticipaciones cada uno. Así que cuando la voz no suena, el
 // problema NO es que falten los textos — es el sintetizador del teléfono. Los
 // tres motivos por los que se queda callado están tratados abajo.
+//
+// En la APK habla Android (spec 017, N1): el WebView no trae una síntesis de voz
+// que suene, y la de Android además baja la música en vez de pisarla.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { PasoNavegacion } from "@/lib/geo/mapbox/navegacion";
+import { callarNativo, hablarNativo, hayVozNativa } from "@/lib/nativo/telefono";
+import type { Navegacion } from "./use-navegacion";
 import { elegirVoz } from "./voz";
 
 const CLAVE_PREFERENCIA = "pucarani-voz-navegacion";
@@ -70,18 +74,27 @@ function desbloquearConPrimerToque(): () => void {
 // ----------------------------------------------------------------------------
 // 3. Decir el texto
 // ----------------------------------------------------------------------------
-function hablar(texto: string) {
+/** `urgente` = el aviso del giro que viene ya: corta lo que esté sonando. Los
+ *  demás se encolan, para que el primer aviso del tramo siguiente no corte
+ *  "gire a la derecha" a la mitad (spec 017, N3). */
+function hablar(texto: string, urgente: boolean) {
+  void hablarNativo(texto, urgente).then((dicho) => {
+    if (!dicho) hablarEnNavegador(texto, urgente);
+  });
+}
+
+function hablarEnNavegador(texto: string, urgente: boolean) {
   if (!haySintesis()) return;
   const sintetizador = window.speechSynthesis;
 
-  // Una indicación nueva reemplaza a la anterior: si el conductor llegó al giro
-  // mientras todavía sonaba "en 300 metros", lo que importa es lo de ahora.
+  // El giro de ahora reemplaza a lo que esté sonando: si el conductor llegó a la
+  // esquina mientras todavía sonaba "en 300 metros", lo que importa es lo de ahora.
   //
   // Solo si hay algo sonando: un cancel() con la cola vacía deja a WebKit
   // trabado y el speak() que viene justo después se pierde sin avisar. Como la
   // mayoría de los avisos llegan con el sintetizador en silencio, ese cancel de
   // más se comía justamente los que importan.
-  if (sintetizador.speaking || sintetizador.pending) sintetizador.cancel();
+  if (urgente && (sintetizador.speaking || sintetizador.pending)) sintetizador.cancel();
 
   const aviso = new SpeechSynthesisUtterance(texto);
   const voz = vozDelSistema();
@@ -112,18 +125,26 @@ export type Voz = {
   disponible: boolean;
 };
 
+/** Al recalcular, el primer aviso del tramo nuevo suele ser el mismo que se
+ *  acaba de decir ("Siga por Santa María"): dentro de este plazo no se repite. */
+const MS_SIN_REPETIR_AL_RECALCULAR = 20_000;
+
+/** Un aviso a menos de esto de la maniobra es el del giro (ver hablar). */
+const METROS_AVISO_DEL_GIRO = 200;
+
 // Dice el aviso que corresponda según lo que falta para la maniobra. Mapbox
 // entrega varios por maniobra (por ejemplo a 2 km, a 300 m y justo al llegar) y
 // acá se elige el más cercano de los que ya se alcanzaron, marcando los más
 // lejanos como dichos para no decir "en 300 metros" cuando ya faltan 50.
 export function useVozNavegacion(
   activo: boolean,
-  paso: PasoNavegacion | null,
-  metrosAManiobra: number | null,
+  { paso, metrosAManiobra, tramoId, indicePaso }: Pick<Navegacion, "paso" | "metrosAManiobra" | "tramoId" | "indicePaso">,
 ): Voz {
   const [activa, setActiva] = useState(leerPreferencia);
-  const dichosRef = useRef<Set<string>>(new Set());
-  const disponible = haySintesis();
+  /** Avisos dichos en el tramo en curso, por maniobra (ver la clave abajo). */
+  const dichosRef = useRef<{ tramoId: number | null; claves: Set<string> }>({ tramoId: null, claves: new Set() });
+  const ultimoRef = useRef<{ texto: string; en: number } | null>(null);
+  const disponible = hayVozNativa() || haySintesis();
 
   // La lista de voces llega ASÍNCRONA en Chrome: la primera llamada a
   // getVoices() devuelve [] y recién después se dispara "voiceschanged". Pedirla
@@ -151,19 +172,34 @@ export function useVozNavegacion(
   useEffect(() => {
     if (!activo || !activa || !paso || metrosAManiobra == null) return;
 
+    // La memoria es POR TRAMO: antes era una sola para todo el día y el mismo
+    // giro, a la vuelta por la misma esquina horas después, ya no se decía.
+    const dichos = dichosRef.current;
+    const tramoNuevo = dichos.tramoId !== tramoId;
+    if (tramoNuevo) {
+      dichos.tramoId = tramoId;
+      dichos.claves.clear();
+    }
+
     // avisos viene del más lejano al más cercano (ver obtenerNavegacion).
     const alcanzados = paso.avisos.filter((a) => metrosAManiobra <= a.aMetros);
     if (alcanzados.length === 0) return;
 
     const aDecir = alcanzados[alcanzados.length - 1];
-    // La instrucción entra en la clave para que el mismo texto en una maniobra
-    // distinta sí se diga (dos giros seguidos a la derecha en la misma calle).
-    const clave = `${paso.instruccion}|${aDecir.texto}`;
-    if (dichosRef.current.has(clave)) return;
+    // El número de maniobra entra en la clave para que el mismo texto en una
+    // maniobra distinta sí se diga (dos giros seguidos a la derecha).
+    const clave = (texto: string) => `${indicePaso}|${texto}`;
+    if (dichos.claves.has(clave(aDecir.texto))) return;
+    for (const a of alcanzados) dichos.claves.add(clave(a.texto));
 
-    for (const a of alcanzados) dichosRef.current.add(`${paso.instruccion}|${a.texto}`);
-    hablar(aDecir.texto);
-  }, [activo, activa, paso, metrosAManiobra]);
+    const ultimo = ultimoRef.current;
+    if (tramoNuevo && ultimo?.texto === aDecir.texto && Date.now() - ultimo.en < MS_SIN_REPETIR_AL_RECALCULAR) return;
+    ultimoRef.current = { texto: aDecir.texto, en: Date.now() };
+    // El último aviso de la maniobra, ya encima de ella, es el del giro: ese no
+    // espera a nadie. Un aviso lejano ("siga 1 km") se encola aunque sea el único.
+    const delGiro = aDecir === paso.avisos[paso.avisos.length - 1] && aDecir.aMetros <= METROS_AVISO_DEL_GIRO;
+    hablar(aDecir.texto, delGiro);
+  }, [activo, activa, paso, metrosAManiobra, tramoId, indicePaso]);
 
   const alternar = useCallback(() => {
     const ahora = !activa;
@@ -174,6 +210,7 @@ export function useVozNavegacion(
     if (!ahora) {
       // Al apagar se corta lo que esté sonando; si no, el conductor aprieta el
       // botón y la frase sigue hasta el final.
+      void callarNativo();
       if (haySintesis()) window.speechSynthesis.cancel();
       return;
     }
@@ -186,7 +223,7 @@ export function useVozNavegacion(
     //  · Ocurre DENTRO de un toque suyo, que es lo único que desbloquea el
     //    sintetizador en iOS.
     desbloquear();
-    hablar("Indicaciones por voz activadas.");
+    hablar("Indicaciones por voz activadas.", true);
   }, [activa]);
 
   return { activa, alternar, disponible };

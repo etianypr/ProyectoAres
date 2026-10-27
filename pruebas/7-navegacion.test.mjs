@@ -4,7 +4,8 @@
 // capturado de la API de Mapbox: 9 maniobras, 3,6 km) y se comprueba que las
 // dos reglas que reemplazan a esas consultas funcionan sobre datos de verdad:
 //
-//   · avanzar de maniobra cuando faltan <= 25 m para ella
+//   · avanzar de maniobra al doblar la esquina (spec 017, N2: antes eran 25 m
+//     ANTES de ella, y el cartel cambiaba justo cuando había que mirarlo)
 //   · detectar que el conductor se salió del camino a más de 60 m del trazado
 //
 // Los umbrales solo se pueden justificar contra geometría real: con vértices
@@ -15,13 +16,13 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { ajustarATrazado, distanciaAPolilinea, metrosRestantes } from "@/lib/geo/trazado";
 import { distanciaMetros } from "@/lib/geo/coordenada";
+import { pasoEnCurso, restanteDelTramo } from "@/lib/geo/mapbox/recorrido";
 
 const tramo = JSON.parse(
   readFileSync(new URL("./fixtures/tramo-arica.json", import.meta.url), "utf8"),
 );
 
-// Los mismos de use-navegacion.ts.
-const UMBRAL_MANIOBRA_M = 25;
+// El mismo de use-navegacion.ts.
 const UMBRAL_FUERA_DE_RUTA_M = 60;
 
 const aCoord = ([lng, lat]) => ({ lat, lng });
@@ -43,17 +44,8 @@ function recorrer(trazado, cadaMetros = 10) {
   return puntos;
 }
 
-/** El avance de paso tal cual lo hace el hook durante el render. */
-function avanzar(indice, posicion) {
-  let i = indice;
-  while (
-    i < tramo.pasos.length - 1 &&
-    metrosRestantes(posicion, tramo.pasos[i].trazado) <= UMBRAL_MANIOBRA_M
-  ) {
-    i++;
-  }
-  return i;
-}
+/** El avance de paso que usa el hook durante el render. */
+const avanzar = (indice, posicion) => pasoEnCurso(posicion, tramo.pasos, indice);
 
 test("el fixture es un tramo real y completo", () => {
   assert.equal(tramo.pasos.length, 9);
@@ -115,6 +107,66 @@ test("dos maniobras casi juntas se saltan en una sola lectura de GPS", () => {
     indice = avanzar(indice, posicion);
   }
   assert.equal(indice, tramo.pasos.length - 1, "con lecturas cada 120 m se perdió el avance");
+});
+
+// ------------------------------------------ el cartel cambia en la esquina
+test("el cartel NO pasa a la maniobra siguiente antes de llegar a la esquina (N2)", () => {
+  // A 20 m de cada esquina el cartel tiene que seguir mostrando ESA maniobra:
+  // es cuando el conductor lo mira para saber hacia dónde doblar.
+  for (let i = 0; i < tramo.pasos.length - 1; i++) {
+    const trazado = tramo.pasos[i].trazado;
+    const puntos = recorrer(trazado, 2);
+    const antes = puntos.find((p) => metrosRestantes(p, trazado) <= 20);
+    if (!antes || metrosRestantes(antes, trazado) < 15) continue; // paso más corto que eso
+    assert.equal(avanzar(i, antes), i, `en el paso ${i} el cartel cambió 20 m antes de la esquina`);
+  }
+});
+
+test("pasada la esquina, el cartel ya muestra la maniobra siguiente", () => {
+  for (let i = 0; i < tramo.pasos.length - 1; i++) {
+    const siguiente = tramo.pasos[i + 1].trazado;
+    const puntos = recorrer(siguiente, 2);
+    // 10 m adentro de la calle nueva.
+    const dentro = puntos.find((p) => distanciaMetros(p, aCoord(siguiente[0])) >= 10);
+    if (!dentro) continue;
+    assert.ok(avanzar(i, dentro) >= i + 1, `en el paso ${i} el cartel no avanzó tras la esquina`);
+  }
+});
+
+test("sin lectura en la esquina, el cartel se pone al día sobre la calle nueva (N11)", () => {
+  // La señal se cortó justo al doblar: la primera lectura llega 60 m más allá,
+  // ya sobre el paso siguiente. El cartel no puede quedarse en el giro hecho.
+  const i = 2;
+  const siguiente = tramo.pasos[i + 1].trazado;
+  const lejos = recorrer(siguiente, 5).find((p) => distanciaMetros(p, aCoord(siguiente[0])) >= 60);
+  assert.ok(lejos, "el paso siguiente es más corto que 60 m");
+  assert.ok(avanzar(i, lejos) >= i + 1);
+});
+
+test("restanteDelTramo: los metros a la parada bajan de a poco hasta cero", () => {
+  // El fixture no trae tiempos: 10 m/s en cada paso.
+  const pasos = tramo.pasos.map((p) => ({ ...p, duracionS: p.distanciaM / 10 }));
+  const largo = pasos.reduce((a, p) => a + p.distanciaM, 0);
+  let indice = 0;
+  let anterior = Infinity;
+  let primero = null;
+  for (const posicion of recorrer(tramo.trazado, 10)) {
+    indice = pasoEnCurso(posicion, pasos, indice);
+    const r = restanteDelTramo(posicion, pasos, indice);
+    primero ??= r;
+    assert.ok(r.metrosAParada <= anterior + 2, `subió: ${anterior} → ${r.metrosAParada}`);
+    // Con 10 m/s parejos, los segundos son la décima parte de los metros.
+    assert.ok(Math.abs(r.segundosAParada - r.metrosAParada / 10) <= 2);
+    anterior = r.metrosAParada;
+  }
+  assert.ok(Math.abs(primero.metrosAParada - largo) < largo * 0.05, "al salir falta todo el tramo");
+  assert.ok(anterior < 30, `al llegar quedan ${anterior} m`);
+});
+
+test("restanteDelTramo: sin tiempos de Mapbox no inventa nada", () => {
+  const r = restanteDelTramo(aCoord(tramo.trazado[0]), tramo.pasos, 0);
+  assert.equal(r.segundosAParada, 0);
+  assert.equal(restanteDelTramo(aCoord(tramo.trazado[0]), [], 0), null);
 });
 
 // -------------------------------------------------- salirse del camino

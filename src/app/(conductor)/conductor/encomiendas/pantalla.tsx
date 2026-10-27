@@ -477,7 +477,7 @@ export function PantallaEncomiendas({
 
   // Con una propuesta a la vista la voz se calla: el conductor está parado
   // decidiendo si la usa, y lo que sonaría son indicaciones de la ruta anterior.
-  const voz = useVozNavegacion(!propuesta, navegacion.paso, navegacion.metrosAManiobra);
+  const voz = useVozNavegacion(!propuesta, navegacion);
 
   // La pantalla apagada suspende el GPS: sin esto el punto se congela a los
   // treinta segundos de no tocar nada, que es lo que pasa manejando.
@@ -1187,7 +1187,15 @@ export function PantallaEncomiendas({
       <TarjetaParada
         secuencia={activa.secuencia}
         pedido={activa.pedido}
-        metrosAManiobra={navegacion.metrosAManiobra}
+        faltan={
+          navegacion.metrosAParada != null
+            ? {
+                metros: navegacion.metrosAParada,
+                segundos: navegacion.segundosAParada,
+                llegada: navegacion.llegada,
+              }
+            : null
+        }
         estado={
           /* Qué contestó ESTE RECEPTOR. Es lo primero que el conductor necesita al
               llegar: saber si lo están esperando cambia lo que hace en la puerta.

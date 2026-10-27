@@ -8,7 +8,7 @@
 import { useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/comun/utils";
-import { formatCLP, formatDistancia } from "@/lib/comun/format";
+import { formatCLP, formatDistancia, formatDuracion, formatTime } from "@/lib/comun/format";
 import { formatoOf, textoReferencia } from "@/lib/encomiendas/paquete";
 import type { Pedido } from "@/lib/encomiendas/local/almacen";
 import { useFotoGuardada } from "../_hooks/use-foto-paquete";
@@ -16,12 +16,15 @@ import { useFotoGuardada } from "../_hooks/use-foto-paquete";
 export function TarjetaParada({
   secuencia,
   pedido,
-  metrosAManiobra,
+  faltan,
   estado,
 }: {
   secuencia: number;
   pedido: Pedido;
-  metrosAManiobra: number | null;
+  /** Lo que falta hasta ESTA parada por calle (spec 017, N4). Antes acá iban
+   *  los metros a la próxima maniobra, que ya están en el cartel de arriba y
+   *  no dicen cuánto queda para entregar. */
+  faltan: { metros: number; segundos: number | null; llegada: number | null } | null;
   /** El renglón de lo que contestó el receptor (lo arma la pantalla). */
   estado: ReactNode;
 }) {
@@ -70,10 +73,18 @@ export function TarjetaParada({
         {estado}
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1.5">
-        {metrosAManiobra != null && metrosAManiobra > 0 ? (
-          <span className="rounded-full bg-brand-soft px-2.5 py-1 text-xs font-semibold tabular-nums text-brand">
-            {formatDistancia(metrosAManiobra)}
-          </span>
+        {faltan && faltan.metros > 0 ? (
+          <div className="flex flex-col items-end">
+            <span className="rounded-full bg-brand-soft px-2.5 py-1 text-xs font-semibold tabular-nums text-brand">
+              {formatDistancia(faltan.metros)}
+            </span>
+            {faltan.segundos != null && faltan.segundos > 0 ? (
+              <span className="mt-0.5 text-[11px] tabular-nums text-muted">
+                {formatDuracion(faltan.segundos)}
+                {faltan.llegada != null ? ` · ${formatTime(new Date(faltan.llegada))}` : ""}
+              </span>
+            ) : null}
+          </div>
         ) : null}
         {urlFoto ? (
           <button type="button" onClick={() => setAmpliada(true)} aria-label="Ver la foto del paquete">

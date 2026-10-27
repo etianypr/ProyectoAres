@@ -17,7 +17,7 @@
 import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { CENTRO_ARICA, aLngLat, type Trazado } from "@/lib/geo/coordenada";
+import { CENTRO_ARICA, aLngLat, distanciaMetros, type PuntoLngLat, type Trazado } from "@/lib/geo/coordenada";
 import { tokenMapbox } from "@/lib/geo/mapbox/token";
 
 export type PuntoMapa = {
@@ -35,6 +35,9 @@ export type Ubicacion = {
   /** Rumbo en grados (0-360, 0 = norte), o null si todavía no se conoce
    *  (recién montado, o el conductor está detenido y nunca se movió). */
   heading: number | null;
+  /** Cuándo se midió ese rumbo (ms). Detenido se conserva el último, y uno de
+   *  hace minutos no sirve para elegir la calzada de salida (spec 017, N9). */
+  rumboEn?: number | null;
   /** Radio de error que declara el GPS, en metros. Con esto se descartan las
    *  lecturas que pondrían el punto adentro de una manzana (ver
    *  use-ubicacion-actual). */
@@ -115,6 +118,65 @@ const PITCH_NAVEGACION = 55;
 // El GPS avisa cada uno o dos segundos, así que animar cerca de un segundo hace
 // que el mapa "fluya" en vez de dar saltos de una posición a la otra.
 const MS_DESPLAZAMIENTO = 1000;
+
+// Más que esto entre dos lecturas no se anima: es la señal que volvió tras un
+// rato sin GPS, y deslizar el punto cruzaría manzanas enteras.
+const METROS_MAXIMOS_DESLIZAR = 150;
+
+// Zoom según la velocidad (spec 017, N12): a 30 km/h o menos, la cuadra de
+// cerca; a 60 km/h, un nivel más lejos, para ver el cruce que viene con unos
+// diez segundos de anticipación y no cuando ya está encima. Solo mientras el
+// conductor no haya elegido su zoom con los dedos.
+const VELOCIDAD_ZOOM_CERCA_MS = 8;
+const VELOCIDAD_ZOOM_LEJOS_MS = 17;
+const ZOOM_MENOS_A_VELOCIDAD = 1;
+/** Cambios de zoom más chicos que esto no se aplican: la velocidad oscila y el
+ *  mapa respiraría todo el viaje. */
+const ZOOM_MINIMO_PARA_CAMBIAR = 0.3;
+
+function zoomPorVelocidad(velocidad: number | null | undefined): number {
+  if (velocidad == null || Number.isNaN(velocidad)) return ZOOM_NAVEGACION;
+  const t = Math.min(
+    1,
+    Math.max(0, (velocidad - VELOCIDAD_ZOOM_CERCA_MS) / (VELOCIDAD_ZOOM_LEJOS_MS - VELOCIDAD_ZOOM_CERCA_MS)),
+  );
+  return ZOOM_NAVEGACION - t * ZOOM_MENOS_A_VELOCIDAD;
+}
+
+/**
+ * Lleva el punto a su posición nueva en el mismo tiempo y al mismo ritmo
+ * (lineal) que la cámara (spec 017, N5). Antes saltaba de golpe mientras la
+ * cámara se deslizaba un segundo: durante ese segundo el punto se veía
+ * adelantado y volvía al centro, un tirón por cada lectura de GPS. El giro
+ * también se anima, y por el lado corto.
+ */
+function deslizarMarcador(
+  marcador: mapboxgl.Marker,
+  hasta: PuntoLngLat,
+  rotacion: number,
+  cuadro: { current: number | null },
+): void {
+  if (cuadro.current != null) cancelAnimationFrame(cuadro.current);
+  cuadro.current = null;
+  const desde = marcador.getLngLat();
+  const rotDesde = marcador.getRotation();
+  const giro = ((rotacion - rotDesde + 540) % 360) - 180;
+  const lejos =
+    distanciaMetros({ lat: desde.lat, lng: desde.lng }, { lat: hasta[1], lng: hasta[0] }) > METROS_MAXIMOS_DESLIZAR;
+  if (lejos || typeof requestAnimationFrame === "undefined") {
+    marcador.setLngLat(hasta).setRotation(rotacion);
+    return;
+  }
+  const inicio = performance.now();
+  const avanzar = (ahora: number) => {
+    const t = Math.min(1, (ahora - inicio) / MS_DESPLAZAMIENTO);
+    marcador
+      .setLngLat([desde.lng + (hasta[0] - desde.lng) * t, desde.lat + (hasta[1] - desde.lat) * t])
+      .setRotation(rotDesde + giro * t);
+    cuadro.current = t < 1 ? requestAnimationFrame(avanzar) : null;
+  };
+  cuadro.current = requestAnimationFrame(avanzar);
+}
 
 // ----------------------------------------------------------------------------
 // Dónde queda el punto del conductor en la pantalla
@@ -424,6 +486,11 @@ export function RutaMapa({
   // suelte, o el movimiento por GPS pelea con el gesto.
   const gestoRef = useRef(false);
   const marcadorUbicacionRef = useRef<mapboxgl.Marker | null>(null);
+  /** El cuadro de animación del punto en curso (ver deslizarMarcador). */
+  const cuadroMarcadorRef = useRef<number | null>(null);
+  /** El conductor eligió el zoom con dos dedos: el zoom por velocidad se calla
+   *  hasta que vuelva a entrar al modo navegación. */
+  const zoomManualRef = useRef(false);
   const marcadoresParadasRef = useRef<mapboxgl.Marker[]>([]);
   // El handler de arrastre se registra una sola vez, al crear el mapa, así
   // que lee la última versión del callback desde un ref en vez de quedarse
@@ -436,6 +503,7 @@ export function RutaMapa({
 
   useEffect(() => {
     const contenedor = contenedorRef.current;
+    const cuadro = cuadroMarcadorRef;
     if (!contenedor || mapaRef.current || !TOKEN || !soportaMapa) return;
 
     mapboxgl.accessToken = TOKEN;
@@ -521,8 +589,9 @@ export function RutaMapa({
     // Un pellizco NO corta el seguimiento, solo frena el movimiento por código
     // mientras dura — igual que en Maps: acercar no significa "quiero mirar
     // otra cosa". Eso lo decide dragstart, arriba.
-    const alTocar = () => {
+    const alTocar = (e: TouchEvent) => {
       gestoRef.current = true;
+      if (e.touches.length >= 2) zoomManualRef.current = true;
     };
     const alSoltar = () => {
       gestoRef.current = false;
@@ -549,6 +618,8 @@ export function RutaMapa({
       contenedor.removeEventListener("touchstart", alTocar);
       contenedor.removeEventListener("touchend", alSoltar);
       contenedor.removeEventListener("touchcancel", alSoltar);
+      // Es el MISMO objeto ref, leído al limpiar a propósito: el cuadro en curso.
+      if (cuadro.current != null) cancelAnimationFrame(cuadro.current);
       marcadorUbicacionRef.current = null;
       marcadoresParadasRef.current = [];
       mapa.remove();
@@ -714,12 +785,13 @@ export function RutaMapa({
     const otroCamino = rumbo != null && claveOrientadaRef.current !== (claveDestino ?? null);
 
     if (entrando || otroCamino) {
+      if (entrando) zoomManualRef.current = false;
       entroModoNavegacionRef.current = true;
       if (rumbo != null) claveOrientadaRef.current = claveDestino ?? null;
       usuarioMovioRef.current = false;
       mapa.easeTo({
         center: centro,
-        zoom: ZOOM_NAVEGACION,
+        zoom: zoomManualRef.current ? mapa.getZoom() : zoomPorVelocidad(miUbicacion.velocidad),
         pitch: PITCH_NAVEGACION,
         bearing: rumbo ?? mapa.getBearing(),
         padding: SIN_RELLENO,
@@ -737,10 +809,13 @@ export function RutaMapa({
     // estimado, no una curva.
     const actual = mapa.getBearing();
     const girar = rumbo != null && difAngulo(rumbo, actual) >= GRADOS_MINIMOS_PARA_GIRAR;
+    const zoom = zoomPorVelocidad(miUbicacion.velocidad);
+    const acercar = !zoomManualRef.current && Math.abs(zoom - mapa.getZoom()) >= ZOOM_MINIMO_PARA_CAMBIAR;
 
     mapa.easeTo({
       center: centro,
       bearing: girar ? rumbo : actual,
+      ...(acercar ? { zoom } : {}),
       padding: SIN_RELLENO,
       duration: MS_DESPLAZAMIENTO,
       easing: (t) => t, // lineal: el GPS entrega posiciones a ritmo constante
@@ -755,6 +830,11 @@ export function RutaMapa({
     if (!mapa || !mapaListo || !miUbicacion) return;
 
     const centro = aLngLat(miUbicacion);
+    const rumboDelHaz = rumboBrujula ?? rumbo;
+    const conHaz = !siguiendo && rumboDelHaz != null;
+    const conFlecha = siguiendo && rumbo != null;
+    // Sin ninguna de las dos se deja en 0: da igual hacia dónde apunte un disco.
+    const rotacion = (conHaz ? rumboDelHaz : rumbo) ?? 0;
 
     if (!marcadorUbicacionRef.current) {
       marcadorUbicacionRef.current = new mapboxgl.Marker({
@@ -771,20 +851,14 @@ export function RutaMapa({
       // entera, antes de la primera lectura de GPS—: sin esto aparece enorme
       // hasta que alguien toque el zoom.
       ajustarEscalaMarcador(marcadorUbicacionRef.current, mapa.getZoom());
+      marcadorUbicacionRef.current.setRotation(rotacion);
     } else {
-      marcadorUbicacionRef.current.setLngLat(centro);
+      // Con el mapa suelto va el haz, y lo orienta la brújula si la hay o el
+      // último rumbo conocido si no. Manejando va la flecha, que sigue al camino.
+      // Es UNA sola rotación —la del marcador entero— porque las dos figuras
+      // nunca se muestran juntas: dos direcciones sobre el mismo punto no se leen.
+      deslizarMarcador(marcadorUbicacionRef.current, centro, rotacion, cuadroMarcadorRef);
     }
-
-    // Con el mapa suelto va el haz, y lo orienta la brújula si la hay o el
-    // último rumbo conocido si no. Manejando va la flecha, que sigue al camino.
-    // Es UNA sola rotación —la del marcador entero— porque las dos figuras nunca
-    // se muestran juntas: dos direcciones sobre el mismo punto no se leen.
-    const rumboDelHaz = rumboBrujula ?? rumbo;
-    const conHaz = !siguiendo && rumboDelHaz != null;
-    const conFlecha = siguiendo && rumbo != null;
-
-    // Sin ninguna de las dos se deja en 0: da igual hacia dónde apunte un disco.
-    marcadorUbicacionRef.current.setRotation((conHaz ? rumboDelHaz : rumbo) ?? 0);
 
     const el = marcadorUbicacionRef.current.getElement();
     const mostrar = (selector: string, visible: boolean) => {

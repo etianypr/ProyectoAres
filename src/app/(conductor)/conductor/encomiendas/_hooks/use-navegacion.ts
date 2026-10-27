@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { distanciaAPolilinea, metrosRestantes } from "@/lib/geo/trazado";
+import { distanciaAPolilinea } from "@/lib/geo/trazado";
 import { obtenerNavegacion, type PasoNavegacion } from "@/lib/geo/mapbox/navegacion";
-import type { Coordenada, Trazado } from "@/lib/geo/coordenada";
+import { pasoEnCurso, restanteDelTramo } from "@/lib/geo/mapbox/recorrido";
+import { distanciaMetros, type Coordenada, type Trazado } from "@/lib/geo/coordenada";
 
 // Un tramo pedido a Mapbox NO trae una instrucción: trae TODAS las maniobras
 // hasta la parada, cada una con su trazado y sus avisos de voz. Recorrerlo es
@@ -22,10 +23,6 @@ import type { Coordenada, Trazado } from "@/lib/geo/coordenada";
 // consultas por conductor. Ahora son unas pocas por parada, y el cartel cambia en
 // el momento en que se cumple la maniobra en vez de esperar a que conteste la
 // red — o sea que además de costar menos, se siente mejor.
-
-/** Se da por cumplida una maniobra al llegar a esta distancia de ella. Del
- *  orden del error del GPS en ciudad: más chico y un paso no terminaría nunca. */
-const UMBRAL_MANIOBRA_M = 25;
 
 /** Apartarse más que esto del trazado es haberse salido del camino. Tiene que
  *  superar el ancho de una avenida con bandejón y el rebote del GPS entre
@@ -47,11 +44,41 @@ const MS_MINIMO_ENTRE_CONSULTAS = 10_000;
  *  comería la cuota del mes en un rato. */
 const MS_ESPERA_REINTENTO = 5_000;
 
+/** Cerca de la parada no se recalcula (spec 017, N10): el conductor da la vuelta
+ *  para estacionar o camina hasta la puerta, y el GPS se aparta del trazado sin
+ *  que haya un camino nuevo que pedir. */
+const METROS_SIN_RECALCULO = 100;
+
+/** Más lento que esto (≈7 km/h) es caminar o estar detenido: un desvío así no
+ *  es haber doblado mal (spec 017, N10). */
+const VELOCIDAD_MINIMA_RECALCULO_MS = 2;
+
+/** El rumbo se le pasa a Mapbox solo si es de hace menos que esto (spec 017,
+ *  N9). Uno más viejo es de antes de detenerse —o de caminar a la puerta— y
+ *  puede enganchar la salida en la calzada contraria. */
+const MS_RUMBO_VIGENTE = 25_000;
+
+/** Lo que el hook necesita de la lectura de GPS. */
+export type OrigenNavegacion = Coordenada & {
+  /** Rumbo, que se le pasa a Mapbox para que enganche el arranque de la ruta
+   *  en la calzada correcta. */
+  heading?: number | null;
+  /** Cuándo se midió ese rumbo por última vez (ms). */
+  rumboEn?: number | null;
+  /** m/s, cuando el aparato la entrega. */
+  velocidad?: number | null;
+  /** Cuándo se tomó la lectura (ms): de acá sale la hora de llegada. */
+  tomadaEn?: number;
+};
+
 function mismoPunto(a: Coordenada | null | undefined, b: Coordenada | null | undefined): boolean {
   return a != null && b != null && a.lat === b.lat && a.lng === b.lng;
 }
 
 type Tramo = {
+  /** Distinto para cada tramo pedido: la voz lo usa para no repetir ni perder
+   *  avisos al recalcular. */
+  id: number;
   destino: Coordenada;
   pasos: PasoNavegacion[];
   trazado: Trazado;
@@ -73,15 +100,33 @@ export type Navegacion = {
   /** Trazado por calles desde donde se pidió hasta la parada activa,
    *  [lng, lat] por punto — esto es lo que se dibuja como "por dónde ir". */
   trazado: Trazado | null;
+  /** Identifica el tramo y la maniobra: la voz no repite un aviso dentro de la
+   *  misma, pero sí lo dice al volver a pasar por la misma esquina más tarde. */
+  tramoId: number | null;
+  indicePaso: number;
+  /** Lo que falta hasta la parada por calle, y la hora estimada de llegada
+   *  (ms), con los tiempos de Mapbox (spec 017, N4). */
+  metrosAParada: number | null;
+  segundosAParada: number | null;
+  llegada: number | null;
 };
 
-const VACIA: Navegacion = { paso: null, siguiente: null, metrosAManiobra: null, trazado: null };
+const VACIA: Navegacion = {
+  paso: null,
+  siguiente: null,
+  metrosAManiobra: null,
+  trazado: null,
+  tramoId: null,
+  indicePaso: 0,
+  metrosAParada: null,
+  segundosAParada: null,
+  llegada: null,
+};
 
 export function useNavegacion(
   activo: boolean,
-  /** La posición del conductor trae además el rumbo, que se le pasa a Mapbox para
-   *  que enganche el arranque de la ruta en la calzada correcta. */
-  origen: (Coordenada & { heading?: number | null }) | null,
+  /** La lectura CRUDA del GPS (ver OrigenNavegacion). */
+  origen: OrigenNavegacion | null,
   destino: Coordenada | null,
 ): Navegacion {
   const [tramo, setTramo] = useState<Tramo | null>(null);
@@ -104,6 +149,7 @@ export function useNavegacion(
    *  intenta de inmediato (el conductor no tiene indicación de nada). */
   const esperaRef = useRef<{ destino: Coordenada; hasta: number } | null>(null);
   const reintentoRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ultimoTramoRef = useRef(0);
 
   useEffect(
     () => () => {
@@ -133,13 +179,19 @@ export function useNavegacion(
       return;
     }
 
-    const rumbo = origen.heading ?? null;
+    const rumboVigente = origen.rumboEn == null || Date.now() - origen.rumboEn < MS_RUMBO_VIGENTE;
+    const rumbo = rumboVigente ? (origen.heading ?? null) : null;
     const sirve = tramo != null && mismoPunto(tramo.destino, destino);
 
-    // ¿Sigue sobre el camino? Se mide contra el trazado completo del tramo.
+    // ¿Sigue sobre el camino? Se mide contra el trazado completo del tramo. En
+    // la puerta de la parada, o a paso de peatón, no se cuenta (N10).
     if (sirve && tramo) {
-      const desvio = distanciaAPolilinea(origen, tramo.trazado);
-      fueraRef.current = desvio > UMBRAL_FUERA_DE_RUTA_M ? fueraRef.current + 1 : 0;
+      const llegando = distanciaMetros(origen, destino) < METROS_SIN_RECALCULO;
+      const lento = origen.velocidad != null && origen.velocidad < VELOCIDAD_MINIMA_RECALCULO_MS;
+      if (!llegando && !lento) {
+        const desvio = distanciaAPolilinea(origen, tramo.trazado);
+        fueraRef.current = desvio > UMBRAL_FUERA_DE_RUTA_M ? fueraRef.current + 1 : 0;
+      }
     }
 
     const cambioDestino = !sirve;
@@ -193,23 +245,24 @@ export function useNavegacion(
       }
 
       fueraRef.current = 0;
-      setTramo({ destino, pasos: res.pasos, trazado: res.trazado, conRumbo: rumbo != null });
+      setTramo({
+        id: ++ultimoTramoRef.current,
+        destino,
+        pasos: res.pasos,
+        trazado: res.trazado,
+        conRumbo: rumbo != null,
+      });
     });
   }, [habilitado, origen, destino, tramo, reintento]);
 
   // ------------------------------------------------------------- avanzar
-  // El paso avanza SOLO, en el teléfono, cuando el conductor llega a la maniobra.
-  // Es lo que reemplaza a la consulta cada 150 metros. Se avanza en bucle
-  // porque dos maniobras pueden caer casi juntas ("gire y enseguida siga por la
-  // derecha") y una sola lectura de GPS puede dejar las dos atrás.
+  // El paso avanza SOLO, en el teléfono, cuando el conductor dobla la esquina (ver
+  // pasoEnCurso). Es lo que reemplaza a la consulta cada 150 metros.
   //
   // Va durante el render y no en un efecto (mismo patrón que el ajuste de
   // "habilitado" de arriba) por dos motivos: el índice se necesita en ESTE
   // dibujado —cada lectura de GPS ya provoca uno, no hace falta otro— y sobre
-  // todo tiene que ser un contador que solo avanza. Recalcularlo desde cero
-  // daría mal: metrosRestantes() a un paso que quedó tres kilómetros atrás no
-  // devuelve cero, devuelve tres kilómetros, y el cartel se quedaría clavado en
-  // la primera maniobra del tramo.
+  // todo tiene que ser un contador que solo avanza.
   let indice = indicePaso;
   if (tramoAnterior !== tramo) {
     setTramoAnterior(tramo);
@@ -218,13 +271,7 @@ export function useNavegacion(
     setIndicePaso(0);
   }
   if (habilitado && tramo && origen) {
-    let avanzado = Math.min(indice, tramo.pasos.length - 1);
-    while (
-      avanzado < tramo.pasos.length - 1 &&
-      metrosRestantes(origen, tramo.pasos[avanzado].trazado) <= UMBRAL_MANIOBRA_M
-    ) {
-      avanzado++;
-    }
+    const avanzado = pasoEnCurso(origen, tramo.pasos, indice);
     if (avanzado !== indice) {
       indice = avanzado;
       setIndicePaso(avanzado);
@@ -235,6 +282,7 @@ export function useNavegacion(
   if (!habilitado || !tramo || !mismoPunto(tramo.destino, destino)) return VACIA;
 
   const paso = tramo.pasos[indice] ?? null;
+  const restante = origen ? restanteDelTramo(origen, tramo.pasos, indice) : null;
 
   return {
     paso,
@@ -242,10 +290,15 @@ export function useNavegacion(
     // ejecutó al empezarlo, así que dibujarla mostraba el giro ya hecho: yendo
     // derecho hacia un giro a la derecha, la flecha decía "siga derecho".
     siguiente: tramo.pasos[indice + 1] ?? null,
-    metrosAManiobra:
-      origen && paso && paso.trazado.length > 0
-        ? metrosRestantes(origen, paso.trazado)
-        : (paso?.distanciaM ?? null),
+    metrosAManiobra: restante?.metrosAManiobra ?? paso?.distanciaM ?? null,
     trazado: tramo.trazado.length > 0 ? tramo.trazado : null,
+    tramoId: tramo.id,
+    indicePaso: indice,
+    metrosAParada: restante?.metrosAParada ?? null,
+    segundosAParada: restante?.segundosAParada ?? null,
+    // Con la hora de la LECTURA y no la de ahora: así el cálculo es puro, y una
+    // lectura vieja da una llegada vieja, que es lo honesto.
+    llegada:
+      restante && origen?.tomadaEn != null ? origen.tomadaEn + restante.segundosAParada * 1000 : null,
   };
 }

@@ -28,12 +28,12 @@ description: "Tareas: listo para terreno"
 
 ## US2 · Navegación
 
-- [ ] T030 N1 voz nativa (TextToSpeech en el plugin `Telefono`) + APK nueva
-- [ ] T031 N2–N3 cartel después de la esquina; avisos por tramo/paso; el de giro no se corta
-- [ ] T032 N4 metros y minutos a la parada, hora de llegada
-- [ ] T033 N5 punto y cámara juntos
-- [ ] T034 N6–N11 tope de tiempo, GPS se rearma, primera lectura mala, rumbo viejo, recálculo en la puerta, paso por proyección global
-- [ ] T035 N12 zoom por velocidad, rumbo del tramo, menos redibujos, llegada, cartel grande, rotonda, vereda
+- [x] T030 N1 voz nativa (`hablar`/`callar` con TextToSpeech en el plugin `Telefono`, canal de navegación, baja la música) + APK 1.2.0 (versionCode 3); fuera de la APK o con una APK vieja, `speechSynthesis`
+- [x] T031 N2–N3 el cartel cambia al doblar (`pasoEnCurso`, 8 m de la esquina o sobre un paso posterior); avisos por tramo y maniobra (la misma esquina se vuelve a avisar en otro tramo; no se repite al recalcular); el aviso del giro corta, los lejanos se encolan
+- [x] T032 N4 la tarjeta de la parada muestra metros, minutos y hora de llegada a la PARADA (`restanteDelTramo`, tiempos de Mapbox por paso)
+- [x] T033 N5 el punto se desliza al mismo ritmo que la cámara (y gira por el lado corto); un salto de más de 150 m no se anima
+- [x] T034 N6–N11 tope de tiempo; el GPS se arma de nuevo al volver a primer plano, tras 30 s sin lecturas y al centrar; una primera lectura mala la reemplaza cualquiera más precisa; rumbo de más de 25 s no va a Mapbox; sin recálculo a menos de 100 m de la parada ni bajo 2 m/s; paso por proyección hasta 4 adelante
+- [x] T035 N12 zoom por velocidad (18,4 → 17,4 entre 30 y 60 km/h, se calla si el conductor pellizca); cartel con la distancia grande; "2.ª salida" en rotondas. Fuera: `approaches=curb` (obligaría a dar la vuelta a la manzana para llegar por la vereda de la casa; en Arica se estaciona a cualquier lado)
 
 ## US3 · Rutas
 

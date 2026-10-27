@@ -22,8 +22,13 @@ export type PasoNavegacion = {
    *  pantalla se prefiere el cálculo local (ver metrosRestantes), que se
    *  actualiza con cada lectura de GPS. */
   distanciaM: number;
+  /** Segundos que Mapbox estima para recorrerlo: de acá sale la hora de
+   *  llegada a la parada (ver restanteDelTramo). */
+  duracionS: number;
   /** "turn" | "roundabout" | "arrive" | … — solo para elegir el ícono. */
   tipo: string;
+  /** En una rotonda, por qué salida se sale (1, 2, 3…); si no, null. */
+  salida: number | null;
   /** "left" | "right" | "slight left" | "uturn" | … , o null. Solo para el ícono. */
   modificador: string | null;
   /** Trazado de ESTE paso, que termina justo en la maniobra. Con esto se sabe
@@ -34,8 +39,9 @@ export type PasoNavegacion = {
 };
 
 type PasoCrudo = {
-  maneuver?: { type?: string; modifier?: string; instruction?: string };
+  maneuver?: { type?: string; modifier?: string; instruction?: string; exit?: number };
   distance?: number;
+  duration?: number;
   geometry?: { coordinates?: Trazado };
   bannerInstructions?: { primary?: { text?: string } }[];
   voiceInstructions?: { announcement?: string; distanceAlongGeometry?: number }[];
@@ -112,7 +118,9 @@ export async function obtenerNavegacion(
       instruccion: p.maneuver?.instruction ?? "",
       banner: p.bannerInstructions?.[0]?.primary?.text ?? null,
       distanciaM: Math.round(p.distance ?? 0),
+      duracionS: Math.round(p.duration ?? 0),
       tipo: p.maneuver?.type ?? "continue",
+      salida: typeof p.maneuver?.exit === "number" ? p.maneuver.exit : null,
       modificador: p.maneuver?.modifier ?? null,
       trazado: p.geometry?.coordinates ?? [],
       avisos: (p.voiceInstructions ?? [])

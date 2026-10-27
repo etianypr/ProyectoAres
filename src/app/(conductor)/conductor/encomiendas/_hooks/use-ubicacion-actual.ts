@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { distanciaMetros, rumboEntre } from "@/lib/geo/coordenada";
+import { alVolverAPrimerPlano } from "@/lib/nativo/entorno";
 import type { Ubicacion } from "../_mapa/ruta-mapa";
 
 // Bajo este umbral, el "movimiento" entre dos lecturas es puro temblor de la
@@ -32,6 +33,11 @@ const VELOCIDAD_IMPOSIBLE_MS = 55;
 // lecturas es ruido. Solo se usa cuando el GPS informa velocidad — iOS muchas
 // veces no lo hace, y ahí manda el respaldo por distancia de arriba.
 const VELOCIDAD_MINIMA_RUMBO_MS = 1;
+
+// Sin ninguna lectura en este tiempo, el seguimiento se da por muerto y se arma
+// de nuevo (spec 017, N7). Pasa al volver de una llamada o de otra app: el
+// WebView deja el seguimiento colgado sin avisar con un error.
+const MS_SIN_LECTURAS_PARA_REARMAR = 30_000;
 
 // Sin ubicación no hay NADA del modo navegación (ni flecha, ni giro del mapa,
 // ni instrucciones): antes los errores se descartaban en silencio, así que
@@ -79,24 +85,38 @@ export type EstadoUbicacion = {
 export function useUbicacionActual(activo: boolean): EstadoUbicacion {
   const [ubicacion, setUbicacion] = useState<Ubicacion | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const anteriorRef = useRef<{ lat: number; lng: number; tomadaEn: number } | null>(null);
-  const rumboRef = useRef<number | null>(null);
+  const anteriorRef = useRef<{ lat: number; lng: number; tomadaEn: number; precisionM: number | null } | null>(
+    null,
+  );
+  const rumboRef = useRef<{ grados: number; en: number } | null>(null);
+  /** Cuándo llegó la última lectura, sirva o no: es lo que dice si el GPS sigue vivo. */
+  const ultimaLecturaRef = useRef(0);
+  /** Cambia para armar de nuevo el seguimiento (ver MS_SIN_LECTURAS_PARA_REARMAR). */
+  const [armado, setArmado] = useState(0);
 
   const aplicar = useCallback((pos: GeolocationPosition) => {
     const actual = { lat: pos.coords.latitude, lng: pos.coords.longitude };
     const precisionM = pos.coords.accuracy ?? null;
     const tomadaEn = pos.timestamp || Date.now();
     const anterior = anteriorRef.current;
+    ultimaLecturaRef.current = Date.now();
 
     // Una lectura tirada NO es un error que mostrar: el GPS sigue funcionando y
     // la próxima puede venir bien. Se descarta en silencio y el punto se queda
     // en la última buena; que quedó vieja se ve en la pantalla por otro lado
     // (ver el aviso de señal débil en ruta-conductor).
     if (anterior) {
-      if (precisionM != null && precisionM > PRECISION_MAXIMA_M) return;
+      // La primera lectura entra aunque sea mala, y antes eso la dejaba de
+      // referencia: las buenas que venían después "saltaban" más rápido de lo
+      // posible desde ella y se tiraban todas (spec 017, N8). Si la que hay es
+      // mala, cualquier lectura más precisa la reemplaza, sin freno de velocidad.
+      const anteriorBuena = anterior.precisionM == null || anterior.precisionM <= PRECISION_MAXIMA_M;
+      if (precisionM != null && precisionM > PRECISION_MAXIMA_M) {
+        if (anteriorBuena || precisionM >= (anterior.precisionM ?? Infinity)) return;
+      }
 
       const segundos = Math.max(0.001, (tomadaEn - anterior.tomadaEn) / 1000);
-      if (distanciaMetros(anterior, actual) / segundos > VELOCIDAD_IMPOSIBLE_MS) return;
+      if (anteriorBuena && distanciaMetros(anterior, actual) / segundos > VELOCIDAD_IMPOSIBLE_MS) return;
     }
 
     let heading = pos.coords.heading;
@@ -116,15 +136,23 @@ export function useUbicacionActual(activo: boolean): EstadoUbicacion {
         heading = rumboEntre(anterior, actual);
       } else {
         // Se conserva el último conocido: perder la orientación en cada
-        // semáforo enderezaría el mapa al norte a mitad de cuadra.
-        heading = rumboRef.current;
+        // semáforo enderezaría el mapa al norte a mitad de cuadra. Va con la
+        // hora en que se midió, para que la navegación sepa cuándo ya no sirve.
+        heading = null;
       }
     }
 
-    rumboRef.current = heading;
-    anteriorRef.current = { ...actual, tomadaEn };
+    if (heading != null) rumboRef.current = { grados: heading, en: tomadaEn };
+    anteriorRef.current = { ...actual, tomadaEn, precisionM };
     setError(null);
-    setUbicacion({ ...actual, heading, precisionM, tomadaEn, velocidad });
+    setUbicacion({
+      ...actual,
+      heading: rumboRef.current?.grados ?? null,
+      rumboEn: rumboRef.current?.en ?? null,
+      precisionM,
+      tomadaEn,
+      velocidad,
+    });
   }, []);
 
   useEffect(() => {
@@ -133,6 +161,7 @@ export function useUbicacionActual(activo: boolean): EstadoUbicacion {
     // maximumAge: 0 — sin esto el navegador puede entregar una posición
     // guardada de hasta 15 segundos antes, y al arrancar el día eso es la
     // del galpón de ayer. Manejando, 15 segundos son tres cuadras.
+    ultimaLecturaRef.current = Date.now();
     const watchId = navigator.geolocation.watchPosition(
       aplicar,
       (e) => setError(mensajeError(e)),
@@ -140,17 +169,40 @@ export function useUbicacionActual(activo: boolean): EstadoUbicacion {
     );
 
     return () => navigator.geolocation.clearWatch(watchId);
-  }, [activo, aplicar]);
+  }, [activo, aplicar, armado]);
+
+  // Se arma de nuevo al volver a primer plano y cuando deja de llegar todo
+  // (spec 017, N7). Armarlo de más no cuesta nada; quedarse sin GPS manejando,
+  // sí: el punto se congela y la navegación deja de avanzar.
+  useEffect(() => {
+    if (!activo) return;
+    const rearmar = () => setArmado((n) => n + 1);
+    const quitar = alVolverAPrimerPlano(rearmar);
+    const vigia = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      if (Date.now() - ultimaLecturaRef.current > MS_SIN_LECTURAS_PARA_REARMAR) rearmar();
+    }, MS_SIN_LECTURAS_PARA_REARMAR / 2);
+    return () => {
+      quitar();
+      clearInterval(vigia);
+    };
+  }, [activo]);
 
   const pedirAhora = useCallback(() => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       setError("Este navegador no puede entregar tu ubicación.");
       return;
     }
-    navigator.geolocation.getCurrentPosition(aplicar, (e) => setError(mensajeError(e)), {
-      enableHighAccuracy: true,
-      timeout: 10_000,
-    });
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        aplicar(pos);
+        // Si el seguimiento había fallado (permiso concedido recién, en los
+        // ajustes), esta lectura prueba que ya se puede: se arma de nuevo.
+        setArmado((n) => n + 1);
+      },
+      (e) => setError(mensajeError(e)),
+      { enableHighAccuracy: true, timeout: 10_000 },
+    );
   }, [aplicar]);
 
   return { ubicacion, error, pedirAhora };

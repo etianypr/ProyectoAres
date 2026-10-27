@@ -22,7 +22,7 @@ import type { PasoNavegacion } from "@/lib/geo/mapbox/navegacion";
 // una variable dentro del render hace que React lo trate como uno nuevo en cada
 // dibujado.
 function iconoManiobra(paso: PasoNavegacion) {
-  const clase = "h-5 w-5 shrink-0 text-brand";
+  const clase = "h-7 w-7 shrink-0 text-brand";
 
   if (paso.tipo === "arrive") return <MapPin className={clase} />;
   if (paso.tipo === "depart") return <ArrowUp className={clase} />;
@@ -81,20 +81,26 @@ export function InstruccionNavegacion({
   resumen?: React.ReactNode;
 }) {
   const distancia = metros ?? paso.distanciaM;
+  const maniobra = siguiente ?? paso;
+  // En una rotonda la flecha no alcanza: "toma la 2.ª salida" es lo que hay que
+  // leer de un vistazo (spec 017, N12).
+  const salida = maniobra.salida != null ? `${maniobra.salida}.ª salida` : null;
 
   return (
     <div className={cn(CAJA_CARRIL, "min-w-0 flex-1")}>
-      {iconoManiobra(siguiente ?? paso)}
+      {iconoManiobra(maniobra)}
       <div className="min-w-0 flex-1">
-        {/* El banner de Mapbox es el texto corto (la calle a la que se entra) y
-            la instrucción es la frase completa. Se muestra el corto arriba,
-            grande, que es lo que se lee de un vistazo manejando. */}
+        {/* Manejando se lee primero CUÁNTO falta y después hacia dónde: la
+            distancia va grande arriba y la calle debajo (spec 017, N12). El
+            banner de Mapbox es el texto corto (la calle a la que se entra) y
+            la instrucción es la frase completa. */}
+        {distancia > 0 ? (
+          <p className="text-lg font-bold leading-tight tabular-nums">{formatDistancia(distancia)}</p>
+        ) : null}
         <p className="truncate text-sm font-semibold leading-tight">
+          {salida ? `${salida} · ` : ""}
           {paso.banner ?? paso.instruccion}
         </p>
-        {distancia > 0 ? (
-          <p className="text-xs tabular-nums text-muted">{formatDistancia(distancia)}</p>
-        ) : null}
       </div>
       {/* El divisor solo existe si hay algo a los dos lados. Es lo que evita que
           el resumen se lea como parte de la instrucción — sin la línea, el "8/14"

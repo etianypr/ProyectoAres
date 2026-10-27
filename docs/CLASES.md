@@ -293,7 +293,7 @@ lo usa.
 | Sesión y puertas (`exigirPanel`, `exigirConductor`); rol y destino por rol (`leerRol`, `inicioSegunRol`); ficha por usuario | `auth/sesion.ts`, `auth/roles.ts`, `auth/conductor-de-usuario.ts` |
 | Días "YYYY-MM-DD" en hora de Chile (`hoyChile`, `sumarDias`, `esFecha`), `MESES`; periodo del panel y su cookie | `comun/fechas.ts`, `comun/periodo.ts` (+ `periodo-servidor.ts`) |
 | Orden de paradas (exacto hasta 14 puntos; si no, construcción + mejora + sacudidas) | `rutas/orden-paradas/` |
-| Trazado en el teléfono: pegar al camino, rumbo, metros restantes · Mapbox: token, direcciones, navegación | `geo/trazado.ts` · `geo/mapbox/` |
+| Trazado en el teléfono: pegar al camino, rumbo, metros restantes · Mapbox: token, direcciones, navegación (`PasoNavegacion` con `duracionS` y `salida` de rotonda) · recorrido del tramo: `pasoEnCurso` (el cartel cambia al doblar la esquina, o al aparecer sobre un paso posterior) y `restanteDelTramo` (metros a la maniobra, metros y segundos a la parada) | `geo/trazado.ts` · `geo/mapbox/` (`recorrido.ts`) |
 | Ubicar una dirección (`ubicarDireccion`): limpiar la consulta, `coincidenciaCalle` (tipeo acotado), catálogo de calles de Arica (`callesParecidas`, `largoDeCalle`) | `geo/geocoding/`: `ubicar.ts`, `consulta.ts`, `calles.ts` + `calles-arica.ts` (generado), `completar-numero.ts`, `mapbox.ts`, `nominatim.ts`, `codigo.ts`; `index.ts` es el barril |
 
 ## 5. Pendiente
