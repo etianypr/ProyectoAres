@@ -22,73 +22,40 @@
 // (92% en vez de 78%), el formulario entra ahí, y el botón de la parada activa
 // sigue a la vista mientras cargás.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import {
   AlertTriangle,
-  ArrowLeft,
   Check,
-  Clock,
-  ClipboardList,
-  CloudOff,
-  Download,
-  LocateFixed,
-  LogOut,
-  MapPin,
-  MapPinOff,
-  MessageCircleOff,
-  PackageCheck,
-  Pencil,
-  Route,
-  Phone,
-  PhoneCall,
-  PhoneOff,
-  Plus,
-  RotateCw,
-  ScanLine,
-  Trash2,
-  Undo2,
-  Volume2,
-  VolumeX,
   X,
 } from "lucide-react";
-import { cn } from "@/lib/comun/utils";
-import { sumarDias } from "@/lib/comun/fechas";
-import { metrosRestantes, recortarTrazado, rumboDelCamino } from "@/lib/geo/trazado";
 import { BottomSheet } from "./_componentes/hoja";
-import { PilaNotificaciones, type Notificacion } from "./_componentes/notificaciones";
-import { FilaDeslizable } from "./_componentes/fila-deslizable";
+import { PilaNotificaciones } from "./_componentes/notificaciones";
 import { Seccion } from "./_componentes/seccion";
 import {
   avanceCarga,
   sinEtiquetaEscaneada,
-  retenerEvento,
   leerDias,
-  leerResumenDia,
   type ResumenDia,
-  type PedidoEliminado,
   type Pedido,
 } from "@/lib/encomiendas/local/almacen";
-import { BotonMenu, MenuLateral } from "./_componentes/menu-lateral";
+import { MenuLateral } from "./_componentes/menu-lateral";
 import { logout } from "@/lib/auth/acciones";
-import { bloquePorId } from "@/lib/encomiendas/config";
-import { alBotonAtras, esApp, minimizarApp, versionInstalada } from "@/lib/nativo/entorno";
-import { llamar } from "@/lib/nativo/telefono";
-import { esMasVieja } from "@/lib/nativo/version";
+import { alBotonAtras, minimizarApp } from "@/lib/nativo/entorno";
 import {
   confirmarRutaLocal,
   elegirAlternativa,
   type EstrategiaRuta,
   type PropuestaRuta,
 } from "@/lib/encomiendas/local/generar-ruta";
-import type { PreviaRuta, PuntoMapa, Ubicacion } from "./_mapa/ruta-mapa";
-import { MS_DESHACER, useDiaTrabajo, type Parada } from "./_hooks/use-dia-trabajo";
+import { useDiaTrabajo } from "./_hooks/use-dia-trabajo";
+import { useAccionesParada } from "./_hooks/use-acciones-parada";
+import { useApkVieja, useResumenAyer } from "./_hooks/use-avisos-del-dia";
+import { usePuntosMapa } from "./_hooks/use-puntos-mapa";
+import { PantallaCargando, PantallaError } from "./_componentes/estado-pantalla";
 import { useUbicacionActual } from "./_hooks/use-ubicacion-actual";
-import { useNavegacion } from "./_hooks/use-navegacion";
-import { usePantallaEncendida } from "./_hooks/use-pantalla-encendida";
-import { useLlamadaNativa, type LlamadaDetectada } from "./_hooks/use-llamada-nativa";
-import { usePuntoEnRuta } from "./_hooks/use-punto-en-ruta";
-import { useVozNavegacion } from "./_hooks/use-voz";
+import { armarNotificaciones } from "./_componentes/notificaciones-pantalla";
+import { useGuiaNavegacion } from "./_hooks/use-guia-navegacion";
 import { useBrujula } from "./_hooks/use-brujula";
 import { useCierreDia } from "./_hooks/use-cierre-dia";
 import { BuscarOf } from "./_componentes/buscar-of";
@@ -96,14 +63,17 @@ import { CargarGuia } from "./_componentes/cargar-guia";
 import { EscanearEtiqueta } from "./_componentes/escanear-etiqueta";
 import { CierreDia } from "./_componentes/cierre-dia";
 import { useFechaDelDia } from "./_hooks/use-fecha-del-dia";
-import { MetaBono } from "./_componentes/meta-bono";
 import { ProgresoCarga } from "./_componentes/progreso-carga";
-import { TarjetaParada } from "./_componentes/tarjeta-parada";
-import { formatoOf, nombreVisible } from "@/lib/encomiendas/paquete";
-import { CAJA_CARRIL, InstruccionNavegacion } from "./_componentes/instruccion-navegacion";
-import { BotonCorregirIA } from "./_componentes/corregir-ia";
+import { ParadaActiva } from "./_componentes/parada-activa";
+import { faseDeParada, type Fase } from "./_hooks/fase-parada";
 import { AvisoCargarAuto } from "./_componentes/aviso-cargar-auto";
-import { PedidoFormLocal } from "./_componentes/pedido-form-local";
+import { RutaDelDia } from "./_componentes/ruta-del-dia";
+import { CarrilSuperior } from "./_componentes/carril-superior";
+import { CabeceraSinParada } from "./_componentes/cabecera-sin-parada";
+import { ControlesMapa } from "./_componentes/controles-mapa";
+import { PedidosFueraDeRuta } from "./_componentes/pedidos-fuera";
+import { TuDia } from "./_componentes/tu-dia";
+import { VistaPedido } from "./_componentes/vista-pedido";
 import { GenerarRutaLocal } from "./_componentes/generar-ruta-local";
 import { VistaPreviaRuta } from "./_componentes/vista-previa-ruta";
 
@@ -114,215 +84,7 @@ const RutaMapa = dynamic(() => import("./_mapa/ruta-mapa").then((m) => m.RutaMap
   ssr: false,
 });
 
-// Paso del flujo de la parada activa:
-//   antes_llamar         → "Llamar"
-//   esperando_resultado  → "Contestó" / "No contestó"
-//   eligiendo            → no contestó: "Dejar para el final" / "Omitir por hoy"
-//   confirmado           → contestó: "Pedido finalizado"
-// En qué paso del trato con ESTA parada está el conductor.
-//
-//   antes_llamar         hay que contactarlo: no contestó el WhatsApp.
-//   esperando_resultado  se lo llamó y hay que decir qué pasó con la llamada:
-//                        contestó, volver a llamar, o no contestó. Es la ÚNICA
-//                        pregunta de esta etapa, y se sigue en ella mientras la
-//                        llamada no haya sido contestada.
-//   confirmado           contestó la llamada y espera el paquete.
-//   esperando_entrega    ya había confirmado por WhatsApp, así que no hace falta
-//                        llamarlo: se va derecho a entregar. Es lo que hace que
-//                        avisarle por WhatsApp AHORRE trabajo en terreno y no
-//                        solo agregue información. Solo para ese caso.
-//   salidas              no se pudo entregar: qué se hace con esta parada.
-//
-// Acá había una fase más, "eligiendo": no contestó la llamada y se preguntaba
-// "¿dejar al final o cerrar la parada?" ANTES de preguntar por qué. Eran dos
-// pantallas para una sola decisión —qué hago con esta puerta— y obligaban a
-// elegir una categoría antes de poder elegir la respuesta. Ahora las tres
-// salidas están juntas en "salidas".
-type Fase =
-  | "antes_llamar"
-  | "esperando_resultado"
-  | "confirmado"
-  | "esperando_entrega"
-  | "salidas";
 
-// Botones de la hoja: a ancho completo y de 48 px. Es lo que el conductor aprieta
-// manejando, con el pulgar y sin mirar mucho.
-const BOTON_PRINCIPAL =
-  "flex h-12 w-full items-center justify-center gap-2 rounded-full bg-brand text-[15px] font-semibold text-brand-foreground shadow-[0_1px_2px_var(--brand-shadow)] transition-transform active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50";
-// Los que van de a dos en una grilla. `min-w-0` no es decorativo: un elemento de
-// grilla tiene `min-width: auto`, así que el botón de texto más largo se
-// ensanchaba por encima de su columna y quedaba visiblemente más grande que el
-// de al lado, pisando el hueco. Con el mínimo en cero los dos miden exactamente
-// lo mismo, y sin `whitespace-nowrap` una etiqueta larga parte en dos renglones
-// en vez de desbordar la píldora.
-const BOTON_RESULTADO =
-  "flex h-12 min-w-0 items-center justify-center gap-1.5 rounded-full px-2.5 text-center text-sm font-semibold leading-tight transition-transform active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50";
-
-/** Con la última lectura más vieja que esto, el punto que se ve ya no es dónde
- *  está el conductor. */
-const MS_UBICACION_VIEJA = 12_000;
-
-/** A qué distancia de la parada se avisa que hay que contactar al receptor
- *  (FR-017).
- *
- *  Trescientos metros es más o menos una cuadra y media de Arica: lo suficiente
- *  para que el conductor alcance a llamar y a escuchar la respuesta antes de tener
- *  que estacionar, y no tanto como para que el aviso aparezca cuando todavía
- *  faltan cinco paradas. */
-const METROS_AVISO_CONTACTO = 300;
-// Cuánto queda a la vista el aviso del resultado de una llamada detectada.
-const MS_AVISO_LLAMADA = 8000;
-
-/** Precisión por encima de la cual el punto ya no ubica ni la manzana. */
-const PRECISION_DUDOSA_M = 40;
-
-/** Fila de un pedido que todavía no entró en la ruta. Tocarla abre la edición:
- *  es la única forma de arreglar una dirección que no se pudo ubicar.
- *
- *  El estado de ubicación se dice DOS veces a propósito —con el icono tachado y
- *  con la palabra "Corregir"—. Un pedido sin ubicar no entra en ninguna ruta, así
- *  que si el conductor no se entera, ese paquete no sale de la camioneta; y una
- *  marca que solo se distingue por el color no la ve nadie de reojo, a pleno sol,
- *  con el teléfono en una mano (la constitución lo pide explícitamente: los
- *  estados no pueden depender solo del color). */
-function FilaPedido({
-  pedido,
-  primera,
-  onEditar,
-  onEliminar,
-}: {
-  pedido: Pedido;
-  primera: boolean;
-  onEditar: () => void;
-  onEliminar: () => void;
-}) {
-  const sinUbicar = pedido.lat == null || pedido.lng == null;
-  return (
-    <FilaDeslizable
-      separador={!primera}
-      etiqueta={nombreVisible(pedido)}
-      onEliminar={onEliminar}
-      className="bg-card"
-    >
-      <button
-        type="button"
-        onClick={onEditar}
-        className="flex w-full items-center gap-3 px-3.5 py-3 text-left text-sm transition-colors active:bg-background"
-      >
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-medium leading-tight">{nombreVisible(pedido)}</p>
-          <p className="truncate text-xs text-muted">{pedido.direccion}</p>
-          {sinUbicar ? (
-            <p className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-warn">
-              <MapPinOff className="h-3 w-3 shrink-0" />
-              Sin ubicar — toca para corregir la dirección
-            </p>
-          ) : null}
-        </div>
-        {sinUbicar ? (
-          <span className="shrink-0 rounded-full bg-warn-bg px-2 py-0.5 text-[11px] font-semibold text-warn">
-            Corregir
-          </span>
-        ) : (
-          <span className="flex shrink-0 items-center gap-1 text-[11px] font-medium text-muted">
-            <MapPin className="h-3 w-3 shrink-0 text-ok" />
-            Ubicado
-          </span>
-        )}
-      </button>
-    </FilaDeslizable>
-  );
-}
-
-/** El renglón de estado del receptor, debajo de la dirección. */
-const LINEA_ESTADO = "mt-0.5 flex items-center gap-1 text-xs font-medium";
-
-/** Cuánto se queda a la vista la confirmación de "pedido agregado". Suficiente
- *  para leerla de reojo mientras ya se está escribiendo el siguiente nombre, y
- *  poco como para no quedar tapando el botón de guardar. */
-const MS_CONFIRMACION = 3_000;
-
-/** El formulario de un pedido, DENTRO de la hoja deslizable (ver BottomSheet,
- *  prop "vista"): sobre el contenido y debajo de la misma cabecera.
- *
- *  Antes esto se abría como una pantalla aparte encima de todo. Se movió acá
- *  porque abrir otra pantalla para cargar un pedido rompía lo único que la app
- *  del conductor sostiene: que todo pase en el mismo lugar, sobre el mapa. La razón
- *  por la que en su momento salió de la hoja —"el formulario pelea con el gesto
- *  de arrastre"— ya no existe: la hoja se arrastra SOLO desde el tirador, así que
- *  ningún campo le roba el gesto a nada.
- *
- *  Lo que se gana además de la continuidad: la cabecera sigue siendo la parada
- *  activa con su botón, así que se puede cargar un pedido y contestar la parada
- *  que toca sin cerrar nada; y la hoja se puede bajar con el formulario a medio
- *  llenar para mirar el mapa, y volver a subirla tal como estaba.
- *
- *  Cargando uno nuevo se queda abierto después de guardar —los pedidos se cargan
- *  en tanda, uno atrás del otro— y editando se cierra, que es lo que uno espera
- *  al terminar de corregir algo.
- *
- *  Y como el formulario se queda ahí vacío, el "pedido agregado" lo dice esta
- *  vista y no el formulario: asomando desde el borde de abajo, encima de todo y
- *  sin empujar nada. Cargando en tanda, el campo del nombre no se mueve de lugar
- *  entre un pedido y el siguiente. */
-function VistaPedido({
-  pedido,
-  fecha,
-  ofInicial,
-  onCerrar,
-  onGuardado,
-}: {
-  /** Sin esto, es uno nuevo. */
-  pedido?: Pedido;
-  /** OF de una etiqueta que no estaba en la guía (spec 005). */
-  ofInicial?: string;
-  /** Día de trabajo de un pedido nuevo. */
-  fecha: string;
-  onCerrar: () => void;
-  /** El aviso que devuelve el formulario: null si todo salió limpio, o el texto
-   *  de una advertencia que hay que dejar escrita (una dirección que no se pudo
-   *  ubicar). Qué se hace con eso lo decide la pantalla, que es la que dibuja
-   *  TODOS los avisos en un solo lugar (ver PilaNotificaciones). */
-  onGuardado: (aviso?: string | null) => void;
-}) {
-  return (
-    <>
-      {/* Dos controles que hacen lo mismo, a propósito: la flecha de la
-          izquierda es "volver a la lista" y la cruz de la derecha es "cerrar
-          esto". El conductor va a buscar una o la otra según de dónde venga, y
-          ninguna de las dos está donde el pulgar tape la primera línea del
-          formulario. */}
-      <div className="flex shrink-0 items-center gap-1 border-b border-divider px-2 py-2">
-        <button
-          type="button"
-          onClick={onCerrar}
-          aria-label="Volver"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted active:bg-background"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </button>
-        <p className="min-w-0 flex-1 truncate font-semibold">
-          {pedido ? "Editar pedido" : "Nuevo pedido"}
-        </p>
-        <button
-          type="button"
-          onClick={onCerrar}
-          aria-label="Cerrar"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted active:bg-background"
-        >
-          <X className="h-5 w-5" />
-        </button>
-      </div>
-
-      {/* Sin scroll ni padding propios: los pone el formulario, que necesita
-          repartirlos él para dejar el botón de guardar clavado abajo y que solo
-          scrollee la parte de los campos. */}
-      <div className="min-h-0 flex-1">
-        <PedidoFormLocal pedido={pedido} fecha={fecha} ofInicial={ofInicial} onGuardado={onGuardado} />
-      </div>
-    </>
-  );
-}
 
 export function PantallaEncomiendas({
   conductorId,
@@ -370,8 +132,33 @@ export function PantallaEncomiendas({
     alBorrar: dia.recargar,
   });
 
-  const [error, setError] = useState<string | null>(null);
-  const [guardando, setGuardando] = useState(false);
+  // Llamar, contestó o no, las salidas, entregar, y deshacer (ver
+  // _hooks/use-acciones-parada.ts).
+  const {
+    error,
+    setError,
+    guardando,
+    esperandoResultadoDe,
+    setEsperandoResultadoDe,
+    dandoResultadoDe,
+    setDandoResultadoDe,
+    deshacer,
+    eliminado,
+    confirmacion,
+    setConfirmacion,
+    correr,
+    llamadaDetectada,
+    onContesto,
+    onNoContesto,
+    onLlamar,
+    onCorregirLlamada,
+    onSalida,
+    onPedidoFinalizado,
+    onEliminarPedido,
+    onDeshacerEliminado,
+    onDeshacer,
+  } = useAccionesParada({ dia, activa, paradas });
+
   // La vista de formulario abierta dentro de la hoja: "nuevo" o el pedido que se
   // está corrigiendo. null = cerrada.
   const [formPedido, setFormPedido] = useState<"nuevo" | Pedido | null>(null);
@@ -393,30 +180,6 @@ export function PantallaEncomiendas({
   // Cuánto ocupan los avisos de arriba. Lo informa la propia pila: cambia con
   // cuántos hay y con el largo del mensaje de un fallo.
   const [altoNotificaciones, setAltoNotificaciones] = useState(0);
-  // Ya se marcó el número y falta que el conductor diga si contestó. Es el único
-  // estado de flujo que no se puede deducir de los datos.
-  const [esperandoResultadoDe, setEsperandoResultadoDe] = useState<string | null>(null);
-  // Pedido para el que se está eligiendo QUÉ HACER con la parada que no se pudo
-  // entregar: dejarla para el final o tacharla por hoy.
-  const [dandoResultadoDe, setDandoResultadoDe] = useState<string | null>(null);
-  // Lo último que se cerró, mientras se pueda deshacer.
-  const [deshacer, setDeshacer] = useState<{
-    pedidoId: string;
-    eventoId: string;
-    texto: string;
-  } | null>(null);
-  // Lo último que se eliminó deslizándolo, mientras se pueda volver a poner. A
-  // diferencia de `deshacer`, acá la escritura YA ocurrió: esto es el recibo
-  // para revertirla, no un evento retenido.
-  const [eliminado, setEliminado] = useState<PedidoEliminado | null>(null);
-  // La confirmación de que un pedido se guardó. El contador es lo que hace que
-  // la segunda seguida se vuelva a animar: cambia la clave del cartel, así que
-  // React lo monta de nuevo en vez de dejar el de la primera quieto ahí.
-  //
-  // Vive acá y no en el formulario que lo produce porque todos los avisos de esta
-  // pantalla salen del mismo lugar (ver PilaNotificaciones).
-  const [confirmacion, setConfirmacion] = useState<{ texto: string; n: number } | null>(null);
-  const [ayer, setAyer] = useState<{ entregadas: number; noEntregadas: number } | null>(null);
 
   const {
     ubicacion: miUbicacion,
@@ -437,254 +200,22 @@ export function PantallaEncomiendas({
 
   const hayRuta = paradas.length > 0;
 
-  const fase: Fase =
-    activa == null
-      ? "antes_llamar"
-      : dandoResultadoDe === activa.pedido.id
-        ? "salidas"
-        : esperandoResultadoDe === activa.pedido.id
-          ? "esperando_resultado"
-          : activa.pedido.llamada === "contesto"
-            ? "confirmado"
-            : // Se lo llamó y no contestó: se queda en la misma pregunta —qué pasó
-              // con la llamada— y no pasa a la de entregar.
-              //
-              // Esta rama es la que faltaba, y su ausencia era un agujero, no una
-              // decisión. "esperando_entrega" existe para UN caso: el receptor
-              // confirmó por WhatsApp que va a estar, así que no hay nada que
-              // preguntarle por teléfono. Pero se caía en ella también por
-              // descarte, porque hayQueContactar significa "falta llamarlo" y deja
-              // de ser cierto en cuanto se lo llamó — conteste o no conteste. Así,
-              // volver atrás de las salidas aterrizaba en una tercera pantalla que
-              // nadie diseñó: el renglón decía "No contestó la llamada" y abajo
-              // ofrecía "Pedido finalizado" como acción principal, más un segundo
-              // "Llamar" y un "No se pudo" que son el mismo triple otra vez.
-              //
-              // Se decide por el DATO guardado y no por el estado de pantalla:
-              // cerrar la app y volver a abrirla con la parada así vuelve al mismo
-              // lugar, en vez de aparecer en la pantalla de entregar.
-              activa.pedido.llamada === "no_contesto"
-              ? "esperando_resultado"
-              : !activa.hayQueContactar
-                ? "esperando_entrega"
-                : "antes_llamar";
+  const fase: Fase = faseDeParada(activa, { dandoResultadoDe, esperandoResultadoDe });
 
-  // Instrucción paso a paso hacia la parada activa.
-  const destinoActivo = useMemo(() => {
-    if (!activa || activa.pedido.lat == null || activa.pedido.lng == null) return null;
-    return { lat: activa.pedido.lat, lng: activa.pedido.lng };
-  }, [activa]);
+  // Guiar hasta la parada activa: tramo, voz, punto pegado al camino, rumbo y
+  // señal (ver _hooks/use-guia-navegacion.ts).
+  const {
+    destinoActivo,
+    navegacion,
+    voz,
+    seAproximaSinContacto,
+    rumbo,
+    ubicacionMostrada,
+    trazadoPorDelante,
+    señalDebil,
+  } = useGuiaNavegacion({ activa, miUbicacion, propuestaALaVista: propuesta != null, hayRuta });
 
-  // Recibe la posición CRUDA, no la pegada al camino: es la que decide si el
-  // conductor se salió de la ruta, y un punto pegado está sobre la ruta por
-  // definición — alimentarlo con eso haría que un desvío no se detecte nunca.
-  const navegacion = useNavegacion(!!destinoActivo, miUbicacion, destinoActivo);
-
-  // Con una propuesta a la vista la voz se calla: el conductor está parado
-  // decidiendo si la usa, y lo que sonaría son indicaciones de la ruta anterior.
-  const voz = useVozNavegacion(!propuesta, navegacion);
-
-  // La pantalla apagada suspende el GPS: sin esto el punto se congela a los
-  // treinta segundos de no tocar nada, que es lo que pasa manejando.
-  usePantallaEncendida(hayRuta);
-
-  // La lectura cruda del GPS cae adentro de las manzanas. Mientras haya trazado
-  // que seguir, el punto se dibuja SOBRE él.
-  const pegado = usePuntoEnRuta(miUbicacion, navegacion.trazado);
-
-  // FR-017: si hay que avisarle que llame. Está llegando a una parada cuyo
-  // receptor no contestó el WhatsApp y a la que todavía no llamó.
-  //
-  // Se mide sobre el TRAZADO y no en línea recta: lo que importa es cuánto le
-  // falta manejar, y en Arica una parada a doscientos metros en línea recta puede
-  // estar a ochocientos por calle si en el medio hay una quebrada. En línea recta
-  // el aviso saltaría demasiado pronto y dejaría de significar algo.
-  //
-  // Sin trazado (sin señal) no se avisa por distancia: no hay con qué medir, y
-  // adivinarlo con la línea recta sería justo el error de arriba. El estado del
-  // receptor igual se ve en la tarjeta.
-  const seAproximaSinContacto = useMemo(() => {
-    if (!activa?.hayQueContactar) return false;
-    const desde = pegado ?? miUbicacion;
-    if (!desde || !navegacion.trazado) return false;
-    return metrosRestantes(desde, navegacion.trazado) <= METROS_AVISO_CONTACTO;
-  }, [activa, pegado, miUbicacion, navegacion.trazado]);
-
-  // Hacia dónde orientar la vista: el camino que viene por delante en la propia
-  // ruta, medido desde el punto ya pegado. Se prefiere eso al rumbo del GPS —que
-  // en iPhone llega null casi siempre— y sobre todo a la brújula, que apunta
-  // hacia donde quedó apoyado el teléfono y no hacia donde va el camino.
-  const rumbo = useMemo(() => {
-    const desde = pegado ?? miUbicacion;
-    if (desde && navegacion.trazado) {
-      const delCamino = rumboDelCamino(desde, navegacion.trazado, 45, pegado?.indice);
-      if (delCamino != null) return delCamino;
-    }
-    return miUbicacion?.heading ?? null;
-  }, [pegado, miUbicacion, navegacion.trazado]);
-
-  const ubicacionMostrada: Ubicacion | null = useMemo(
-    () =>
-      pegado && miUbicacion ? { ...miUbicacion, lat: pegado.lat, lng: pegado.lng } : miUbicacion,
-    [pegado, miUbicacion],
-  );
-
-  // La línea azul arranca en el punto y no media cuadra más atrás: con el mapa
-  // girado, la cola del tramo ya recorrido apunta hacia atrás y se lee como un
-  // camino a tomar.
-  const trazadoPorDelante = useMemo(
-    () =>
-      pegado && navegacion.trazado
-        ? recortarTrazado(navegacion.trazado, pegado)
-        : navegacion.trazado,
-    [pegado, navegacion.trazado],
-  );
-
-  // Que la última lectura haya quedado vieja se mira con un reloj propio:
-  // mientras el GPS avisa cada lectura provoca un dibujado, pero cuando DEJA de
-  // avisar —que es el caso a denunciar— no hay nada que lo dispare.
-  const ubicacionRef = useRef(miUbicacion);
-  useEffect(() => {
-    ubicacionRef.current = miUbicacion;
-  }, [miUbicacion]);
-
-  const [ubicacionVieja, setUbicacionVieja] = useState(false);
-  useEffect(() => {
-    if (!hayRuta) return;
-    const t = setInterval(() => {
-      const tomadaEn = ubicacionRef.current?.tomadaEn;
-      setUbicacionVieja(tomadaEn != null && Date.now() - tomadaEn > MS_UBICACION_VIEJA);
-    }, 2_000);
-    return () => clearInterval(t);
-  }, [hayRuta]);
-
-  const señalDebil =
-    miUbicacion != null &&
-    (ubicacionVieja ||
-      (miUbicacion.precisionM != null && miUbicacion.precisionM > PRECISION_DUDOSA_M));
-
-  // Resumen del día anterior: cuántas cerró y cuántas quedaron. No hay navegador
-  // de fechas — el conductor no vuelve a trabajar un día pasado, solo quiere saber
-  // cómo terminó el último.
-  useEffect(() => {
-    void (async () => {
-      try {
-        // Del resumen guardado si el día ya se borró (spec 007), o de su ruta.
-        const resumen = await leerResumenDia(sumarDias(fecha, -1));
-        setAyer(
-          resumen && resumen.paradas > 0
-            ? { entregadas: resumen.entregadas, noEntregadas: resumen.noEntregadas }
-            : null,
-        );
-      } catch {
-        // El resumen de ayer es un extra: si el teléfono no lo puede leer, la
-        // pantalla de hoy no tiene por qué enterarse.
-      }
-    })();
-  }, [fecha]);
-
-  // ------------------------------------------------------------------------
-  // La ventana para deshacer
-  // ------------------------------------------------------------------------
-  // Se cuenta con reloj propio y se PAUSA con la app en segundo plano: al
-  // finalizar un pedido se marca solo el teléfono del siguiente, así que el
-  // conductor se va a la app de llamadas y volvería con la ventana vencida sin
-  // haber tenido oportunidad de ver el aviso.
-  //
-  // `confirmar` se lee de un ref: la función cambia de identidad en cada
-  // dibujado, y como dependencia reiniciaría la cuenta una y otra vez —el aviso
-  // no se iría nunca y la entrega no saldría del teléfono.
-  const confirmarRef = useRef(dia.confirmar);
-  useEffect(() => {
-    confirmarRef.current = dia.confirmar;
-  });
-
-  useEffect(() => {
-    if (!deshacer) return;
-
-    let restante = MS_DESHACER;
-    let desde = Date.now();
-    let temporizador = 0;
-
-    const vencer = () => {
-      setDeshacer(null);
-      void confirmarRef.current();
-    };
-    const arrancar = () => {
-      desde = Date.now();
-      temporizador = window.setTimeout(vencer, restante);
-    };
-    // El evento en la cola sigue la misma cuenta: retenido sin plazo mientras la
-    // app está atrás, y con lo que le quedaba al volver. Si no, salía al
-    // servidor con el aviso todavía a la vista (spec 017, E2).
-    const alCambiarVisibilidad = () => {
-      if (document.hidden) {
-        clearTimeout(temporizador);
-        restante = Math.max(0, restante - (Date.now() - desde));
-        void retenerEvento(deshacer.eventoId, "9999-12-31T00:00:00.000Z");
-      } else {
-        void retenerEvento(deshacer.eventoId, new Date(Date.now() + restante).toISOString()).then(arrancar);
-      }
-    };
-
-    arrancar();
-    document.addEventListener("visibilitychange", alCambiarVisibilidad);
-    return () => {
-      clearTimeout(temporizador);
-      document.removeEventListener("visibilitychange", alCambiarVisibilidad);
-    };
-  }, [deshacer]);
-
-  // La ventana para volver a poner un pedido eliminado. Es un temporizador
-  // simple, sin la pausa en segundo plano que necesita el de arriba: acá no hay
-  // nada retenido esperando salir —el pedido ya se borró— así que vencer solo
-  // quiere decir que la oferta de restaurarlo se retira. El recibo se pierde con
-  // la app cerrada y eso es correcto: un pedido que reapareciera solo sería peor
-  // que uno que se fue.
-  useEffect(() => {
-    if (!eliminado) return;
-    // Vencida la ventana, si el borrado dejó la ruta sin pendientes el día se
-    // cierra como cuando se marca la última parada (spec 017, E7).
-    const temporizador = window.setTimeout(() => {
-      setEliminado(null);
-      void confirmarRef.current();
-    }, MS_DESHACER);
-    return () => clearTimeout(temporizador);
-  }, [eliminado]);
-
-  useEffect(() => {
-    if (!confirmacion) return;
-    const temporizador = window.setTimeout(() => setConfirmacion(null), MS_CONFIRMACION);
-    return () => clearTimeout(temporizador);
-  }, [confirmacion]);
-
-  // Envuelve una escritura del conductor: apaga los botones mientras corre y deja
-  // el mensaje a la vista si falla.
-  const correr = useCallback(async <T,>(accion: () => Promise<T>): Promise<T | null> => {
-    setError(null);
-    setGuardando(true);
-    try {
-      return await accion();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudo guardar. Intenta de nuevo.");
-      return null;
-    } finally {
-      setGuardando(false);
-    }
-  }, []);
-
-  // Dentro de la APK (spec 015) la llamada sale directo y, al colgar, la app lee
-  // el registro de llamadas y marca sola si contestó. "No contestó" lleva derecho
-  // a las salidas, igual que el botón. Si no se puede saber, se pregunta.
-  const llamadaNativa = useLlamadaNativa({
-    marcar: async (pedidoId, resultado) => {
-      await correr(() => dia.marcarLlamada(pedidoId, resultado));
-      setEsperandoResultadoDe((actual) => (actual === pedidoId ? null : actual));
-      if (resultado === "no_contesto") setDandoResultadoDe(pedidoId);
-    },
-    alNoSaber: (pedidoId) => setEsperandoResultadoDe(pedidoId),
-  });
-  const { detectada: llamadaDetectada, olvidarDetectada } = llamadaNativa;
+  const ayer = useResumenAyer(fecha);
 
   // Botón atrás de Android (APK, spec 015): cierra lo que esté abierto, de lo más
   // reciente a lo más de fondo. Con una ruta en curso no saca de la app: un toque
@@ -712,172 +243,7 @@ export function PantallaEncomiendas({
   });
   useEffect(() => alBotonAtras(() => alAtras.current()), []);
 
-  // APK más vieja que la mínima publicada: aviso con el enlace, sin frenar nada.
-  const [apkVieja, setApkVieja] = useState(false);
-  useEffect(() => {
-    if (!apkMinima) return;
-    void versionInstalada().then((v) => setApkVieja(esMasVieja(v, apkMinima)));
-  }, [apkMinima]);
-
-  // El aviso "Contestó · Corregir" queda unos segundos: lo que hay que hacer
-  // después (entregar o elegir una salida) ya está en pantalla.
-  useEffect(() => {
-    if (!llamadaDetectada) return;
-    const temporizador = window.setTimeout(olvidarDetectada, MS_AVISO_LLAMADA);
-    return () => clearTimeout(temporizador);
-  }, [llamadaDetectada, olvidarDetectada]);
-
-  async function onContesto() {
-    if (!activa) return;
-    const id = activa.pedido.id;
-    await correr(() => dia.marcarLlamada(id, "contesto"));
-    setEsperandoResultadoDe(null);
-  }
-
-  async function onNoContesto() {
-    if (!activa) return;
-    const id = activa.pedido.id;
-    // La llamada se registra igual: es un hecho, y de eso depende el fijo
-    // diario. Lo que falta decidir es qué se hace con la parada.
-    //
-    // Salvo que ya estuviera marcada. Ahora se vuelve a esta pregunta cada vez
-    // que el conductor sale de las salidas, y volver a escribirla pisaría la hora
-    // real de la llamada con la de ahora.
-    if (activa.pedido.llamada !== "no_contesto") {
-      await correr(() => dia.marcarLlamada(id, "no_contesto"));
-    }
-    setEsperandoResultadoDe(null);
-    // Derecho a las salidas, sin una pregunta intermedia.
-    setDandoResultadoDe(id);
-  }
-
-  function onLlamar(parada: Parada) {
-    if (esApp()) {
-      void llamadaNativa.llamar(parada.pedido.id, parada.pedido.telefono).then((via) => {
-        // Sin permiso de llamadas se abrió el marcador: se pregunta como siempre.
-        if (via === "marcador") setEsperandoResultadoDe(parada.pedido.id);
-      });
-      return;
-    }
-    void llamar(parada.pedido.telefono);
-    setEsperandoResultadoDe(parada.pedido.id);
-  }
-
-  /** El resultado detectado estaba mal (un buzón de voz que "contestó", por
-   *  ejemplo): un toque lo da vuelta (spec 015, FR-006). */
-  async function onCorregirLlamada(llamada: LlamadaDetectada) {
-    olvidarDetectada();
-    const correcto = llamada.resultado === "contesto" ? "no_contesto" : "contesto";
-    await correr(() => dia.marcarLlamada(llamada.pedidoId, correcto));
-    if (correcto === "no_contesto") setDandoResultadoDe(llamada.pedidoId);
-    else setDandoResultadoDe((actual) => (actual === llamada.pedidoId ? null : actual));
-  }
-
-  /** Las dos salidas de una parada que no se pudo cerrar entregando.
-   *
-   *  "Dejar como pendiente" NO cierra la parada: la manda al final de la ruta
-   *  para reintentarla al terminar el resto. No genera ningún evento, así que
-   *  tampoco hay nada que deshacer.
-   *
-   *  "No entregado" la tacha por hoy, sin motivo (spec 012): no se decide si es
-   *  temporal o para siempre. Si el paquete vuelve a salir otro día, se escanea
-   *  de nuevo. Es lo mismo que deja el receptor que pide "Mañana". */
-  const SALIDAS = [
-    {
-      clave: "pendiente",
-      etiqueta: "Dejar como pendiente",
-      aviso: "Se reintenta más tarde",
-      detalle: "Se reintenta más tarde, de pasada",
-    },
-    {
-      clave: "no_entregado",
-      etiqueta: "No entregado",
-      aviso: "Marcado: no entregado",
-      detalle: "Se tacha por hoy",
-    },
-  ] as const;
-
-  async function onSalida(salida: (typeof SALIDAS)[number]) {
-    if (!activa) return;
-    const id = activa.pedido.id;
-
-    if (salida.clave === "pendiente") {
-      const lugar = await correr(() => dia.dejarParaElFinal(id));
-      setDandoResultadoDe(null);
-      setEsperandoResultadoDe(null);
-      // Sin evento no hay deshacer, pero la parada desaparece de arriba de la
-      // lista: sin un aviso, parece que se perdió. Se dice DÓNDE quedó.
-      const texto =
-        lugar == null ? "Se reintenta al final de la ruta" : `Se reintenta más tarde: quedó ${lugar}.ª en la fila`;
-      setConfirmacion((c) => ({ texto, n: (c?.n ?? 0) + 1 }));
-      return;
-    }
-
-    const eventoId = await correr(() => dia.marcarResultado(id, salida.clave));
-    setDandoResultadoDe(null);
-    setEsperandoResultadoDe(null);
-    if (eventoId) setDeshacer({ pedidoId: id, eventoId, texto: salida.aviso });
-  }
-
-  async function onPedidoFinalizado() {
-    if (!activa) return;
-    const id = activa.pedido.id;
-    // Antes de escribir (lo que recalcula "activa") ubicamos a quién sigue, para
-    // poder marcar su número de una vez.
-    const siguiente = paradas.find(
-      (p) => p.secuencia > activa.secuencia && p.pedido.resultado === "pendiente",
-    );
-
-    const eventoId = await correr(() => dia.marcarResultado(id, "entregado"));
-    // La OF sigue a la vista mientras se puede deshacer: es el número que se
-    // anota al entregar (spec 003).
-    const of = activa.pedido.of;
-    if (eventoId) {
-      setDeshacer({ pedidoId: id, eventoId, texto: of ? `Entrega registrada · OF ${formatoOf(of)}` : "Entrega registrada" });
-    }
-
-    // En la APK la llamada saldría sin tocar nada, con el conductor quizás todavía
-    // en la puerta: ahí la parada siguiente queda con "Llamar" como botón
-    // principal (spec 015, FR-008). En el navegador se abre el marcador, que
-    // igual espera el toque de llamar.
-    if (siguiente && siguiente.pedido.telefono && !esApp()) {
-      void llamar(siguiente.pedido.telefono);
-      setEsperandoResultadoDe(siguiente.pedido.id);
-    } else {
-      setEsperandoResultadoDe(null);
-    }
-  }
-
-  /** Un pedido que el conductor deslizó hacia la izquierda y eliminó.
-   *
-   *  Sirve tanto para los que están fuera de la ruta como para las paradas de la
-   *  ruta del día: el almacén saca las dos cosas en una transacción y devuelve el
-   *  recibo con el lugar que ocupaba, así que deshacer la deja donde estaba y no
-   *  al final. */
-  async function onEliminarPedido(pedidoId: string) {
-    const recibo = await correr(() => dia.eliminarPedido(pedidoId));
-    // null = ya no estaba (dos gestos sobre la misma fila). Sin recibo no hay
-    // nada que ofrecer deshacer.
-    if (recibo) setEliminado(recibo);
-  }
-
-  async function onDeshacerEliminado() {
-    if (!eliminado) return;
-    const recibo = eliminado;
-    setEliminado(null);
-    await correr(() => dia.restaurar(recibo));
-  }
-
-  async function onDeshacer() {
-    if (!deshacer) return;
-    const { pedidoId, eventoId } = deshacer;
-    setDeshacer(null);
-    const deshecho = await correr(() => dia.deshacer(pedidoId, eventoId));
-    if (deshecho === false) setError("Ya se había enviado: no se puede deshacer. Si fue un error, avisa a la oficina.");
-    // Volver a la parada reabierta como si no hubiera pasado nada: si venía de
-    // "contestó", el paso que corresponde es finalizar; si no, llamar.
-    setEsperandoResultadoDe(null);
-  }
+  const apkVieja = useApkVieja(apkMinima);
 
   // Cambiar de alternativa pide el trazado de la nueva (una consulta), así que
   // la propuesta se reemplaza recién cuando llega. Si la consulta falla, la
@@ -912,77 +278,11 @@ export function PantallaEncomiendas({
     void dia.avisarPedidos(enLaRuta);
   }, [propuesta, dia]);
 
-  // Memorizado a propósito: el mapa usa esta lista como dependencia de sus
-  // efectos, y si se recreara en cada dibujado (la ubicación GPS re-dibuja
-  // seguido) volvería a re-encuadrar el mapa una y otra vez.
-  const puntos: PuntoMapa[] = useMemo(
-    () =>
-      paradas
-        .filter((p) => p.pedido.lat != null && p.pedido.lng != null)
-        .map((p) => ({
-          id: p.pedido.id,
-          lat: p.pedido.lat!,
-          lng: p.pedido.lng!,
-          label: String(p.secuencia),
-          activa: p.pedido.id === activa?.pedido.id,
-          completada: p.pedido.resultado === "entregado",
-        })),
-    [paradas, activa],
-  );
+  const { puntos, previa } = usePuntosMapa(paradas, activa, propuesta);
 
-  const previa = useMemo<PreviaRuta | null>(
-    () =>
-      propuesta
-        ? {
-            puntos: propuesta.paradas.map((p, i) => ({
-              id: p.id,
-              lat: p.lat,
-              lng: p.lng,
-              label: String(propuesta.cerradas + i + 1),
-              activa: false,
-              completada: false,
-            })),
-            trazado: propuesta.trazado,
-          }
-        : null,
-    [propuesta],
-  );
+  if (dia.cargando) return <PantallaCargando />;
 
-  if (dia.cargando) {
-    return (
-      <div className="flex min-h-dvh items-center justify-center p-6 text-sm text-muted">
-        Cargando tu ruta…
-      </div>
-    );
-  }
-
-  if (dia.error) {
-    return (
-      <div className="flex min-h-dvh flex-col items-center justify-center p-6 text-center">
-        <p className="text-lg font-semibold">No se pudo abrir tu ruta</p>
-        <p className="mx-auto mt-1 max-w-xs text-sm text-muted">{dia.error}</p>
-        {/* Acá había un "Volver al inicio" al hub. Ahora el hub reenvía a esta
-            misma pantalla, así que ese link era un rebote infinito justo para
-            el conductor que ya no puede trabajar. Las dos salidas reales son
-            volver a intentar —el fallo suele ser el almacén del teléfono, que
-            a veces anda al recargar— y salir de la sesión. */}
-        <button
-          type="button"
-          onClick={() => window.location.reload()}
-          className="mt-4 flex items-center gap-2 rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-white"
-        >
-          <RotateCw className="h-4 w-4" />
-          Reintentar
-        </button>
-        <form action={logout} className="mt-6">
-          <button type="submit" className="flex items-center gap-2 text-sm text-muted">
-            <LogOut className="h-4 w-4" />
-            Cerrar sesión
-          </button>
-        </form>
-      </div>
-    );
-  }
+  if (dia.error) return <PantallaError error={dia.error} logout={logout} />;
 
   const enRuta = new Set(paradas.map((p) => p.pedido.id));
   const pendientesSueltos = pedidos.filter((p) => p.resultado === "pendiente");
@@ -1021,107 +321,23 @@ export function PantallaEncomiendas({
       </div>
     ) : null;
 
-  // Todo lo que la pantalla le tiene que decir al conductor, en una sola lista y en
-  // un solo lugar: cae desde el borde de arriba (ver PilaNotificaciones). Se
-  // llaman notificaciones y no avisos: el aviso es el WhatsApp al receptor.
-  //
-  // El orden es fijo y va de lo más reversible a lo menos: primero lo que ofrece
-  // deshacer algo —y tiene un plazo corriendo— y al final la confirmación, que no
-  // ofrece nada. Con dos a la vista, el botón de deshacer queda siempre en el
-  // mismo renglón y no baila según cuál llegó antes.
-  const notificaciones: Notificacion[] = [];
-  // El fallo de una escritura va primero y no se va solo: se cierra a mano, o lo
-  // limpia la próxima acción que salga bien (ver correr).
-  //
-  // Antes esto se dibujaba adentro de los controles de la parada activa, así que
-  // sin ruta armada no se dibujaba en ningún lado: un pedido que no se pudo
-  // guardar ni eliminar —el teléfono sin espacio, el navegador en modo privado—
-  // fallaba en silencio y el conductor volvía a intentarlo sin saber por qué.
-  if (error) {
-    notificaciones.push({
-      id: `error:${error}`,
-      icono: <AlertTriangle className="h-4 w-4" />,
-      texto: error,
-      tono: "error",
-      accion: { etiqueta: "Cerrar", onClick: () => setError(null) },
-    });
-  }
-  // Que WhatsApp esté caído no es una alarma —el sondeo reintenta solo— pero
-  // mientras lo esté no van a llegar respuestas, y el conductor tiene que saber que
-  // esperarlas no sirve: lo que corresponde es llamar. Es lo único que quedó
-  // visible del canal.
-  if (apkVieja) {
-    notificaciones.push({
-      id: "apk-vieja",
-      icono: <Download className="h-4 w-4 text-white/70" />,
-      texto: "Hay una versión nueva de la app para instalar.",
-      ...(apkUrl ? { accion: { etiqueta: "Bajar", onClick: () => window.open(apkUrl, "_blank") } } : {}),
-    });
-  }
-  if (llamadaDetectada) {
-    const contesto = llamadaDetectada.resultado === "contesto";
-    notificaciones.push({
-      id: `llamada:${llamadaDetectada.n}`,
-      icono: contesto ? (
-        <PhoneCall className="h-4 w-4 text-white/70" />
-      ) : (
-        <PhoneOff className="h-4 w-4 text-white/70" />
-      ),
-      texto: contesto ? "Contestó la llamada" : "No contestó la llamada",
-      accion: { etiqueta: "Corregir", onClick: () => void onCorregirLlamada(llamadaDetectada) },
-    });
-  }
-  if (hayRuta && dia.errorWhatsapp) {
-    notificaciones.push({
-      id: "whatsapp",
-      icono: <MessageCircleOff className="h-4 w-4 text-white/70" />,
-      texto: "WhatsApp no está disponible: llama a los clientes que no respondieron.",
-      tono: "error",
-    });
-  }
-  // Lo que las respuestas le cambiaron a la ruta en curso (spec 010): uno a la
-  // vez, del más viejo al más nuevo, hasta que el conductor lo da por leído.
-  if (dia.cambiosRuta.length > 0) {
-    notificaciones.push({
-      id: `ruta:${dia.cambiosRuta[0]}`,
-      icono: <Route className="h-4 w-4 text-white/70" />,
-      texto: dia.cambiosRuta[0],
-      accion: { etiqueta: "Entendido", onClick: dia.vistoCambioRuta },
-    });
-  }
-  if (eliminado) {
-    notificaciones.push({
-      id: `eliminado:${eliminado.pedido.id}`,
-      icono: <Trash2 className="h-4 w-4 text-white/70" />,
-      texto: `Eliminado: ${nombreVisible(eliminado.pedido)}`,
-      accion: {
-        etiqueta: "Deshacer",
-        icono: <Undo2 className="h-4 w-4" />,
-        onClick: () => void onDeshacerEliminado(),
-      },
-    });
-  }
-  if (deshacer) {
-    // Mientras este aviso está a la vista, lo que se marcó no salió del teléfono
-    // ni cerró el día (ver use-dia-trabajo).
-    notificaciones.push({
-      id: `deshacer:${deshacer.eventoId}`,
-      icono: <Check className="h-4 w-4 text-ok" />,
-      texto: deshacer.texto,
-      accion: {
-        etiqueta: "Deshacer",
-        icono: <Undo2 className="h-4 w-4" />,
-        onClick: () => void onDeshacer(),
-      },
-    });
-  }
-  if (confirmacion) {
-    notificaciones.push({
-      id: `guardado:${confirmacion.n}`,
-      icono: <Check className="h-4 w-4 text-ok" />,
-      texto: confirmacion.texto,
-    });
-  }
+  // Los avisos de arriba (ver _componentes/notificaciones-pantalla.tsx).
+  const notificaciones = armarNotificaciones({
+    error,
+    onCerrarError: () => setError(null),
+    apkVieja,
+    apkUrl,
+    llamadaDetectada,
+    onCorregirLlamada: (llamada) => void onCorregirLlamada(llamada),
+    errorWhatsapp: hayRuta ? dia.errorWhatsapp : null,
+    cambiosRuta: dia.cambiosRuta,
+    onVistoCambioRuta: dia.vistoCambioRuta,
+    eliminado,
+    onDeshacerEliminado: () => void onDeshacerEliminado(),
+    deshacer,
+    onDeshacer: () => void onDeshacer(),
+    confirmacion,
+  });
 
   // ------------------------------------------------------------------------
   // La cabecera de la hoja: lo único visible manejando
@@ -1138,254 +354,42 @@ export function PantallaEncomiendas({
   //  - Armar la ruta no es lo que se está haciendo. El botón quedaba justo arriba
   //    del campo del nombre, y armarla a mitad de una tanda deja afuera los
   //    pedidos que faltaban cargar.
-  const cabecera = formPedido && !hayRuta ? (
-    <div className="flex items-center gap-3">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-soft text-sm font-semibold tabular-nums text-brand">
-        {sinRutear.length}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold leading-tight">
-          {sinRutear.length === 1
-            ? "1 pedido pendiente"
-            : `${sinRutear.length} pedidos pendientes`}
-        </p>
-        <p className="text-xs text-muted">Sin ruta armada.</p>
-      </div>
-    </div>
-  ) : !hayRuta ? (
-    <div className="space-y-2.5">
-      <div>
-        <p className="text-sm font-semibold">Hola, {nombreConductor.split(" ")[0]}</p>
-        <p className="text-xs text-muted">
-          {sinRutear.length === 0
-            ? "No hay pedidos cargados ni ruta generada."
-            : sinRutear.length === 1
-              ? "1 pedido pendiente, sin ruta armada."
-              : `${sinRutear.length} pedidos pendientes, sin ruta armada.`}
-        </p>
-      </div>
-      {/* Sin nada cargado la cabecera NO lleva botón: "Agregar pedido" ya está
-          adentro de la hoja, al pie de la lista de pedidos, y tenerlo en los dos
-          lugares hacía dudar de si eran lo mismo. Queda el de abajo, que está
-          donde se ven los pedidos, y acá solo se dice qué falta y cómo llegar. */}
-      {sinRutear.length === 0 ? (
-        // El día empieza por la guía (spec 005): es lo primero que hay que hacer.
-        <button type="button" onClick={() => setCargandoGuia(true)} className={BOTON_PRINCIPAL}>
-          <ClipboardList className="h-4 w-4" />
-          Cargar la guía
-        </button>
-      ) : (
+  const cabecera = !hayRuta || !activa ? (
+    <CabeceraSinParada
+      cargando={formPedido != null}
+      hayRuta={hayRuta}
+      sinRutear={sinRutear.length}
+      nombreConductor={nombreConductor}
+      entregadas={entregadas}
+      noEntregadas={noEntregadas}
+      onCargarGuia={() => setCargandoGuia(true)}
+      armarRuta={
         <GenerarRutaLocal
           fecha={fecha}
           direccionEmpresa={direccionEmpresa}
           regenerar={false}
           onPropuesta={setPropuesta}
         />
-      )}
-    </div>
-  ) : !activa ? (
-    <div className="flex items-center gap-3">
-      <PackageCheck className="h-7 w-7 shrink-0 text-ok" />
-      <div className="min-w-0 flex-1">
-        <p className="font-semibold leading-tight">¡Ruta completa!</p>
-        <p className="text-xs text-muted">
-          {entregadas} {entregadas === 1 ? "entrega" : "entregas"}
-          {noEntregadas > 0 ? ` · ${noEntregadas} sin entregar` : ""}
-        </p>
-      </div>
-    </div>
+      }
+    />
   ) : (
-    <div className="space-y-3">
-      <TarjetaParada
-        secuencia={activa.secuencia}
-        pedido={activa.pedido}
-        faltan={
-          navegacion.metrosAParada != null
-            ? {
-                metros: navegacion.metrosAParada,
-                segundos: navegacion.segundosAParada,
-                llegada: navegacion.llegada,
-              }
-            : null
-        }
-        estado={
-          /* Qué contestó ESTE RECEPTOR. Es lo primero que el conductor necesita al
-              llegar: saber si lo están esperando cambia lo que hace en la puerta.
-              Cada estado lleva icono Y texto — a pleno sol, con el teléfono en
-              una mano, el color solo no se distingue.
-              Lo que NO va acá es lo que el conductor acabó de tocar. Había un "No
-              contestó la llamada" y era ruido en el único renglón que se lee
-              manejando: lo dijo él hace dos segundos, y los botones de abajo ya
-              están preguntando justamente por eso. */
-          activa.pedido.bloqueHorarioId ? (
-            <p className={cn(LINEA_ESTADO, "text-brand")}>
-              <Clock className="h-3 w-3 shrink-0" />
-              Pidió {bloquePorId(activa.pedido.bloqueHorarioId)?.etiqueta ?? "un horario"}
-            </p>
-          ) : activa.pedido.disponibilidad === "confirmado" ? (
-            <p className={cn(LINEA_ESTADO, "text-ok")}>
-              <Check className="h-3 w-3 shrink-0" />
-              Estará en su domicilio
-            </p>
-          ) : !whatsapp || activa.pedido.llamada === "no_contesto" ? null : (
-            <p className={cn(LINEA_ESTADO, "text-muted")}>
-              <Phone className="h-3 w-3 shrink-0" />
-              Sin respuesta todavía
-            </p>
-          )
-        }
-      />
-
-      {/* FR-017: al aproximarse a un pedido pendiente de respuesta, avisar que
-          hay que contactarlo. Se muestra ACÁ y no como notificación porque el
-          conductor está manejando y esta tarjeta es lo único que mira. */}
-      {seAproximaSinContacto ? (
-        <p className="flex items-start gap-2 rounded-xl bg-warn-bg px-3 py-2 text-sm font-medium text-warn">
-          <Phone className="mt-0.5 h-4 w-4 shrink-0" />
-          <span className="min-w-0 flex-1">
-            Estás llegando y este cliente no contestó. Conviene llamarlo antes de bajar.
-          </span>
-        </p>
-      ) : null}
-
-      {fase === "antes_llamar" ? (
-        activa.pedido.telefono ? (
-          <button onClick={() => onLlamar(activa)} className={BOTON_PRINCIPAL}>
-            <Phone className="h-4 w-4" />
-            Llamar
-          </button>
-        ) : (
-          // Viene de la guía y su etiqueta no se escaneó: el teléfono está ahí.
-          // Si la etiqueta está dañada o no hay cómo leerla, la parada igual se
-          // tiene que poder cerrar o completar a mano (spec 017, E3): si no,
-          // traba todas las que siguen.
-          <div className="space-y-2">
-            <button onClick={() => setEscaneando(true)} className={BOTON_PRINCIPAL}>
-              <ScanLine className="h-4 w-4" />
-              Escanear la etiqueta para llamar
-            </button>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                onClick={() => setFormPedido(activa.pedido)}
-                className={cn(BOTON_RESULTADO, "border border-separator bg-card text-brand")}
-              >
-                <Pencil className="h-4 w-4 shrink-0" />
-                Teléfono
-              </button>
-              <button
-                disabled={guardando}
-                onClick={onPedidoFinalizado}
-                className={cn(BOTON_RESULTADO, "border border-separator bg-card text-ok")}
-              >
-                <PackageCheck className="h-4 w-4 shrink-0" />
-                Entregado
-              </button>
-              <button
-                disabled={guardando}
-                onClick={() => setDandoResultadoDe(activa.pedido.id)}
-                className={cn(BOTON_RESULTADO, "border border-separator bg-card text-danger")}
-              >
-                No se pudo
-              </button>
-            </div>
-          </div>
-        )
-      ) : null}
-
-      {fase === "esperando_resultado" ? (
-        // El botón de llamar queda en el medio para poder reintentar sin tener
-        // que decidir todavía si contestó o no (suena ocupado, se cortó).
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-          <button
-            disabled={guardando}
-            onClick={onContesto}
-            className={cn(BOTON_RESULTADO, "bg-ok text-white")}
-          >
-            <Check className="h-4 w-4 shrink-0" />
-            Contestó
-          </button>
-          <button
-            onClick={() => onLlamar(activa)}
-            aria-label="Volver a llamar"
-            className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-separator bg-card text-muted transition-transform active:scale-[0.97]"
-          >
-            <Phone className="h-5 w-5" />
-          </button>
-          <button
-            disabled={guardando}
-            onClick={onNoContesto}
-            className={cn(BOTON_RESULTADO, "bg-danger text-white")}
-          >
-            <X className="h-4 w-4 shrink-0" />
-            No contestó
-          </button>
-        </div>
-      ) : null}
-
-      {/* Ya confirmó por WhatsApp: no hay nada que preguntarle por teléfono. Es
-          el caso que hace que avisarle AHORRE trabajo y no solo agregue datos. */}
-      {fase === "esperando_entrega" || fase === "confirmado" ? (
-        <div className="space-y-2">
-          <button disabled={guardando} onClick={onPedidoFinalizado} className={BOTON_PRINCIPAL}>
-            <PackageCheck className="h-4 w-4" />
-            Pedido finalizado
-          </button>
-          <div className="grid grid-cols-2 gap-2">
-            {/* Llamar sigue disponible aunque haya confirmado: puede no abrir. */}
-            <button
-              onClick={() => onLlamar(activa)}
-              className={cn(BOTON_RESULTADO, "border border-separator bg-card text-brand")}
-            >
-              <Phone className="h-4 w-4 shrink-0" />
-              Llamar
-            </button>
-            <button
-              disabled={guardando}
-              onClick={() => setDandoResultadoDe(activa.pedido.id)}
-              className={cn(BOTON_RESULTADO, "border border-separator bg-card text-danger")}
-            >
-              No se pudo
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {/* Las salidas de la parada, en una sola pantalla. */}
-      {fase === "salidas" ? (
-        <div className="space-y-2">
-          <p className="text-xs text-muted">¿Qué hacemos con esta parada?</p>
-          <div className="grid gap-2">
-            {SALIDAS.map((salida) => (
-              <button
-                key={salida.clave}
-                disabled={guardando}
-                onClick={() => void onSalida(salida)}
-                className="flex h-12 items-center gap-2 rounded-full border border-separator bg-card px-4 text-left text-sm font-semibold text-foreground transition-transform active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50"
-              >
-                {salida.clave === "pendiente" ? (
-                  <RotateCw className="h-4 w-4 shrink-0 text-brand" />
-                ) : (
-                  <X className="h-4 w-4 shrink-0 text-danger" />
-                )}
-                <span className="min-w-0 flex-1">{salida.etiqueta}</span>
-                {/* La consecuencia, escrita: el conductor la tiene que ver
-                    ANTES de tocar. */}
-                <span className="shrink-0 text-[11px] font-medium text-muted">
-                  {salida.detalle}
-                </span>
-              </button>
-            ))}
-          </div>
-          <button
-            type="button"
-            onClick={() => setDandoResultadoDe(null)}
-            className="w-full rounded-full py-2 text-sm text-muted active:bg-background"
-          >
-            Volver
-          </button>
-        </div>
-      ) : null}
-    </div>
+    <ParadaActiva
+      activa={activa}
+      fase={fase}
+      whatsapp={whatsapp}
+      guardando={guardando}
+      seAproximaSinContacto={seAproximaSinContacto}
+      navegacion={navegacion}
+      onLlamar={() => onLlamar(activa)}
+      onEscanear={() => setEscaneando(true)}
+      onEditar={() => setFormPedido(activa.pedido)}
+      onPedidoFinalizado={() => void onPedidoFinalizado()}
+      onNoSePudo={() => setDandoResultadoDe(activa.pedido.id)}
+      onContesto={() => void onContesto()}
+      onNoContesto={() => void onNoContesto()}
+      onSalida={(salida) => void onSalida(salida)}
+      onVolver={() => setDandoResultadoDe(null)}
+    />
   );
 
   return (
@@ -1486,99 +490,34 @@ export function PantallaEncomiendas({
         />
       ) : null}
 
-      {/* La flecha de volver, el cartel de navegación con el resumen adentro, y
-          los avisos del GPS. Se corren para abajo lo que ocupen los avisos, en
-          vez de quedar tapados por ellos: el cartel de navegación es lo que el
-          conductor está leyendo para saber dónde doblar. */}
-      <div
-        className="absolute inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] z-10 flex flex-col gap-2 transition-[margin-top] duration-200"
-        style={{ marginTop: altoNotificaciones }}
-      >
-        <div className="flex items-center gap-2">
-          {/* Donde estaba la flecha de volver. Se fue con el hub: entrar ya no
-              pasa por un menú, así que no hay nada atrás. Lo que el hub sí
-              guardaba —quién está y cómo cerrar sesión— vive ahora acá adentro,
-              junto con los días. */}
-          <BotonMenu
-            onAbrir={() => {
-              setMenuAbierto(true);
-              // Se leen al abrir y no al montar: es una consulta al teléfono que
-              // no hace falta para repartir, y así la lista está fresca aunque
-              // el día se haya cerrado con el menú ya usado antes.
-              void leerDias().then(setDias);
-            }}
-          />
-          {/* Escanear la etiqueta de cada paquete (spec 005): dice su parada. */}
-          {pedidos.length > 0 ? (
-            <button
-              type="button"
-              onClick={() => setEscaneando(true)}
-              aria-label="Escanear etiqueta"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-brand shadow-md active:bg-background"
-            >
-              <ScanLine className="h-4 w-4" />
-            </button>
-          ) : null}
-          {navegacion.paso && !propuesta ? (
-            <InstruccionNavegacion
-              paso={navegacion.paso}
-              siguiente={navegacion.siguiente}
-              metros={navegacion.metrosAManiobra}
-              resumen={resumenDelDia}
-            />
-          ) : resumenDelDia ? (
-            // Sin maniobra queda el mismo cartel, en el mismo lugar, con el
-            // resumen solo. Pegado a la derecha (ml-auto) para que no se mueva
-            // de costado cuando la navegación aparece o se corta: el número
-            // termina siempre en el mismo borde.
-            <div className={cn(CAJA_CARRIL, "ml-auto")}>{resumenDelDia}</div>
-          ) : null}
-        </div>
-
-        {errorUbicacion ? (
-          <p className="rounded-xl bg-warn-bg px-3 py-2 text-xs text-warn shadow-md">
-            {errorUbicacion}
-          </p>
-        ) : señalDebil ? (
-          <p className="self-start rounded-full bg-warn-bg px-3 py-1.5 text-xs text-warn shadow-md">
-            Señal de GPS débil: la ubicación puede estar desactualizada.
-          </p>
-        ) : null}
-      </div>
+      <CarrilSuperior
+        altoNotificaciones={altoNotificaciones}
+        onAbrirMenu={() => {
+          setMenuAbierto(true);
+          // Se leen al abrir y no al montar: es una consulta al teléfono que
+          // no hace falta para repartir, y así la lista está fresca aunque
+          // el día se haya cerrado con el menú ya usado antes.
+          void leerDias().then(setDias);
+        }}
+        onEscanear={pedidos.length > 0 ? () => setEscaneando(true) : null}
+        navegacion={propuesta ? null : navegacion}
+        resumen={resumenDelDia}
+        errorUbicacion={errorUbicacion}
+        señalDebil={señalDebil}
+      />
 
       {/* Controles del mapa, justo encima de la hoja cerrada. La altura la
           informa la propia hoja: cambia con el paso de la parada. */}
       {!propuesta ? (
-        <div
-          className="absolute right-3 z-10 flex flex-col gap-2"
-          style={{ bottom: alturaCerrada + 12 }}
-        >
-          {voz.disponible ? (
-            <button
-              onClick={voz.alternar}
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-md"
-              aria-label={voz.activa ? "Silenciar indicaciones" : "Activar indicaciones por voz"}
-            >
-              {voz.activa ? (
-                <Volume2 className="h-5 w-5 text-brand" />
-              ) : (
-                <VolumeX className="h-5 w-5 text-muted" />
-              )}
-            </button>
-          ) : null}
-          <button
-            onClick={() => {
-              setSiguiendo(true);
-              pedirUbicacion();
-            }}
-            className="flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-md"
-            aria-label="Centrar y seguir mi ubicación"
-          >
-            <LocateFixed
-              className={`h-5 w-5 ${enNavegacion && miUbicacion ? "text-brand" : "text-muted"}`}
-            />
-          </button>
-        </div>
+        <ControlesMapa
+          abajo={alturaCerrada + 12}
+          voz={voz}
+          siguiendo={enNavegacion && miUbicacion != null}
+          onCentrar={() => {
+            setSiguiendo(true);
+            pedirUbicacion();
+          }}
+        />
       ) : null}
 
       <BottomSheet
@@ -1623,97 +562,15 @@ export function PantallaEncomiendas({
             ) : null}
 
             <ProgresoCarga pedidos={pedidos} onEscanear={() => setEscaneando(true)} />
-            <Seccion titulo="Ruta del día">
-              <div className="mb-2.5 flex items-center gap-3">
-                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#ececef]">
-                  <div
-                    className="h-full rounded-full bg-ok transition-[width] duration-500"
-                    style={{ width: `${porcentaje}%` }}
-                  />
-                </div>
-                <span className="shrink-0 text-xs font-medium tabular-nums text-muted">
-                  {entregadas} de {paradas.length}
-                </span>
-              </div>
-              <MetaBono meta={metaBono} entregadas={pedidos.filter((p) => p.resultado === "entregado").length} />
-
-              <ol className="overflow-hidden rounded-2xl bg-card shadow-soft">
-                {paradas.map((p, i) => {
-                  const esActiva = p.pedido.id === activa?.pedido.id;
-                  return (
-                    <FilaDeslizable
-                      key={p.pedido.id}
-                      separador={i > 0}
-                      etiqueta={nombreVisible(p.pedido)}
-                      onEliminar={() => void onEliminarPedido(p.pedido.id)}
-                      // Una parada ya cerrada no se desliza. Lo que se ve ahí es
-                      // el registro de lo que pasó en el día —cuántas se
-                      // entregaron, cuántas no y por qué—, y es lo que el jefe
-                      // va a mirar después: sacarlo de la lista con un gesto lo
-                      // haría desaparecer de la vista del conductor sin que nada
-                      // más cambie. Para eliminar hay que dejarla pendiente.
-                      habilitado={p.pedido.resultado === "pendiente"}
-                      className={cn(
-                        "flex items-center gap-3 px-3.5 py-2.5 text-sm",
-                        esActiva ? "bg-brand-soft" : "bg-card",
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          "w-5 shrink-0 text-center text-xs font-semibold tabular-nums",
-                          esActiva ? "text-brand" : "text-muted",
-                        )}
-                      >
-                        {p.secuencia}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span
-                          className={cn(
-                            "block truncate font-medium leading-tight",
-                            p.pedido.resultado === "entregado" && "text-muted",
-                          )}
-                        >
-                          {nombreVisible(p.pedido)}
-                        </span>
-                        <span className="block truncate text-xs text-muted">
-                          {p.pedido.direccion}
-                        </span>
-                      </span>
-                      {/* Lo que contestó el receptor, en la propia lista: es
-                          lo que el conductor mira para decidir el orden real y a
-                          quién llamar. Cada estado con icono, no solo color. */}
-                      {p.pedido.resultado === "pendiente" ? (
-                        p.pedido.bloqueHorarioId ? (
-                          <span className="flex shrink-0 items-center gap-0.5 text-[10px] font-semibold tabular-nums text-brand">
-                            <Clock className="h-3 w-3" />
-                            {bloquePorId(p.pedido.bloqueHorarioId)?.desde ?? ""}
-                          </span>
-                        ) : p.pedido.disponibilidad === "confirmado" ? (
-                          <Check className="h-3.5 w-3.5 shrink-0 text-ok" aria-label="Confirmó" />
-                        ) : p.hayQueContactar ? (
-                          <Phone
-                            className="h-3.5 w-3.5 shrink-0 text-muted"
-                            aria-label="Hay que llamarlo"
-                          />
-                        ) : null
-                      ) : null}
-
-                      {p.pedido.resultado === "entregado" ? (
-                        <Check className="h-4 w-4 shrink-0 text-ok" />
-                      ) : p.pedido.resultado === "no_entregado" ? (
-                        <X className="h-4 w-4 shrink-0 text-danger" aria-label="No entregado" />
-                      ) : null}
-                    </FilaDeslizable>
-                  );
-                })}
-              </ol>
-              {/* El gesto no se ve. Una línea alcanza: quien lo prueba una vez no
-                  lo vuelve a olvidar, y quien no, sigue teniendo el botón de
-                  rehacer la ruta más abajo. */}
-              <p className="mb-2 mt-1.5 px-1 text-xs text-muted">
-                Desliza una parada hacia la izquierda para eliminar el pedido.
-              </p>
-            </Seccion>
+            <RutaDelDia
+              paradas={paradas}
+              activaId={activa?.pedido.id ?? null}
+              entregadas={entregadas}
+              porcentaje={porcentaje}
+              metaBono={metaBono}
+              entregadasDelDia={pedidos.filter((p) => p.resultado === "entregado").length}
+              onEliminar={(id) => void onEliminarPedido(id)}
+            />
           </>
         ) : null}
 
@@ -1742,89 +599,31 @@ export function PantallaEncomiendas({
             ellos —tocarlos para arreglar la dirección, o rehacer la ruta para
             que entren—. Antes había un botón que decía "cargar o corregir
             pedidos" y no se entendía qué abría. */}
-        <Seccion titulo="Pedidos fuera de la ruta">
-          {sinRutear.length > 0 ? (
-            <>
-              <ul className="overflow-hidden rounded-2xl bg-card shadow-soft">
-                {sinRutear.map((p, i) => (
-                  <FilaPedido
-                    key={p.id}
-                    pedido={p}
-                    primera={i === 0}
-                    onEditar={() => setFormPedido(p)}
-                    onEliminar={() => void onEliminarPedido(p.id)}
-                  />
-                ))}
-              </ul>
-              <p className="mb-2 mt-1.5 px-1 text-xs text-muted">
-                {sinUbicar > 0
-                  ? `${sinUbicar === 1 ? "Una dirección no se pudo ubicar" : `${sinUbicar} direcciones no se pudieron ubicar`} en el mapa: toca el pedido para corregirla.`
-                  : hayRuta
-                    ? "Rehaz la ruta para que entren."
-                    : "Arma la ruta para que entren."}{" "}
-                Desliza uno hacia la izquierda para eliminarlo.
-              </p>
-              {/* Spec 018: la IA busca en Mapbox, OSM y Google y propone; el
-                  conductor confirma cada corrección. */}
-              {lecturaIA && sinUbicar > 0 ? (
-                <BotonCorregirIA
-                  fecha={fecha}
-                  cuantas={sinUbicar}
-                  onAplicada={() => void dia.recargar()}
-                />
-              ) : null}
-              {/* Spec 017, R4: un pedido que llega con la ruta andando entra
-                  donde menos alarga, sin rehacer todo ni mover la parada activa. */}
-              {hayRuta && sinRutear.length > sinUbicar ? (
-                <button
-                  type="button"
-                  disabled={guardando}
-                  onClick={async () => {
-                    const cuantos = await correr(() => dia.sumarALaRuta());
-                    if (cuantos) {
-                      setConfirmacion((c) => ({
-                        texto: cuantos === 1 ? "1 pedido entró a la ruta" : `${cuantos} pedidos entraron a la ruta`,
-                        n: (c?.n ?? 0) + 1,
-                      }));
-                    }
-                  }}
-                  className="mb-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-brand py-3.5 text-sm font-semibold text-brand-foreground shadow-soft disabled:opacity-60"
-                >
-                  <Plus className="h-4 w-4" />
-                  {sinRutear.length - sinUbicar === 1
-                    ? "Sumarlo a la ruta, donde menos alarga"
-                    : `Sumar los ${sinRutear.length - sinUbicar} a la ruta, donde menos alargan`}
-                </button>
-              ) : null}
-            </>
-          ) : (
-            <p className="mb-2 px-1 text-xs text-muted">
-              {hayRuta
-                ? "Todos los pedidos cargados están en la ruta."
-                : "No hay pedidos cargados para hoy."}
-            </p>
-          )}
-
-          <button
-            type="button"
-            onClick={() => setCargandoGuia(true)}
-            className="mb-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-card py-3.5 text-sm font-semibold text-brand shadow-soft transition-colors active:bg-brand-soft"
-          >
-            <ClipboardList className="h-4 w-4" />
-            Cargar la guía
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setOfParaNuevo(undefined);
-              setFormPedido("nuevo");
-            }}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-separator bg-card py-3.5 text-sm font-semibold text-brand transition-colors active:bg-brand-soft"
-          >
-            <Plus className="h-4 w-4" />
-            Agregar pedido a mano
-          </button>
-        </Seccion>
+        <PedidosFueraDeRuta
+          fecha={fecha}
+          sinRutear={sinRutear}
+          sinUbicar={sinUbicar}
+          hayRuta={hayRuta}
+          lecturaIA={lecturaIA}
+          guardando={guardando}
+          onEditar={(p) => setFormPedido(p)}
+          onEliminar={(id) => void onEliminarPedido(id)}
+          onRecargar={() => void dia.recargar()}
+          onSumar={async () => {
+            const cuantos = await correr(() => dia.sumarALaRuta());
+            if (cuantos) {
+              setConfirmacion((c) => ({
+                texto: cuantos === 1 ? "1 pedido entró a la ruta" : `${cuantos} pedidos entraron a la ruta`,
+                n: (c?.n ?? 0) + 1,
+              }));
+            }
+          }}
+          onCargarGuia={() => setCargandoGuia(true)}
+          onAgregar={() => {
+            setOfParaNuevo(undefined);
+            setFormPedido("nuevo");
+          }}
+        />
 
         {/* Con la ruta ya armada, rehacerla vive acá abajo y no en la cabecera:
             arriba manda la parada que toca. Sin ruta, el botón está en la
@@ -1850,75 +649,19 @@ export function PantallaEncomiendas({
             avisos: que el canal está caído, porque mientras lo esté no van a
             llegar respuestas y esperarlas sí cambia lo que el conductor hace. */}
 
-        <Seccion titulo="Tu día">
-          <div className="space-y-2">
-            {/* Los tres contadores grandes (entregadas / sin entregar /
-                pendientes) se fueron: eso mismo está arriba en el carril, dentro
-                del cartel de navegación, y es lo que se mira de reojo manejando.
-                Acá abajo queda solo lo que hay que leer parado: por qué el día
-                no se cerró y qué falta enviar. */}
-
-            {/* FR-020: por qué el día no se puede cerrar todavía. Se muestra
-                solo cuando ya no quedan paradas por marcar, que es cuando el
-                conductor espera que el día se cierre solo y no entiende por qué no
-                lo hace. */}
-            {dia.motivoNoCerrar && paradas.length > 0 && noEntregadas + entregadas === paradas.length ? (
-              <div className="flex items-start gap-2.5 rounded-2xl bg-warn-bg px-3.5 py-3 text-sm text-warn">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium">El día no se cerró todavía</p>
-                  <p className="mt-0.5 text-xs">{dia.motivoNoCerrar}</p>
-                </div>
-              </div>
-            ) : null}
-
-            {ayer ? (
-              <p className="px-1 text-xs text-muted">
-                Ayer: {ayer.entregadas} {ayer.entregadas === 1 ? "entrega" : "entregas"}
-                {ayer.noEntregadas > 0 ? ` y ${ayer.noEntregadas} sin entregar` : ""}.
-              </p>
-            ) : null}
-
-            {dia.sinEnviar > 0 ? (
-              <div className="flex items-start gap-2.5 rounded-2xl bg-warn-bg px-3.5 py-3 text-sm text-warn">
-                <CloudOff className="mt-0.5 h-4 w-4 shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium">
-                    {dia.sinEnviar === 1
-                      ? "1 registro sin enviar"
-                      : `${dia.sinEnviar} registros sin enviar`}
-                  </p>
-                  <p className="text-xs opacity-90">
-                    {/* Un rechazo del servidor no es "falta señal": se dice lo
-                        que pasó, para que avise a la oficina (spec 017, E8). */}
-                    {dia.errorEnvio && !/fetch|network|red|señal|timeout|abort/i.test(dia.errorEnvio)
-                      ? `El servidor no lo aceptó: ${dia.errorEnvio}. Si sigue, cierra sesión y vuelve a entrar, o avisa a la oficina.`
-                      : "Está guardado en tu teléfono. Se envía solo en cuanto haya señal."}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={dia.intentar}
-                  disabled={dia.enviando}
-                  className="shrink-0 text-xs font-semibold underline disabled:opacity-50"
-                >
-                  {dia.enviando ? "Enviando…" : "Reintentar"}
-                </button>
-              </div>
-            ) : null}
-
-            {dia.rechazados > 0 ? (
-              <div className="flex items-start gap-2.5 rounded-2xl bg-danger-bg px-3.5 py-3 text-sm text-danger">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                <p className="min-w-0 flex-1">
-                  {dia.rechazados === 1
-                    ? "1 registro fue rechazado por el servidor y quedó aparte. Avisa a la oficina."
-                    : `${dia.rechazados} registros fueron rechazados por el servidor y quedaron aparte. Avisa a la oficina.`}
-                </p>
-              </div>
-            ) : null}
-          </div>
-        </Seccion>
+        <TuDia
+          motivoNoCerrar={
+            dia.motivoNoCerrar && paradas.length > 0 && noEntregadas + entregadas === paradas.length
+              ? dia.motivoNoCerrar
+              : null
+          }
+          ayer={ayer}
+          sinEnviar={dia.sinEnviar}
+          errorEnvio={dia.errorEnvio}
+          enviando={dia.enviando}
+          onReintentar={dia.intentar}
+          rechazados={dia.rechazados}
+        />
       </BottomSheet>
 
       {/* Por encima de la hoja: mientras haya una ruta propuesta, decidir si se
