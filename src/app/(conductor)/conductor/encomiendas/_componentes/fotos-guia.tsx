@@ -134,3 +134,30 @@ export function BotonesFoto({
     </div>
   );
 }
+
+const GRANDE =
+  "flex h-28 w-full max-w-xs flex-col items-center justify-center gap-2 rounded-3xl text-base font-semibold shadow-soft transition-transform active:scale-[0.97] disabled:opacity-50";
+
+/** Al abrir "Cargar la guía": los dos caminos, grandes y al centro. */
+export function BotonesGrandes({
+  deshabilitado,
+  onCamara,
+  onGaleria,
+}: {
+  deshabilitado: boolean;
+  onCamara: () => void;
+  onGaleria: () => void;
+}) {
+  return (
+    <>
+      <button type="button" disabled={deshabilitado} onClick={onCamara} className={`${GRANDE} bg-brand text-brand-foreground`}>
+        <Camera className="h-8 w-8" />
+        Sacar foto
+      </button>
+      <button type="button" disabled={deshabilitado} onClick={onGaleria} className={`${GRANDE} bg-card text-brand`}>
+        <Images className="h-8 w-8" />
+        Galería
+      </button>
+    </>
+  );
+}

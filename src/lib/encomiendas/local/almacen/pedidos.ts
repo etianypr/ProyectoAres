@@ -90,11 +90,14 @@ export function cambiarDireccion(
   id: string,
   direccion: string,
   punto: { lat: number; lng: number } | null,
+  /** Se suma a las notas del pedido (por ejemplo, qué decía antes de corregirla). */
+  nota: string | null = null,
 ): Promise<Pedido | null> {
   return enFila(async () => {
     const pedido = await leerPedido(id);
     if (!pedido) return null;
-    const cambiado: Pedido = { ...pedido, direccion, lat: punto?.lat ?? null, lng: punto?.lng ?? null };
+    const notas = nota ? (pedido.notas ? `${pedido.notas} · ${nota}` : nota) : pedido.notas;
+    const cambiado: Pedido = { ...pedido, direccion, notas, lat: punto?.lat ?? null, lng: punto?.lng ?? null };
     await escribir([STORES.pedidos], ({ guardar }) => guardar(STORES.pedidos, cambiado));
     return cambiado;
   });

@@ -27,6 +27,7 @@ flowchart LR
     LECT["api/lectura (spec 005)"]
     GEO["api/geocodificar (spec 016)"]
     TXT["api/texto (spec 005)"]
+    DIA["api/direccion-ia (spec 018)"]
   end
   subgraph SB["Supabase"]
     PG[("Postgres + RLS + triggers de pago")]
@@ -40,6 +41,7 @@ flowchart LR
   LOCAL -- "nombre + teléfono en tránsito" --> API --> META
   META -- "respuesta" --> API --> PG
   LOCAL -- "foto que el teléfono no pudo leer (tránsito)" --> LECT --> CLAUDE
+  LOCAL -- "dirección sin ubicar + candidatos, sin nombre (tránsito)" --> DIA --> CLAUDE
   PANEL --> PG
   CRON --> PG
   SW -- "páginas y estáticos" --> NEXT
@@ -176,8 +178,8 @@ src/
 │   ├── supabase/                 server · client · admin · sesion-proxy
 │   ├── comun/                    fechas · format · forms · utils · uuid · deslizar · telefono · periodo · periodo-servidor
 │   ├── encomiendas/              catalogos · estados · pago · periodos · config · paquete · contrato-whatsapp · lectura/ (guía, etiqueta, código de barras)
-│   │   └── local/                idb · almacen/ (lecturas, pedidos, ruta, terreno…) · generar-ruta/ (partida, ubicar-pedidos, estrategias, horarios) · planificar · replanificar · sumar-a-ruta · enviar · sincronizar-whatsapp
-│   ├── geo/                      coordenada · trazado · plus-code · marcar · openrouteservice · geocoding/ (consulta · calles · calles-arica generado · mapbox · nominatim · codigo · google · completar-numero · ubicar)
+│   │   └── local/                idb · almacen/ (lecturas, pedidos, ruta, terreno…) · generar-ruta/ (partida, ubicar-pedidos, estrategias, horarios) · planificar · replanificar · sumar-a-ruta · corregir-direcciones · enviar · sincronizar-whatsapp
+│   ├── geo/                      coordenada · trazado · plus-code · marcar · openrouteservice · geocoding/ (consulta · calles · calles-arica generado · mapbox · nominatim · codigo · google · completar-numero · ubicar) · direccion-ia/ (contrato · servidor · cliente: corregir con IA, spec 018)
 │   │   └── mapbox/               token · direcciones · matriz (por bloques, en memoria, tope mensual) · navegacion · recorrido (paso en curso, lo que falta) · mapa-estatico
 │   ├── rutas/orden-paradas/      exacto · construccion · mejora · perturbacion · con-horarios · sin-congelar
 │   ├── whatsapp/                 meta · correlacion

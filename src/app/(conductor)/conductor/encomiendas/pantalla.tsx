@@ -100,6 +100,7 @@ import { ProgresoCarga } from "./_componentes/progreso-carga";
 import { TarjetaParada } from "./_componentes/tarjeta-parada";
 import { formatoOf, nombreVisible } from "@/lib/encomiendas/paquete";
 import { CAJA_CARRIL, InstruccionNavegacion } from "./_componentes/instruccion-navegacion";
+import { BotonCorregirIA } from "./_componentes/corregir-ia";
 import { PedidoFormLocal } from "./_componentes/pedido-form-local";
 import { GenerarRutaLocal } from "./_componentes/generar-ruta-local";
 import { VistaPreviaRuta } from "./_componentes/vista-previa-ruta";
@@ -1743,6 +1744,23 @@ export function PantallaEncomiendas({
                     : "Arma la ruta para que entren."}{" "}
                 Desliza uno hacia la izquierda para eliminarlo.
               </p>
+              {/* Spec 018: la IA busca en Mapbox, OSM y Google y corrige las que
+                  puede asegurar; las dudosas quedan como sugerencia. */}
+              {lecturaIA && sinUbicar > 0 ? (
+                <BotonCorregirIA
+                  fecha={fecha}
+                  cuantas={sinUbicar}
+                  onCorregidas={(n) => {
+                    void dia.recargar();
+                    if (n > 0) {
+                      setConfirmacion((c) => ({
+                        texto: n === 1 ? "1 dirección corregida con IA" : `${n} direcciones corregidas con IA`,
+                        n: (c?.n ?? 0) + 1,
+                      }));
+                    }
+                  }}
+                />
+              ) : null}
               {/* Spec 017, R4: un pedido que llega con la ruta andando entra
                   donde menos alarga, sin rehacer todo ni mover la parada activa. */}
               {hayRuta && sinRutear.length > sinUbicar ? (

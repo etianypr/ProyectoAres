@@ -10,21 +10,25 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { AlertTriangle, ClipboardPaste, Loader2, Plus, Trash2, X } from "lucide-react";
-import { cn } from "@/lib/comun/utils";
+import { ArrowLeft, ClipboardPaste, Loader2, X } from "lucide-react";
 import { armarGuia, leerGuia, limpiarDestino, type LineaGuia } from "@/lib/encomiendas/lectura/guia";
-import { formatoOf, ofValida } from "@/lib/encomiendas/paquete";
+import { ofValida } from "@/lib/encomiendas/paquete";
 import { crearDesdeGuia, fijarCoordenadas } from "@/lib/encomiendas/local/almacen";
 import { ubicarDireccion } from "@/lib/geo/geocoding";
 import { leerFotosGuia, type FuenteLectura } from "@/lib/encomiendas/local/lectura-cliente";
 import { esApp } from "@/lib/nativo/entorno";
-import { BandejaFotos, BotonesFoto, useFotosGuia } from "./fotos-guia";
+import { BandejaFotos, BotonesFoto, BotonesGrandes, useFotosGuia } from "./fotos-guia";
+import { LineasGuia } from "./lineas-guia";
+import { VistaFinGuia, type FinGuia } from "./fin-guia";
+import { corregirSinUbicar } from "@/lib/encomiendas/local/corregir-direcciones";
 
 type Paso =
-  | { tipo: "texto" }
+  /** Sacar o elegir las fotos de la guía (lo primero que se ve). */
+  | { tipo: "fotos" }
+  /** Pegar el texto copiado con Google Lens (botón aparte). */
+  | { tipo: "pegar" }
   | { tipo: "revisar" }
-  | { tipo: "ubicando"; hechos: number; total: number }
-  | { tipo: "listo"; creados: number; ubicados: number; yaEstaban: number };
+  | FinGuia;
 
 const BOTON =
   "flex h-12 w-full items-center justify-center gap-2 rounded-full bg-brand text-[15px] font-semibold text-brand-foreground transition-transform active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50";
@@ -50,7 +54,9 @@ export function CargarGuia({
   /** Se crearon pedidos: la pantalla los vuelve a leer. */
   onCreados: () => void;
 }) {
-  const [paso, setPaso] = useState<Paso>({ tipo: "texto" });
+  // Foto: en la APK siempre (lee el teléfono); en el navegador, solo con IA.
+  const conFoto = lecturaIA || esApp();
+  const [paso, setPaso] = useState<Paso>(() => ({ tipo: conFoto ? "fotos" : "pegar" }));
   const [texto, setTexto] = useState("");
   const [lineas, setLineas] = useState<LineaGuia[]>([]);
   const [avisos, setAvisos] = useState<string[]>([]);
@@ -61,8 +67,6 @@ export function CargarGuia({
   const [leyendo, setLeyendo] = useState(false);
   /** Quién leyó las fotos de esta carga (null = texto pegado). */
   const [fuente, setFuente] = useState<FuenteLectura | null>(null);
-  // Foto: en la APK siempre (lee el teléfono); en el navegador, solo con IA.
-  const conFoto = lecturaIA || esApp();
   const entradaFoto = useRef<HTMLInputElement>(null);
   const entradaFotos = useRef<HTMLInputElement>(null);
   /** Fotos juntadas y todavía sin leer (ver fotos-guia.tsx). */
@@ -70,7 +74,7 @@ export function CargarGuia({
   const { fotos } = bandeja;
 
   const malas = useMemo(() => lineas.filter((l) => !ofValida(l.of) || !l.destino.trim()).length, [lineas]);
-  const ocupado = paso.tipo === "ubicando";
+  const ocupado = paso.tipo === "ubicando" || paso.tipo === "corrigiendo";
   useEffect(() => {
     onOcupado?.(ocupado);
     return () => onOcupado?.(false);
@@ -150,7 +154,26 @@ export function CargarGuia({
         }
       }
       onCreados();
-      setPaso({ tipo: "listo", creados: creados.length, ubicados, yaEstaban });
+      // Las que no se ubicaron, con IA (spec 018): solo se aplica sola la
+      // corrección segura; las dudosas quedan como sugerencia.
+      let corregidas = 0;
+      let sugerencias: string[] = [];
+      if (lecturaIA && ubicados < creados.length) {
+        const r = await corregirSinUbicar(fecha, {
+          alAvanzar: (hechos, total) => setPaso({ tipo: "corrigiendo", hechos, total }),
+        });
+        corregidas = r.corregidas;
+        sugerencias = r.sugerencias;
+        onCreados();
+      }
+      setPaso({
+        tipo: "listo",
+        creados: creados.length,
+        ubicados: ubicados + corregidas,
+        yaEstaban,
+        corregidas,
+        sugerencias,
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudieron crear los pedidos.");
       setPaso({ tipo: "revisar" });
@@ -203,7 +226,9 @@ export function CargarGuia({
             Leyendo la guía…
           </p>
         ) : null}
-        {error && paso.tipo === "texto" ? <p className="text-sm text-danger">{error}</p> : null}
+        {error && (paso.tipo === "fotos" || paso.tipo === "pegar") ? (
+          <p className="text-sm text-danger">{error}</p>
+        ) : null}
 
         {conFoto ? (
           <BandejaFotos
@@ -215,22 +240,42 @@ export function CargarGuia({
           />
         ) : null}
 
-        {paso.tipo === "texto" ? (
+        {/* Lo primero: sacar foto o elegir de la galería, grandes y al centro.
+            Con fotos ya juntadas, la bandeja arriba y los botones más chicos. */}
+        {paso.tipo === "fotos" ? (
+          fotos.length === 0 ? (
+            <div className="flex min-h-[55vh] flex-col items-center justify-center gap-4">
+              <BotonesGrandes
+                deshabilitado={leyendo}
+                onCamara={() => entradaFoto.current?.click()}
+                onGaleria={() => entradaFotos.current?.click()}
+              />
+              <p className="max-w-xs text-center text-xs text-muted">
+                Una foto por cada parte de la guía, derechas y que se superpongan un poco. Se juntan y se
+                leen todas en una sola consulta.
+              </p>
+            </div>
+          ) : (
+            <BotonesFoto
+              camara="Sacar otra foto"
+              deshabilitado={leyendo || bandeja.lleno}
+              onCamara={() => entradaFoto.current?.click()}
+              onGaleria={() => entradaFotos.current?.click()}
+            />
+          )
+        ) : null}
+
+        {paso.tipo === "pegar" ? (
           <>
             {conFoto ? (
-              <>
-                <BotonesFoto
-                  camara={fotos.length === 0 ? "Sacar una foto" : "Sacar otra foto"}
-                  deshabilitado={leyendo || bandeja.lleno}
-                  onCamara={() => entradaFoto.current?.click()}
-                  onGaleria={() => entradaFotos.current?.click()}
-                />
-                <p className="text-xs text-muted">
-                  Saca una foto por cada parte de la guía (derechas, que se superpongan un poco). Se van
-                  juntando arriba y se leen todas en una sola consulta; las líneas repetidas se juntan.
-                  O pega el texto:
-                </p>
-              </>
+              <button
+                type="button"
+                onClick={() => setPaso({ tipo: "fotos" })}
+                className="flex items-center gap-1.5 text-sm font-medium text-brand"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Volver a las fotos
+              </button>
             ) : null}
             <p className="text-sm text-muted">
               En el teléfono de la guía, abre <b>Google Lens</b> sobre la guía, toca <b>Texto</b> →{" "}
@@ -249,103 +294,45 @@ export function CargarGuia({
 
         {paso.tipo === "revisar" ? (
           <>
-            {avisos.map((a) => (
-              <p key={a} className="flex items-start gap-1.5 rounded-xl bg-warn-bg px-3 py-2 text-sm text-warn">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                {a}
-              </p>
-            ))}
-            <p className="text-sm font-medium">
-              {lineas.length} {lineas.length === 1 ? "línea" : "líneas"}
-              {folio ? ` · guía N° ${folio}` : ""}
-            </p>
-            <ul className="divide-y divide-divider overflow-hidden rounded-2xl bg-card shadow-soft">
-              {lineas.map((l, i) => {
-                const of = ofValida(l.of);
-                return (
-                  <li key={i} className={cn("flex items-start gap-2 px-3 py-2.5", (!of || !l.destino.trim()) && "bg-warn-bg")}>
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <input
-                        aria-label="OF"
-                        inputMode="numeric"
-                        value={of ? formatoOf(of) : l.of}
-                        onChange={(e) => cambiar(i, { of: e.target.value })}
-                        className="w-full bg-transparent text-sm font-semibold tabular-nums outline-none"
-                        placeholder="OF (9 dígitos)"
-                      />
-                      <input
-                        aria-label="Destino"
-                        value={l.destino}
-                        onChange={(e) => cambiar(i, { destino: e.target.value })}
-                        className="w-full bg-transparent text-sm text-muted outline-none"
-                        placeholder="Destino"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setLineas((ls) => ls.filter((_, j) => j !== i))}
-                      aria-label="Quitar la línea"
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted active:bg-background"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-            {conFoto ? (
-              <BotonesFoto
-                camara="Sacar otra foto"
-                deshabilitado={leyendo || bandeja.lleno}
-                onCamara={() => entradaFoto.current?.click()}
-                onGaleria={() => entradaFotos.current?.click()}
-              />
-            ) : null}
-            <button
-              type="button"
-              onClick={() => setLineas((ls) => [...ls, { of: "", destino: "", dudosa: true }])}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-separator py-3 text-sm font-medium text-brand"
+            <LineasGuia
+              lineas={lineas}
+              avisos={avisos}
+              folio={folio}
+              onCambiar={cambiar}
+              onQuitar={(i) => setLineas((ls) => ls.filter((_, j) => j !== i))}
+              onAgregar={() => setLineas((ls) => [...ls, { of: "", destino: "", dudosa: true }])}
             >
-              <Plus className="h-4 w-4" />
-              Agregar una línea
-            </button>
+              {conFoto ? (
+                <BotonesFoto
+                  camara="Sacar otra foto"
+                  deshabilitado={leyendo || bandeja.lleno}
+                  onCamara={() => entradaFoto.current?.click()}
+                  onGaleria={() => entradaFotos.current?.click()}
+                />
+              ) : null}
+            </LineasGuia>
             {error ? <p className="text-sm text-danger">{error}</p> : null}
           </>
         ) : null}
 
-        {paso.tipo === "ubicando" ? (
-          <div className="flex flex-col items-center gap-3 py-12 text-center">
-            <Loader2 className="h-8 w-8 animate-spin text-brand" />
-            <p className="text-sm font-medium">
-              Ubicando direcciones: {paso.hechos} de {paso.total}
-            </p>
-            <p className="text-xs text-muted">Los pedidos ya están guardados en el teléfono.</p>
-          </div>
-        ) : null}
-
-        {paso.tipo === "listo" ? (
-          <div className="space-y-2 py-6 text-center">
-            <p className="text-lg font-semibold">
-              {paso.creados} {paso.creados === 1 ? "pedido cargado" : "pedidos cargados"}
-            </p>
-            <p className="text-sm text-muted">
-              {paso.ubicados} ubicados en el mapa
-              {paso.creados - paso.ubicados > 0
-                ? ` · ${paso.creados - paso.ubicados} por revisar (aparecen como "Sin ubicar" en la lista)`
-                : ""}
-              {paso.yaEstaban > 0 ? ` · ${paso.yaEstaban} ya estaban cargados` : ""}.
-            </p>
-            <p className="text-sm text-muted">
-              {hayRuta
-                ? "Sigue: escanea cada paquete para saber su parada."
-                : "Sigue: arma la ruta del día y después escanea cada paquete para saber su parada."}
-            </p>
-          </div>
+        {paso.tipo === "ubicando" || paso.tipo === "corrigiendo" || paso.tipo === "listo" ? (
+          <VistaFinGuia paso={paso} hayRuta={hayRuta} />
         ) : null}
       </div>
 
       <div className="border-t border-divider px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
-        {paso.tipo === "texto" ? (
+        {paso.tipo === "fotos" ? (
+          // Google Lens, aparte: abre su propia pantalla con las instrucciones.
+          <button
+            type="button"
+            disabled={leyendo}
+            onClick={() => setPaso({ tipo: "pegar" })}
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-full border border-separator bg-card text-sm font-semibold text-brand disabled:opacity-50"
+          >
+            <ClipboardPaste className="h-4 w-4" />
+            Pegar el texto de Google Lens
+          </button>
+        ) : paso.tipo === "pegar" ? (
           <button type="button" disabled={!texto.trim() || leyendo} onClick={leer} className={BOTON}>
             <ClipboardPaste className="h-4 w-4" />
             Leer la guía

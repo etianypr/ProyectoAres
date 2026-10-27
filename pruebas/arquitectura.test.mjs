@@ -27,6 +27,7 @@ const EXC_A3 = {
 const SERVER_ONLY = [
   "lib/supabase/server.ts", "lib/supabase/admin.ts", "lib/auth/sesion.ts", "lib/auth/api-conductor.ts",
   "lib/whatsapp/meta.ts", "lib/comun/periodo-servidor.ts", "lib/encomiendas/lectura/servidor.ts", "lib/encomiendas/lectura/vision.ts",
+  "lib/geo/direccion-ia/servidor.ts",
 ];
 /** A5: los que todavía no existen → tarea que los crea. */
 const A5_POR_CREAR = {};
