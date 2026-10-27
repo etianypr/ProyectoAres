@@ -171,9 +171,17 @@ export function ordenPorEstrategia(
   // distancia desde donde quedó la parada anterior: es una ruta nueva, no hay
   // un orden elegido que respetar. Se queda solo si no deja a nadie fuera de su
   // horario.
+  //
+  // Es el ARRANQUE de "respeta horarios": el optimizador con horarios
+  // (horarios.ts) parte de este orden y de la más corta, y se queda con lo mejor.
   const tramos = reordenarTramos(base, insertado, indiceEnMatriz, matriz);
   const fuera = (orden: PedidoUbicado[]) => fueraDeHorario(orden, minutosDeInicio, metros).length;
-  return fuera(tramos) <= fuera(insertado) ? tramos : insertado;
+  // A igual cumplimiento manda la distancia: antes el reordenado ganaba aunque
+  // saliera más largo (spec 017, R3).
+  const diferencia = fuera(tramos) - fuera(insertado);
+  return diferencia < 0 || (diferencia === 0 && metrosDelOrden(tramos, metros) <= metrosDelOrden(insertado, metros))
+    ? tramos
+    : insertado;
 }
 
 /** Reordena por distancia cada tramo de paradas SIN horario, partiendo de la

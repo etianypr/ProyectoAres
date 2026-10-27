@@ -26,6 +26,7 @@ const generar = await import("@/lib/encomiendas/local/generar-ruta");
 const { calcularRutaLocal, confirmarRutaLocal, elegirAlternativa } = generar;
 
 const idb = await import("@/lib/encomiendas/local/idb");
+const { olvidarMatriz } = await import("@/lib/geo/mapbox/matriz");
 const reloj = await import("./dobles/reloj.mjs");
 
 const HOY = "2026-08-20";
@@ -91,8 +92,13 @@ function instalar() {
 
     if (url.includes("directions-matrix")) {
       if (!respondeMatriz) return new Response("no", { status: 503 });
+      // Como la API real: filas = sources, columnas = destinations (la matriz
+      // del día se pide por bloques, spec 017).
       const puntos = puntosDeUrl(url);
-      const distances = puntos.map((a) => puntos.map((b) => metros(a, b)));
+      const q = new URL(url).searchParams;
+      const indices = (clave) =>
+        q.get(clave) ? q.get(clave).split(";").map(Number) : puntos.map((_, i) => i);
+      const distances = indices("sources").map((i) => indices("destinations").map((j) => metros(puntos[i], puntos[j])));
       return Response.json({ distances });
     }
 
@@ -134,6 +140,9 @@ test.beforeEach(async () => {
   consultas = [];
   respondeTrazado = true;
   respondeMatriz = true;
+  // Los pares de la matriz se guardan en memoria el día entero: cada prueba
+  // arranca sin ellos para poder contar consultas.
+  olvidarMatriz();
   // La caché de propuestas vive en memoria del módulo y sobrevive entre pruebas.
   // Se invalida moviendo la base un poco en cada prueba (ver `inicioDe`).
 });

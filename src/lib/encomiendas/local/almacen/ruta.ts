@@ -175,7 +175,9 @@ export function cerrarDia(fecha: string): Promise<Ruta | null> {
 /** Reordena lo que falta visitar, sin tocar lo cerrado: lo cerrado queda
  *  primero, en su orden, y detrás los pendientes en el orden dado. Un pendiente
  *  que la lista no nombra —llegó entre leer y escribir— va al final, y uno que se
- *  cerró en el medio pasa con los cerrados. Devuelve la ruta guardada. */
+ *  cerró en el medio pasa con los cerrados. Un pedido pendiente del día que
+ *  estaba FUERA de la ruta y la lista nombra, entra (spec 017, R4). Devuelve la
+ *  ruta guardada. */
 export function ordenarRuta(fecha: string, pendientesEnOrden: string[]): Promise<Ruta | null> {
   return enFila(async () => {
     const [ruta, pedidos] = await Promise.all([leerRuta(fecha), leerPedidos(fecha)]);
@@ -184,7 +186,13 @@ export function ordenarRuta(fecha: string, pendientesEnOrden: string[]): Promise
     const enRuta = pedidosEnOrden(ruta, pedidos);
     const cerrados = enRuta.filter((p) => resultadoCerrado(p.resultado)).map((p) => p.id);
     const pendientes = new Set(enRuta.filter((p) => !resultadoCerrado(p.resultado)).map((p) => p.id));
-    const pedidosPorOrden = pendientesEnOrden.filter((id) => pendientes.has(id));
+    const cerradosSet = new Set(cerrados);
+    const pendientesDelDia = new Set(
+      pedidos.filter((p) => p.resultado === "pendiente" && !cerradosSet.has(p.id)).map((p) => p.id),
+    );
+    const pedidosPorOrden = [...new Set(pendientesEnOrden)].filter(
+      (id) => pendientes.has(id) || pendientesDelDia.has(id),
+    );
     const nombrados = new Set(pedidosPorOrden);
     const resto = [...pendientes].filter((id) => !nombrados.has(id));
 

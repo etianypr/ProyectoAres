@@ -19,7 +19,6 @@ import {
   leerRuta,
   marcarResultado,
   marcarLlamada,
-  moverAlFinal,
   pedidosEnOrden,
   restaurarPedido,
   rutaTerminada,
@@ -29,6 +28,7 @@ import {
 } from "@/lib/encomiendas/local/almacen";
 import { estaConfirmado, type ResultadoMarcable } from "@/lib/encomiendas/estados";
 import { replanificarRuta } from "@/lib/encomiendas/local/replanificar";
+import { dejarParaMasTarde, sumarALaRuta } from "@/lib/encomiendas/local/sumar-a-ruta";
 import { useEnvioActividad } from "@/lib/encomiendas/local/enviar";
 import {
   pedidosSinAviso,
@@ -116,9 +116,13 @@ export type DiaEnCurso = {
   /** Reabre la parada y borra su evento. Solo funciona dentro de la ventana. */
   /** false = ya no se podía (el evento había salido o estaba saliendo). */
   deshacer: (pedidoId: string, eventoId: string) => Promise<boolean>;
-  /** La parada sigue pendiente pero pasa a ser la última: el conductor va a
-   *  reintentarla al terminar el resto. */
-  dejarParaElFinal: (pedidoId: string) => Promise<void>;
+  /** La parada sigue pendiente y se reintenta más tarde: donde menos alarga,
+   *  al menos media hora más adelante (spec 017, R4). Devuelve en qué lugar de lo
+   *  pendiente quedó, o null si fue al final. */
+  dejarParaElFinal: (pedidoId: string) => Promise<number | null>;
+  /** Suma a la ruta en curso los pedidos de afuera que tienen punto, donde
+   *  menos alargan (spec 017, R4). Devuelve cuántos entraron. */
+  sumarALaRuta: () => Promise<number>;
   /** Saca un pedido del teléfono —esté en la ruta o fuera de ella— y devuelve el
    *  recibo para volver a ponerlo, o null si ya no estaba.
    *
@@ -326,11 +330,22 @@ export function useDiaTrabajo({
 
   const onDejarParaElFinal = useCallback(
     async (pedidoId: string) => {
-      await unaSolaVez(`final:${pedidoId}`, async () => {
-        await moverAlFinal({ fecha, pedidoId });
+      return unaSolaVez(`final:${pedidoId}`, async () => {
+        const lugar = await dejarParaMasTarde(fecha, pedidoId);
         await recargar();
+        return lugar;
       });
     },
+    [fecha, recargar, unaSolaVez],
+  );
+
+  const onSumarALaRuta = useCallback(
+    async () =>
+      (await unaSolaVez("sumar", async () => {
+        const cuantos = await sumarALaRuta(fecha);
+        await recargar();
+        return cuantos;
+      })) ?? 0,
     [fecha, recargar, unaSolaVez],
   );
 
@@ -555,6 +570,7 @@ export function useDiaTrabajo({
     motivoNoCerrar,
     deshacer: onDeshacer,
     dejarParaElFinal: onDejarParaElFinal,
+    sumarALaRuta: onSumarALaRuta,
     eliminarPedido: onEliminarPedido,
     restaurar: onRestaurar,
     confirmar,

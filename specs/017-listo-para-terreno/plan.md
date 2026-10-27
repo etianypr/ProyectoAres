@@ -27,9 +27,11 @@ flowchart LR
 ## Estructuras
 
 ```text
-MatrizCalles   { puntos: Coordenada[]; metros: (number|null)[][]; segundos: (number|null)[][] }
-               en memoria (Map por huella de puntos); se pierde al recargar — no se guarda:
-               son puntos de destinatarios.
+MatrizCalles   { metros: number[][]; completa: boolean; pedidos: number }
+               | { metros: null; motivo: "sin_token" | "cupo" | "sin_respuesta" }
+               pares en memoria (Map por par de puntos a ~1 m); se pierde al recargar — no se
+               guarda: son puntos de destinatarios. Solo distancia: el tiempo sale del reloj de
+               planificar.ts (25 km/h + 4 min por parada), el mismo que mide y avisa.
 ParadaPlan     { id; punto; ventana: { desde, hasta } | null (minutos del día); servicioMin }
 CostoPlan      { metros; minutosAtraso; minutosEspera; minutosPasado18 }
 EstadoTramo    { tramoId; paso; metrosAlGiro; metrosRestantes; segundosRestantes; llegada: Date }

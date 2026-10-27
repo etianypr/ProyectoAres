@@ -37,11 +37,11 @@ description: "Tareas: listo para terreno"
 
 ## US3 · Rutas
 
-- [ ] T040 R1 matriz de calles por bloques con distancia y duración
-- [ ] T041 R2 optimizador con horarios, esperas y tope 18:00
-- [ ] T042 R3 huella con horarios, tramos que empeoran, parada sin camino, hora de salida
-- [ ] T043 R4 "pendiente" y pedido tardío donde menos alargan
-- [ ] T044 R5 más búsqueda sin congelar la pantalla
+- [x] T040 R1 matriz de calles por bloques (`geo/mapbox/matriz.ts`): 12 × 13 la primera vez, por fila o columna lo que falta; pares en memoria del día; tope de 90.000 elementos al mes (el gratis de Mapbox son 100.000; después US$2 cada 1.000). Solo distancia: el reloj es el de `planificar.ts`
+- [x] T041 R2 optimizador con horarios (`con-horarios.ts`): arranca de la más corta y de la de antes; 60 paradas y 15 bloques al azar: 0 minutos fuera (la corta, 1.685), ~0,3 s en el PC
+- [x] T042 R3 huella con horario, confirmación y hora (al cuarto de hora); tramos reordenados solo si no alargan; par sin camino con costo finito; salida no antes de las 8:00
+- [x] T043 R4 "Dejar como pendiente" donde menos alarga a partir de 30 min (`dejarParaMasTarde`, avisa en qué lugar quedó); "Sumar a la ruta" para los pedidos de afuera (`sumarALaRuta`), sin mover la parada activa
+- [x] T044 R5 la búsqueda con horarios va por partes y cede la pantalla cada 30 ms (`sin-congelar.ts`); mismo resultado que de un tirón. Un Web Worker no sirvió: Turbopack publica su archivo como TypeScript sin compilar
 
 ## Cierre
 

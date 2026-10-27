@@ -152,6 +152,47 @@ export function fueraDeHorario<T extends PuntoDeRuta>(
   return orden.filter((p, i) => minutosFueraDeBloque(t[i], p) > 0);
 }
 
+/** Dónde meter `p` en `orden` para alargar lo menos posible, mirando solo las
+ *  posiciones desde `desde` (0 = antes de la primera). `metros(null, x)` es
+ *  desde donde está el conductor. Devuelve la posición (spec 017, R4). */
+export function lugarMasBarato<T extends PuntoDeRuta>(orden: T[], p: T, metros: MetrosEntre, desde = 0): number {
+  let mejor = orden.length;
+  let menos = Infinity;
+  for (let k = Math.min(Math.max(desde, 0), orden.length); k <= orden.length; k++) {
+    const antes = k === 0 ? null : orden[k - 1];
+    const despues = orden[k];
+    const agrega = metros(antes, p) + (despues ? metros(p, despues) - metros(antes, despues) : 0);
+    if (agrega < menos) {
+      menos = agrega;
+      mejor = k;
+    }
+  }
+  return mejor;
+}
+
+/** Un pedido que se deja "para más tarde" se reintenta al menos esto después. */
+export const MIN_REINTENTO = 30;
+
+/** Dónde reintentar una parada que no se pudo cerrar (el conductor está en ella):
+ *  donde menos alarga, pero no antes de MIN_REINTENTO minutos de recorrido. Antes
+ *  iba siempre al final, y si el final quedaba al otro lado de la ciudad eran
+ *  kilómetros de vuelta por un solo paquete. Sin paradas que sumen ese tiempo,
+ *  al final. `resto` son las pendientes que siguen, sin ella. */
+export function lugarParaReintentar<T extends PuntoDeRuta>(resto: T[], p: T, metros: MetrosEntre): number {
+  let minutosRecorridos = 0;
+  let anterior: T | null = null;
+  let desde = resto.length;
+  for (let k = 0; k < resto.length; k++) {
+    minutosRecorridos += (metros(anterior, resto[k]) / 1000 / KMH_CIUDAD) * 60 + MIN_POR_PARADA;
+    anterior = resto[k];
+    if (minutosRecorridos >= MIN_REINTENTO) {
+      desde = k + 1;
+      break;
+    }
+  }
+  return lugarMasBarato(resto, p, metros, desde);
+}
+
 /** Minuto del día de un instante, en la hora del teléfono (que está en Chile). */
 export function minutoDelDia(instante: Date = new Date()): number {
   return instante.getHours() * 60 + instante.getMinutes();

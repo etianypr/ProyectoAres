@@ -186,7 +186,19 @@ mensaje se aplica una vez; lo cerrado no se reabre; **Mañana** cierra el pedido
 con su evento; `HORARIO` sin bloque no cambia nada y dispara la lista de bloques. Mañana o un
 bloque reordenan la ruta en curso (`replanificarRuta`): lo cerrado primero, lo sin horario en
 su orden, lo con horario donde la llegada estimada cae en su bloque (`planificar.ts`); cada
-cambio llega como notificación al conductor. Deshacer vuelve el
+cambio llega como notificación al conductor.
+
+**Armado de la ruta (spec 017).** La matriz de metros por calle se pide a Mapbox por bloques de
+≤ 25 coordenadas (`matrizCalles`): cada par queda en memoria el día entero (no en el teléfono:
+son puntos de destinatarios), un pedido más pide solo su fila y su columna, y un contador
+mensual en `localStorage` (`ares-matriz-elementos`, tope 90.000 de los 100.000 gratis) corta a
+línea recta con aviso. Un par sin camino vale línea recta × 1,3 + 20 km, nunca infinito.
+"Respeta horarios" sale del optimizador con horarios (`optimizarConHorarios`: metros + 2000 por
+minuto fuera de bloque + 50 por minuto de espera + 5000 por minuto pasadas las 18:00, con el
+mismo reloj de `planificar.ts`), que corre por partes para no congelar la pantalla
+(`optimizarSinCongelar`). Se sale a las 8:00 como muy temprano. Con la ruta andando,
+"Dejar como pendiente" (`dejarParaMasTarde`) y un pedido tardío (`sumarALaRuta`) entran donde
+menos alargan (`lugarParaReintentar`, `lugarMasBarato`) sin rehacer la ruta. Deshacer vuelve el
 pedido a `pendiente` dentro de la ventana de retención.
 
 ## 3. Módulos
@@ -207,9 +219,9 @@ flowchart LR
   subgraph Telefono["Teléfono"]
     almacen["almacen/"]
     idb["idb · tipado por store"]
-    generar["generar-ruta · selector de 3"]
+    generar["generar-ruta · selector de 3<br/>matriz por bloques · optimizador con horarios"]
     planificar["planificar · llegada estimada"]
-    replan["replanificar · ruta en curso"]
+    replan["replanificar · sumar-a-ruta<br/>ruta en curso"]
     enviar["enviar"]
     wsl["sincronizar-whatsapp"]
     rutas["geo: trazado · geocoding · mapbox · plus-code<br/>rutas/orden-paradas"]
@@ -272,7 +284,8 @@ lo usa.
 | Listas cerradas: evento, origen, pago, disponibilidad, WhatsApp; `esClave` | `encomiendas/catalogos.ts` |
 | Reglas: `tipoEventoDe`, `resultadoCerrado`, `estaConfirmado`, `respuestaDeAccion` | `encomiendas/estados.ts` |
 | Botones y payload: orden `CONFIRMAR · MANANA · HORARIO`, `leerAccion` (RECHAZAR legado → MANANA) | `encomiendas/catalogos.ts`, `encomiendas/config.ts` |
-| Llegada estimada y lugar de un pedido con horario | `encomiendas/local/planificar.ts` |
+| Llegada estimada y lugar de un pedido con horario; dónde menos alarga uno nuevo o uno que se reintenta (`lugarMasBarato`, `lugarParaReintentar`) | `encomiendas/local/planificar.ts` |
+| "Dejar como pendiente" y pedidos tardíos sin rehacer la ruta (`dejarParaMasTarde`, `sumarALaRuta`) | `encomiendas/local/sumar-a-ruta.ts` |
 | La ruta en curso se reordena con las respuestas | `encomiendas/local/replanificar.ts` |
 | `Coordenada`, `PuntoLngLat`, `Trazado`, `distanciaMetros`, `CENTRO_ARICA`, `RECUADRO_ARICA` | `geo/coordenada.ts` |
 | Contrato teléfono ↔ `/api/whatsapp/*` | `encomiendas/contrato-whatsapp.ts` |
@@ -292,7 +305,8 @@ lo usa.
 | Plugin nativo `Telefono` (Java) | `android/app/src/main/java/cl/pucarani/ares/TelefonoPlugin.java` |
 | Sesión y puertas (`exigirPanel`, `exigirConductor`); rol y destino por rol (`leerRol`, `inicioSegunRol`); ficha por usuario | `auth/sesion.ts`, `auth/roles.ts`, `auth/conductor-de-usuario.ts` |
 | Días "YYYY-MM-DD" en hora de Chile (`hoyChile`, `sumarDias`, `esFecha`), `MESES`; periodo del panel y su cookie | `comun/fechas.ts`, `comun/periodo.ts` (+ `periodo-servidor.ts`) |
-| Orden de paradas (exacto hasta 14 puntos; si no, construcción + mejora + sacudidas) | `rutas/orden-paradas/` |
+| Orden de paradas (exacto hasta 14 puntos; si no, construcción + mejora + sacudidas) · con horarios (`optimizarConHorarios`, por partes en `optimizarSinCongelar`) | `rutas/orden-paradas/` (`con-horarios.ts`, `sin-congelar.ts`) |
+| Matriz de calles por bloques, en memoria y con tope mensual (`matrizCalles`, `planificarConsultas`) | `geo/mapbox/matriz.ts` |
 | Trazado en el teléfono: pegar al camino, rumbo, metros restantes · Mapbox: token, direcciones, navegación (`PasoNavegacion` con `duracionS` y `salida` de rotonda) · recorrido del tramo: `pasoEnCurso` (el cartel cambia al doblar la esquina, o al aparecer sobre un paso posterior) y `restanteDelTramo` (metros a la maniobra, metros y segundos a la parada) | `geo/trazado.ts` · `geo/mapbox/` (`recorrido.ts`) |
 | Ubicar una dirección (`ubicarDireccion`): limpiar la consulta, `coincidenciaCalle` (tipeo acotado), catálogo de calles de Arica (`callesParecidas`, `largoDeCalle`) | `geo/geocoding/`: `ubicar.ts`, `consulta.ts`, `calles.ts` + `calles-arica.ts` (generado), `completar-numero.ts`, `mapbox.ts`, `nominatim.ts`, `codigo.ts`; `index.ts` es el barril |
 

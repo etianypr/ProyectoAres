@@ -14,7 +14,7 @@ import {
   recortarTrazado,
 } from "@/lib/geo/trazado";
 import { ordenarParadas } from "@/lib/rutas/orden-paradas";
-import { matrizDistancias, obtenerRutaCalles } from "@/lib/geo/mapbox/direcciones";
+import { obtenerRutaCalles } from "@/lib/geo/mapbox/direcciones";
 import { obtenerNavegacion } from "@/lib/geo/mapbox/navegacion";
 
 // Arica, coordenadas reales de la zona de reparto.
@@ -313,55 +313,7 @@ test("ordenarParadas es rápido con un día grande (no traba el teléfono)", () 
   assert.ok(ms < 4000, `tardó ${Math.round(ms)} ms con 41 puntos`);
 });
 
-// ----------------------------------------------------- matrizDistancias
-test("matrizDistancias: null si no entra en una consulta (más de 25 puntos)", async () => {
-  const original = globalThis.fetch;
-  let llamadas = 0;
-  globalThis.fetch = async () => {
-    llamadas++;
-    throw new Error("no debería consultarse");
-  };
-  try {
-    assert.equal(await matrizDistancias(alAzar(26, 1)), null);
-    assert.equal(await matrizDistancias([EMPRESA]), null);
-    assert.equal(llamadas, 0, "consultó la API sabiendo que no entra");
-  } finally {
-    globalThis.fetch = original;
-  }
-});
-
-test("matrizDistancias: convierte los nulls de Mapbox en Infinity y nunca lanza", async () => {
-  const original = globalThis.fetch;
-  globalThis.fetch = async () => ({
-    ok: true,
-    json: async () => ({ distances: [[0, null], [null, 0]] }),
-  });
-  try {
-    assert.deepEqual(await matrizDistancias([EMPRESA, CENTRO]), [
-      [0, Infinity],
-      [Infinity, 0],
-    ]);
-  } finally {
-    globalThis.fetch = original;
-  }
-
-  for (const respuesta of [
-    () => ({ ok: false, json: async () => ({}) }),
-    () => ({ ok: true, json: async () => ({}) }),
-    () => ({ ok: true, json: async () => ({ distances: "no es matriz" }) }),
-    () => {
-      throw new Error("sin señal");
-    },
-    () => ({ ok: true, json: async () => { throw new Error("json roto"); } }),
-  ]) {
-    globalThis.fetch = async () => respuesta();
-    try {
-      assert.equal(await matrizDistancias([EMPRESA, CENTRO]), null);
-    } finally {
-      globalThis.fetch = original;
-    }
-  }
-});
+// La matriz de calles por bloques: pruebas/rutas-017.test.mjs (spec 017, R1).
 
 // ----------------------------------------------------- obtenerRutaCalles
 function fetchRutaFalsa(registro) {

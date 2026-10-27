@@ -31,7 +31,7 @@ Solo sobreviven conteos (asignados, entregados, no entregados).
 
 | Proveedor | Recibe | Desde | País | Retención | Autorización Starken |
 |---|---|---|---|---|---|
-| Mapbox (en uso) | dirección, coordenadas | teléfono | EE.UU. | a verificar | pendiente |
+| Mapbox (en uso; la matriz de distancias del día queda en memoria del teléfono y se olvida al cerrar el día, spec 017) | dirección, coordenadas | teléfono | EE.UU. | a verificar | pendiente |
 | OpenStreetMap/Nominatim (en uso) | dirección | teléfono | UK/UE | a verificar | pendiente |
 | Google Cloud Vision (en uso; spec 005; lee el texto de las fotos) | fotos de guía y etiquetas (OF, destino, destinatario, teléfono, dirección, pago) | servidor (tránsito, `/api/texto`) | EE.UU. | según términos de Google Cloud | pendiente |
 | Google Geocoding (en uso; spec 016; solo direcciones que Mapbox y OSM no ubicaron) | dirección (sin nombre ni teléfono) | servidor (tránsito, `/api/geocodificar`) | EE.UU. | según términos de Google Maps Platform | pendiente |

@@ -16,7 +16,6 @@ import { tokenMapbox } from "./token";
 import { tope } from "@/lib/comun/tope";
 
 const DIRECTIONS = "https://api.mapbox.com/directions/v5/mapbox";
-const MATRIX = "https://api.mapbox.com/directions-matrix/v1/mapbox";
 
 // Perfil con tráfico real e histórico. Se usa también para el trazado del día
 // completo: cuesta lo mismo que el perfil sin tráfico y la duración estimada
@@ -62,39 +61,7 @@ export function urlDirections(puntos: Coordenada[], params: Record<string, strin
   return `${DIRECTIONS}/${PERFIL}/${coords}?${query}`;
 }
 
-// Límite verificado contra la API: el perfil "driving" acepta 25 coordenadas
-// (26 devuelve 422) y "driving-traffic" solo 10. Se usa "driving" a propósito:
-// con 25 paradas entra un día completo en UNA consulta, y para decidir el
-// ORDEN de las paradas las velocidades de tráfico del momento no ayudan —el
-// conductor va a pasar por ahí dentro de tres horas, no ahora.
-const MAX_PUNTOS_MATRIZ = 25;
-
-// Distancias reales por calles entre TODAS las paradas (matriz n×n, en metros).
-// Es lo que le falta a ordenarParadas para no ordenar mirando la línea recta.
-//
-// Devuelve null si no entra en una sola consulta o si la API no respondió: en
-// ese caso se ordena como siempre, en línea recta. Nunca lanza — que no se pueda
-// afinar el orden no es motivo para dejar al conductor sin ruta.
-export async function matrizDistancias(puntos: Coordenada[]): Promise<number[][] | null> {
-  if (puntos.length < 2 || puntos.length > MAX_PUNTOS_MATRIZ) return null;
-
-  const token = tokenMapbox();
-  if (!token) return null;
-
-  const coords = puntos.map((p) => `${p.lng},${p.lat}`).join(";");
-  const query = new URLSearchParams({ annotations: "distance", access_token: token });
-
-  try {
-    const res = await fetch(`${MATRIX}/driving/${coords}?${query}`, { signal: tope(15_000) });
-    if (!res.ok) return null;
-    const datos = (await res.json()) as { distances?: (number | null)[][] };
-    if (!Array.isArray(datos.distances)) return null;
-    // Mapbox manda null en los pares que no tienen camino entre sí.
-    return datos.distances.map((fila) => fila.map((d) => d ?? Infinity));
-  } catch {
-    return null;
-  }
-}
+// La matriz de distancias entre paradas está en matriz.ts (por bloques, spec 017).
 
 // Parte una lista de puntos en tramos de como máximo "max", repitiendo el
 // último punto de cada tramo como primero del siguiente para que los trazados

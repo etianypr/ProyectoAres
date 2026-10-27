@@ -780,8 +780,8 @@ export function PantallaEncomiendas({
     {
       clave: "pendiente",
       etiqueta: "Dejar como pendiente",
-      aviso: "Queda para el final de la ruta",
-      detalle: "Se reintenta al final",
+      aviso: "Se reintenta más tarde",
+      detalle: "Se reintenta más tarde, de pasada",
     },
     {
       clave: "no_entregado",
@@ -796,12 +796,14 @@ export function PantallaEncomiendas({
     const id = activa.pedido.id;
 
     if (salida.clave === "pendiente") {
-      await correr(() => dia.dejarParaElFinal(id));
+      const lugar = await correr(() => dia.dejarParaElFinal(id));
       setDandoResultadoDe(null);
       setEsperandoResultadoDe(null);
       // Sin evento no hay deshacer, pero la parada desaparece de arriba de la
-      // lista: sin un aviso, parece que se perdió.
-      setConfirmacion((c) => ({ texto: salida.aviso, n: (c?.n ?? 0) + 1 }));
+      // lista: sin un aviso, parece que se perdió. Se dice DÓNDE quedó.
+      const texto =
+        lugar == null ? "Se reintenta al final de la ruta" : `Se reintenta más tarde: quedó ${lugar}.ª en la fila`;
+      setConfirmacion((c) => ({ texto, n: (c?.n ?? 0) + 1 }));
       return;
     }
 
@@ -1741,6 +1743,29 @@ export function PantallaEncomiendas({
                     : "Arma la ruta para que entren."}{" "}
                 Desliza uno hacia la izquierda para eliminarlo.
               </p>
+              {/* Spec 017, R4: un pedido que llega con la ruta andando entra
+                  donde menos alarga, sin rehacer todo ni mover la parada activa. */}
+              {hayRuta && sinRutear.length > sinUbicar ? (
+                <button
+                  type="button"
+                  disabled={guardando}
+                  onClick={async () => {
+                    const cuantos = await correr(() => dia.sumarALaRuta());
+                    if (cuantos) {
+                      setConfirmacion((c) => ({
+                        texto: cuantos === 1 ? "1 pedido entró a la ruta" : `${cuantos} pedidos entraron a la ruta`,
+                        n: (c?.n ?? 0) + 1,
+                      }));
+                    }
+                  }}
+                  className="mb-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-brand py-3.5 text-sm font-semibold text-brand-foreground shadow-soft disabled:opacity-60"
+                >
+                  <Plus className="h-4 w-4" />
+                  {sinRutear.length - sinUbicar === 1
+                    ? "Sumarlo a la ruta, donde menos alarga"
+                    : `Sumar los ${sinRutear.length - sinUbicar} a la ruta, donde menos alargan`}
+                </button>
+              ) : null}
             </>
           ) : (
             <p className="mb-2 px-1 text-xs text-muted">

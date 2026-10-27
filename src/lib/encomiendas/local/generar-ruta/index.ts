@@ -27,10 +27,12 @@
 //   partida.ts          de dónde se parte (y la dirección de la empresa guardada)
 //   ubicar-pedidos.ts   reintentar los pedidos sin punto
 //   estrategias.ts      las tres maneras de ordenar y cuáles mostrar
+//   horarios.ts         "respeta horarios" con el optimizador con horarios (spec 017)
 //   index.ts            calcular, elegir y confirmar la propuesta
 
 import type { Coordenada } from "@/lib/geo/coordenada";
-import { matrizDistancias, obtenerRutaCalles } from "@/lib/geo/mapbox/direcciones";
+import { obtenerRutaCalles } from "@/lib/geo/mapbox/direcciones";
+import { matrizCalles } from "@/lib/geo/mapbox/matriz";
 import { nombreVisible } from "@/lib/encomiendas/paquete";
 import { resultadoCerrado } from "@/lib/encomiendas/estados";
 import { minutoDelDia } from "../planificar";
@@ -38,22 +40,33 @@ import { guardarRuta, leerPedidos, leerRuta, pedidosEnOrden } from "../almacen";
 import { resolverInicio } from "./partida";
 import { reintentarUbicar, tieneCoordenadas } from "./ubicar-pedidos";
 import { coord, elegirUtiles, medir, metrosPorMatriz, ordenPorEstrategia, TITULOS } from "./estrategias";
+import { ordenConHorarios } from "./horarios";
 import type { Alternativa, EstrategiaRuta, PedidoUbicado, PropuestaRuta, PuntoInicio, ResultadoRuta } from "./tipos";
 
 export type { Alternativa, EstrategiaRuta, PedidoUbicado, PropuestaRuta, PuntoInicio, ResultadoRuta } from "./tipos";
 
 /** Huella de TODO lo que entra en el cálculo de una ruta. Si no cambió ni un
- *  pedido, ni su ubicación, ni de dónde se parte, la ruta que saldría es la
- *  misma y no hay nada que preguntarle a Mapbox. */
-function huella(fecha: string, base: Coordenada, ubicados: PedidoUbicado[]): string {
+ *  pedido, ni su ubicación, ni su horario, ni quién confirmó, ni de dónde y a
+ *  qué hora se parte, la ruta que saldría es la misma y no hay nada que
+ *  preguntarle a Mapbox. Antes no miraba los horarios: un cliente que eligió
+ *  bloque seguía recibiendo la propuesta vieja (spec 017, R3). */
+function huella(fecha: string, base: Coordenada, ubicados: PedidoUbicado[], minutosDeInicio: number): string {
   const paradas = ubicados
-    .map((p) => `${p.id}:${p.lat.toFixed(5)},${p.lng.toFixed(5)}`)
+    .map((p) => `${p.id}:${p.lat.toFixed(5)},${p.lng.toFixed(5)}:${p.bloqueHorarioId ?? ""}:${p.disponibilidad}`)
     .sort()
     .join("|");
   // La partida se redondea a ~10 m: partiendo del GPS, un metro de diferencia
-  // entre dos lecturas no cambia el orden de treinta paradas.
-  return `${fecha}|${base.lat.toFixed(4)},${base.lng.toFixed(4)}|${paradas}`;
+  // entre dos lecturas no cambia el orden de treinta paradas. La hora, al cuarto
+  // de hora: cambia qué bloques se alcanzan.
+  return `${fecha}|${base.lat.toFixed(4)},${base.lng.toFixed(4)}|${Math.floor(minutosDeInicio / 15)}|${paradas}`;
 }
+
+/** Antes de esta hora no se reparte: armar la ruta a las 7:00 no puede suponer
+ *  que la primera parada se atiende a las 7:10 (spec 017, R3). */
+const MINUTO_SALIDA_MAS_TEMPRANA = 8 * 60;
+
+/** Deja pintar la pantalla ("Armando la ruta…") entre dos cálculos largos. */
+const cederTurno = () => new Promise<void>((listo) => setTimeout(listo, 0));
 
 /** Última propuesta calculada, en memoria. Sobrevive a cerrar y reabrir la hoja
  *  y a descartar la propuesta —que es cuando se repetía— pero no a recargar la
@@ -114,7 +127,12 @@ export async function calcularRutaLocal(
   // cambiar si el conductor marcó algo mientras la propuesta estaba en pantalla) y
   // con las advertencias recién calculadas: una dirección que el conductor corrigió
   // entre las dos pasadas no puede seguir avisando.
-  const clave = huella(fecha, base, ubicados);
+  // La hora a la que arranca, en minutos desde medianoche. Sirve para estimar si
+  // los bloques horarios se alcanzan; se toma del reloj y no de la ruta guardada
+  // porque la pregunta es "si salgo AHORA, ¿llego?".
+  const minutosDeInicio = Math.max(minutoDelDia(), MINUTO_SALIDA_MAS_TEMPRANA);
+
+  const clave = huella(fecha, base, ubicados, minutosDeInicio);
   if (ultimaPropuesta?.huella === clave) {
     return {
       ...ultimaPropuesta.propuesta,
@@ -126,40 +144,44 @@ export async function calcularRutaLocal(
 
   const puntos: Coordenada[] = [base, ...ubicados.map((p) => ({ lat: p.lat, lng: p.lng }))];
 
-  // Distancias reales por calles para decidir el orden. Si son más de 25 puntos
-  // o la API no responde, matrizDistancias devuelve null y ordenarParadas cae
-  // solo a la línea recta, como antes.
-  const matriz = await matrizDistancias(puntos);
+  // Distancias reales por calles para decidir el orden, por bloques y guardadas
+  // en memoria el día entero (spec 017, R1). Sin ellas se ordena en línea recta
+  // y la propuesta lo dice.
+  const calle = await matrizCalles(puntos);
+  const matriz = calle.metros;
+  if (calle.metros === null && calle.motivo === "cupo") {
+    advertencias.push(
+      "Este mes ya se usaron las distancias por calle gratuitas: el orden se calculó en línea recta.",
+    );
+  } else if (calle.metros === null && calle.motivo === "sin_respuesta") {
+    advertencias.push("Sin señal para las distancias por calle: el orden se calculó en línea recta.");
+  } else if (calle.metros !== null && !calle.completa) {
+    advertencias.push("Algunas distancias por calle no llegaron: parte del orden se calculó en línea recta.");
+  }
+  await cederTurno();
 
   // El índice de cada pedido en la matriz: la fila 0 es la base, así que el
   // pedido i está en la fila i + 1.
   const indiceEnMatriz = new Map(ubicados.map((p, i) => [p.id, i + 1] as const));
 
-  // La hora a la que arranca, en minutos desde medianoche. Sirve para estimar si
-  // los bloques horarios se alcanzan; se toma del reloj y no de la ruta guardada
-  // porque la pregunta es "si salgo AHORA, ¿llego?".
-  const minutosDeInicio = minutoDelDia();
   const metros = metrosPorMatriz(base, indiceEnMatriz, matriz);
 
   // Los tres órdenes. Ninguno consulta nada: todos reusan la matriz de arriba.
-  const candidatas: Alternativa[] = (["corta", "horarios", "confirmados"] as const).map(
-    (estrategia) => {
-      const orden = ordenPorEstrategia(
-        estrategia,
-        base,
-        ubicados,
-        indiceEnMatriz,
-        matriz,
-        minutosDeInicio,
-      );
-      return {
-        estrategia,
-        ...TITULOS[estrategia],
-        paradas: orden,
-        ...medir(orden, metros, minutosDeInicio),
-      };
-    },
-  );
+  const orden = (estrategia: EstrategiaRuta) =>
+    ordenPorEstrategia(estrategia, base, ubicados, indiceEnMatriz, matriz, minutosDeInicio);
+  const corta = orden("corta");
+  const ordenes: Record<EstrategiaRuta, PedidoUbicado[]> = {
+    corta,
+    confirmados: orden("confirmados"),
+    // El optimizador con horarios corre fuera del hilo de la pantalla (R5).
+    horarios: await ordenConHorarios(ubicados, [corta, orden("horarios")], indiceEnMatriz, metros, minutosDeInicio),
+  };
+  const candidatas: Alternativa[] = (["corta", "horarios", "confirmados"] as const).map((estrategia) => ({
+    estrategia,
+    ...TITULOS[estrategia],
+    paradas: ordenes[estrategia],
+    ...medir(ordenes[estrategia], metros, minutosDeInicio),
+  }));
 
   const alternativas = elegirUtiles(candidatas);
   const recomendada = alternativas[0];

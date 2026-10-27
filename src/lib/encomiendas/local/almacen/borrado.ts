@@ -3,6 +3,7 @@
 // direcciones y rutas se van al cerrar el día o la sesión. La cola de eventos
 // no se toca: no tiene datos de personas y sin ella el conductor no cobra.
 
+import { olvidarMatriz } from "@/lib/geo/mapbox/matriz";
 import { STORES, STORES_DEL_DIA, clavesFotosDe, escribir, leerTodos } from "../idb";
 import { enFila } from "./fila";
 import { leerDiaGuardado, leerPedidos, leerRuta, leerTodosLosPedidos, pedidosEnOrden } from "./lecturas";
@@ -48,6 +49,8 @@ export function cerrarYBorrarDia(fecha: string): Promise<ResumenDia | null> {
       for (const id of fotos) borrar(STORES.fotos, id);
       if (ruta) borrar(STORES.rutas, fecha);
     });
+    // Las distancias del día guardan puntos de destinatarios (en memoria).
+    olvidarMatriz();
     return resumen;
   });
 }
@@ -74,6 +77,7 @@ export function borrarDatosDestinatarios(): Promise<void> {
       for (const r of resumenes) guardar(STORES.dias, r);
       for (const store of STORES_DEL_DIA) vaciar(store);
     });
+    olvidarMatriz();
   });
 }
 
