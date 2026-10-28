@@ -26,7 +26,7 @@ description: "Tareas de indicadores del negocio"
 
 ## Phase 5: US3 - Margen del día (P2)
 - [x] T010 [US3] Columna margen (ingreso − pago) en `src/app/(app)/encomiendas/_componentes/tabla-dias.tsx` y total del período en `indicadores.tsx` Hecho en la tabla de `page.tsx` (no existe `tabla-dias.tsx` todavía).
-- [ ] T011 [P] [US3] Extender `pruebas/base.mjs`: margen del panel = `ingresos_totales − pago_total` de la base Pendiente: la prueba pura de margen está en `pruebas/indicadores.test.mjs`; falta contra la base.
+- [x] T011 [P] [US3] `pruebas/base.mjs` §13 (solo lectura): el indicador de margen y la columna Margen del panel suman lo mismo que `encomienda_pagos`, y se avisa si hay pagos sin actividad. Corrido el 2026-10-27: pasa, pero la base todavía no tiene días con pago (sin cierres de terreno)
 
 ## Phase 6: US4 - Meta del bono (P3)
 - [x] T012 [US4] Llamar `encomienda_meta_entregas_dia()` en `src/app/(conductor)/conductor/encomiendas/page.tsx` y pasar la meta a la pantalla

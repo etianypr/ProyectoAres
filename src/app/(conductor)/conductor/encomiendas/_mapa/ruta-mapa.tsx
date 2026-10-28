@@ -62,7 +62,7 @@ export function RutaMapa({
   previa?: PreviaRuta | null;
   /** Modo navegación: el mapa sigue y orienta según la ubicación del conductor.
    *  El estado vive en el componente padre porque el botón para retomarlo
-   *  también (ver ruta-conductor.tsx). */
+   *  también (ver controles-mapa.tsx). */
   siguiendo: boolean;
   /** El conductor arrastró el mapa a mano: quiere mirar otra cosa, así que hay
    *  que dejar de seguirlo hasta que toque "centrar". */

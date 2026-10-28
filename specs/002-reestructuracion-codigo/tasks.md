@@ -74,14 +74,14 @@ borra su excepción en `pruebas/arquitectura.test.mjs`.
 ## Phase 6: US4 - Documentación igual al código (P3)
 
 - [x] T043 [P] [US4] `specs/001/data-model.md` marcado como superado (2026-10-20)
-- [ ] T044 [P] [US4] `docs/ARQUITECTURA.md` y `docs/CLASES.md` con nombres y estructura finales
-- [ ] T045 [P] [US4] `README.md`, `AGENTS.md`, `mcp/README.md`, `pruebas/README.md` con rutas nuevas
+- [x] T044 [P] [US4] `docs/ARQUITECTURA.md` y `docs/CLASES.md` con nombres y estructura finales (2026-10-27: ninguna referencia a un archivo que no existe; carpetas del conductor y del mapa al día)
+- [x] T045 [P] [US4] `README.md` (migraciones 0006–0007, proveedores y variables), `pruebas/README.md` (todos los archivos, 664 pruebas), comentarios del código sin `ruta-conductor.tsx` ni piezas ya movidas (2026-10-27)
 - [x] T046 [P] [US4] `docs/DOCUMENTO-PRINCIPAL.md`: rol `conductor` (verificado 2026-10-27; la prueba A8 no encuentra "chofer")
 
 ## Phase 7: Polish
 
 - [ ] T047 Quickstart completo
-- [ ] T048 Revisión de SC-001…SC-007 con `arquitectura.test.mjs` y búsqueda de "chofer"
+- [x] T048 Revisión (2026-10-27): SC-001 suite y build verdes · SC-002 arquitectura sin violaciones · SC-003 sin "chofer" (A8) · SC-004 una excepción (eran 14): `pedido-form-local` · SC-005 y SC-006 verificados por la migración 0006 y `renombrado-conductor.test.mjs` · SC-007 hecho en US1
 
 ## Dependencias
 

@@ -161,7 +161,7 @@ export function useNavegacion(
   const habilitado = activo && origen != null && destino != null;
   // Al dejar de estar habilitado (sin parada activa, o modo solo-lectura) se
   // limpia lo que se estaba mostrando — ajustado durante el render, no en un
-  // efecto, siguiendo el mismo patrón que ruta-conductor.tsx.
+  // efecto, siguiendo el mismo patrón que use-punto-en-ruta.ts.
   const [habilitadoAnterior, setHabilitadoAnterior] = useState(false);
   if (habilitado !== habilitadoAnterior) {
     setHabilitadoAnterior(habilitado);

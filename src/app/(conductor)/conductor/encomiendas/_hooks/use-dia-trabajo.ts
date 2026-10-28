@@ -36,7 +36,7 @@ export function useDiaTrabajo({
 }: {
   conductorId: string;
   /** El día en curso. La app del conductor no trabaja días pasados: de los
-   *  anteriores solo se muestra el resumen del último (ver pantalla.tsx). */
+   *  anteriores solo se muestra el resumen del último (ver use-avisos-del-dia.ts). */
   fecha: string;
   /** false = sin credenciales de Meta en el servidor: no se mandan avisos ni se
    *  consultan respuestas, y no hay error que mostrar (spec 013). */

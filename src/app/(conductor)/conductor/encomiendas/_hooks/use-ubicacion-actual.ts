@@ -104,7 +104,7 @@ export function useUbicacionActual(activo: boolean): EstadoUbicacion {
     // Una lectura tirada NO es un error que mostrar: el GPS sigue funcionando y
     // la próxima puede venir bien. Se descarta en silencio y el punto se queda
     // en la última buena; que quedó vieja se ve en la pantalla por otro lado
-    // (ver el aviso de señal débil en ruta-conductor).
+    // (ver el aviso de "GPS débil" en carril-superior.tsx).
     if (anterior) {
       // La primera lectura entra aunque sea mala, y antes eso la dejaba de
       // referencia: las buenas que venían después "saltaban" más rápido de lo

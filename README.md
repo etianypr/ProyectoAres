@@ -79,8 +79,10 @@ Migraciones en orden en el SQL Editor de Supabase; todas re-ejecutables y termin
 3. `0003_asistencia_ruta.sql` — motivo de no entrega (heredado, spec 012), bloques horarios, correlaciones WhatsApp
 4. `0004_aviso_manana.sql` — botón "Mañana" del aviso (spec 010)
 5. `0005_pago_solo_jefe.sql` — recalcular o valorar un día solo con rol de jefe; anon sin acceso
+6. `0006_conductor.sql` — "chofer" pasa a "conductor" en tablas, columnas, funciones y políticas (spec 002)
+7. `0007_indicadores.sql` — asignados y contactados por día de trabajo, meta del bono (spec 006)
 
-En el proyecto de Supabase están aplicadas las cinco (2026-10-21).
+En el proyecto de Supabase están aplicadas las siete (2026-10-25).
 
 Roles: `admin` (todo), `operador` (todo menos crear cuentas), `conductor` (su ruta y sus
 cifras). El primer usuario registrado es admin.
@@ -89,12 +91,12 @@ cifras). El primer usuario registrado es admin.
 
 | Proveedor | Variable | Uso |
 |---|---|---|
-| Mapbox | `NEXT_PUBLIC_MAPBOX_TOKEN` (pública; restringir por URL) | mapa, direcciones, navegación |
+| Mapbox | `NEXT_PUBLIC_MAPBOX_TOKEN` (pública; restringir por URL) | mapa, direcciones, navegación, matriz de distancias por calle (tope de 90.000 elementos al mes en el teléfono, spec 017) |
 | Google Cloud Vision | `GOOGLE_VISION_KEY` o la misma `GOOGLE_MAPS_KEY` (servidor) | texto de las fotos de etiquetas y guía (el lector de Google Lens, spec 005) |
 | Google Geocoding | `GOOGLE_MAPS_KEY` (servidor) | último recurso para ubicar direcciones que Mapbox y OSM no numeran (spec 016) |
 | OpenStreetMap / Nominatim | — | segunda opinión de direcciones; catálogo de calles (Overpass, solo al regenerarlo) |
 | WhatsApp (Meta Cloud API) | ver `.env.example` | webhook listo; envío pendiente de verificación de negocio y token permanente |
-| Anthropic (Claude) | `ANTHROPIC_API_KEY` (servidor) · `ANTHROPIC_WORKSPACE_ID` · `LECTURA_MODELO` | respaldo para leer la foto de la guía o de una etiqueta cuando el teléfono no pudo (spec 005; el teléfono lee primero con ML Kit, gratis); sin clave, texto pegado |
+| Anthropic (Claude) | `ANTHROPIC_API_KEY` (servidor) · `ANTHROPIC_WORKSPACE_ID` · `LECTURA_MODELO` · `LECTURA_MODELO_GUIA` · `DIRECCION_MODELO` | leer la guía (Opus, varias fotos en una consulta) y las etiquetas que el teléfono no pudo (spec 005); corregir las direcciones sin ubicar, que el conductor confirma (spec 018); sin clave, texto pegado |
 | OpenRouteService | `ORS_API_KEY` (servidor) | solo servidor MCP |
 
 ## Notas

@@ -19,6 +19,8 @@ import {
   tarifaDelDia,
   valorPedido,
 } from "@/lib/encomiendas/pago";
+import { calcularIndicadores } from "@/lib/encomiendas/indicadores";
+import { armarDias } from "@/app/(app)/encomiendas/_resumen";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -425,6 +427,35 @@ if (anon) {
     const { data, error } = await publico.from(tabla).select("*").limit(1);
     if (error || (data?.length ?? 0) === 0) ok(`${tabla}: un anónimo no lee nada`);
     else mal(`${tabla}: ¡un anónimo lee ${data.length} fila(s)!`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Spec 006 T011: el margen que muestra el panel es el de la base. Solo lectura.
+console.log("\n=== 13. El margen del panel contra la base ===");
+{
+  const desde = new Date(Date.now() - 120 * 86_400_000).toISOString().slice(0, 10);
+  const [{ data: pagos, error: e1 }, { data: actividad, error: e2 }] = await Promise.all([
+    db.from("encomienda_pagos").select("conductor_id, fecha, ingresos_totales, pago_total").gte("fecha", desde),
+    db.from("encomienda_actividad").select("conductor_id, fecha, tipo, origen").gte("fecha", desde),
+  ]);
+  if (e1 || e2) {
+    mal(`no se pudo leer pagos o actividad: ${(e1 ?? e2).message}`);
+  } else {
+    const base = pagos.reduce((s, p) => s + p.ingresos_totales - p.pago_total, 0);
+    const indicador = calcularIndicadores({ actividad: [], dias: [], pagos }).margen;
+    if (indicador === base) ok(`indicador de margen = base (${base}, ${pagos.length} día(s) desde ${desde})`);
+    else mal(`el indicador de margen (${indicador}) no es el de la base (${base})`);
+
+    // La columna "Margen" del panel suma por día con actividad: un pago sin
+    // actividad (huérfano) no aparecería en ninguna fila.
+    const dias = armarDias(actividad, pagos, []);
+    const panel = dias.reduce((s, d) => s + (d.cifras ? d.cifras.ingresos_totales - d.cifras.pago_total : 0), 0);
+    const huerfanos = pagos.filter(
+      (p) => !dias.some((d) => d.fecha === p.fecha && d.conductorId === p.conductor_id),
+    ).length;
+    if (panel === base) ok(`la columna Margen del panel suma lo mismo que la base (${panel})`);
+    else mal(`el panel suma ${panel} de margen y la base ${base}: ${huerfanos} pago(s) sin actividad`);
   }
 }
 

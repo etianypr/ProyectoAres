@@ -55,7 +55,7 @@ export function PedidoFormLocal({
    *  "agregado" sin taparle al conductor un aviso que sí tiene que leer.
    *
    *  No hay onCancelar: para salir está la flecha de la vista que lo contiene
-   *  (ver VistaPedido en pantalla.tsx). Un botón "Cancelar" al lado del de
+   *  (ver vista-pedido.tsx). Un botón "Cancelar" al lado del de
    *  guardar era un segundo camino para lo mismo, ocupando la mitad del ancho
    *  que le hacía falta al único botón que importa. */
   onGuardado: (aviso?: string | null) => void;
@@ -559,7 +559,7 @@ export function PedidoFormLocal({
           había que deslizar para alcanzarlo, con el pedido ya escrito. Es el
           gesto que sobra treinta veces al día.
           La confirmación de guardado ya no va acá sino asomando desde abajo (ver
-          VistaPedido en pantalla.tsx): en el borde de la pantalla no empuja el
+          vista-pedido.tsx): en el borde de la pantalla no empuja el
           formulario que el conductor ya está volviendo a llenar. */}
       <div className="shrink-0 border-t border-divider px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
         <Button type="submit" size="lg" disabled={guardando} className="w-full">

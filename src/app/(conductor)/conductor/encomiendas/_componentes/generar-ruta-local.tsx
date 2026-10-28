@@ -81,7 +81,7 @@ export function GenerarRutaLocal({
   // sola no puede pedir permiso de GPS sin que nadie lo haya pedido. El botón de
   // armar está a la vista en la cabecera de la hoja, que es un toque — salvo
   // mientras se carga un pedido, que ahí la cabecera pasa a ser el contador de
-  // pendientes (ver pantalla.tsx).
+  // pendientes (ver cabecera-sin-parada.tsx).
 
   function onClick() {
     setError(null);

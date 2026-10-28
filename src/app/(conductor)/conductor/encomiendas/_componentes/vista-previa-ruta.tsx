@@ -40,7 +40,7 @@ import { bloquePorId } from "@/lib/encomiendas/config";
 import type { EstrategiaRuta, PropuestaRuta } from "@/lib/encomiendas/local/generar-ruta";
 
 // Mismas medidas que los botones de la tarjeta de la parada activa (ver
-// ruta-conductor.tsx): 48 px de alto, para el pulgar y sin mirar mucho.
+// parada-activa.tsx): 48 px de alto, para el pulgar y sin mirar mucho.
 const BOTON_PRINCIPAL =
   "flex h-12 items-center justify-center gap-2 rounded-full bg-brand text-[15px] font-semibold text-brand-foreground shadow-[0_1px_2px_var(--brand-shadow)] transition-transform active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50";
 
