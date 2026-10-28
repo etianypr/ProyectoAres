@@ -59,22 +59,22 @@ async function conFetch(doble, fn) {
 }
 
 // ------------------------------------------------------------- R1: consultas
-test("planificarConsultas: la primera vez, cada par una sola vez y nunca hacia la partida", () => {
+test("planificarConsultas: la primera vez, cada par una sola vez, también la vuelta a la partida", () => {
   const n = 61;
   const faltan = new Set();
-  for (let i = 0; i < n; i++) for (let j = 1; j < n; j++) if (i !== j) faltan.add(i * n + j);
+  // La ruta es cerrada (terreno 2026-10-28): volver a la partida (j = 0) se pide.
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) if (i !== j) faltan.add(i * n + j);
   const consultas = planificarConsultas(n, faltan);
 
   const vistos = new Map();
   for (const c of consultas) {
     assert.ok(new Set([...c.origenes, ...c.destinos]).size <= 25);
-    assert.ok(!c.destinos.includes(0), "pidió llegar a la partida");
     for (const i of c.origenes) for (const j of c.destinos) vistos.set(i * n + j, (vistos.get(i * n + j) ?? 0) + 1);
   }
   for (const k of faltan) assert.equal(vistos.get(k), 1, `el par ${k} se pidió ${vistos.get(k) ?? 0} veces`);
   const total = consultas.reduce((s, c) => s + elementos(c), 0);
-  // n × (n - 1): los únicos de más son los n - 1 de cada punto a sí mismo.
-  assert.equal(total, n * (n - 1));
+  // n × n: los únicos de más son los de cada punto a sí mismo.
+  assert.equal(total, n * n);
   assert.ok(consultas.length <= 30, `${consultas.length} consultas`);
 });
 
@@ -87,7 +87,6 @@ test("planificarConsultas: un pedido nuevo pide solo su fila y su columna", () =
     faltan.add(p * n + x);
     faltan.add(x * n + p);
   }
-  faltan.delete(p * n + 0); // nunca hacia la partida
   const consultas = planificarConsultas(n, faltan);
   const total = consultas.reduce((s, c) => s + elementos(c), 0);
   assert.equal(total, faltan.size);
@@ -105,7 +104,7 @@ test("matrizCalles: con 61 puntos arma la matriz completa por bloques", async ()
   assert.equal(r.metros.length, 61);
   const err = Math.abs(r.metros[5][40] - distanciaMetros(puntos[5], puntos[40]) * 1.2);
   assert.ok(err < 1e-6, "el par no es el que contestó Mapbox");
-  assert.equal(r.pedidos, 61 * 60);
+  assert.equal(r.pedidos, 61 * 61, "con la vuelta a la partida");
   assert.ok(registro.length <= 30);
 });
 

@@ -10,7 +10,8 @@
 //   · cada par se guarda en memoria el día entero: rehacer la ruta con los
 //     mismos pedidos no pide nada, y sumar un pedido pide solo su fila y su
 //     columna (~120 elementos);
-//   · no se piden pares que nunca se usan (volver a la partida, un punto a sí mismo);
+//   · no se piden pares que nunca se usan (un punto a sí mismo). Volver a la
+//     partida sí: la ruta termina donde empezó (terreno 2026-10-28);
 //   · un tope mensual (TOPE_MENSUAL) que, al alcanzarse, deja ordenar en línea
 //     recta y lo avisa.
 //
@@ -43,8 +44,8 @@ const FACTOR_CALLES = 1.3;
 const METROS_SIN_CAMINO = 20_000;
 
 export type MatrizCalles = {
-  /** metros[i][j] por calle; el 0 es la partida. Los pares que no se piden
-   *  (hacia la partida) van estimados en línea recta. */
+  /** metros[i][j] por calle; el 0 es la partida. Los pares que no llegaron
+   *  van estimados en línea recta. */
   metros: number[][];
   /** false si algún bloque no llegó: esos pares van estimados. */
   completa: boolean;
@@ -116,8 +117,8 @@ export function planificarConsultas(n: number, faltan: Set<number>): Consulta[] 
 
   if (faltan.size >= (n * n) / 3) {
     const todos = Array.from({ length: n }, (_, i) => i);
-    // La partida (0) nunca es destino: la ruta no vuelve a ella.
-    const llegadas = todos.slice(1);
+    // La partida también es destino: la ruta vuelve a ella.
+    const llegadas = todos;
     for (let a = 0; a < n; a += ORIGENES_POR_BLOQUE) {
       const origenes = todos.slice(a, a + ORIGENES_POR_BLOQUE);
       for (let b = 0; b < llegadas.length; b += DESTINOS_POR_BLOQUE) {
@@ -208,11 +209,11 @@ export async function matrizCalles(
   const claves = puntos.map(clavePunto);
   const clavePar = (i: number, j: number) => `${claves[i]}>${claves[j]}`;
 
-  // Se piden los pares que se usan: entre paradas y desde la partida. Volver a
-  // la partida no (la ruta termina en la última parada) ni un punto a sí mismo.
+  // Se piden los pares que se usan: entre paradas, desde la partida y de vuelta
+  // a ella (la ruta es cerrada). Un punto a sí mismo no.
   const faltan = new Set<number>();
   for (let i = 0; i < n; i++) {
-    for (let j = 1; j < n; j++) {
+    for (let j = 0; j < n; j++) {
       if (claves[i] !== claves[j] && !conocidos.has(clavePar(i, j))) faltan.add(i * n + j);
     }
   }

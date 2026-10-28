@@ -116,7 +116,7 @@ vista esencial: `docs/CLASES.md` §1. Todas llevan `empresa_id` (trigger
 | Store | Clave | Contenido | Relación |
 |---|---|---|---|
 | `pedidos` | `id` | `Pedido`: destinatario, OF y referencia del paquete, llamada, resultado de la visita y su `aviso` de WhatsApp; `fecha` = su día | `aviso.codigo` ↔ `encomienda_whatsapp_correlaciones` |
-| `rutas` | `fecha` | `Ruta`: `orden` de visita + trazado | `orden[]` → pedidos |
+| `rutas` | `fecha` | `Ruta`: `orden` de visita + trazado (cerrado: vuelve a `partida`) | `orden[]` → pedidos |
 | `cola` | `id` | `ActividadPorEnviar` | `id` = `encomienda_actividad.id` (sin duplicados) |
 | `fotos` | `id` (índice `por_fecha`) | `Foto` del paquete, JPEG ≤ 1280 px (spec 003) | `Pedido.fotoId`; se borra al cerrarse el pedido y con el día |
 | `dias` | `fecha` | `ResumenDia`: solo cifras de un día ya borrado (spec 007): entregas, cobros sumados y pedidos por origen de carga (005), sin datos de destinatarios | inicio y cierre → `encomienda_jornadas` si la ruta ya no está |

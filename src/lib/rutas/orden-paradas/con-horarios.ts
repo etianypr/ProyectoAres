@@ -23,7 +23,7 @@
 // da depende del tamaño del día y no del reloj, así que el mismo día da la misma
 // ruta en cualquier teléfono.
 
-import { EPSILON } from "./costo";
+import { EPSILON, FIN } from "./costo";
 
 /** Un minuto fuera del bloque vale como 2 km de camino: llegar fuera de horario
  *  es un viaje perdido, y eso pesa más que dar una vuelta. */
@@ -47,6 +47,9 @@ export type DiaConHorarios = {
   kmh: number;
   /** Minutos que se queda en cada parada. */
   servicio: number;
+  /** Ruta cerrada: metros de volver a la base desde cada punto (ver FIN en
+   *  costo.ts). Sin esto, la ruta termina en la última parada. */
+  vuelta?: ArrayLike<number>;
 };
 
 export type Evaluacion = { costo: number; metros: number; fuera: number; espera: number; tarde: number };
@@ -89,6 +92,7 @@ export function evaluar(orden: number[], dia: DiaConHorarios): Evaluacion {
     if (t > FIN_DEL_DIA) tarde += t - FIN_DEL_DIA;
     t += dia.servicio;
   }
+  if (dia.vuelta && orden.length > 0) metros += dia.vuelta[orden[orden.length - 1]];
   return {
     costo: metros + PESO_FUERA * fuera + PESO_ESPERA * espera + PESO_TARDE * tarde,
     metros,
@@ -103,6 +107,7 @@ export function evaluar(orden: number[], dia: DiaConHorarios): Evaluacion {
 type Rapido = {
   n: number;
   m: ArrayLike<number>;
+  vuelta: ArrayLike<number> | null;
   abre: Float64Array;
   cierra: Float64Array;
   conBloque: Uint8Array;
@@ -126,6 +131,7 @@ function rapido(dia: DiaConHorarios): Rapido {
   return {
     n,
     m: dia.metros,
+    vuelta: dia.vuelta ?? null,
     abre,
     cierra,
     conBloque,
@@ -171,10 +177,15 @@ function costoAcotado(r: Rapido, orden: Int32Array, limite: number, metrosTotal:
   return metrosTotal + castigo;
 }
 
+/** Metros de a a b; b = FIN es terminar en a (volver a la base, o nada). */
+function tramo(r: Rapido, a: number, b: number): number {
+  return b === FIN ? (r.vuelta ? r.vuelta[a] : 0) : r.m[a * r.n + b];
+}
+
 function metrosDe(r: Rapido, orden: Int32Array): number {
   let total = 0;
   for (let k = 1; k < orden.length; k++) total += r.m[orden[k - 1] * r.n + orden[k]];
-  return total;
+  return total + tramo(r, orden[orden.length - 1], FIN);
 }
 
 /** Mejora local con primera mejora: mover un grupo de 1, 2 o 3 paradas (sin
@@ -187,7 +198,7 @@ function* mejorar(r: Rapido, inicial: number[]): Generator<void, { orden: number
   let prueba = new Int32Array(n);
   let metros = metrosDe(r, orden);
   let costo = costoAcotado(r, orden, Infinity, metros);
-  const d = (a: number, b: number) => r.m[a * r.n + b];
+  const d = (a: number, b: number) => tramo(r, a, b);
 
   const aceptar = (c: number, m: number) => {
     [orden, prueba] = [prueba, orden];
@@ -205,19 +216,18 @@ function* mejorar(r: Rapido, inicial: number[]): Generator<void, { orden: number
       for (let i = 1; i + largo <= n && !mejoro; i++) {
         const fin = i + largo - 1;
         const antes = orden[i - 1];
-        const despues = fin + 1 < n ? orden[fin + 1] : -1;
+        const despues = fin + 1 < n ? orden[fin + 1] : FIN;
         const primero = orden[i];
         const ultimo = orden[fin];
         // Metros sin el grupo, con el hueco cerrado.
-        const sinGrupo =
-          metros - d(antes, primero) - (despues >= 0 ? d(ultimo, despues) - d(antes, despues) : 0);
+        const sinGrupo = metros - d(antes, primero) - d(ultimo, despues) + d(antes, despues);
         // Posiciones del resto: x < i es orden[x]; x >= i es orden[x + largo].
         const largoResto = n - largo;
         for (let j = 1; j <= largoResto; j++) {
           if (j === i) continue;
           const a = j - 1 < i ? orden[j - 1] : orden[j - 1 + largo];
-          const b = j < largoResto ? (j < i ? orden[j] : orden[j + largo]) : -1;
-          const nuevos = sinGrupo - (b >= 0 ? d(a, b) : 0) + d(a, primero) + (b >= 0 ? d(ultimo, b) : 0);
+          const b = j < largoResto ? (j < i ? orden[j] : orden[j + largo]) : FIN;
+          const nuevos = sinGrupo - d(a, b) + d(a, primero) + d(ultimo, b);
           if (nuevos >= costo - EPSILON) continue;
           // Se arma la prueba: resto[0..j-1], grupo, resto[j..].
           let k = 0;
@@ -243,15 +253,9 @@ function* mejorar(r: Rapido, inicial: number[]): Generator<void, { orden: number
         ida += d(orden[j - 1], orden[j]);
         vuelta += d(orden[j], orden[j - 1]);
         const antes = orden[i - 1];
-        const despues = j + 1 < n ? orden[j + 1] : -1;
+        const despues = j + 1 < n ? orden[j + 1] : FIN;
         const nuevos =
-          metros -
-          d(antes, orden[i]) -
-          ida -
-          (despues >= 0 ? d(orden[j], despues) : 0) +
-          d(antes, orden[j]) +
-          vuelta +
-          (despues >= 0 ? d(orden[i], despues) : 0);
+          metros - d(antes, orden[i]) - ida - d(orden[j], despues) + d(antes, orden[j]) + vuelta + d(orden[i], despues);
         if (nuevos >= costo - EPSILON) continue;
         prueba.set(orden);
         for (let a = i, b = j; a <= j; a++, b--) prueba[a] = orden[b];

@@ -212,3 +212,60 @@ test("sigue tolerando matrices rotas sin devolver basura", () => {
     assert.deepEqual([...orden].sort((a, b) => a - b), [...Array(20).keys()]);
   }
 });
+
+// ---------------------------------------------------------------------------
+// Ruta cerrada (terreno 2026-10-28): "donde empieza debe terminar".
+
+/** Base y cuatro paradas en L: dos al este (1 y 2 km) y dos al sur (1 y 2 km). */
+function enL() {
+  const base = { lat: -18.4783, lng: -70.2979 };
+  const km = 1 / 111.32;
+  const kmEste = km / Math.cos((base.lat * Math.PI) / 180);
+  return [
+    base,
+    { lat: base.lat, lng: base.lng + kmEste },
+    { lat: base.lat, lng: base.lng + 2 * kmEste },
+    { lat: base.lat - km, lng: base.lng },
+    { lat: base.lat - 2 * km, lng: base.lng },
+  ];
+}
+
+test("ruta cerrada: la última parada queda cerca de la base, no en la otra punta", () => {
+  const puntos = enL();
+  const lejos = (i) => distanciaMetros(puntos[i], puntos[0]);
+
+  const abierta = ordenarParadas(puntos);
+  assert.ok(lejos(abierta[abierta.length - 1]) > 1500, "la abierta termina en una punta (así era)");
+
+  const cerrada = ordenarParadas(puntos, null, (i) => lejos(i));
+  assert.ok(lejos(cerrada[cerrada.length - 1]) < 1100, `la cerrada termina a ${Math.round(lejos(cerrada.at(-1)))} m`);
+  assert.deepEqual([...cerrada].sort(), [0, 1, 2, 3, 4]);
+});
+
+test("ruta cerrada: ante dos sentidos iguales arranca por la parada más cercana", () => {
+  const base = { lat: -18.4783, lng: -70.2979 };
+  const puntos = [base, ...[3, 1, 2].map((km) => ({ lat: base.lat - km / 111.32, lng: base.lng }))];
+  const vuelta = (i) => distanciaMetros(puntos[i], base);
+  // Ida y vuelta por una misma calle: ir primero a la de 1 km o a la de 3 km
+  // mide lo mismo. Se arranca por la más cercana (el índice 2).
+  assert.equal(ordenarParadas(puntos, null, vuelta)[1], 2);
+});
+
+test("ruta cerrada: el optimizador con horarios cuenta los metros de la vuelta", async () => {
+  const { evaluar } = await import("@/lib/rutas/orden-paradas/con-horarios");
+  const dia = { metros: [0, 1000, 1000, 0], n: 2, ventanas: [null, null], inicio: 9 * 60, kmh: 25, servicio: 4 };
+  assert.equal(evaluar([0, 1], dia).metros, 1000, "abierta");
+  assert.equal(evaluar([0, 1], { ...dia, vuelta: [0, 1000] }).metros, 2000, "cerrada");
+});
+
+test("ruta cerrada: un pedido tarde no va al final gratis si después hay que volver", async () => {
+  const { lugarMasBarato, metrosEstimados, vueltaEstimada } = await import("@/lib/encomiendas/local/planificar");
+  const base = { lat: -18.4783, lng: -70.2979 };
+  const km = 1 / 111.32;
+  const punto = (id, kmSur) => ({ id, lat: base.lat - kmSur * km, lng: base.lng, bloqueHorarioId: null });
+  const orden = [punto("sur", 1)];
+  const nuevo = punto("norte", -3); // al otro lado de la base
+  const metros = metrosEstimados(base);
+  assert.equal(lugarMasBarato(orden, nuevo, metros), 1, "abierta: al final, que sale gratis");
+  assert.equal(lugarMasBarato(orden, nuevo, metros, 0, vueltaEstimada(base, base)), 0, "cerrada: el final ya no es gratis");
+});

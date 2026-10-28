@@ -18,7 +18,7 @@ de la base conservan sus nombres viejos hasta la spec 002 (equivalencias en
 |---|---|
 | Día de trabajo de un conductor | `DiaTrabajo` (en pantalla: "día") · resumen: `ResumenDia` |
 | Paquete a entregar ese día | `Pedido` |
-| Orden de visita y trazado del día | `Ruta` (`orden`, `trazado`, `inicio`, `cierre`) |
+| Orden de visita y trazado del día | `Ruta` (`orden`, `trazado`, `inicio`, `cierre`, `partida`) |
 | Pedido dentro de la ruta, con su número | `Parada` (solo pantalla) |
 | Cómo terminó la visita · la llamada | `Pedido.resultado`: entregado o no entregado · `Pedido.llamada`: `ResultadoLlamada` |
 | Lo que dijo el receptor | `Pedido.disponibilidad` |
@@ -53,6 +53,7 @@ classDiagram
       orden: pedidoId[]
       trazado: Trazado
       inicio · cierre
+      partida: de dónde sale y adonde vuelve
     }
     class ActividadPorEnviar {
       <<store cola>>
@@ -200,6 +201,13 @@ mismo reloj de `planificar.ts`), que corre por partes para no congelar la pantal
 "Dejar como pendiente" (`dejarParaMasTarde`) y un pedido tardío (`sumarALaRuta`) entran donde
 menos alargan (`lugarParaReintentar`, `lugarMasBarato`) sin rehacer la ruta. Deshacer vuelve el
 pedido a `pendiente` dentro de la ventana de retención.
+
+La ruta del día es **cerrada** (terreno 2026-10-28): termina donde empezó, en la central de carga.
+El optimizador trata el final como un punto más (`FIN` en `orden-paradas/costo.ts`: 0 en una ruta
+abierta, volver a la base en una cerrada), la matriz pide también la vuelta a la partida, el
+trazado la dibuja (km y reloj la incluyen) y `Ruta.partida` la guarda para que sumar un pedido
+tarde también la cuente (`vueltaEstimada`). Si los dos sentidos miden lo mismo, se arranca por la
+parada más cercana.
 
 ## 3. Módulos
 

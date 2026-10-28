@@ -1,11 +1,11 @@
 // Las tres maneras de ordenar el día y cuáles vale la pena mostrar.
 
-import type { Coordenada } from "@/lib/geo/coordenada";
+import { distanciaMetros, type Coordenada } from "@/lib/geo/coordenada";
 import { ordenarParadas } from "@/lib/rutas/orden-paradas";
 import { bloquePorId } from "@/lib/encomiendas/config";
 import { nombreVisible } from "@/lib/encomiendas/paquete";
 import { estaConfirmado } from "@/lib/encomiendas/estados";
-import { fueraDeHorario, metrosDelOrden, metrosEstimados, ubicarConHorario, type MetrosEntre } from "../planificar";
+import { FACTOR_CALLES, fueraDeHorario, metrosDelOrden, metrosEstimados, ubicarConHorario, type MetrosEntre } from "../planificar";
 import type { Alternativa, EstrategiaRuta, PedidoUbicado } from "./tipos";
 
 // ----------------------------------------------------------------------------
@@ -71,17 +71,42 @@ export function metrosPorMatriz(
   };
 }
 
+/** Metros de volver a la base desde cada parada: la ruta del día termina
+ *  donde empezó (terreno 2026-10-28). La columna 0 de la matriz es la base. */
+export type VueltaABase = (p: PedidoUbicado) => number;
+
+export function vueltaPorMatriz(
+  base: Coordenada,
+  indiceEnMatriz: Map<string, number>,
+  matriz: number[][] | null,
+): VueltaABase {
+  return (p) => {
+    const i = indiceEnMatriz.get(p.id);
+    const m = matriz && i != null ? matriz[i]?.[0] : undefined;
+    return m != null && Number.isFinite(m) ? m : distanciaMetros(p, base) * FACTOR_CALLES;
+  };
+}
+
+/** Metros del orden completo, volviendo a la base al final. */
+export function metrosConVuelta(orden: PedidoUbicado[], metros: MetrosEntre, vuelta: VueltaABase): number {
+  return metrosDelOrden(orden, metros) + (orden.length > 0 ? vuelta(orden[orden.length - 1]) : 0);
+}
+
 /** Ordena un SUBCONJUNTO de paradas partiendo de un punto dado, reusando el
  *  optimizador de distancia y la matriz que ya se pidió.
  *
  *  Se recorta una submatriz en vez de volver a consultar: la matriz completa ya
- *  tiene todos los pares, y armar la submatriz es copiar números. */
+ *  tiene todos los pares, y armar la submatriz es copiar números.
+ *
+ *  Con `volverA` el grupo es el último del día: se ordena sabiendo que después
+ *  se vuelve a la base, así que no termina en la otra punta. */
 function ordenarGrupo(
   desde: Coordenada,
   grupo: PedidoUbicado[],
   indiceEnMatriz: Map<string, number>,
   matriz: number[][] | null,
   indiceDesde: number,
+  volverA?: Coordenada,
 ): PedidoUbicado[] {
   if (grupo.length <= 1) return grupo;
 
@@ -95,7 +120,15 @@ function ordenarGrupo(
       ? indices.map((fila) => indices.map((col) => matriz[fila]?.[col] ?? Infinity))
       : null;
 
-  const orden = ordenarParadas(puntos, sub);
+  // Volver desde el punto i del grupo: la columna 0 de la matriz (la base) o,
+  // sin matriz, la línea recta, igual que el resto del ordenamiento.
+  const vuelta = volverA
+    ? (i: number) => {
+        const m = sub ? matriz?.[indices[i]]?.[0] : undefined;
+        return m != null && Number.isFinite(m) ? m : distanciaMetros(puntos[i], volverA);
+      }
+    : undefined;
+  const orden = ordenarParadas(puntos, sub, vuelta);
   // El índice 0 es el punto de partida; el resto mapea a grupo[i - 1].
   return orden.slice(1).map((i) => grupo[i - 1]);
 }
@@ -112,10 +145,11 @@ function encadenar(
   const salida: PedidoUbicado[] = [];
   let desde = base;
   let indiceDesde = 0;
+  const ultimo = grupos.findLastIndex((g) => g.length > 0);
 
-  for (const grupo of grupos) {
+  for (const [k, grupo] of grupos.entries()) {
     if (grupo.length === 0) continue;
-    const ordenado = ordenarGrupo(desde, grupo, indiceEnMatriz, matriz, indiceDesde);
+    const ordenado = ordenarGrupo(desde, grupo, indiceEnMatriz, matriz, indiceDesde, k === ultimo ? base : undefined);
     salida.push(...ordenado);
     const ultima = ordenado[ordenado.length - 1];
     desde = coord(ultima);
@@ -134,7 +168,7 @@ export function ordenPorEstrategia(
   minutosDeInicio: number,
 ): PedidoUbicado[] {
   if (estrategia === "corta") {
-    return ordenarGrupo(base, ubicados, indiceEnMatriz, matriz, 0);
+    return ordenarGrupo(base, ubicados, indiceEnMatriz, matriz, 0, base);
   }
 
   if (estrategia === "confirmados") {
@@ -160,8 +194,9 @@ export function ordenPorEstrategia(
   const conBloque = ubicados.filter((p) => bloquePorId(p.bloqueHorarioId));
   const sinBloque = ubicados.filter((p) => !bloquePorId(p.bloqueHorarioId));
   const metros = metrosPorMatriz(base, indiceEnMatriz, matriz);
+  const vuelta = vueltaPorMatriz(base, indiceEnMatriz, matriz);
   const insertado = ubicarConHorario(
-    ordenarGrupo(base, sinBloque, indiceEnMatriz, matriz, 0),
+    ordenarGrupo(base, sinBloque, indiceEnMatriz, matriz, 0, base),
     conBloque,
     minutosDeInicio,
     metros,
@@ -179,7 +214,8 @@ export function ordenPorEstrategia(
   // A igual cumplimiento manda la distancia: antes el reordenado ganaba aunque
   // saliera más largo (spec 017, R3).
   const diferencia = fuera(tramos) - fuera(insertado);
-  return diferencia < 0 || (diferencia === 0 && metrosDelOrden(tramos, metros) <= metrosDelOrden(insertado, metros))
+  return diferencia < 0 ||
+    (diferencia === 0 && metrosConVuelta(tramos, metros, vuelta) <= metrosConVuelta(insertado, metros, vuelta))
     ? tramos
     : insertado;
 }
@@ -194,11 +230,11 @@ function reordenarTramos(
 ): PedidoUbicado[] {
   const salida: PedidoUbicado[] = [];
   let tramo: PedidoUbicado[] = [];
-  const cerrarTramo = () => {
+  const cerrarTramo = (ultimo = false) => {
     const anterior = salida[salida.length - 1];
     const desde = anterior ? coord(anterior) : base;
     const indiceDesde = anterior ? (indiceEnMatriz.get(anterior.id) ?? 0) : 0;
-    salida.push(...ordenarGrupo(desde, tramo, indiceEnMatriz, matriz, indiceDesde));
+    salida.push(...ordenarGrupo(desde, tramo, indiceEnMatriz, matriz, indiceDesde, ultimo ? base : undefined));
     tramo = [];
   };
   for (const p of orden) {
@@ -209,7 +245,7 @@ function reordenarTramos(
       tramo.push(p);
     }
   }
-  cerrarTramo();
+  cerrarTramo(true);
   return salida;
 }
 
@@ -217,12 +253,13 @@ function reordenarTramos(
 export function medir(
   orden: PedidoUbicado[],
   metros: MetrosEntre,
+  vuelta: VueltaABase,
   minutosDeInicio: number,
 ): Omit<Alternativa, "estrategia" | "titulo" | "motivo" | "paradas"> {
   const fuera = fueraDeHorario(orden, minutosDeInicio, metros);
   const conBloque = orden.filter((p) => bloquePorId(p.bloqueHorarioId)).length;
   return {
-    metrosEstimados: Math.round(metrosDelOrden(orden, metros)),
+    metrosEstimados: Math.round(metrosConVuelta(orden, metros, vuelta)),
     confirmados: orden.filter((p) => estaConfirmado(p.disponibilidad)).length,
     pendientesDeContacto: orden.filter((p) => p.disponibilidad === "pendiente_respuesta").length,
     bloquesCumplidos: conBloque - fuera.length,

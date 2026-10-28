@@ -164,14 +164,14 @@ function inicioDe() {
  *  afirmar si su bloque horario se alcanza o no. */
 const GRADOS_POR_KM = 1 / 111.32;
 
-/** Pedido a `km` al sur de la base. */
+/** Pedido a `km` al sur de la base (y `extra.este` km al este, si se pide). */
 async function pedidoAKm(nombre, km, extra = {}) {
   const p = await guardarPedido({
     nombre,
     telefono: "+56912340000",
     direccion: `Calle ${nombre} 100, Arica`,
     lat: BASE.lat - km * GRADOS_POR_KM,
-    lng: BASE.lng,
+    lng: BASE.lng + ((extra.este ?? 0) * GRADOS_POR_KM) / Math.cos((BASE.lat * Math.PI) / 180),
     notas: null,
   }, HOY);
   if (extra.bloque) {
@@ -243,6 +243,19 @@ test("sin respuestas de nadie, la ruta es la más corta y se muestra UNA sola", 
   assert.deepEqual(nombres(p.paradas), ["Cliente 1", "Cliente 2", "Cliente 3"]);
   assert.equal(p.alternativas.length, 1, "se ofrecieron alternativas que valen lo mismo");
   assert.equal(p.elegida, "corta");
+});
+
+test("la ruta vuelve a la partida: el trazado termina en ella y la ruta la guarda", async () => {
+  for (const n of [1, 2, 3]) await pedidoA(n);
+  const inicio = inicioDe();
+  const p = await calcularRutaLocal(HOY, inicio);
+
+  const [lng, lat] = p.trazado[p.trazado.length - 1];
+  assert.ok(Math.abs(lat - inicio.lat) < 1e-5 && Math.abs(lng - inicio.lng) < 1e-5, "el trazado no vuelve a la partida");
+
+  await confirmarRutaLocal(p);
+  const ruta = await leerRuta(HOY);
+  assert.deepEqual(ruta.partida, p.partida, "la ruta no guardó adonde vuelve");
 });
 
 test("una sola propuesta cuesta una matriz y un trazado, igual que antes", async () => {
@@ -347,15 +360,16 @@ test("si la ruta más corta ya cumple todos los horarios, NO se ofrece otra", as
 
 test("cuando la ruta corta se pasa del horario, gana la que lo respeta", async (t) => {
   // El caso que justifica todo el mecanismo. El cliente del bloque 08:00-10:00
-  // está a 15 km: yendo directo se llega a tiempo, pero pasando primero por los
-  // tres de la vuelta se llega pasadas las 10:15.
+  // está a 15 km al sur, y hay dos paradas a 6 km a cada lado de la base. La
+  // ruta vuelve a la base, así que la más corta es el triángulo y "Temprano"
+  // queda al medio en cualquier sentido: se llega pasadas las 10:15. Yendo
+  // directo se llega a tiempo, a cambio de ~10 % más de camino.
   t.after(reloj.descongelar);
   aLaHora(9, 30);
 
   await pedidoAKm("Temprano", 15, { bloque: "08-10" });
-  await pedidoAKm("Vuelta A", 1);
-  await pedidoAKm("Vuelta B", 2);
-  await pedidoAKm("Vuelta C", 3);
+  await pedidoAKm("Vuelta Este", 0, { este: 6 });
+  await pedidoAKm("Vuelta Oeste", 0, { este: -6 });
 
   const p = await calcularRutaLocal(HOY, inicioDe());
 

@@ -1,5 +1,5 @@
 // Construcción: dos formas distintas de armar un primer orden.
-import type { Costo } from "./costo";
+import { FIN, type Costo } from "./costo";
 
 /** Vecino más cercano. `primero` fuerza por cuál parada empezar (multi-arranque). */
 export function vecinoMasCercano(n: number, costo: Costo, primero?: number): number[] {
@@ -52,8 +52,8 @@ export function insercionMasBarata(n: number, costo: Costo): number[] {
     for (const parada of pendientes) {
       for (let p = 1; p <= orden.length; p++) {
         const a = orden[p - 1];
-        const b = p < orden.length ? orden[p] : -1;
-        const delta = costo(a, parada) + (b >= 0 ? costo(parada, b) - costo(a, b) : 0);
+        const b = p < orden.length ? orden[p] : FIN;
+        const delta = costo(a, parada) + costo(parada, b) - costo(a, b);
         if (delta < mejorCosto) {
           mejorCosto = delta;
           mejorParada = parada;

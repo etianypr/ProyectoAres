@@ -1,5 +1,5 @@
 import { resultadoCerrado } from "@/lib/encomiendas/estados";
-import type { Trazado } from "@/lib/geo/coordenada";
+import type { Coordenada, Trazado } from "@/lib/geo/coordenada";
 import { STORES, escribir, leerTodos } from "../idb";
 import { enFila } from "./fila";
 import { leerDiaGuardado, leerPedidos, leerRuta, leerTodosLosPedidos, pedidosEnOrden } from "./lecturas";
@@ -109,6 +109,8 @@ export type EntradaRuta = {
   advertencias?: string[];
   /** Entre 1 y 3. Ver Ruta.propuestasComparadas. */
   propuestasComparadas?: number;
+  /** De dónde sale y adonde vuelve. Ver Ruta.partida. */
+  partida?: Coordenada | null;
 };
 
 // Guarda la ruta del día conservando SIEMPRE el orden de lo que ya se cerró:
@@ -149,6 +151,7 @@ export function guardarRuta(entrada: EntradaRuta): Promise<Ruta> {
       // dirección que el conductor ya corrigió no puede seguir avisando.
       advertencias: entrada.advertencias ?? [],
       propuestasComparadas: entrada.propuestasComparadas ?? 1,
+      partida: entrada.partida ?? anterior?.partida ?? null,
     };
 
     await escribir([STORES.rutas], ({ guardar }) => guardar(STORES.rutas, ruta));

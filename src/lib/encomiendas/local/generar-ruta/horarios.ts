@@ -6,6 +6,7 @@ import { bloquePorId } from "@/lib/encomiendas/config";
 import type { Ventana } from "@/lib/rutas/orden-paradas/con-horarios";
 import { optimizarSinCongelar } from "@/lib/rutas/orden-paradas/sin-congelar";
 import { KMH_CIUDAD, MIN_POR_PARADA, type MetrosEntre } from "../planificar";
+import type { VueltaABase } from "./estrategias";
 import type { PedidoUbicado } from "./tipos";
 
 function minutos(hhmm: string): number {
@@ -29,6 +30,7 @@ export async function ordenConHorarios(
   indiceEnMatriz: Map<string, number>,
   metros: MetrosEntre,
   minutosDeInicio: number,
+  vuelta: VueltaABase,
 ): Promise<PedidoUbicado[]> {
   const ventanas: (Ventana | null)[] = [null];
   const porIndice: PedidoUbicado[] = [];
@@ -49,6 +51,10 @@ export async function ordenConHorarios(
     }
   }
 
+  // Metros de volver a la base desde cada punto: la ruta es cerrada.
+  const metrosVuelta = new Float64Array(n);
+  for (let i = 1; i < n; i++) metrosVuelta[i] = vuelta(porIndice[i]);
+
   const aIndices = (orden: PedidoUbicado[]) => [0, ...orden.map((p) => indiceEnMatriz.get(p.id) ?? 0)];
   const orden = await optimizarSinCongelar(arranques.map(aIndices), {
     metros: tabla,
@@ -57,6 +63,7 @@ export async function ordenConHorarios(
     inicio: minutosDeInicio,
     kmh: KMH_CIUDAD,
     servicio: MIN_POR_PARADA,
+    vuelta: metrosVuelta,
   });
   const salida = orden.slice(1).map((i) => porIndice[i]);
   return salida.length === ubicados.length && salida.every(Boolean) ? salida : arranques[0];

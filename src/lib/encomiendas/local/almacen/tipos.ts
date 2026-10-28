@@ -8,7 +8,7 @@ import type {
 } from "@/lib/encomiendas/catalogos";
 import type { ReferenciaPaquete } from "@/lib/encomiendas/paquete";
 import type { ResultadoVisita, ResultadoLlamada } from "@/lib/encomiendas/estados";
-import type { Trazado } from "@/lib/geo/coordenada";
+import type { Coordenada, Trazado } from "@/lib/geo/coordenada";
 
 /** Un paquete de UN día de trabajo, con su visita. Lo no entregado no pasa al
  *  día siguiente: se vuelve a cargar o escanear (spec 009). Por eso no hace
@@ -116,6 +116,10 @@ export type Ruta = {
    *  distingue "no había alternativa útil" de "el conductor eligió entre tres"
    *  cuando después hay que entender por qué salió este orden. */
   propuestasComparadas: number;
+  /** De dónde salió la ruta, y adonde vuelve: la ruta es cerrada (terreno
+   *  2026-10-28). Sumar un pedido tarde la usa para no dejarlo en la otra
+   *  punta. Opcional: las rutas guardadas antes no la tienen. */
+  partida?: Coordenada | null;
 };
 
 /** Un día de trabajo en cifras. Es lo único que queda en el teléfono cuando el

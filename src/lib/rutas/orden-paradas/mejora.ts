@@ -1,5 +1,5 @@
 // Mejora local: 2-opt y Or-opt hasta que ninguna encuentra nada.
-import { EPSILON, type Costo } from "./costo";
+import { EPSILON, FIN, type Costo } from "./costo";
 
 /** Cuántas paradas seguidas prueba mover el Or-opt. Más de 3 casi no encuentra
  *  nada nuevo y multiplica el trabajo. */
@@ -37,13 +37,11 @@ function dosOptPasada(orden: number[], costo: Costo): boolean {
       derecho += costo(orden[j - 1], orden[j]);
       invertido += costo(orden[j], orden[j - 1]);
 
-      // El último punto NO está fijo: la ruta es abierta (no vuelve a la base),
-      // así que la parada final también puede moverse.
-      const hayCierre = j + 1 < n;
-      const antes =
-        costo(orden[i - 1], orden[i]) + derecho + (hayCierre ? costo(orden[j], orden[j + 1]) : 0);
-      const despues =
-        costo(orden[i - 1], orden[j]) + invertido + (hayCierre ? costo(orden[i], orden[j + 1]) : 0);
+      // El último punto NO está fijo: la parada final también puede moverse.
+      // Después de ella viene FIN, que en una ruta cerrada es volver a la base.
+      const siguiente = j + 1 < n ? orden[j + 1] : FIN;
+      const antes = costo(orden[i - 1], orden[i]) + derecho + costo(orden[j], siguiente);
+      const despues = costo(orden[i - 1], orden[j]) + invertido + costo(orden[i], siguiente);
 
       if (despues < antes - EPSILON) {
         for (let a = i, b = j; a < b; a++, b--) {
@@ -73,12 +71,10 @@ function orOptPasada(orden: number[], costo: Costo): boolean {
     for (let i = 1; i + largo <= n; i++) {
       const seg = orden.slice(i, i + largo);
       const previo = orden[i - 1];
-      const siguiente = i + largo < n ? orden[i + largo] : -1;
+      const siguiente = i + largo < n ? orden[i + largo] : FIN;
 
       // Lo que se ahorra al sacarlo de donde está.
-      const saca =
-        costo(previo, seg[0]) +
-        (siguiente >= 0 ? costo(seg[largo - 1], siguiente) - costo(previo, siguiente) : 0);
+      const saca = costo(previo, seg[0]) + costo(seg[largo - 1], siguiente) - costo(previo, siguiente);
       if (!Number.isFinite(saca)) continue;
 
       const resto = [...orden.slice(0, i), ...orden.slice(i + largo)];
@@ -89,15 +85,12 @@ function orOptPasada(orden: number[], costo: Costo): boolean {
       for (let p = 1; p <= resto.length; p++) {
         if (p === i) continue; // volver a ponerlo donde estaba no es una mejora
         const a = resto[p - 1];
-        const b = p < resto.length ? resto[p] : -1;
+        const b = p < resto.length ? resto[p] : FIN;
 
         for (const invertir of [false, true]) {
           const s = invertir ? segInvertido : seg;
           const interno = invertir ? internoInvertido : internoDerecho;
-          const pone =
-            costo(a, s[0]) +
-            (b >= 0 ? costo(s[largo - 1], b) - costo(a, b) : 0) +
-            (interno - internoDerecho);
+          const pone = costo(a, s[0]) + costo(s[largo - 1], b) - costo(a, b) + (interno - internoDerecho);
 
           if (pone < saca - EPSILON) {
             resto.splice(p, 0, ...s);

@@ -39,7 +39,7 @@ import { minutoDelDia } from "../planificar";
 import { guardarRuta, leerPedidos, leerRuta, pedidosEnOrden } from "../almacen";
 import { resolverInicio } from "./partida";
 import { reintentarUbicar, tieneCoordenadas } from "./ubicar-pedidos";
-import { coord, elegirUtiles, medir, metrosPorMatriz, ordenPorEstrategia, TITULOS } from "./estrategias";
+import { coord, elegirUtiles, medir, metrosPorMatriz, ordenPorEstrategia, TITULOS, vueltaPorMatriz } from "./estrategias";
 import { ordenConHorarios } from "./horarios";
 import type { Alternativa, EstrategiaRuta, PedidoUbicado, PropuestaRuta, PuntoInicio, ResultadoRuta } from "./tipos";
 
@@ -165,6 +165,9 @@ export async function calcularRutaLocal(
   const indiceEnMatriz = new Map(ubicados.map((p, i) => [p.id, i + 1] as const));
 
   const metros = metrosPorMatriz(base, indiceEnMatriz, matriz);
+  // La ruta termina donde empezó (terreno 2026-10-28): cada orden se arma y se
+  // mide contando la vuelta a la base.
+  const vuelta = vueltaPorMatriz(base, indiceEnMatriz, matriz);
 
   // Los tres órdenes. Ninguno consulta nada: todos reusan la matriz de arriba.
   const orden = (estrategia: EstrategiaRuta) =>
@@ -174,13 +177,13 @@ export async function calcularRutaLocal(
     corta,
     confirmados: orden("confirmados"),
     // El optimizador con horarios corre fuera del hilo de la pantalla (R5).
-    horarios: await ordenConHorarios(ubicados, [corta, orden("horarios")], indiceEnMatriz, metros, minutosDeInicio),
+    horarios: await ordenConHorarios(ubicados, [corta, orden("horarios")], indiceEnMatriz, metros, minutosDeInicio, vuelta),
   };
   const candidatas: Alternativa[] = (["corta", "horarios", "confirmados"] as const).map((estrategia) => ({
     estrategia,
     ...TITULOS[estrategia],
     paradas: ordenes[estrategia],
-    ...medir(ordenes[estrategia], metros, minutosDeInicio),
+    ...medir(ordenes[estrategia], metros, vuelta, minutosDeInicio),
   }));
 
   const alternativas = elegirUtiles(candidatas);
@@ -195,7 +198,8 @@ export async function calcularRutaLocal(
   // El límite de 25 puntos por consulta de Mapbox (un día de 30 paradas no
   // entra) lo resuelve obtenerRutaCalles partiendo el pedido en tramos y
   // pegando los trazados.
-  const calles = await obtenerRutaCalles([base, ...paradas.map(coord)]);
+  // Con la vuelta: la línea del mapa, los km y el reloj cuentan el regreso.
+  const calles = await obtenerRutaCalles([base, ...paradas.map(coord), base]);
 
   if (recomendada.bloquesIncumplidos > 0) {
     advertencias.push(
@@ -253,6 +257,7 @@ export async function elegirAlternativa(
   const calles = await obtenerRutaCalles([
     propuesta.partida,
     ...alternativa.paradas.map(coord),
+    propuesta.partida,
   ]);
 
   return {
@@ -294,7 +299,7 @@ export function devolverParada(propuesta: PropuestaRuta, parada: PedidoUbicado, 
 export async function retrazar(propuesta: PropuestaRuta): Promise<PropuestaRuta> {
   const calles =
     propuesta.paradas.length > 0
-      ? await obtenerRutaCalles([propuesta.partida, ...propuesta.paradas.map(coord)])
+      ? await obtenerRutaCalles([propuesta.partida, ...propuesta.paradas.map(coord), propuesta.partida])
       : null;
   return {
     ...propuesta,
@@ -317,6 +322,7 @@ export async function confirmarRutaLocal(propuesta: PropuestaRuta): Promise<Resu
     duracionS: propuesta.duracionS,
     advertencias: propuesta.advertencias,
     propuestasComparadas: propuesta.alternativas.length,
+    partida: propuesta.partida,
   });
 
   return { ruta, sinUbicar: propuesta.sinUbicar, sinTrazado: propuesta.sinTrazado };

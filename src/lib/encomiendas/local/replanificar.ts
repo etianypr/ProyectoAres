@@ -93,7 +93,9 @@ export async function replanificarRuta(
       const inicio = ruta.trazado?.[0] ? deLngLat(ruta.trazado[0]) : null;
       const puntos = pedidosEnOrden(guardada, pedidos).filter(ubicado).map(coord);
       try {
-        const calles = await obtenerRutaCalles(inicio ? [inicio, ...puntos] : puntos);
+        // Con la vuelta a la base, si la ruta la tiene (ver Ruta.partida).
+        const vuelta = ruta.partida ? [ruta.partida] : [];
+        const calles = await obtenerRutaCalles(inicio ? [inicio, ...puntos, ...vuelta] : [...puntos, ...vuelta]);
         if (calles) await fijarTrazado(fecha, calles);
       } catch {
         // Queda el trazado anterior.

@@ -1,4 +1,4 @@
-import type { Costo } from "./costo";
+import { FIN, type Costo } from "./costo";
 
 // Óptimo exacto (Held-Karp)
 // ----------------------------------------------------------------------------
@@ -39,9 +39,11 @@ export function exacto(n: number, costo: Costo): number[] | null {
   const todas = combinaciones - 1;
   let ultimo = -1;
   let mejor = Infinity;
+  // Terminar en j: en una ruta cerrada, más volver a la base (ver FIN).
   for (let j = 0; j < m; j++) {
-    if (dp[todas * m + j] < mejor) {
-      mejor = dp[todas * m + j];
+    const total = dp[todas * m + j] + costo(j + 1, FIN);
+    if (total < mejor) {
+      mejor = total;
       ultimo = j;
     }
   }

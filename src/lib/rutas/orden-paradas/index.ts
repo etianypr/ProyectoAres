@@ -4,7 +4,7 @@
 // exacto, inviable en tiempo razonable ya pasando ~15-20 paradas), pero es el
 // estándar de la industria para este tamaño de problema sin pagar un solver.
 import { distanciaMetros, type Coordenada } from "@/lib/geo/coordenada";
-import type { Costo } from "./costo";
+import { conFinal, distanciaOrden, type Costo } from "./costo";
 import { exacto } from "./exacto";
 import { insercionMasBarata, vecinoMasCercano } from "./construccion";
 import { mejorarLocal } from "./mejora";
@@ -56,20 +56,29 @@ const MAX_ARRANQUES = 4;
 //
 // Sin matriz (más de 25 puntos, o la API no respondió) se cae a la línea recta,
 // que es lo que se hacía siempre.
-export function ordenarParadas(puntos: Coordenada[], matriz?: number[][] | null): number[] {
+//
+// Con `vuelta` la ruta es CERRADA: termina volviendo, y vuelta(i) es lo que
+// cuesta volver desde el punto i (terreno 2026-10-28: la ruta terminaba en la
+// otra punta de la ciudad, con las paradas de al lado de la central al
+// principio). Sin ella, abierta: la última parada es donde se termina.
+export function ordenarParadas(
+  puntos: Coordenada[],
+  matriz?: number[][] | null,
+  vuelta?: (i: number) => number,
+): number[] {
   const n = puntos.length;
   if (n <= 2) return puntos.map((_, i) => i);
 
-  const enLineaRecta: Costo = (a, b) => distanciaMetros(puntos[a], puntos[b]);
+  const enLineaRecta: Costo = conFinal((a, b) => distanciaMetros(puntos[a], puntos[b]), vuelta);
   // Un tramo sin dato (dos puntos sin camino entre ellos) no puede valer 0 o la
   // mejora local lo elegiría siempre; se lo trata como imposible.
-  const costo: Costo = matriz ? (a, b) => matriz[a]?.[b] ?? Infinity : enLineaRecta;
+  const costo: Costo = matriz ? conFinal((a, b) => matriz[a]?.[b] ?? Infinity, vuelta) : enLineaRecta;
 
   // Día chico: el óptimo exacto sale en milisegundos, así que no hay razón para
   // conformarse con una aproximación.
   if (n <= MAX_EXACTO) {
     const optimo = exacto(n, costo);
-    if (optimo) return optimo;
+    if (optimo) return desempatarSentido(optimo, costo, vuelta != null);
   }
 
   const arranques = [vecinoMasCercano(n, costo), insercionMasBarata(n, costo)];
@@ -89,5 +98,18 @@ export function ordenarParadas(puntos: Coordenada[], matriz?: number[][] | null)
   // arranque más en vez de una comparación aparte.
   if (matriz) arranques.push(mejorarLocal(vecinoMasCercano(n, enLineaRecta), enLineaRecta));
 
-  return mejorDeVariosArranques(arranques, costo);
+  return desempatarSentido(mejorDeVariosArranques(arranques, costo), costo, vuelta != null);
 }
+
+/** Una ruta cerrada se puede recorrer en los dos sentidos. Si al revés mide lo
+ *  mismo (calles de doble sentido), se arranca por la parada más cercana, como
+ *  la ruta abierta de siempre. */
+function desempatarSentido(orden: number[], costo: Costo, cerrada: boolean): number[] {
+  if (!cerrada || orden.length < 3) return orden;
+  const alReves = [orden[0], ...orden.slice(1).reverse()];
+  const diferencia = distanciaOrden(alReves, costo) - distanciaOrden(orden, costo);
+  return Math.abs(diferencia) <= EPSILON_SENTIDO && costo(0, alReves[1]) < costo(0, orden[1]) ? alReves : orden;
+}
+
+/** Metros: dos sentidos que difieren en menos que esto son el mismo largo. */
+const EPSILON_SENTIDO = 1;

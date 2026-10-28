@@ -37,6 +37,15 @@ export function metrosEstimados(desde: Coordenada): MetrosEntre {
   return (a, b) => distanciaMetros(a ?? desde, b) * FACTOR_CALLES;
 }
 
+/** Metros de volver a la base desde un punto (null = el inicio, como en
+ *  MetrosEntre). La ruta del día es cerrada (terreno 2026-10-28). */
+export type VueltaDesde = (p: PuntoDeRuta | null) => number;
+
+/** Sin matriz: la vuelta en línea recta corregida por FACTOR_CALLES. */
+export function vueltaEstimada(base: Coordenada, desde: Coordenada): VueltaDesde {
+  return (p) => distanciaMetros(p ?? desde, base) * FACTOR_CALLES;
+}
+
 function minutos(hhmm: string): number {
   const [h, m] = hhmm.split(":").map(Number);
   return h * 60 + m;
@@ -154,14 +163,23 @@ export function fueraDeHorario<T extends PuntoDeRuta>(
 
 /** Dónde meter `p` en `orden` para alargar lo menos posible, mirando solo las
  *  posiciones desde `desde` (0 = antes de la primera). `metros(null, x)` es
- *  desde donde está el conductor. Devuelve la posición (spec 017, R4). */
-export function lugarMasBarato<T extends PuntoDeRuta>(orden: T[], p: T, metros: MetrosEntre, desde = 0): number {
+ *  desde donde está el conductor. Devuelve la posición (spec 017, R4).
+ *  Con `vuelta` la ruta vuelve a la base: el final no sale gratis. */
+export function lugarMasBarato<T extends PuntoDeRuta>(
+  orden: T[],
+  p: T,
+  metros: MetrosEntre,
+  desde = 0,
+  vuelta?: VueltaDesde,
+): number {
   let mejor = orden.length;
   let menos = Infinity;
   for (let k = Math.min(Math.max(desde, 0), orden.length); k <= orden.length; k++) {
     const antes = k === 0 ? null : orden[k - 1];
     const despues = orden[k];
-    const agrega = metros(antes, p) + (despues ? metros(p, despues) - metros(antes, despues) : 0);
+    const agrega =
+      metros(antes, p) +
+      (despues ? metros(p, despues) - metros(antes, despues) : vuelta ? vuelta(p) - vuelta(antes) : 0);
     if (agrega < menos) {
       menos = agrega;
       mejor = k;
@@ -178,7 +196,12 @@ export const MIN_REINTENTO = 30;
  *  iba siempre al final, y si el final quedaba al otro lado de la ciudad eran
  *  kilómetros de vuelta por un solo paquete. Sin paradas que sumen ese tiempo,
  *  al final. `resto` son las pendientes que siguen, sin ella. */
-export function lugarParaReintentar<T extends PuntoDeRuta>(resto: T[], p: T, metros: MetrosEntre): number {
+export function lugarParaReintentar<T extends PuntoDeRuta>(
+  resto: T[],
+  p: T,
+  metros: MetrosEntre,
+  vuelta?: VueltaDesde,
+): number {
   let minutosRecorridos = 0;
   let anterior: T | null = null;
   let desde = resto.length;
@@ -190,7 +213,7 @@ export function lugarParaReintentar<T extends PuntoDeRuta>(resto: T[], p: T, met
       break;
     }
   }
-  return lugarMasBarato(resto, p, metros, desde);
+  return lugarMasBarato(resto, p, metros, desde, vuelta);
 }
 
 /** Minuto del día de un instante, en la hora del teléfono (que está en Chile). */

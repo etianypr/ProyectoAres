@@ -12,7 +12,7 @@ import { resultadoCerrado } from "@/lib/encomiendas/estados";
 import { deLngLat, type Coordenada } from "@/lib/geo/coordenada";
 import { obtenerRutaCalles } from "@/lib/geo/mapbox/direcciones";
 import { fijarTrazado, leerPedidos, leerRuta, ordenarRuta, pedidosEnOrden, type Pedido } from "./almacen";
-import { lugarMasBarato, lugarParaReintentar, metrosEstimados, type PuntoDeRuta } from "./planificar";
+import { lugarMasBarato, lugarParaReintentar, metrosEstimados, vueltaEstimada, type PuntoDeRuta } from "./planificar";
 
 type Ubicado = Pedido & PuntoDeRuta;
 const ubicado = (p: Pedido): p is Ubicado => p.lat != null && p.lng != null;
@@ -31,7 +31,12 @@ export async function dejarParaMasTarde(fecha: string, pedidoId: string): Promis
   // Sin coordenadas no hay cómo medir: al final, como siempre.
   const lugar =
     ubicado(pedido) && resto.every(ubicado)
-      ? lugarParaReintentar(resto as Ubicado[], pedido, metrosEstimados(coord(pedido)))
+      ? lugarParaReintentar(
+          resto as Ubicado[],
+          pedido,
+          metrosEstimados(coord(pedido)),
+          ruta.partida ? vueltaEstimada(ruta.partida, coord(pedido)) : undefined,
+        )
       : resto.length;
   const ids = resto.map((p) => p.id);
   ids.splice(lugar, 0, pedidoId);
@@ -60,10 +65,12 @@ export async function sumarALaRuta(fecha: string): Promise<number> {
   // Desde dónde se mide el primer tramo: la parada activa, o el inicio del trazado.
   const inicio = ruta.trazado?.[0] ? deLngLat(ruta.trazado[0]) : coord(nuevos[0]);
   const metros = metrosEstimados(orden[0] ? coord(orden[0]) : inicio);
+  // La ruta vuelve a la base: el final no es gratis (ver Ruta.partida).
+  const vuelta = ruta.partida ? vueltaEstimada(ruta.partida, orden[0] ? coord(orden[0]) : inicio) : undefined;
   for (const p of nuevos) {
     // La parada activa (la primera) no se mueve: el botón que el conductor está
     // por tocar es de ella.
-    const lugar = orden.length > 0 ? lugarMasBarato(orden.slice(1), p, metros) + 1 : 0;
+    const lugar = orden.length > 0 ? lugarMasBarato(orden.slice(1), p, metros, 0, vuelta) + 1 : 0;
     orden.splice(lugar, 0, p);
   }
 
@@ -74,7 +81,7 @@ export async function sumarALaRuta(fecha: string): Promise<number> {
   if (guardada) {
     try {
       const puntos = pedidosEnOrden(guardada, pedidos).filter(ubicado).map(coord);
-      const calles = await obtenerRutaCalles([inicio, ...puntos]);
+      const calles = await obtenerRutaCalles([inicio, ...puntos, ...(ruta.partida ? [ruta.partida] : [])]);
       if (calles) await fijarTrazado(fecha, calles);
     } catch {
       // Queda el trazado anterior.
