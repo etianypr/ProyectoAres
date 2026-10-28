@@ -27,8 +27,8 @@ type Opcion = "empresa" | "gps" | "direccion";
 // por eso queda plegado detrás de una línea discreta y lo que se ve siempre es
 // una sola acción clara.
 const OPCIONES: { valor: Opcion; corto: string; largo: string }[] = [
+  { valor: "empresa", corto: "Central", largo: "la central de carga" },
   { valor: "gps", corto: "Mi ubicación", largo: "mi ubicación" },
-  { valor: "empresa", corto: "Empresa", largo: "la dirección de la empresa" },
   { valor: "direccion", corto: "Otra", largo: "otra dirección" },
 ];
 
@@ -45,12 +45,10 @@ export function GenerarRutaLocal({
   regenerar?: boolean;
   onPropuesta: (propuesta: PropuestaRuta) => void;
 }) {
-  // Desde DONDE arranca la ruta. Por defecto, desde donde está parado el conductor:
-  // la ruta se arma en el momento de salir, y salvo que se esté en el galpón, la
-  // dirección de la empresa manda la primera parada al otro lado de la ciudad.
-  // Antes el valor de arranque era "empresa" y había que acordarse de abrir el
-  // desplegable para corregirlo en cada día.
-  const [opcion, setOpcion] = useState<Opcion>("gps");
+  // Desde DONDE arranca la ruta. Por defecto, desde la central de carga de
+  // Starken, donde se cargan los paquetes (el dueño, terreno 2026-10-28). Sin
+  // dirección de la empresa configurada, desde donde está parado el conductor.
+  const [opcion, setOpcion] = useState<Opcion>(direccionEmpresa ? "empresa" : "gps");
   const [mostrarOpciones, setMostrarOpciones] = useState(false);
   const [direccion, setDireccion] = useState("");
   // Coordenadas de la dirección elegida de la lista de sugerencias: con esto la
@@ -76,9 +74,9 @@ export function GenerarRutaLocal({
   }
 
   // Acá había una generación automática al abrir la pantalla sin ruta, que
-  // armaba siempre desde la dirección de la empresa. Se fue: ahora el punto de
-  // partida por defecto es la ubicación del conductor, y una ruta que se calcula
-  // sola no puede pedir permiso de GPS sin que nadie lo haya pedido. El botón de
+  // armaba siempre desde la dirección de la empresa. Se fue: una ruta que se
+  // calcula sola no puede pedir permiso de GPS sin que nadie lo haya pedido (si
+  // se elige "Mi ubicación"), y el conductor la arma cuando sale. El botón de
   // armar está a la vista en la cabecera de la hoja, que es un toque — salvo
   // mientras se carga un pedido, que ahí la cabecera pasa a ser el contador de
   // pendientes (ver cabecera-sin-parada.tsx).
