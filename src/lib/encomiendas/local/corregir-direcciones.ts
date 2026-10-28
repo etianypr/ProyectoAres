@@ -23,6 +23,9 @@ export type PropuestaCorreccion = {
   lng: number;
   /** El buscador dio la cuadra y no la puerta. */
   enLaCuadra: boolean;
+  /** El buscador dio solo la calle, sin el número: el punto puede estar a
+   *  kilómetros. Nunca es segura. */
+  soloCalle: boolean;
   /** La puerta, o la cuadra con el número dentro: lo que el buscador de siempre
    *  aceptaría solo. Las demás se marcan como dudosas. */
   segura: boolean;
@@ -39,8 +42,10 @@ export type ResumenCorreccion = {
 
 const sinUbicar = (p: Pedido) => p.resultado === "pendiente" && (p.lat == null || p.lng == null) && p.direccion.trim() !== "";
 
-/** La puerta, o la cuadra con el número dentro. */
+/** La puerta, o la cuadra con el número dentro. La calle entera, nunca: su
+ *  punto es la mitad de la calle (terreno 2026-10-28). */
 export function esSegura(r: Extract<ResultadoIA, { tipo: "propuesta" }>): boolean {
+  if (r.candidato.soloCalle) return false;
   if (r.confianza === "alta") return true;
   return r.confianza === "media" && r.candidato.confianza === "aproximada" && r.candidato.coincideNumero !== false;
 }
@@ -77,7 +82,8 @@ export async function corregirSinUbicar(
         direccion: r.direccion,
         lat: r.candidato.lat,
         lng: r.candidato.lng,
-        enLaCuadra: r.candidato.confianza === "aproximada",
+        enLaCuadra: r.candidato.confianza === "aproximada" && !r.candidato.soloCalle,
+        soloCalle: r.candidato.soloCalle,
         segura: esSegura(r),
         motivo: r.motivo,
       });
@@ -92,7 +98,11 @@ export async function corregirSinUbicar(
 /** El conductor confirmó la corrección: el pedido queda con la dirección y el
  *  punto propuestos, y lo que decía antes en las notas. */
 export async function aplicarCorreccion(p: PropuestaCorreccion): Promise<void> {
-  const cuadra = p.enLaCuadra ? " (punto aproximado en la cuadra)" : "";
+  const cuadra = p.soloCalle
+    ? " (solo la calle, sin el número)"
+    : p.enLaCuadra
+      ? " (punto aproximado en la cuadra)"
+      : "";
   await cambiarDireccion(
     p.pedidoId,
     p.direccion,

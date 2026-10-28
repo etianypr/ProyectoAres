@@ -202,6 +202,10 @@ mismo reloj de `planificar.ts`), que corre por partes para no congelar la pantal
 menos alargan (`lugarParaReintentar`, `lugarMasBarato`) sin rehacer la ruta. Deshacer vuelve el
 pedido a `pendiente` dentro de la ventana de retención.
 
+Una parada lejos de todas (más de 2 km de la más cercana y más de 4 km de desvío) sale avisada en la
+propuesta con lo que suma (`paradasLejanas`, `generar-ruta/lejanas.ts`): en terreno, un punto en la mitad
+de una calle de 5 km sumaba 15,8 km a una ruta de 56.
+
 La ruta del día es **cerrada** (terreno 2026-10-28): termina donde empezó, en la central de carga.
 El optimizador trata el final como un punto más (`FIN` en `orden-paradas/costo.ts`: 0 en una ruta
 abierta, volver a la base en una cerrada), la matriz pide también la vuelta a la partida, el
@@ -316,7 +320,7 @@ lo usa.
 | Días "YYYY-MM-DD" en hora de Chile (`hoyChile`, `sumarDias`, `esFecha`), `MESES`; periodo del panel y su cookie | `comun/fechas.ts`, `comun/periodo.ts` (+ `periodo-servidor.ts`) |
 | Orden de paradas (exacto hasta 14 puntos; si no, construcción + mejora + sacudidas) · con horarios (`optimizarConHorarios`, por partes en `optimizarSinCongelar`) | `rutas/orden-paradas/` (`con-horarios.ts`, `sin-congelar.ts`) |
 | Matriz de calles por bloques, en memoria y con tope mensual (`matrizCalles`, `planificarConsultas`) | `geo/mapbox/matriz.ts` |
-| Corregir con IA una dirección sin ubicar (spec 018): conversación y validación (`conversacionValida`), una ida con Claude (`pasoDireccionIA`, `server-only`), el bucle en el teléfono (`corregirConIA`, `interpretar`); los del día, a confirmar por el conductor (`corregirSinUbicar`, `esSegura`, `aplicarCorreccion`) | `geo/direccion-ia/{contrato,servidor,cliente}.ts`, `src/app/api/direccion-ia/route.ts`, `encomiendas/local/corregir-direcciones.ts` |
+| Corregir con IA una dirección sin ubicar (spec 018): conversación y validación (`conversacionValida`), una ida con Claude (`pasoDireccionIA`, `server-only`), el bucle en el teléfono (`corregirConIA`, `interpretar`); los del día, a confirmar por el conductor (`corregirSinUbicar`, `esSegura` —la calle entera, sin el número, nunca es segura—, `aplicarCorreccion`) | `geo/direccion-ia/{contrato,servidor,cliente}.ts`, `src/app/api/direccion-ia/route.ts`, `encomiendas/local/corregir-direcciones.ts` |
 | Trazado en el teléfono: pegar al camino, rumbo, metros restantes · Mapbox: token, direcciones, navegación (`PasoNavegacion` con `duracionS` y `salida` de rotonda) · recorrido del tramo: `pasoEnCurso` (el cartel cambia al doblar la esquina, o al aparecer sobre un paso posterior) y `restanteDelTramo` (metros a la maniobra, metros y segundos a la parada) | `geo/trazado.ts` · `geo/mapbox/` (`recorrido.ts`) |
 | Ubicar una dirección (`ubicarDireccion`): limpiar la consulta, `coincidenciaCalle` (tipeo acotado), catálogo de calles de Arica (`callesParecidas`, `largoDeCalle`) | `geo/geocoding/`: `ubicar.ts`, `consulta.ts`, `calles.ts` + `calles-arica.ts` (generado), `completar-numero.ts`, `mapbox.ts`, `nominatim.ts`, `codigo.ts`; `index.ts` es el barril |
 

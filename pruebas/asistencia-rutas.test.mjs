@@ -258,6 +258,25 @@ test("la ruta vuelve a la partida: el trazado termina en ella y la ruta la guard
   assert.deepEqual(ruta.partida, p.partida, "la ruta no guardó adonde vuelve");
 });
 
+test("una parada lejos de todas se avisa con lo que suma; un día normal no avisa nada", async () => {
+  // Terreno 2026-10-28: una dirección en la mitad de una calle de 5 km sumaba
+  // 15,8 km a una ruta de 56. El orden era el mejor; lo que fallaba era el punto.
+  await pedidoAKm("Cerca A", 0.5);
+  await pedidoAKm("Cerca B", 1);
+  await pedidoAKm("Cerca C", 1.5);
+  const normal = await calcularRutaLocal(HOY, inicioDe());
+  assert.deepEqual(normal.lejanas, [], "un día agrupado no tiene paradas lejanas");
+
+  await pedidoAKm("Lejos", 0, { este: 7 });
+  const p = await calcularRutaLocal(HOY, inicioDe());
+  assert.equal(p.lejanas.length, 1);
+  const [l] = p.lejanas;
+  assert.equal(nombres(p.paradas.filter((x) => x.id === l.pedidoId))[0], "Lejos");
+  assert.ok(l.metrosAlResto > 6000, `queda a ${l.metrosAlResto} m`);
+  assert.ok(l.metrosQueSuma > 10000, `suma ${l.metrosQueSuma} m`);
+  assert.ok(p.advertencias.some((a) => /del resto y suma .* km a la ruta/.test(a)), "la ruta guardada también lo dice");
+});
+
 test("una sola propuesta cuesta una matriz y un trazado, igual que antes", async () => {
   for (const n of [1, 2, 3]) await pedidoA(n);
   await calcularRutaLocal(HOY, inicioDe());

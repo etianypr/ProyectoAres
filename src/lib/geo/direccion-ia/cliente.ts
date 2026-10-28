@@ -109,6 +109,7 @@ export async function corregirConIA(
             lng: s.lng,
             confianza: s.confianza,
             coincideNumero: s.coincideNumero,
+            soloCalle: s.soloCalle,
             fuente: s.fuente,
           };
           candidatos.set(id, candidato);
@@ -122,6 +123,7 @@ export async function corregirConIA(
             detalle: c.detalle,
             confianza: c.confianza,
             numero_coincide: c.coincideNumero,
+            solo_calle: c.soloCalle,
             fuente: c.fuente,
             punto: `${c.lat.toFixed(4)},${c.lng.toFixed(4)}`,
           })),

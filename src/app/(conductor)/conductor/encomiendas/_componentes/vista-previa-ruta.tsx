@@ -114,6 +114,7 @@ export function VistaPreviaRuta({
     cerradas,
     alternativas,
     elegida,
+    lejanas,
   } = propuesta;
 
   const actual = alternativas.find((a) => a.estrategia === elegida) ?? alternativas[0];
@@ -333,6 +334,19 @@ export function VistaPreviaRuta({
           Siguen pendientes: corrige la dirección y vuelve a armar la ruta.
         </Advertencia>
       ) : null}
+
+      {/* Una parada lejos de todas (terreno 2026-10-28): con lo que suma, para
+          revisar la dirección o sacarla con el basurero. */}
+      {(lejanas ?? []).map((l) => {
+        const i = paradas.findIndex((p) => p.id === l.pedidoId);
+        if (i < 0) return null;
+        return (
+          <Advertencia key={l.pedidoId} icono={<MapPinOff className="h-3.5 w-3.5" />}>
+            La {numero(i)} · {l.direccion} queda a {formatDistancia(l.metrosAlResto)} del resto y suma{" "}
+            {formatDistancia(l.metrosQueSuma)}.
+          </Advertencia>
+        );
+      })}
 
       {actual.bloquesIncumplidos > 0 ? (
         <Advertencia icono={<AlertTriangle className="h-3.5 w-3.5" />}>

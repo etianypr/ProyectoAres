@@ -40,6 +40,7 @@ import { guardarRuta, leerPedidos, leerRuta, pedidosEnOrden } from "../almacen";
 import { resolverInicio } from "./partida";
 import { reintentarUbicar, tieneCoordenadas } from "./ubicar-pedidos";
 import { coord, elegirUtiles, medir, metrosPorMatriz, ordenPorEstrategia, TITULOS, vueltaPorMatriz } from "./estrategias";
+import { paradasLejanas } from "./lejanas";
 import { ordenConHorarios } from "./horarios";
 import type { Alternativa, EstrategiaRuta, PedidoUbicado, PropuestaRuta, PuntoInicio, ResultadoRuta } from "./tipos";
 
@@ -189,6 +190,13 @@ export async function calcularRutaLocal(
   const alternativas = elegirUtiles(candidatas);
   const recomendada = alternativas[0];
   const paradas = recomendada.paradas;
+  // Una parada lejos de todas: se avisa con lo que cuesta (terreno 2026-10-28).
+  const lejanas = paradasLejanas(paradas, base, metros, vuelta);
+  for (const l of lejanas) {
+    advertencias.push(
+      `${l.direccion} queda a ${(l.metrosAlResto / 1000).toFixed(1)} km del resto y suma ${(l.metrosQueSuma / 1000).toFixed(1)} km a la ruta: revisa la dirección.`,
+    );
+  }
 
   // El trazado se pide SOLO para la recomendada, y no para las tres. Es la
   // consulta caraaa de este armado (ver la Decisión 5): mostrar tres opciones no
@@ -221,6 +229,7 @@ export async function calcularRutaLocal(
     cerradas: cerradas.length,
     alternativas,
     elegida: recomendada.estrategia,
+    lejanas,
     advertencias:
       calles == null
         ? [

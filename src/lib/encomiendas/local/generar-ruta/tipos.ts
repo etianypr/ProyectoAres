@@ -1,6 +1,7 @@
 // Tipos del armado de la ruta (spec 002 T032: antes en generar-ruta.ts).
 
 import type { Coordenada, Trazado } from "@/lib/geo/coordenada";
+import type { ParadaLejana } from "./lejanas";
 import type { Pedido, Ruta } from "../almacen";
 
 /** De dónde arranca la ruta. La dirección de la empresa la pasa la pantalla
@@ -50,6 +51,8 @@ export type PropuestaRuta = {
   alternativas: Alternativa[];
   /** Cuál de `alternativas` está puesta ahora mismo. */
   elegida: EstrategiaRuta;
+  /** Paradas lejos de todas las demás, con lo que suman (ver lejanas.ts). */
+  lejanas: ParadaLejana[];
 };
 
 export type ResultadoRuta = {

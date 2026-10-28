@@ -179,6 +179,9 @@ test("esSegura: la puerta, o la cuadra con el número; nunca el barrio", () => {
   assert.equal(esSegura(p("media", { confianza: "aproximada", coincideNumero: false })), false);
   assert.equal(esSegura(p("media", { confianza: "exacta", coincideNumero: false })), false);
   assert.equal(esSegura(p("baja", { confianza: "baja" })), false);
+  // La calle entera, sin el número: su punto puede estar a kilómetros (terreno 2026-10-28).
+  assert.equal(esSegura(p("media", { confianza: "aproximada", coincideNumero: null, soloCalle: true })), false);
+  assert.equal(esSegura(p("alta", { soloCalle: true })), false, "ni con la IA segura");
 });
 
 test("corregirSinUbicar: sin IA en el servidor no sigue con las demás", async () => {

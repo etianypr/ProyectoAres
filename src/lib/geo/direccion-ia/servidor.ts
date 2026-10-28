@@ -44,7 +44,7 @@ const HERRAMIENTAS: Anthropic.Messages.Tool[] = [
   {
     name: HERRAMIENTA.buscar,
     description:
-      "Busca una dirección en Arica en Mapbox, OpenStreetMap y Google a la vez. Devuelve candidatos con id, dirección, confianza (exacta = la puerta; aproximada = la cuadra; baja = el barrio) y si el número coincide.",
+      "Busca una dirección en Arica en Mapbox, OpenStreetMap y Google a la vez. Devuelve candidatos con id, dirección, confianza (exacta = la puerta; aproximada = la cuadra; baja = el barrio), si el número coincide y solo_calle (true = el buscador no tiene el número: el punto es la calle entera, que puede medir kilómetros).",
     input_schema: {
       type: "object",
       properties: { consulta: { type: "string", description: 'Dirección limpia, por ejemplo "Avenida Santa María 2150".' } },

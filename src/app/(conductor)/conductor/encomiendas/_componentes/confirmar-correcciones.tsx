@@ -88,7 +88,9 @@ export function ConfirmarCorrecciones({
             </p>
             <p className="text-base font-semibold leading-tight">{p.direccion}</p>
             <div className="flex flex-wrap gap-1.5">
-              {p.enLaCuadra ? (
+              {p.soloCalle ? (
+                <span className="rounded-full bg-warn-bg px-2 py-0.5 text-xs font-medium text-warn">Solo la calle</span>
+              ) : p.enLaCuadra ? (
                 <span className="rounded-full bg-background px-2 py-0.5 text-xs font-medium">En la cuadra</span>
               ) : null}
               {!p.segura ? (

@@ -35,6 +35,10 @@ export type CandidatoIA = {
   lng: number;
   confianza: Confianza;
   coincideNumero: boolean | null;
+  /** El buscador dio la CALLE y no una puerta: su punto puede estar a
+   *  kilómetros del número (terreno 2026-10-28: una dirección de la guía quedó
+   *  en la mitad de una calle de 5 km). */
+  soloCalle: boolean;
   fuente: Fuente;
 };
 
