@@ -35,7 +35,6 @@ const A5_POR_CREAR = {};
 const EXC_A6 = [];
 /** A7: archivos de más de 400 líneas (spec 002, US3). */
 const EXC_A7 = [
-  "app/(conductor)/conductor/encomiendas/_mapa/ruta-mapa.tsx",
   "app/(conductor)/conductor/encomiendas/_componentes/pedido-form-local.tsx",
   "app/(conductor)/conductor/encomiendas/_hooks/use-dia-trabajo.ts",
   "app/(app)/encomiendas/actions.ts",

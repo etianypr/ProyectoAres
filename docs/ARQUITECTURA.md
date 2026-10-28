@@ -170,7 +170,7 @@ multiplicaría las consultas a Mapbox y le haría elegir al conductor entre opci
 src/
 ├── proxy.ts                      sesión Supabase por request (lib/supabase/sesion-proxy)
 ├── app/(app)/                    panel: encomiendas (dia/_componentes) · conductores (_componentes) · configuracion · @modal
-├── app/(conductor)/conductor/    PWA y APK: encomiendas (pantalla, que solo une · _componentes: parada activa, carril, hoja, ventanas · _hooks: navegación, acciones de la parada, propuesta, botón atrás · _mapa) · diagnostico (APK)
+├── app/(conductor)/conductor/    PWA y APK: encomiendas (pantalla, que solo une · _componentes: parada activa, carril, hoja, ventanas · _hooks: navegación, acciones de la parada, propuesta, botón atrás · _mapa: ruta-mapa, estilo, cámara, marcadores) · diagnostico (APK)
 ├── app/api/                      whatsapp (send · status · webhook) · lectura (IA, spec 005) · geocodificar (Google, spec 016) · texto (Cloud Vision, spec 005)
 ├── components/                   ui (primitivas) · direccion (campo y vista previa) · panel (marco del panel)
 ├── lib/                          una carpeta por dominio, sin archivos sueltos

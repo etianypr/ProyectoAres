@@ -65,7 +65,7 @@ borra su excepción en `pruebas/arquitectura.test.mjs`.
 - [x] T035 [US3] Lo puro de `pantalla.tsx`: `cifrasPantalla` y `faseDeParada` (`_hooks/cifras-pantalla.ts`, `_hooks/fase-parada.ts`, con pruebas en `pruebas/pantalla-conductor.test.mjs`) y los avisos en `_componentes/notificaciones-pantalla.tsx` (`armarNotificaciones`). Hecho (2026-10-27)
 - [x] T036 [US3] Hooks de `pantalla.tsx` → `_hooks/`: `use-guia-navegacion`, `use-acciones-parada` (con las ventanas de deshacer), `use-propuesta`, `use-avisos-del-dia`, `use-puntos-mapa`, `use-boton-atras`. Hecho (2026-10-27)
 - [x] T037 [US3] Componentes de `pantalla.tsx` → `_componentes/`: `parada-activa`, `cabecera-sin-parada`, `carril-superior`, `controles-mapa`, `contenido-hoja`, `ruta-del-dia`, `pedidos-fuera`, `advertencias-ruta`, `tu-dia`, `ventanas-pantalla`, `estado-pantalla`, `fila-pedido`, `vista-pedido`. `pantalla.tsx` 1.938 → 385 líneas; sale de A7. Hecho (2026-10-27)
-- [ ] T038 [P] [US3] `_mapa/ruta-mapa.tsx` → `estilo`, `marcadores-dom`, `use-mapa-mapbox`, `use-camara`, `use-marcadores`
+- [x] T038 [P] [US3] `_mapa/ruta-mapa.tsx` → `tipos`, `estilo`, `camara`, `marcadores-dom`, `use-camara` (`useCamaraNavegacion`), `use-marcador-conductor`. 904 → 392 líneas; sale de A7. Hecho (2026-10-27)
 - [ ] T039 [P] [US3] `(app)/encomiendas/page.tsx` → `_datos.ts`, `_resumen.ts` (con pruebas), `_componentes/{kpis,tabla-dias,tabla-conductores}`
 - [ ] T040 [P] [US3] `(app)/encomiendas/actions.ts` → `_tarifa.ts` + `actions/{dia-manual,regla-pago,periodos}.ts`
 - [ ] T041 [US3] Dividir o excepcionar `use-dia-trabajo.ts`, `pedido-form-local.tsx` (lo adelanta 003-T009), `direccion-input.tsx`, `actividad-dia.tsx`, `agregar-dia.tsx`, `conductor-panel.tsx`; condensar comentarios narrativos al dividir
