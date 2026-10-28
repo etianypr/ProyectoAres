@@ -50,8 +50,8 @@ export function CabeceraSinParada({
     ) : !hayRuta ? (
       <div className="space-y-2.5">
         <div>
-          <p className="text-sm font-semibold">Hola, {nombreConductor.split(" ")[0]}</p>
-          <p className="text-xs text-muted">
+          <p className="text-[21px] font-extrabold leading-tight tracking-tight">Hola, {nombreConductor.split(" ")[0]}</p>
+          <p className="text-sm text-muted">
             {sinRutear === 0
               ? "Sin pedidos cargados."
               : sinRutear === 1

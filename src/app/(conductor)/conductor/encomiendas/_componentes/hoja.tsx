@@ -166,7 +166,7 @@ export function BottomSheet({
 
   return (
     <div
-      className="fixed inset-x-0 bottom-0 z-20 flex flex-col rounded-t-2xl bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.15)]"
+      className="fixed inset-x-0 bottom-0 z-20 flex flex-col rounded-t-[26px] bg-card shadow-[0_-8px_30px_rgba(34,26,21,0.14)]"
       style={{
         height: altoSheet > 0 ? `${altoSheet}px` : `${ALTURA_VH}vh`,
         transform: `translateY(${translateY}px)`,
@@ -209,7 +209,7 @@ export function BottomSheet({
             pedidos está donde el conductor la dejó. Opaca y con su propio scroll
             adentro. */}
         {vista ? (
-          <div className="absolute inset-0 z-10 flex flex-col bg-white">{vista}</div>
+          <div className="absolute inset-0 z-10 flex flex-col bg-card">{vista}</div>
         ) : null}
       </div>
     </div>

@@ -22,7 +22,7 @@ import type { PasoNavegacion } from "@/lib/geo/mapbox/navegacion";
 // una variable dentro del render hace que React lo trate como uno nuevo en cada
 // dibujado.
 function iconoManiobra(paso: PasoNavegacion) {
-  const clase = "h-7 w-7 shrink-0 text-brand";
+  const clase = "h-7 w-7 shrink-0 text-[#ffb48a]";
 
   if (paso.tipo === "arrive") return <MapPin className={clase} />;
   if (paso.tipo === "depart") return <ArrowUp className={clase} />;
@@ -54,6 +54,10 @@ function iconoManiobra(paso: PasoNavegacion) {
  *  uno se dibujara su propia caja, el cartel cambiaría de fondo o de sombra al
  *  aparecer y desaparecer la navegación. */
 export const CAJA_CARRIL = "flex items-center gap-2.5 rounded-2xl bg-card px-3.5 py-2 shadow-card";
+/** El cartel de la maniobra: tinta oscura, para leerse sobre cualquier mapa.
+ *  Los colores del resumen (verde, rojo) se aclaran para el fondo oscuro. */
+const CAJA_NAVEGACION =
+  "flex items-center gap-3 rounded-[22px] bg-foreground px-4 py-2.5 text-background shadow-[0_8px_24px_rgba(34,26,21,0.3)] [&_.text-ok]:text-[#8fdcb4] [&_.text-danger]:text-[#ffa497]";
 
 // Cartel de navegación (tipo Waze), arriba del mapa: próxima maniobra hacia
 // la parada activa + distancia. Ver useNavegacion para cuándo se refresca.
@@ -87,7 +91,7 @@ export function InstruccionNavegacion({
   const salida = maniobra.salida != null ? `${maniobra.salida}.ª salida` : null;
 
   return (
-    <div className={cn(CAJA_CARRIL, "min-w-0 flex-1")}>
+    <div className={cn(CAJA_NAVEGACION, "min-w-0 flex-1")}>
       {iconoManiobra(maniobra)}
       <div className="min-w-0 flex-1">
         {/* Manejando se lee primero CUÁNTO falta y después hacia dónde: la
@@ -95,9 +99,9 @@ export function InstruccionNavegacion({
             banner de Mapbox es el texto corto (la calle a la que se entra) y
             la instrucción es la frase completa. */}
         {distancia > 0 ? (
-          <p className="text-lg font-bold leading-tight tabular-nums">{formatDistancia(distancia)}</p>
+          <p className="font-mono text-[24px] font-semibold leading-tight tracking-tight">{formatDistancia(distancia)}</p>
         ) : null}
-        <p className="truncate text-sm font-semibold leading-tight">
+        <p className="truncate text-sm font-semibold leading-tight opacity-85">
           {salida ? `${salida} · ` : ""}
           {paso.banner ?? paso.instruccion}
         </p>
@@ -107,7 +111,7 @@ export function InstruccionNavegacion({
           queda pegado al nombre de la calle. */}
       {resumen ? (
         <>
-          <span className="h-8 w-px shrink-0 bg-divider" />
+          <span className="h-8 w-px shrink-0 bg-background/20" />
           {resumen}
         </>
       ) : null}

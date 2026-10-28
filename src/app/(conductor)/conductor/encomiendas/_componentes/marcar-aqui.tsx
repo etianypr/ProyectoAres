@@ -87,7 +87,7 @@ export function MarcarAqui({
           <button
             type="button"
             onClick={pedirAhora}
-            className="flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1.5 text-xs font-semibold active:bg-background"
+            className="flex items-center gap-1.5 rounded-lg bg-card px-2.5 py-1.5 text-xs font-semibold active:bg-background"
           >
             <RotateCw className="h-3.5 w-3.5" />
             Reintentar
@@ -95,7 +95,7 @@ export function MarcarAqui({
           <button
             type="button"
             onClick={() => setMarcando(false)}
-            className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-muted active:bg-white"
+            className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-muted active:bg-card"
           >
             Cancelar
           </button>
@@ -164,7 +164,7 @@ export function MarcarAqui({
         <button
           type="button"
           onClick={pedirAhora}
-          className="flex items-center gap-1.5 rounded-lg bg-white px-3 py-2 text-xs font-semibold active:bg-background"
+          className="flex items-center gap-1.5 rounded-lg bg-card px-3 py-2 text-xs font-semibold active:bg-background"
         >
           <RotateCw className="h-3.5 w-3.5" />
           Volver a tomar
@@ -173,7 +173,7 @@ export function MarcarAqui({
         <button
           type="button"
           onClick={() => setMarcando(false)}
-          className="rounded-lg px-2.5 py-2 text-xs font-semibold text-muted active:bg-white"
+          className="rounded-lg px-2.5 py-2 text-xs font-semibold text-muted active:bg-card"
         >
           Cancelar
         </button>

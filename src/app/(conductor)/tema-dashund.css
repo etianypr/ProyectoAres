@@ -1,0 +1,127 @@
+/* Tema Dashund de la app del conductor (terreno 2026-10-28).
+
+   El diseño "Plano" que eligió el dueño, con el naranja de Dashund —la empresa
+   que desarrolla ARES, un perro salchicha naranja—. Lo carga solo el layout del
+   conductor: el panel del jefe sigue con su tema.
+
+   Contrastes medidos (WCAG 2.1), como el resto del sistema: aquí se lee a pleno
+   sol. El naranja elegido (#d4531a) va tal cual en el mapa (ruta, puntos, el
+   conductor); los botones con texto blanco usan uno apenas más hondo (#c4491a,
+   4.87:1) para pasar AA, que el elegido no alcanza (3.92:1).
+
+   `:root:root` gana a los tokens de globals.css sin depender del orden en que
+   se carguen las hojas. */
+
+:root:root {
+  --naranja-dashund: #d4531a;
+  --central: #221a15;
+
+  /* Neutros templados hacia el naranja (nada de gris muerto). */
+  --background: #f4f0ec;
+  --foreground: #221a15;
+  --card: #fdfbf9;
+  --border: #e6ddd5;
+  --separator: #d9cfc6;
+  --divider: #ece4dd;
+  /* 5.45:1 sobre --background */
+  --muted: #6b5f57;
+
+  /* 4.87:1 con texto blanco; 4.51:1 como texto sobre --brand-soft. */
+  --brand: #c4491a;
+  --brand-dark: #9e3912;
+  --brand-soft: #fff4ef;
+  --brand-foreground: #ffffff;
+  --brand-ring: rgba(196, 73, 26, 0.22);
+  --brand-shadow: rgba(196, 73, 26, 0.32);
+  --brand-shadow-alta: rgba(140, 52, 14, 0.28);
+}
+
+/* --------------------------------------------------------------------------
+   Puntos del mapa: una pastilla con punta, la cifra en monoespaciada. La punta
+   marca el lugar exacto (el marcador se ancla abajo). Ver marcadores-dom.ts.
+   -------------------------------------------------------------------------- */
+.pin-parada {
+  --pin: var(--naranja-dashund);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  filter: drop-shadow(0 3px 4px rgba(34, 26, 21, 0.28));
+}
+.pin-parada > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 7px;
+  border-radius: 13px;
+  background: var(--pin);
+  color: #fff;
+  box-shadow: 0 0 0 2px var(--card);
+  font: 600 11.5px/1 var(--font-cifras), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.pin-parada::after {
+  content: "";
+  width: 0;
+  height: 0;
+  margin-top: -1px;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 7px solid var(--pin);
+}
+.pin-parada[data-estado="pendiente"] { --pin: #8a7d74; }
+.pin-parada[data-estado="hecha"] { --pin: var(--ok); }
+.pin-parada[data-estado="activa"] > span { min-width: 32px; height: 32px; border-radius: 16px; font-size: 13px; }
+.pin-parada[data-estado="central"] { --pin: var(--central); }
+.pin-parada[data-estado="central"] > span {
+  min-width: 32px;
+  height: 32px;
+  border-radius: 16px;
+  font: 800 14px/1 var(--font-texto), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* La ruta propuesta entra con sus puntos en orden: desacelera y apenas rebota.
+   Los de la ruta del día no se animan: se redibujan al marcar una entrega. */
+.pin-parada[data-estado="previa"] {
+  transform-origin: 50% 100%;
+  animation: pin-entra 0.42s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+  animation-delay: var(--retraso, 0ms);
+}
+@keyframes pin-entra {
+  from {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+}
+
+/* La hoja de la ruta propuesta sube y frena despacio. */
+.sube-y-frena {
+  animation: sube-y-frena 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes sube-y-frena {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+/* El globo del mapa, en la letra y los colores de la app. */
+.mapboxgl-popup-content {
+  border-radius: 14px !important;
+  padding: 10px 12px !important;
+  background: var(--card) !important;
+  box-shadow: 0 8px 24px rgba(34, 26, 21, 0.18) !important;
+  font-family: var(--font-texto), ui-sans-serif, system-ui, sans-serif;
+}
+.mapboxgl-popup-tip {
+  border-top-color: var(--card) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pin-parada[data-estado="previa"],
+  .sube-y-frena {
+    animation: none;
+  }
+}

@@ -27,7 +27,7 @@ export function ControlesMapa({
           {voz.disponible ? (
             <button
               onClick={voz.alternar}
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-md"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-card shadow-md"
               aria-label={voz.activa ? "Silenciar indicaciones" : "Activar indicaciones por voz"}
             >
               {voz.activa ? (
@@ -39,7 +39,7 @@ export function ControlesMapa({
           ) : null}
           <button
             onClick={onCentrar}
-            className="flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-md"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-card shadow-md"
             aria-label="Centrar y seguir mi ubicación"
           >
             <LocateFixed

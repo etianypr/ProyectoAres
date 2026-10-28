@@ -43,7 +43,7 @@ export function BotonMenu({ onAbrir }: { onAbrir: () => void }) {
       type="button"
       onClick={onAbrir}
       aria-label="Abrir el menú"
-      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white shadow-md active:bg-background"
+      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-card shadow-md active:bg-background"
     >
       <Menu className="h-4 w-4" />
     </button>

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { exigirConductor } from "@/lib/auth/sesion";
 import { RegistrarSW } from "./registrar-sw";
+import { TemaDashund } from "./tema-dashund";
 
 // Grupo de rutas aparte (ver docs de route groups): así todo lo que vive
 // bajo /conductor NO hereda el AppShell/sidebar del panel admin — es la
@@ -27,10 +28,10 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  // El mismo naranja que --brand en globals.css. Es la barra de estado del
-  // teléfono con la PWA instalada: si no coincide con la cabecera de la app, se
-  // ve una franja de otro color arriba de la pantalla.
-  themeColor: "#c2410c",
+  // El mismo naranja que --brand del tema Dashund (tema-dashund.css). Es la
+  // barra de estado del teléfono con la PWA instalada: si no coincide con la
+  // cabecera de la app, se ve una franja de otro color arriba de la pantalla.
+  themeColor: "#c4491a",
 };
 
 export default async function ConductorLayout({ children }: { children: React.ReactNode }) {
@@ -40,6 +41,7 @@ export default async function ConductorLayout({ children }: { children: React.Re
 
   return (
     <div className="min-h-screen bg-background">
+      <TemaDashund />
       <RegistrarSW />
       {children}
     </div>

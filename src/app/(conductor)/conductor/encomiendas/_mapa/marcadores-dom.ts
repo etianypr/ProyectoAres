@@ -100,15 +100,6 @@ export function agruparPorLugar(puntos: PuntoMapa[]): LugarMapa[] {
   return lugares;
 }
 
-export function colorPunto(l: LugarMapa, previa: boolean): string {
-  // En una ruta propuesta ninguna parada es "la que sigue" todavía: van todas
-  // del mismo color, el de marca, igual que su línea.
-  if (previa) return "#0f766e";
-  if (l.puntos.some((p) => p.activa)) return "#c0362c";
-  if (l.puntos.every((p) => p.completada)) return "#2e9e5b";
-  return "#6e6e73";
-}
-
 /** Largo del globo: la dirección corta, en una o dos líneas. */
 const LARGO_GLOBO = 48;
 
@@ -127,11 +118,36 @@ export function contenidoGlobo(l: LugarMapa): HTMLElement {
   return el;
 }
 
-export function elementoParada(l: LugarMapa, previa = false): HTMLElement {
+/** El estado que pinta el punto (ver .pin-parada en tema-dashund.css). */
+function estadoDe(l: LugarMapa, previa: boolean): string {
+  if (previa) return "previa";
+  if (l.puntos.some((p) => p.activa)) return "activa";
+  if (l.puntos.every((p) => p.completada)) return "hecha";
+  return "pendiente";
+}
+
+/** Una pastilla con punta, anclada abajo (la punta es el lugar). En la ruta
+ *  propuesta entran en orden: `orden` escalona la animación. */
+export function elementoParada(l: LugarMapa, previa = false, orden = 0): HTMLElement {
   const el = document.createElement("div");
-  const relleno = l.puntos.length > 1 ? 8 : 0;
-  el.style.cssText = `background:${colorPunto(l, previa)};color:#fff;border-radius:9999px;min-width:28px;height:28px;padding:0 ${relleno}px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.4)`;
-  el.textContent = l.puntos.map((p) => p.label).join("·");
+  el.className = "pin-parada";
+  el.dataset.estado = estadoDe(l, previa);
+  el.style.setProperty("--retraso", `${Math.min(orden, 40) * 35}ms`);
+  const cifra = document.createElement("span");
+  cifra.textContent = l.puntos.map((p) => p.label).join("·");
+  el.append(cifra);
+  return el;
+}
+
+/** La central de carga: de donde sale y adonde vuelve la ruta. */
+export function elementoCentral(): HTMLElement {
+  const el = document.createElement("div");
+  el.className = "pin-parada";
+  el.dataset.estado = "central";
+  el.setAttribute("aria-label", "Central de carga");
+  const letra = document.createElement("span");
+  letra.textContent = "C";
+  el.append(letra);
   return el;
 }
 

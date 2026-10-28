@@ -136,7 +136,7 @@ export function VistaPreviaRuta({
     // donde el mapa que dibuja la ruta propuesta es una tarjeta que queda ARRIBA
     // (ver pantalla.tsx). Con el tope viejo el panel la tapaba entera, así que
     // se veían los kilómetros y el tiempo de una ruta que no se podía mirar.
-    <div className="flex max-h-[52vh] flex-col rounded-t-2xl bg-white px-4 pb-5 pt-4 shadow-[0_-4px_20px_rgba(0,0,0,0.18)]">
+    <div className="sube-y-frena flex max-h-[52vh] flex-col rounded-t-[26px] bg-card px-4 pb-5 pt-4 shadow-[0_-8px_30px_rgba(34,26,21,0.16)]">
       <div className="flex shrink-0 items-center gap-2">
         <Route className="h-4 w-4 shrink-0 text-brand" />
         <p className="flex-1 text-sm font-semibold">Ruta propuesta</p>
@@ -146,15 +146,23 @@ export function VistaPreviaRuta({
       </div>
 
       {distanciaM != null && duracionS != null ? (
-        <div className="mt-2.5 flex shrink-0 items-center gap-2 text-sm">
-          <span className="rounded-full bg-brand-soft px-2.5 py-1 font-semibold tabular-nums text-brand">
-            {formatDistancia(distanciaM)}
+        <div className="mt-2.5 flex shrink-0 items-stretch gap-2">
+          <span className="rounded-2xl bg-background px-3.5 py-2">
+            <span className="block font-mono text-[22px] font-semibold leading-tight tracking-tight">
+              {formatDistancia(distanciaM)}
+            </span>
+            <span className="text-xs text-muted">con la vuelta</span>
           </span>
           {/* El tiempo de ruta, con su reloj (terreno 2026-10-28). Es manejando,
               sin las entregas: lo dice la Ayuda, no la pantalla. */}
-          <span className="flex items-center gap-1.5 rounded-full bg-brand-soft px-2.5 py-1 font-semibold tabular-nums text-brand">
-            <Clock className="h-4 w-4" aria-label="Tiempo de ruta" />
-            {formatDuracion(duracionS)}
+          <span className="rounded-2xl bg-background px-3.5 py-2">
+            <span className="block font-mono text-[22px] font-semibold leading-tight tracking-tight">
+              {formatDuracion(duracionS)}
+            </span>
+            <span className="flex items-center gap-1 text-xs text-muted">
+              <Clock className="h-3 w-3" aria-hidden />
+              tiempo de ruta
+            </span>
           </span>
         </div>
       ) : null}
@@ -262,11 +270,14 @@ export function VistaPreviaRuta({
             key={p.id}
             className={`flex items-center gap-2.5 px-3 py-2 text-sm ${i > 0 ? "border-t border-divider" : ""}`}
           >
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand text-[11px] font-semibold tabular-nums text-brand-foreground">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand font-mono text-[11px] font-semibold tabular-nums text-brand-foreground">
               {numero(i)}
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate font-medium leading-tight">{nombreVisible(p)}</span>
+              {/* La OF en monoespaciada, como en la guía; el nombre, en la letra de texto. */}
+              <span className={`block truncate font-semibold leading-tight ${p.nombre ? "text-sm" : "font-mono text-[13px]"}`}>
+                {nombreVisible(p)}
+              </span>
               <span className="block truncate text-xs text-muted">{p.direccion}</span>
             </span>
             {/* Qué contestó este receptor. Es la mitad del valor de haberle

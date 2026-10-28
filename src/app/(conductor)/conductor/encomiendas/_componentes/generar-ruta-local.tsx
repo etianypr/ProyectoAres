@@ -158,7 +158,7 @@ export function GenerarRutaLocal({
                 className={cn(
                   "flex-1 rounded-full px-2 py-1.5 text-xs font-medium transition-colors",
                   opcion === o.valor
-                    ? "bg-white text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
+                    ? "bg-card text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
                     : "text-muted",
                 )}
               >

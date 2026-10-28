@@ -39,7 +39,7 @@ export function ResolverDireccion({
                     type="button"
                     disabled={guardando}
                     onClick={() => onElegir(s)}
-                    className="flex w-full items-center gap-2.5 rounded-lg bg-white px-2.5 py-2 text-left transition-colors active:bg-background disabled:opacity-60"
+                    className="flex w-full items-center gap-2.5 rounded-lg bg-card px-2.5 py-2 text-left transition-colors active:bg-background disabled:opacity-60"
                   >
                     {/* La estampilla de cada opción. Es lo que hace elegible
                         una lista donde dos renglones dicen exactamente lo

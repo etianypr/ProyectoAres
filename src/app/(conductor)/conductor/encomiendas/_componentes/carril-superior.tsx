@@ -89,7 +89,7 @@ export function CarrilSuperior({
             type="button"
             onClick={onEscanear}
             aria-label="Escanear etiqueta"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-brand shadow-md active:bg-background"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-card text-brand shadow-md active:bg-background"
           >
             <ScanLine className="h-4 w-4" />
           </button>

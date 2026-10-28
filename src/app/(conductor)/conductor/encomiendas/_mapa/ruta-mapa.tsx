@@ -9,8 +9,8 @@ import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { CENTRO_ARICA, aLngLat, type Trazado } from "@/lib/geo/coordenada";
-import { ESTILO, FUENTE_DIA, FUENTE_NAV, FUENTE_PREVIA, TOKEN, apagarVerdeDelTrafico, linea, soportaWebGL } from "./estilo";
-import { agruparPorLugar, contenidoGlobo, elementoParada } from "./marcadores-dom";
+import { ESTILO, FUENTE_DIA, FUENTE_NAV, FUENTE_PREVIA, TOKEN, agregarLineas, apagarVerdeDelTrafico, linea, soportaWebGL } from "./estilo";
+import { agruparPorLugar, contenidoGlobo, elementoCentral, elementoParada } from "./marcadores-dom";
 import type { PreviaRuta, PuntoMapa, Ubicacion } from "./tipos";
 import { useCamaraNavegacion } from "./use-camara";
 import { useMarcadorConductor } from "./use-marcador-conductor";
@@ -29,6 +29,7 @@ export function RutaMapa({
   trazado,
   geometriaNavegacion,
   previa,
+  central,
   siguiendo,
   onArrastre,
 }: {
@@ -60,6 +61,9 @@ export function RutaMapa({
   /** Ruta propuesta a la vista (ver PreviaRuta). Reemplaza los marcadores de la
    *  ruta del día mientras está puesta. */
   previa?: PreviaRuta | null;
+  /** La central de carga, de donde sale y adonde vuelve la ruta: se marca
+   *  con una C (terreno 2026-10-28). */
+  central?: { lat: number; lng: number } | null;
   /** Modo navegación: el mapa sigue y orienta según la ubicación del conductor.
    *  El estado vive en el componente padre porque el botón para retomarlo
    *  también (ver controles-mapa.tsx). */
@@ -137,41 +141,7 @@ export function RutaMapa({
     mapa.on("load", () => {
       apagarVerdeDelTrafico(mapa);
 
-      // La ruta del día va primero para que la de navegación quede ENCIMA.
-      mapa.addSource(FUENTE_DIA, { type: "geojson", data: linea() });
-      mapa.addLayer({
-        id: FUENTE_DIA,
-        type: "line",
-        source: FUENTE_DIA,
-        layout: { "line-join": "round", "line-cap": "round" },
-        paint: { "line-color": "#6e6e73", "line-width": 3, "line-opacity": 0.4 },
-      });
-
-      mapa.addSource(FUENTE_NAV, { type: "geojson", data: linea() });
-      mapa.addLayer({
-        id: FUENTE_NAV,
-        type: "line",
-        source: FUENTE_NAV,
-        layout: { "line-join": "round", "line-cap": "round" },
-        paint: { "line-color": "#1d3a8f", "line-width": 6, "line-opacity": 0.9 },
-      });
-
-      // Encima de todo: cuando hay una ruta propuesta, es lo único que el conductor
-      // tiene que mirar.
-      mapa.addSource(FUENTE_PREVIA, { type: "geojson", data: linea() });
-      mapa.addLayer({
-        id: FUENTE_PREVIA,
-        type: "line",
-        source: FUENTE_PREVIA,
-        layout: { "line-join": "round", "line-cap": "round" },
-        paint: {
-          "line-color": "#0f766e",
-          "line-width": 5,
-          "line-opacity": 0.95,
-          "line-dasharray": [2, 1.2],
-        },
-      });
-
+      agregarLineas(mapa);
       setMapaListo(true);
     });
 
@@ -247,20 +217,25 @@ export function RutaMapa({
 
     // Tocar el número abre un globo con su dirección; tocar el mapa lo cierra.
     // Las paradas en el mismo lugar van juntas ("30·31"): si no, una tapa a la otra.
-    marcadoresParadasRef.current = agruparPorLugar(puntosDibujados).map((l) =>
-      new mapboxgl.Marker({ element: elementoParada(l, previa != null) })
+    marcadoresParadasRef.current = agruparPorLugar(puntosDibujados).map((l, i) =>
+      new mapboxgl.Marker({ element: elementoParada(l, previa != null, i), anchor: "bottom" })
         .setLngLat([l.lng, l.lat])
         .setPopup(
-          new mapboxgl.Popup({ offset: 18, closeButton: false, maxWidth: "260px" }).setDOMContent(contenidoGlobo(l)),
+          new mapboxgl.Popup({ offset: 36, closeButton: false, maxWidth: "260px" }).setDOMContent(contenidoGlobo(l)),
         )
         .addTo(mapa),
     );
+    if (central) {
+      marcadoresParadasRef.current.push(
+        new mapboxgl.Marker({ element: elementoCentral(), anchor: "bottom" }).setLngLat([central.lng, central.lat]).addTo(mapa),
+      );
+    }
 
     return () => {
       for (const m of marcadoresParadasRef.current) m.remove();
       marcadoresParadasRef.current = [];
     };
-  }, [puntosDibujados, previa, mapaListo]);
+  }, [puntosDibujados, previa, central, mapaListo]);
 
   // Los dos trazados. Actualizar los datos de la fuente es todo lo que hace
   // falta: no hay que crear ni destruir capas en cada cambio.
