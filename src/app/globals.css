@@ -186,8 +186,12 @@
   animation: fade-in 0.18s ease-out both;
 }
 
-* {
-  border-color: var(--border);
+/* En la capa base y no suelta: suelta le ganaba a toda clase de color de borde
+   (border-separator, border-brand, focus:border-brand…) y ninguna se veía. */
+@layer base {
+  * {
+    border-color: var(--border);
+  }
 }
 
 /* Accesibilidad: si el sistema pide menos movimiento, las animaciones
