@@ -62,9 +62,9 @@ borra su excepción en `pruebas/arquitectura.test.mjs`.
 - [x] T032 [P] [US3] `local/generar-ruta.ts` → `generar-ruta/{partida,ubicar-pedidos,estrategias,index}.ts` Hecho (2026-10-25): `tipos`, `partida`, `ubicar-pedidos`, `estrategias`, `index` (el barril conserva la ruta de importación). Sale de A7
 - [x] T033 [P] [US3] `geo/geocoding/index.ts` (1.010 líneas) → `consulta`, `calles` (spec 016), `tipos`, `codigo` (Plus Codes), `mapbox`, `nominatim`, `completar-numero`, `ubicar`; `index.ts` queda como barril con la cabecera (2026-10-25). Sale de las excepciones de A7
 - [x] T034 [P] [US3] (adelantada en T011) `rutas/orden-paradas.ts` → `orden-paradas/{exacto,construccion,mejora,perturbacion}.ts`
-- [ ] T035 [US3] Cifras del día de `pantalla.tsx` → `resumirDia` (ya existe en `almacen/ruta.ts`) y notificaciones → `_hooks/notificaciones-pantalla.ts`, puros con pruebas
-- [ ] T036 [US3] Hooks de `pantalla.tsx` → `_hooks/` (`use-fase`, `use-guia-navegacion`, `use-ventanas-deshacer`, `use-acciones-parada`)
-- [ ] T037 [US3] Componentes de `pantalla.tsx` → `_componentes/` (`parada-activa` lo adelanta 003-T014); `pantalla.tsx` ≤ 400
+- [x] T035 [US3] Lo puro de `pantalla.tsx`: `cifrasPantalla` y `faseDeParada` (`_hooks/cifras-pantalla.ts`, `_hooks/fase-parada.ts`, con pruebas en `pruebas/pantalla-conductor.test.mjs`) y los avisos en `_componentes/notificaciones-pantalla.tsx` (`armarNotificaciones`). Hecho (2026-10-27)
+- [x] T036 [US3] Hooks de `pantalla.tsx` → `_hooks/`: `use-guia-navegacion`, `use-acciones-parada` (con las ventanas de deshacer), `use-propuesta`, `use-avisos-del-dia`, `use-puntos-mapa`, `use-boton-atras`. Hecho (2026-10-27)
+- [x] T037 [US3] Componentes de `pantalla.tsx` → `_componentes/`: `parada-activa`, `cabecera-sin-parada`, `carril-superior`, `controles-mapa`, `contenido-hoja`, `ruta-del-dia`, `pedidos-fuera`, `advertencias-ruta`, `tu-dia`, `ventanas-pantalla`, `estado-pantalla`, `fila-pedido`, `vista-pedido`. `pantalla.tsx` 1.938 → 385 líneas; sale de A7. Hecho (2026-10-27)
 - [ ] T038 [P] [US3] `_mapa/ruta-mapa.tsx` → `estilo`, `marcadores-dom`, `use-mapa-mapbox`, `use-camara`, `use-marcadores`
 - [ ] T039 [P] [US3] `(app)/encomiendas/page.tsx` → `_datos.ts`, `_resumen.ts` (con pruebas), `_componentes/{kpis,tabla-dias,tabla-conductores}`
 - [ ] T040 [P] [US3] `(app)/encomiendas/actions.ts` → `_tarifa.ts` + `actions/{dia-manual,regla-pago,periodos}.ts`

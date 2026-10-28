@@ -4,11 +4,49 @@
 // resumen del día adentro y los avisos del GPS (sale de pantalla.tsx, spec 002
 // T037).
 
-import { ScanLine } from "lucide-react";
+import { Check, ScanLine, X } from "lucide-react";
 import { cn } from "@/lib/comun/utils";
 import type { Navegacion } from "../_hooks/use-navegacion";
 import { BotonMenu } from "./menu-lateral";
 import { CAJA_CARRIL, InstruccionNavegacion } from "./instruccion-navegacion";
+
+// Cómo va el día, para el carril de arriba del mapa: entregadas sobre el
+// total, y las que no se pudieron entregar solo si hay alguna. Lo que falta no
+// se escribe — es la resta, y una cifra más es una cifra que hay que descartar
+// antes de leer la que importa.
+//
+// Vive arriba y no en la hoja porque es el único dato que el conductor quiere de
+// reojo, manejando, sin abrir nada. Y se dibuja SIEMPRE que haya ruta, con
+// maniobra o sin ella: la versión anterior se escondía justo cuando había
+// navegación, o sea justo cuando el conductor no puede abrir la hoja para
+// buscarlo.
+//
+// En columna y no en fila: así ocupa el alto que el cartel ya tiene y no le
+// roba ancho al nombre de la calle, que es lo único que se lee de un vistazo.
+export function ResumenDelDia({
+  entregadas,
+  total,
+  noEntregadas,
+}: {
+  entregadas: number;
+  total: number;
+  noEntregadas: number;
+}) {
+  return (
+  <div className="flex shrink-0 flex-col items-end gap-0.5 text-xs font-semibold leading-tight">
+      <span className="flex items-center gap-1 tabular-nums text-ok">
+        <Check className="h-3.5 w-3.5 shrink-0" />
+        {entregadas}/{total}
+      </span>
+      {noEntregadas > 0 ? (
+        <span className="flex items-center gap-1 tabular-nums text-danger">
+          <X className="h-3.5 w-3.5 shrink-0" />
+          {noEntregadas}
+        </span>
+      ) : null}
+    </div>
+  );
+}
 
 export function CarrilSuperior({
   altoNotificaciones,

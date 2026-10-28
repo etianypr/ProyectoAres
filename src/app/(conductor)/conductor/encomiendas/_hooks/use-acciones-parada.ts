@@ -56,6 +56,11 @@ export function useAccionesParada({
   // Vive acá y no en el formulario que lo produce porque todos los avisos de esta
   // pantalla salen del mismo lugar (ver PilaNotificaciones).
   const [confirmacion, setConfirmacion] = useState<{ texto: string; n: number } | null>(null);
+  /** Una confirmación que se va sola (ver MS_CONFIRMACION). */
+  const avisar = useCallback(
+    (texto: string) => setConfirmacion((c) => ({ texto, n: (c?.n ?? 0) + 1 })),
+    [],
+  );
 
   // ------------------------------------------------------------------------
   // La ventana para deshacer
@@ -307,7 +312,7 @@ export function useAccionesParada({
     deshacer,
     eliminado,
     confirmacion,
-    setConfirmacion,
+    avisar,
     correr,
     llamadaDetectada,
     onContesto,
