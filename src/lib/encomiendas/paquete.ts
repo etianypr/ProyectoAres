@@ -21,20 +21,32 @@ export type ReferenciaPaquete = {
 /** Lo que necesitan de un pedido la búsqueda y el nombre en pantalla. */
 type PedidoConOf = { nombre: string; of: string | null; resultado: string };
 
+/** Largo de casi todas las OF y el máximo: el seguimiento de Starken acepta
+ *  hasta 9 dígitos, y hay guías con OF más cortas (terreno 2026-10-27: una de 7). */
 export const LARGO_OF = 9;
 export const LARGO_NOTA_PAQUETE = 40;
 /** Con menos dígitos casi todo coincide: la búsqueda no sirve. */
 export const MIN_DIGITOS_BUSQUEDA = 3;
 
-/** "123456789" → "123 456 789". Lo que no tiene 9 dígitos queda como vino. */
+/** "123456789" → "123 456 789"; "7000123" → "7 000 123". Lo que no es una OF
+ *  queda como vino. */
 export function formatoOf(of: string): string {
-  return /^\d{9}$/.test(of) ? `${of.slice(0, 3)} ${of.slice(3, 6)} ${of.slice(6)}` : of;
+  return /^\d{1,9}$/.test(of) ? of.replace(/\B(?=(\d{3})+$)/g, " ") : of;
 }
 
-/** La OF escrita (con espacios, puntos o guiones) → 9 dígitos, o null si no los tiene. */
+/** La OF escrita (con espacios, puntos o guiones) → sus dígitos sin ceros a la
+ *  izquierda, o null si no es una OF. La regla es la del seguimiento de Starken:
+ *  solo números, hasta 9 dígitos, distinta de cero. Sin los ceros, la OF del
+ *  código de barras ("007000123") calza con la de la guía ("7000123"). */
 export function ofValida(texto: string): string | null {
   const digitos = texto.replace(/[\s.\-]/g, "");
-  return new RegExp(`^\\d{${LARGO_OF}}$`).test(digitos) ? digitos : null;
+  if (!/^\d+$/.test(digitos) || digitos.length > LARGO_OF) return null;
+  return digitos.replace(/^0+/, "") || null;
+}
+
+/** Una OF válida más corta que las de siempre: se marca para compararla con la guía. */
+export function ofCorta(of: string): boolean {
+  return of.length < LARGO_OF;
 }
 
 // Género del sustantivo, para que el texto concuerde: "bolsa blanca", "sobre blanco".

@@ -5,14 +5,16 @@
 // Google Lens o devuelto por la IA. Sin nombre ni teléfono: esos están solo en
 // la etiqueta de cada paquete.
 
-import { LARGO_OF } from "../paquete";
+import { LARGO_OF, ofValida } from "../paquete";
 import type { GuiaIA } from "./esquemas";
 
 export type LineaGuia = {
-  /** 9 dígitos si se leyó bien; si no, lo leído (y la línea queda dudosa). */
+  /** La OF sin ceros a la izquierda si es válida; si no, los dígitos leídos (y
+   *  la línea queda dudosa). */
   of: string;
   destino: string;
-  /** OF sin 9 dígitos o destino vacío: el conductor la revisa antes de crear. */
+  /** Sin OF válida (más de 9 dígitos o cero) o sin destino: el conductor la
+   *  revisa antes de crear. */
   dudosa: boolean;
 };
 
@@ -54,7 +56,7 @@ export function leerGuia(texto: string): GuiaLeida {
   const crudas = [
     ...plano.matchAll(
       // "0F:" también: el lector del teléfono suele leer la O como cero.
-      /\b[O0]F\s*:?\s*([\d\s]{6,14}?)\s*DESTINO\s*:?\s*(.*?)(?=\b[O0]F\s*:|SOLO TRASLADO|Oficio\s+N|SON\s*:|MONTO\s+NETO|$)/gi,
+      /\b[O0]F\s*:?\s*([\d\s]{1,14}?)\s*DESTINO\s*:?\s*(.*?)(?=\b[O0]F\s*:|SOLO TRASLADO|Oficio\s+N|SON\s*:|MONTO\s+NETO|$)/gi,
     ),
   ];
 
@@ -81,10 +83,12 @@ export function guiaDesdeIA(fotos: GuiaIA[]): GuiaLeida {
 
 /** ¿La segunda lectura trae alguna OF válida que la primera no tiene? Sirve
  *  para controlar la lectura de la IA con la del teléfono (gratis): si el
- *  teléfono vio una OF que la IA no trajo, la foto se relee con más cuidado. */
+ *  teléfono vio una OF que la IA no trajo, la foto se relee con más cuidado.
+ *  Solo cuentan las de 9 dígitos: el lector del teléfono suele cortar dígitos,
+ *  y una OF corta vista solo por él no paga otra lectura. */
 export function faltanEnLaPrimera(primera: GuiaLeida, segunda: GuiaLeida): boolean {
   const leidas = new Set(primera.lineas.map((l) => l.of));
-  return segunda.lineas.some((l) => !l.dudosa && !leidas.has(l.of));
+  return segunda.lineas.some((l) => !l.dudosa && l.of.length === LARGO_OF && !leidas.has(l.of));
 }
 
 /** Líneas crudas → GuiaLeida, con las OF repetidas juntas y los avisos. */
@@ -97,9 +101,11 @@ export function armarGuia(
   const porOf = new Map<string, LineaGuia>();
   let repetidas = 0;
   for (const cruda of crudas) {
-    const of = cruda.of.replace(/\D/g, "");
+    const digitos = cruda.of.replace(/\D/g, "");
+    const valida = ofValida(digitos);
+    const of = valida ?? digitos;
     const destino = limpiarDestino(cruda.destino);
-    const linea = { of, destino, dudosa: of.length !== LARGO_OF || destino === "" };
+    const linea = { of, destino, dudosa: valida === null || destino === "" };
     const antes = porOf.get(of);
     if (antes) {
       repetidas++;
@@ -124,8 +130,8 @@ export function armarGuia(
   if (dudosas > 0) {
     avisos.push(
       dudosas === 1
-        ? "Una línea se leyó mal (OF sin 9 dígitos o sin destino): revísala."
-        : `${dudosas} líneas se leyeron mal (OF sin 9 dígitos o sin destino): revísalas.`,
+        ? "Una línea se leyó mal (OF o destino): revísala."
+        : `${dudosas} líneas se leyeron mal (OF o destino): revísalas.`,
     );
   }
   if (totalDeclarado != null && totalDeclarado !== lineas.length) {

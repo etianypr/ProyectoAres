@@ -24,7 +24,8 @@ const CONDUCTOR = "11111111-1111-7111-8111-111111111111";
 
 test("la OF se muestra en grupos de tres", () => {
   assert.equal(formatoOf("123456789"), "123 456 789");
-  assert.equal(formatoOf("12345"), "12345", "lo que no es una OF queda como vino");
+  assert.equal(formatoOf("7000123"), "7 000 123", "OF corta");
+  assert.equal(formatoOf("12a45"), "12a45", "lo que no es una OF queda como vino");
 });
 
 test("la OF acepta espacios, puntos y guiones, y exige 9 dígitos", () => {
@@ -32,8 +33,10 @@ test("la OF acepta espacios, puntos y guiones, y exige 9 dígitos", () => {
   assert.equal(ofValida(" 275 388 184 "), "275388184");
   assert.equal(ofValida("275-388-184"), "275388184");
   assert.equal(ofValida("275.388.184"), "275388184");
-  assert.equal(ofValida("27538818"), null, "8 dígitos");
+  assert.equal(ofValida("7000123"), "7000123", "Starken acepta hasta 9 dígitos");
+  assert.equal(ofValida("007000123"), "7000123", "sin ceros a la izquierda (código de barras)");
   assert.equal(ofValida("2753881845"), null, "10 dígitos");
+  assert.equal(ofValida("000000000"), null, "cero");
   assert.equal(ofValida("27538818a"), null);
   assert.equal(ofValida(""), null);
 });
@@ -108,9 +111,10 @@ test("guardarPaquete valida la OF y avisa si se repite en el día", async () => 
   assert.deepEqual(await almacen.guardarPaquete(b.id, { of: "987 654 321" }), { ofRepetida: false });
   assert.deepEqual(await almacen.guardarPaquete(b.id, { of: "123-456-789" }), { ofRepetida: true }, "se guarda igual");
   assert.equal((await almacen.leerPedidos(HOY)).find((p) => p.id === b.id).of, "123456789");
-  await assert.rejects(() => almacen.guardarPaquete(b.id, { of: "1234" }), /9 dígitos/);
+  await assert.rejects(() => almacen.guardarPaquete(b.id, { of: "1234567890" }), /hasta 9 dígitos/);
   assert.equal(await almacen.ofRepetida(HOY, "123456789", a.id), true);
   assert.equal(await almacen.ofRepetida(HOY, null), false);
+  assert.equal((await almacen.guardarPaquete(b.id, { of: "7000123" })).ofRepetida, false, "OF corta: Starken acepta hasta 9");
 });
 
 test("una foto nueva reemplaza a la anterior", async () => {

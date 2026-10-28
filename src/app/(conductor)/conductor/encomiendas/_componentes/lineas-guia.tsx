@@ -8,7 +8,7 @@ import { useState } from "react";
 import { AlertTriangle, Check, Pencil, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/comun/utils";
 import type { LineaGuia } from "@/lib/encomiendas/lectura/guia";
-import { formatoOf, ofValida } from "@/lib/encomiendas/paquete";
+import { formatoOf, ofCorta, ofValida } from "@/lib/encomiendas/paquete";
 
 export function LineasGuia({
   lineas,
@@ -65,7 +65,7 @@ export function LineasGuia({
                     value={of ? formatoOf(of) : l.of}
                     onChange={(e) => onCambiar(i, { of: e.target.value })}
                     className="w-full rounded-lg border border-separator bg-background px-2 py-1.5 text-sm font-semibold tabular-nums outline-none focus:border-brand"
-                    placeholder="OF (9 dígitos)"
+                    placeholder="OF"
                   />
                   <input
                     aria-label="Destino"
@@ -77,7 +77,15 @@ export function LineasGuia({
                 </div>
               ) : (
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold tabular-nums">{of ? formatoOf(of) : l.of}</p>
+                  <p className="text-sm font-semibold tabular-nums">
+                    {of ? formatoOf(of) : l.of}
+                    {/* Pocas OF son más cortas (terreno 2026-10-27): a la vista para compararla con la guía. */}
+                    {of && ofCorta(of) ? (
+                      <span className="ml-2 rounded-full bg-warn-bg px-2 py-0.5 text-xs font-medium text-warn">
+                        {of.length} dígitos
+                      </span>
+                    ) : null}
+                  </p>
                   <p className="text-sm text-muted">{l.destino}</p>
                 </div>
               )}

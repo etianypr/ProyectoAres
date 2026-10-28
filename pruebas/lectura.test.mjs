@@ -19,6 +19,9 @@ test("el código de 26 dígitos trae la OF en 15–23 y el bulto al final", () =
 
 test("la OF escrita a mano (9 dígitos) también sirve, sin bulto", () => {
   assert.deepEqual(leerCodigoEtiqueta("200 000 002"), { of: "200000002", bulto: null });
+  // OF corta (terreno 2026-10-27): el código la trae con ceros, la guía sin ellos.
+  assert.deepEqual(leerCodigoEtiqueta("92000022560000007000123001"), { of: "7000123", bulto: 1 }, "OF de 7 dígitos");
+  assert.deepEqual(leerCodigoEtiqueta("7000123"), { of: "7000123", bulto: null }, "OF corta a mano");
 });
 
 test("lo que no es un código de etiqueta no se enlaza", () => {
@@ -42,7 +45,7 @@ test("la guía se lee línea por línea, con destinos limpios", () => {
       ["200000003", "MARACAIBO 1472", false],
       ["200000004", "CALLE UNO 100", false],
       ["200000005", "SAN MARCOS 1085 B", false],
-      ["20000006", "CALLE CORTA 5", true],
+      ["2000000066", "CALLE CORTA 5", true],
     ],
   );
 });
@@ -50,8 +53,19 @@ test("la guía se lee línea por línea, con destinos limpios", () => {
 test("la guía avisa repetidas, dudosas y la diferencia con el total", () => {
   const { avisos } = leerGuia(fixture("guia.txt"));
   assert.ok(avisos.some((a) => /repetida/.test(a)), "repetida por fotos superpuestas");
-  assert.ok(avisos.some((a) => /se leyó mal/.test(a)), "OF de 8 dígitos");
+  assert.ok(avisos.some((a) => /se leyó mal/.test(a)), "OF de 10 dígitos");
   assert.ok(avisos.some((a) => /dice 8 y se leyeron 6/.test(a)), "faltan 2");
+});
+
+test("una OF corta es válida: sin marca de error y sin ceros a la izquierda", () => {
+  const g = leerGuia("OF:7000123 DESTINO:CALLE CORTA 5 OF:007000124 DESTINO:CALLE LARGA 6");
+  assert.deepEqual(
+    g.lineas.map((l) => [l.of, l.dudosa]),
+    [
+      ["7000123", false],
+      ["7000124", false],
+    ],
+  );
 });
 
 test("un texto sin líneas de guía lo dice", () => {
@@ -174,5 +188,5 @@ test("si el teléfono ve una OF que la IA no trajo, la guía se relee", async ()
   const malLeida = leerGuia("OF:20000 DESTINO: CALLE TRES 300");
   assert.equal(faltanEnLaPrimera(ia, igual), false);
   assert.equal(faltanEnLaPrimera(ia, conOtra), true);
-  assert.equal(faltanEnLaPrimera(ia, malLeida), false, "una OF dudosa del teléfono no obliga a releer");
+  assert.equal(faltanEnLaPrimera(ia, malLeida), false, "una OF corta vista solo por el teléfono no obliga a releer");
 });

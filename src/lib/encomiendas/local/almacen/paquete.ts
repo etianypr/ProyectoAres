@@ -15,7 +15,7 @@ export async function ofRepetida(fecha: string, of: string | null, exceptoId?: s
 }
 
 /** Cambia la OF o la referencia de un pedido sin tocar lo demás (la 005 la usa al
- *  escanear la etiqueta). Una OF que no tiene 9 dígitos no se guarda. */
+ *  escanear la etiqueta). Una OF inválida (ver ofValida) no se guarda. */
 export function guardarPaquete(
   pedidoId: string,
   cambios: { of?: string | null; referencia?: ReferenciaPaquete | null },
@@ -26,7 +26,7 @@ export function guardarPaquete(
     let of = pedido.of;
     if (cambios.of !== undefined) {
       of = cambios.of === null ? null : ofValida(cambios.of);
-      if (cambios.of !== null && of === null) throw new Error("La OF tiene que tener 9 dígitos.");
+      if (cambios.of !== null && of === null) throw new Error("La OF tiene hasta 9 dígitos, solo números.");
     }
     const actualizado: Pedido = {
       ...pedido,

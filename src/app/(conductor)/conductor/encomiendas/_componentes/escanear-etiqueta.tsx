@@ -139,7 +139,7 @@ export function EscanearEtiqueta({
               inputMode="numeric"
               value={codigoEscrito}
               onChange={(e) => setCodigoEscrito(e.target.value)}
-              placeholder="OF (9 dígitos)"
+              placeholder="OF"
               className="h-12 w-full rounded-2xl border border-separator bg-card px-4 text-lg tabular-nums outline-none focus:border-brand"
             />
             <button

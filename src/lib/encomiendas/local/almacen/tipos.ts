@@ -45,7 +45,8 @@ export type Pedido = {
   horaResultado: string | null;
   /** ISO. Sirve para ordenar la lista. */
   cargadoEn: string;
-  /** Orden de flete de Starken, 9 dígitos sin separadores (spec 003). Es lo que
+  /** Orden de flete de Starken: hasta 9 dígitos (casi siempre 9), sin
+   *  separadores ni ceros a la izquierda (spec 003, ofValida). Es lo que
    *  va impreso en la etiqueta: con ella se reconoce el paquete sin escribir nada
    *  en él. null = no se cargó (a mano es opcional; la 005 la lee del código). */
   of: string | null;
