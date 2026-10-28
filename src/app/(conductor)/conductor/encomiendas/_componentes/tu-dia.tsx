@@ -67,8 +67,8 @@ export function TuDia({
                     {/* Un rechazo del servidor no es "falta señal": se dice lo
                         que pasó, para que avise a la oficina (spec 017, E8). */}
                     {errorEnvio && !/fetch|network|red|señal|timeout|abort/i.test(errorEnvio)
-                      ? `El servidor no lo aceptó: ${errorEnvio}. Si sigue, cierra sesión y vuelve a entrar, o avisa a la oficina.`
-                      : "Está guardado en tu teléfono. Se envía solo en cuanto haya señal."}
+                      ? `El servidor no lo aceptó: ${errorEnvio}. Avisa a la oficina.`
+                      : "Se envía solo con señal."}
                   </p>
                 </div>
                 <button
@@ -87,8 +87,8 @@ export function TuDia({
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                 <p className="min-w-0 flex-1">
                   {rechazados === 1
-                    ? "1 registro fue rechazado por el servidor y quedó aparte. Avisa a la oficina."
-                    : `${rechazados} registros fueron rechazados por el servidor y quedaron aparte. Avisa a la oficina.`}
+                    ? "1 registro rechazado por el servidor. Avisa a la oficina."
+                    : `${rechazados} registros rechazados por el servidor. Avisa a la oficina.`}
                 </p>
               </div>
             ) : null}

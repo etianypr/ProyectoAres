@@ -57,7 +57,7 @@ export function BuscarOf({
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         {digitos.length < MIN_DIGITOS_BUSQUEDA ? (
           <p className="px-1 text-sm text-muted">
-            Escribe al menos {MIN_DIGITOS_BUSQUEDA} dígitos, del final de la OF de la etiqueta.
+            Al menos {MIN_DIGITOS_BUSQUEDA} dígitos.
           </p>
         ) : resultados.length === 0 ? (
           <p className="rounded-2xl bg-card px-4 py-3 text-sm text-muted shadow-soft">

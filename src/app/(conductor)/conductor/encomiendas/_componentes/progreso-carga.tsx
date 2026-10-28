@@ -53,7 +53,7 @@ export function ProgresoCarga({ pedidos, onEscanear }: { pedidos: Pedido[]; onEs
           </button>
           <p className="flex items-start gap-1.5 text-xs text-muted">
             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warn" />
-            Faltan estas OF. Si alguna no viene en el auto, avísale a Starken.
+            Faltan:
           </p>
           <ul className="flex flex-wrap gap-1.5">
             {faltan.slice(0, MAX_OF_A_LA_VISTA).map((p) => (

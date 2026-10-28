@@ -113,7 +113,7 @@ export function ParadaActiva({
         <p className="flex items-start gap-2 rounded-xl bg-warn-bg px-3 py-2 text-sm font-medium text-warn">
           <Phone className="mt-0.5 h-4 w-4 shrink-0" />
           <span className="min-w-0 flex-1">
-            Estás llegando y este cliente no contestó. Conviene llamarlo antes de bajar.
+            No contestó: llámalo antes de bajar.
           </span>
         </p>
       ) : null}

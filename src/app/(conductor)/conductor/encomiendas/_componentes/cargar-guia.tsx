@@ -10,7 +10,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, ClipboardPaste, Loader2, X } from "lucide-react";
+import { ArrowLeft, CircleHelp, ClipboardPaste, Loader2, X } from "lucide-react";
 import { armarGuia, leerGuia, limpiarDestino, type LineaGuia } from "@/lib/encomiendas/lectura/guia";
 import { ofValida } from "@/lib/encomiendas/paquete";
 import { crearDesdeGuia, fijarCoordenadas } from "@/lib/encomiendas/local/almacen";
@@ -41,6 +41,7 @@ export function CargarGuia({
   onEscanearPaquetes,
   onCerrar,
   onCreados,
+  onAyuda,
 }: {
   fecha: string;
   /** La IA está encendida: lee la foto si el teléfono no pudo. */
@@ -53,6 +54,8 @@ export function CargarGuia({
   onCerrar: () => void;
   /** Se crearon pedidos: la pantalla los vuelve a leer. */
   onCreados: () => void;
+  /** Abre la ayuda (cómo sacar las fotos, Google Lens). */
+  onAyuda: () => void;
 }) {
   // Foto: en la APK siempre (lee el teléfono); en el navegador, solo con IA.
   const conFoto = lecturaIA || esApp();
@@ -184,6 +187,14 @@ export function CargarGuia({
         <h2 className="min-w-0 flex-1 text-lg font-semibold">Cargar la guía</h2>
         <button
           type="button"
+          onClick={onAyuda}
+          aria-label="Ayuda"
+          className="flex h-10 w-10 items-center justify-center rounded-full text-muted active:bg-card"
+        >
+          <CircleHelp className="h-5 w-5" />
+        </button>
+        <button
+          type="button"
           onClick={onCerrar}
           disabled={ocupado}
           aria-label="Cerrar"
@@ -241,10 +252,6 @@ export function CargarGuia({
                 onCamara={() => entradaFoto.current?.click()}
                 onGaleria={() => entradaFotos.current?.click()}
               />
-              <p className="max-w-xs text-center text-xs text-muted">
-                Una foto por cada parte de la guía, derechas y que se superpongan un poco. Se juntan y se
-                leen todas en una sola consulta.
-              </p>
             </div>
           ) : (
             <BotonesFoto
@@ -268,16 +275,11 @@ export function CargarGuia({
                 Volver a las fotos
               </button>
             ) : null}
-            <p className="text-sm text-muted">
-              En el teléfono de la guía, abre <b>Google Lens</b> sobre la guía, toca <b>Texto</b> →{" "}
-              <b>Copiar todo</b>, y pégalo acá. Si la guía no entra en una foto, pega las dos, una
-              detrás de la otra.
-            </p>
             <textarea
               value={texto}
               onChange={(e) => setTexto(e.target.value)}
               rows={10}
-              placeholder={"OF:275388184 DESTINO:SAN MARCOS 1030\nOF:…"}
+              placeholder="Pega acá el texto de la guía"
               className="w-full rounded-2xl border border-separator bg-card p-3 font-mono text-xs outline-none focus:border-brand"
             />
           </>
@@ -307,7 +309,7 @@ export function CargarGuia({
         ) : null}
 
         {paso.tipo === "ubicando" || paso.tipo === "corrigiendo" || paso.tipo === "listo" ? (
-          <VistaFinGuia paso={paso} hayRuta={hayRuta} onAplicada={onCreados} />
+          <VistaFinGuia paso={paso} onAplicada={onCreados} />
         ) : null}
       </div>
 

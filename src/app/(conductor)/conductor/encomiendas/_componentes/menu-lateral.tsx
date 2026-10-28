@@ -29,7 +29,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { Check, LogOut, Menu, Search, Stethoscope, X } from "lucide-react";
+import { Check, CircleHelp, LogOut, Menu, Search, Stethoscope, X } from "lucide-react";
 import { cn } from "@/lib/comun/utils";
 import { formatCLP, formatDateLong } from "@/lib/comun/format";
 import { borrarDatosDestinatarios, leerCola, type ResumenDia } from "@/lib/encomiendas/local/almacen";
@@ -57,6 +57,7 @@ export function MenuLateral({
   onCerrar,
   logout,
   onBuscarOf,
+  onAyuda,
 }: {
   nombreConductor: string;
   dias: ResumenDia[];
@@ -68,6 +69,8 @@ export function MenuLateral({
   logout: () => void | Promise<void>;
   /** Abre la búsqueda de un paquete por su OF (spec 003). */
   onBuscarOf: () => void;
+  /** Cómo se usa la app, en corto (ver ayuda.tsx). */
+  onAyuda: () => void;
 }) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -155,6 +158,14 @@ export function MenuLateral({
             <Search className="h-4 w-4 shrink-0 text-brand" />
             Buscar un paquete por su OF
           </button>
+          <button
+            type="button"
+            onClick={onAyuda}
+            className="mb-4 -mt-2 flex w-full items-center gap-2.5 rounded-2xl bg-card px-3.5 py-3 text-left text-sm font-medium shadow-soft active:bg-background"
+          >
+            <CircleHelp className="h-4 w-4 shrink-0 text-brand" />
+            Ayuda
+          </button>
 
           <p className="px-1 pb-2 text-xs font-medium text-muted">Tus días</p>
 
@@ -162,8 +173,7 @@ export function MenuLateral({
             // Sin ninguna ruta armada todavía. Se dice, en vez de dejar el hueco
             // vacío: un panel en blanco parece algo que no cargó.
             <p className="rounded-2xl bg-card px-3.5 py-3 text-sm text-muted shadow-soft">
-              Todavía no armaste ninguna ruta. Cuando armes la primera, el día
-              aparece acá con cómo salió.
+              Sin días todavía.
             </p>
           ) : (
             <ul className="overflow-hidden rounded-2xl bg-card shadow-soft">

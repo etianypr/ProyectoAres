@@ -61,8 +61,7 @@ export function CierreDia({
         </div>
 
         <p className="text-xs text-muted">
-          Al confirmar se borran de este teléfono los nombres, teléfonos y direcciones de ese día.
-          Quedan solo las cifras. Las entregas sin enviar salen igual cuando haya señal.
+          Se borran del teléfono los datos de los clientes de ese día.
         </p>
         {error ? <p className="text-sm font-medium text-danger">{error}</p> : null}
       </div>

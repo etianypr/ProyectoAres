@@ -116,12 +116,6 @@ export function RutaDelDia({
               );
             })}
           </ol>
-          {/* El gesto no se ve. Una línea alcanza: quien lo prueba una vez no
-              lo vuelve a olvidar, y quien no, sigue teniendo el botón de
-              rehacer la ruta más abajo. */}
-          <p className="mb-2 mt-1.5 px-1 text-xs text-muted">
-            Desliza una parada hacia la izquierda para eliminar el pedido.
-          </p>
         </Seccion>
   );
 }

@@ -9,6 +9,7 @@ import { logout } from "@/lib/auth/acciones";
 import { avanceCarga, leerDias, type ResumenDia } from "@/lib/encomiendas/local/almacen";
 import type { DiaEnCurso } from "../_hooks/use-dia-trabajo";
 import type { useCierreDia } from "../_hooks/use-cierre-dia";
+import { Ayuda } from "./ayuda";
 import { AvisoCargarAuto } from "./aviso-cargar-auto";
 import { BuscarOf } from "./buscar-of";
 import { CargarGuia } from "./cargar-guia";
@@ -30,6 +31,8 @@ export function useVentanas() {
   const [escaneando, setEscaneando] = useState(false);
   /** Recién armada la ruta: cuántos paquetes de la guía falta escanear (abre el aviso). */
   const [pedirCarga, setPedirCarga] = useState<number | null>(null);
+  /** Cómo se usa la app (ver ayuda.tsx). */
+  const [ayudaAbierta, setAyudaAbierta] = useState(false);
 
   return {
     menuAbierto,
@@ -49,6 +52,8 @@ export function useVentanas() {
     setEscaneando,
     pedirCarga,
     setPedirCarga,
+    ayudaAbierta,
+    setAyudaAbierta,
   };
 }
 
@@ -85,6 +90,10 @@ export function VentanasPantalla({
             v.setMenuAbierto(false);
             v.setBuscandoOf(true);
           }}
+          onAyuda={() => {
+            v.setMenuAbierto(false);
+            v.setAyudaAbierta(true);
+          }}
         />
       ) : null}
 
@@ -100,6 +109,7 @@ export function VentanasPantalla({
           }}
           onCerrar={() => v.setCargandoGuia(false)}
           onCreados={() => void dia.recargar()}
+          onAyuda={() => v.setAyudaAbierta(true)}
         />
       ) : null}
 
@@ -135,6 +145,8 @@ export function VentanasPantalla({
           onCerrar={() => v.setBuscandoOf(false)}
         />
       ) : null}
+
+      {v.ayudaAbierta ? <Ayuda onCerrar={() => v.setAyudaAbierta(false)} /> : null}
 
       {cierreDia.pendiente ? (
         <CierreDia

@@ -32,6 +32,7 @@ export function useBotonAtras({
       // El cierre de un día anterior no se salta; el de hoy queda para después.
       if (cierreDia.pendiente) return cierreDia.aplazar();
       const abiertos: Abierto[] = [
+        [v.ayudaAbierta, () => v.setAyudaAbierta(false)],
         [v.buscandoOf, () => v.setBuscandoOf(false)],
         [v.escaneando, () => v.setEscaneando(false)],
         [v.pedirCarga != null, () => v.setPedirCarga(null)],

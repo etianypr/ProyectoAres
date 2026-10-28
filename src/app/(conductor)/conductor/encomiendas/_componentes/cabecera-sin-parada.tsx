@@ -53,7 +53,7 @@ export function CabeceraSinParada({
           <p className="text-sm font-semibold">Hola, {nombreConductor.split(" ")[0]}</p>
           <p className="text-xs text-muted">
             {sinRutear === 0
-              ? "No hay pedidos cargados ni ruta generada."
+              ? "Sin pedidos cargados."
               : sinRutear === 1
                 ? "1 pedido pendiente, sin ruta armada."
                 : `${sinRutear} pedidos pendientes, sin ruta armada.`}

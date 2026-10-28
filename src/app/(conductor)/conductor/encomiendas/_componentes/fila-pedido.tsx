@@ -47,7 +47,7 @@ export function FilaPedido({
           {sinUbicar ? (
             <p className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-warn">
               <MapPinOff className="h-3 w-3 shrink-0" />
-              Sin ubicar — toca para corregir la dirección
+              Sin ubicar
             </p>
           ) : null}
         </div>

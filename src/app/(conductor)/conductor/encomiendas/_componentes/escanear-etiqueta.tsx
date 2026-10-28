@@ -135,14 +135,11 @@ export function EscanearEtiqueta({
                 {fase.error}
               </p>
             ) : null}
-            <p className="text-sm text-muted">
-              Si el código no se lee, escribe la OF de la etiqueta (9 dígitos).
-            </p>
             <input
               inputMode="numeric"
               value={codigoEscrito}
               onChange={(e) => setCodigoEscrito(e.target.value)}
-              placeholder="123 456 789"
+              placeholder="OF (9 dígitos)"
               className="h-12 w-full rounded-2xl border border-separator bg-card px-4 text-lg tabular-nums outline-none focus:border-brand"
             />
             <button

@@ -54,14 +54,7 @@ export function PedidosFueraDeRuta({
                   />
                 ))}
               </ul>
-              <p className="mb-2 mt-1.5 px-1 text-xs text-muted">
-                {sinUbicar > 0
-                  ? `${sinUbicar === 1 ? "Una dirección no se pudo ubicar" : `${sinUbicar} direcciones no se pudieron ubicar`} en el mapa: toca el pedido para corregirla.`
-                  : hayRuta
-                    ? "Rehaz la ruta para que entren."
-                    : "Arma la ruta para que entren."}{" "}
-                Desliza uno hacia la izquierda para eliminarlo.
-              </p>
+              <div className="mb-2" />
               {/* Spec 018: la IA busca en Mapbox, OSM y Google y propone; el
                   conductor confirma cada corrección. */}
               {lecturaIA && sinUbicar > 0 ? (
@@ -82,8 +75,8 @@ export function PedidosFueraDeRuta({
                 >
                   <Plus className="h-4 w-4" />
                   {sinRutear.length - sinUbicar === 1
-                    ? "Sumarlo a la ruta, donde menos alarga"
-                    : `Sumar los ${sinRutear.length - sinUbicar} a la ruta, donde menos alargan`}
+                    ? "Sumar a la ruta"
+                    : `Sumar ${sinRutear.length - sinUbicar} a la ruta`}
                 </button>
               ) : null}
             </>

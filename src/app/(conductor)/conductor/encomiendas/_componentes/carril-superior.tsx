@@ -116,7 +116,7 @@ export function CarrilSuperior({
         </p>
       ) : señalDebil ? (
         <p className="self-start rounded-full bg-warn-bg px-3 py-1.5 text-xs text-warn shadow-md">
-          Señal de GPS débil: la ubicación puede estar desactualizada.
+          GPS débil
         </p>
       ) : null}
     </div>

@@ -21,11 +21,9 @@ export type FinGuia =
 
 export function VistaFinGuia({
   paso,
-  hayRuta,
   onAplicada,
 }: {
   paso: FinGuia;
-  hayRuta: boolean;
   /** Se confirmó una corrección: la pantalla vuelve a leer los pedidos. */
   onAplicada: () => void;
 }) {
@@ -38,7 +36,6 @@ export function VistaFinGuia({
           {corrigiendo ? "Corrigiendo con IA las direcciones que no se ubicaron" : "Ubicando direcciones"}:{" "}
           {paso.hechos} de {paso.total}
         </p>
-        <p className="text-xs text-muted">Los pedidos ya están guardados en el teléfono.</p>
       </div>
     );
   }
@@ -55,11 +52,6 @@ export function VistaFinGuia({
         {paso.yaEstaban > 0 ? ` · ${paso.yaEstaban} ya estaban cargados` : ""}.
       </p>
       <ConfirmarCorrecciones propuestas={paso.propuestas} onAplicada={onAplicada} />
-      <p className="text-sm text-muted">
-        {hayRuta
-          ? "Sigue: escanea cada paquete para saber su parada."
-          : "Sigue: arma la ruta del día y después escanea cada paquete para saber su parada."}
-      </p>
     </div>
   );
 }

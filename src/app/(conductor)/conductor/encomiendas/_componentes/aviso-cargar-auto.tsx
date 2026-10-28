@@ -29,10 +29,6 @@ export function AvisoCargarAuto({
         <ScanLine className="mx-auto h-10 w-10 text-brand" />
         <div className="space-y-1">
           <p className="text-lg font-semibold">Ruta lista. Ahora carga el auto</p>
-          <p className="text-sm text-muted">
-            Escanea {faltan === 1 ? "el paquete" : `los ${faltan} paquetes`} de la guía: cada etiqueta te dice en qué
-            parada va.
-          </p>
         </div>
         <button
           type="button"

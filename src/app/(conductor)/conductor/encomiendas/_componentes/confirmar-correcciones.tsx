@@ -63,7 +63,7 @@ export function ConfirmarCorrecciones({
           className="flex h-10 w-full items-center justify-center gap-2 rounded-full border border-brand text-sm font-semibold text-brand disabled:opacity-50"
         >
           <Check className="h-4 w-4" />
-          Confirmar las {seguras.length} que coinciden con el número
+          Confirmar las {seguras.length} seguras
         </button>
       ) : null}
       {error ? <p className="text-sm text-danger">{error}</p> : null}
@@ -89,13 +89,12 @@ export function ConfirmarCorrecciones({
             <p className="text-base font-semibold leading-tight">{p.direccion}</p>
             <div className="flex flex-wrap gap-1.5">
               {p.enLaCuadra ? (
-                <span className="rounded-full bg-background px-2 py-0.5 text-xs font-medium">En la cuadra, no la puerta</span>
+                <span className="rounded-full bg-background px-2 py-0.5 text-xs font-medium">En la cuadra</span>
               ) : null}
               {!p.segura ? (
-                <span className="rounded-full bg-warn-bg px-2 py-0.5 text-xs font-medium text-warn">Dudosa: revisa el mapa</span>
+                <span className="rounded-full bg-warn-bg px-2 py-0.5 text-xs font-medium text-warn">Dudosa</span>
               ) : null}
             </div>
-            <p className="text-xs text-muted">{p.motivo}</p>
             <MapaPunto lat={p.lat} lng={p.lng} etiqueta={p.direccion} alto={130} />
             <div className="flex gap-2">
               <button
