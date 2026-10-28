@@ -80,6 +80,16 @@ export function etiquetaDesdeIA(ia: EtiquetaIA): LecturaEtiqueta & { referencia:
 /** ¿Alcanza lo leído para repartir sin volver a leer la foto? Hacen falta el
  *  nombre, un teléfono válido y el pago (con su monto si es POR PAGAR). La
  *  dirección no: la parada ya tiene la de la guía. */
+/** Lo leído de una etiqueta con la descripción del paquete. */
+export type EtiquetaLeida = LecturaEtiqueta & { referencia: ReferenciaPaquete | null };
+
+/** La descripción del paquete sale siempre de la IA (terreno 2026-10-28). Si el
+ *  texto de la foto ya traía los datos, mandan esos (como antes) y la IA pone
+ *  la descripción; si no, manda la IA. */
+export function conDescripcion(texto: EtiquetaLeida | null, ia: EtiquetaLeida): EtiquetaLeida {
+  return texto && etiquetaCompleta(texto) ? { ...texto, referencia: ia.referencia } : ia;
+}
+
 export function etiquetaCompleta(e: LecturaEtiqueta): boolean {
   const imprescindibles = ["destinatario", "telefono", "pago", "montoPorPagar"];
   return Boolean(e.destinatario && e.telefono) && !e.dudosos.some((d) => imprescindibles.includes(d));

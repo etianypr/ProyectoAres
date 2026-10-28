@@ -36,7 +36,7 @@ Solo sobreviven conteos (asignados, entregados, no entregados).
 | Google Cloud Vision (en uso; spec 005; lee el texto de las fotos) | fotos de guía y etiquetas (OF, destino, destinatario, teléfono, dirección, pago) | servidor (tránsito, `/api/texto`) | EE.UU. | según términos de Google Cloud | pendiente |
 | Google Geocoding (en uso; spec 016; solo direcciones que Mapbox y OSM no ubicaron) | dirección (sin nombre ni teléfono) | servidor (tránsito, `/api/geocodificar`) | EE.UU. | según términos de Google Maps Platform | pendiente |
 | Meta WhatsApp Cloud API (inactivo) | teléfono, nombre, id correlación | servidor | EE.UU. | según Meta | pendiente |
-| Anthropic (en uso, piloto; spec 005: solo las fotos que el teléfono no pudo leer; spec 018: las direcciones que no se ubicaron) | fotos de guía y etiquetas (OF, destino, destinatario, teléfono, dirección, pago); direcciones y lo que devolvieron los buscadores (sin nombre ni teléfono) | servidor (tránsito, `/api/lectura`, `/api/direccion-ia`) | EE.UU. | ≤30 días API; cero retención a solicitar | pendiente |
+| Anthropic (en uso, piloto; spec 005: las fotos de la guía y, desde 2026-10-28, TODAS las de etiquetas, para describir el paquete; spec 018: las direcciones que no se ubicaron) | fotos de guía y etiquetas (OF, destino, destinatario, teléfono, dirección, pago); direcciones y lo que devolvieron los buscadores (sin nombre ni teléfono) | servidor (tránsito, `/api/lectura`, `/api/direccion-ia`) | EE.UU. | ≤30 días API; cero retención a solicitar | pendiente |
 
 No reciben datos de destinatarios: Supabase (solo actividad y fichas de conductores),
 OpenRouteService (solo MCP de desarrollo), el escáner de Google de la APK (ML Kit: lee la

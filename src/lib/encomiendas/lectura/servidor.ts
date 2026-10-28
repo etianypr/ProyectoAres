@@ -13,10 +13,12 @@ import { EtiquetaIA, GuiaIA } from "./esquemas";
 import { etiquetaDesdeIA } from "./etiqueta";
 import type { RespuestaLectura, TipoLectura } from "./contrato";
 
-/** Modelo para las etiquetas; se cambia con LECTURA_MODELO tras medir con
- *  etiquetas reales (tasks T030). El teléfono las lee primero (ML Kit) y la IA
- *  solo recibe las que no pudo: ahí basta uno barato (claude-haiku-4-5). */
-const MODELO_POR_DEFECTO = "claude-opus-5";
+/** Modelo para las etiquetas; se cambia con LECTURA_MODELO. Recibe TODAS las
+ *  etiquetas (la descripción del paquete solo la hace la IA), así que va el
+ *  barato: ~US$0,003 por etiqueta, unos US$0,18 al día con 60 (el dueño,
+ *  2026-10-28). Los datos los sigue poniendo el lector del teléfono cuando le
+ *  alcanza (ver lectura-cliente.ts). */
+const MODELO_POR_DEFECTO = "claude-haiku-4-5";
 
 /** La guía: muchas líneas de letra chica fotografiadas a una pantalla. Medido
  *  (2026-10-25) con una foto difícil —ruido, rayas, inclinada— de 10 líneas:

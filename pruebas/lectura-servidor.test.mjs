@@ -69,8 +69,10 @@ test("la etiqueta sale con la foto, el modelo y la salida estructurada", async (
   assert.match(url, /\/v1\/messages/);
   assert.equal(headers.authorization, "Bearer sk-ant-api03-de-prueba", "el SDK 1.x manda la clave como Bearer");
   assert.equal(headers["anthropic-workspace-id"], undefined, "sin workspace no se manda");
-  assert.equal(cuerpo.model, "claude-opus-5");
+  // Recibe todas las etiquetas (la descripción solo la hace la IA): va el barato.
+  assert.equal(cuerpo.model, "claude-haiku-4-5");
   assert.deepEqual(cuerpo.thinking, { type: "disabled" });
+  assert.equal(cuerpo.output_config.effort, undefined, "Haiku no acepta effort");
   assert.equal(cuerpo.output_config.format.type, "json_schema");
   const [imagen, texto] = cuerpo.messages[0].content;
   assert.deepEqual(imagen.source, { type: "base64", media_type: "image/jpeg", data: Buffer.from(FOTO).toString("base64") });

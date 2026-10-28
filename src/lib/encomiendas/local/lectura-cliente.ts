@@ -17,7 +17,7 @@
 // parada ya se sabe por el código de barras.
 
 import { BYTES_MAXIMOS_FOTO, LADO_MAXIMO, type RespuestaLectura, type TipoLectura } from "@/lib/encomiendas/lectura/contrato";
-import { etiquetaCompleta, leerEtiqueta, type LecturaEtiqueta } from "@/lib/encomiendas/lectura/etiqueta";
+import { conDescripcion, etiquetaCompleta, leerEtiqueta, type LecturaEtiqueta } from "@/lib/encomiendas/lectura/etiqueta";
 import { faltanEnLaPrimera, guiaDesdeIA, leerGuia, type GuiaLeida } from "@/lib/encomiendas/lectura/guia";
 import type { ReferenciaPaquete } from "@/lib/encomiendas/paquete";
 import { textoDeFoto } from "@/lib/nativo/telefono";
@@ -48,20 +48,31 @@ export async function leerImagen(tipo: TipoLectura, foto: Blob, { ia }: { ia: bo
   if (tipo === "guia") return leerFotosGuia([foto], { ia });
   const reducida = await comprimirFoto(foto, LADO_MAXIMO[tipo]);
 
-  const texto = await textoDeLaFoto(reducida);
-  const local = texto ? desdeTexto(tipo, texto) : null;
-  if (local && suficiente(local)) return local;
-
-  if (ia) {
-    try {
-      return desdeIA(await pedirIA(tipo, reducida));
-    } catch (e) {
-      if (local) return local;
-      throw e;
-    }
+  if (!ia) {
+    const texto = await textoDeLaFoto(reducida);
+    const local = texto ? desdeTexto(tipo, texto) : null;
+    if (local) return local;
+    throw new ErrorLectura("No se pudo leer el texto de la foto. Saca otra más derecha y con luz, o pega el texto.", 422);
   }
-  if (local) return local;
-  throw new ErrorLectura("No se pudo leer el texto de la foto. Saca otra más derecha y con luz, o pega el texto.", 422);
+
+  // Con IA se le pregunta SIEMPRE, junto con el texto: la descripción del
+  // paquete (tipo, color, tamaño) solo la hace ella. Antes, si el texto traía
+  // nombre, teléfono y pago, no se le preguntaba y el paquete quedaba sin
+  // descripción (terreno 2026-10-28: "funcionó una vez de 3").
+  const [lectura, texto] = await Promise.all([
+    pedirIA(tipo, reducida)
+      .then(desdeIA)
+      .catch((e: unknown) => (e instanceof Error ? e : new ErrorLectura("No se pudo leer la foto.", 0))),
+    textoDeLaFoto(reducida),
+  ]);
+  const local = texto ? desdeTexto(tipo, texto) : null;
+  if (lectura instanceof Error) {
+    if (local) return local;
+    throw lectura;
+  }
+  if (local?.tipo !== "etiqueta" || lectura.tipo !== "etiqueta") return lectura;
+  const etiqueta = conDescripcion(local.etiqueta, lectura.etiqueta);
+  return etiqueta === lectura.etiqueta ? lectura : { ...local, etiqueta };
 }
 
 /** Las fotos de la guía del día (suelen ser 3), TODAS en una sola consulta a la
