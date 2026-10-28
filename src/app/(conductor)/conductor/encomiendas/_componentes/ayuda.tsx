@@ -21,7 +21,6 @@ const SECCIONES: { titulo: string; pasos: string[] }[] = [
     pasos: [
       "Toca el pedido para corregir la dirección.",
       "«Corregir con IA»: confirma cada una mirando el mapa.",
-      "«Estoy en la puerta» guarda el punto donde estás.",
     ],
   },
   {

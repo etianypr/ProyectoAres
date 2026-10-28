@@ -23,7 +23,7 @@ y en Azapa) · ~60 pedidos/día. Pedidos del día en una guía de despacho (Info
 ## 4. Flujo del día
 
 1. Cargar la guía (foto) → pedidos con OF y destino.
-2. Ubicar direcciones (Plus Code, Mapbox, OSM, "Estoy en la puerta"); el conductor
+2. Ubicar direcciones (Plus Code, Mapbox, OSM, corregir con IA); el conductor
    confirma o corrige; nada dudoso entra silenciosamente a la ruta.
 3. Generar la ruta: 1 propuesta si es claramente mejor, hasta 3 si hay diferencias útiles
    (tiempo, distancia, pedidos, advertencias).

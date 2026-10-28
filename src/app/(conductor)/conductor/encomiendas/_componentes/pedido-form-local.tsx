@@ -8,8 +8,7 @@
 // 2. Nada dudoso entra en silencio: si la dirección aparece en dos lugares ("Los
 //    Aromos 120" está en Arica y en Azapa, a 9 km) o solo se halló la calle, se
 //    PREGUNTA (ver resolver-direccion.tsx); "Guardar sin ubicar" queda con aviso.
-// 3. Cuando ningún mapa sabe, sabe el conductor: "Estoy en la puerta" siempre a la
-//    vista y el campo acepta un Plus Code.
+// 3. Cuando ningún mapa sabe, el campo acepta un Plus Code.
 //
 // Es la excepción de A7 que queda (spec 002, T041): sus estados están entrelazados
 // y partir la lógica del formulario más usado en terreno no vale el riesgo ahora.
@@ -20,8 +19,6 @@ import { AlertTriangle, Check, Save, StickyNote } from "lucide-react";
 import { Campo, CampoArea, NotaCampo } from "@/components/ui/campo";
 import { DireccionInput } from "@/components/direccion/direccion-input";
 
-import { MarcarAqui } from "./marcar-aqui";
-import { entraSolo, type Marca } from "@/lib/geo/marcar";
 import { Button } from "@/components/ui/button";
 import { ubicarDireccion, type SugerenciaDireccion } from "@/lib/geo/geocoding";
 import { normalizarTelefono } from "@/lib/comun/telefono";
@@ -131,9 +128,8 @@ export function PedidoFormLocal({
     pedido.telefono !== (telefono.ok ? telefono.telefono.e164 : campos.telefono.trim());
 
   /** El guardado en sí, con las coordenadas ya decididas. Está aparte porque hay
-   *  CUATRO caminos que llegan hasta acá: el normal, elegir un candidato de la
-   *  lista de dudas, "guardar sin ubicar", y el conductor marcando la puerta con el
-   *  GPS estando parado en ella (ver usarMarca y marcar-aqui.tsx). */
+   *  TRES caminos que llegan hasta acá: el normal, elegir un candidato de la
+   *  lista de dudas y "guardar sin ubicar". */
   async function guardar(coord: { lat: number | null; lng: number | null }, avisoFinal: string | null) {
     const nombre = campos.nombre.trim();
     const direccion = campos.direccion.trim();
@@ -199,12 +195,7 @@ export function PedidoFormLocal({
     onGuardado(avisoFinal);
   }
 
-  /** Lo que falta para poder guardar, o null si está todo.
-   *
-   *  Vive aparte porque hay DOS caminos que escriben un pedido: el botón de
-   *  guardar y "Estoy en la puerta", que está siempre a la vista y por lo tanto
-   *  se puede tocar con el formulario a medio llenar. Escrito dos veces, uno de
-   *  los dos se iba a quedar atrás. */
+  /** Lo que falta para poder guardar, o null si está todo. */
   function loQueFalta(): string | null {
     // Con OF (pedido de la guía), el nombre y el teléfono llegan al escanear la
     // etiqueta: no se piden para corregir la dirección (terreno 2026-10-27).
@@ -215,38 +206,6 @@ export function PedidoFormLocal({
     if (!campos.direccion.trim()) return "La dirección es obligatoria.";
     if (ofEscrita && !of) return "La OF lleva solo números. Revísala o déjala vacía.";
     return null;
-  }
-
-  /** El conductor confirmó el punto que le dio el GPS estando en la puerta.
-   *
-   *  Se guarda derecho, sin consultar a ningún proveedor: no hay nada que
-   *  buscar, ya está ubicado. El aviso lleva el Plus Code porque es lo que hace
-   *  que esta casa no se tenga que volver a buscar nunca. */
-  async function usarMarca(marca: Marca) {
-    const falta = loQueFalta();
-    if (falta) return setError(falta);
-
-    setError(null);
-    setGuardando(true);
-    try {
-      const avisoTelefono = telefono.ok ? telefono.aviso : `Teléfono sin normalizar: ${telefono.motivo}`;
-      await guardar(
-        { lat: marca.lat, lng: marca.lng },
-        [
-          entraSolo(marca)
-            ? `Ubicación marcada con el GPS (±${marca.precisionM} m).`
-            : `Ubicación marcada con el GPS. ${marca.texto}`,
-          marca.codigo ? `Plus Code: ${marca.codigo}` : null,
-          avisoTelefono,
-        ]
-          .filter(Boolean)
-          .join(" ") || null,
-      );
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudo guardar en el teléfono.");
-    } finally {
-      setGuardando(false);
-    }
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -459,13 +418,6 @@ export function PedidoFormLocal({
             setPorResolver(null);
           }}
         />
-
-        {/* El último recurso, y en Arica el más confiable: el conductor parado en
-            la puerta. Va acá, pegado a la dirección y NO escondido detrás de un
-            error, porque el momento en que se usa es justamente cuando no hay
-            ningún error en pantalla — llegó, la dirección lo dejó a media
-            cuadra, y entró desde "Sin ubicar — toca para corregir". */}
-        <MarcarAqui onUsar={(m) => void usarMarca(m)} deshabilitado={guardando} />
 
         {/* La nota es opcional y la mayoría de los pedidos no lleva ninguna:
             plegada es un renglón. Se abre tocándola —con el cursor ya adentro,

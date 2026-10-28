@@ -130,13 +130,10 @@ export function ListaSugerencias({
                     <span className="block truncate text-sm font-medium leading-tight">
                       Usar &laquo;{consulta}&raquo; tal como está
                     </span>
-                    {/* Antes decía "hay que marcar el punto a mano" y ese
-                        flujo no existía en ninguna parte: era una promesa que
-                        la pantalla no podía cumplir. Ahora hay dos caminos y
-                        los dos están a un toque, así que se nombran. */}
+                    {/* Se nombra el camino que sí existe para ubicarla: una
+                        promesa que la pantalla no puede cumplir no sirve. */}
                     <span className="block text-xs text-muted">
-                      Queda sin ubicar. Para ubicarla: &laquo;Estoy en la puerta&raquo;, o pega
-                      su Plus Code acá.
+                      Queda sin ubicar. Para ubicarla, pega su Plus Code acá.
                     </span>
                   </span>
                 </button>

@@ -58,8 +58,6 @@ deploy de Vercel le llega solo. Reinstalar hace falta solo si cambia `android/`;
 - **Plus Code primero**: Arica no tiene numeración confiable (Mapbox acierta la puerta en
   2 de 23 direcciones medidas). Un Plus Code se resuelve sin red (`src/lib/geo/plus-code.ts`);
   se guarda siempre el código completo.
-- **"Estoy en la puerta"**: el GPS fija el punto y muestra siempre el error en metros
-  (`src/lib/geo/marcar.ts`).
 - **El pago se calcula en Postgres** (`private.encomienda_congelar_dia()`); `pago.ts` es
   una copia solo para la vista previa. **Tocar ambas juntas** (`pruebas/base.mjs` lo
   verifica).
