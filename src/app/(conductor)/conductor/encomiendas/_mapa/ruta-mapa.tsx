@@ -10,7 +10,7 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { CENTRO_ARICA, aLngLat, type Trazado } from "@/lib/geo/coordenada";
 import { ESTILO, FUENTE_DIA, FUENTE_NAV, FUENTE_PREVIA, TOKEN, apagarVerdeDelTrafico, linea, soportaWebGL } from "./estilo";
-import { contenidoGlobo, elementoParada } from "./marcadores-dom";
+import { agruparPorLugar, contenidoGlobo, elementoParada } from "./marcadores-dom";
 import type { PreviaRuta, PuntoMapa, Ubicacion } from "./tipos";
 import { useCamaraNavegacion } from "./use-camara";
 import { useMarcadorConductor } from "./use-marcador-conductor";
@@ -246,11 +246,12 @@ export function RutaMapa({
     if (!mapa || !mapaListo) return;
 
     // Tocar el número abre un globo con su dirección; tocar el mapa lo cierra.
-    marcadoresParadasRef.current = puntosDibujados.map((p) =>
-      new mapboxgl.Marker({ element: elementoParada(p, previa != null) })
-        .setLngLat([p.lng, p.lat])
+    // Las paradas en el mismo lugar van juntas ("30·31"): si no, una tapa a la otra.
+    marcadoresParadasRef.current = agruparPorLugar(puntosDibujados).map((l) =>
+      new mapboxgl.Marker({ element: elementoParada(l, previa != null) })
+        .setLngLat([l.lng, l.lat])
         .setPopup(
-          new mapboxgl.Popup({ offset: 18, closeButton: false, maxWidth: "240px" }).setDOMContent(contenidoGlobo(p)),
+          new mapboxgl.Popup({ offset: 18, closeButton: false, maxWidth: "260px" }).setDOMContent(contenidoGlobo(l)),
         )
         .addTo(mapa),
     );

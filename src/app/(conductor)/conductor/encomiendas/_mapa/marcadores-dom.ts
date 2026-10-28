@@ -83,33 +83,55 @@ export function ajustarEscalaMarcador(marcador: mapboxgl.Marker, zoom: number): 
   if (svg) svg.style.transform = `scale(${escalaMarcador(zoom).toFixed(3)})`;
 }
 
-export function colorPunto(p: PuntoMapa, previa: boolean): string {
+/** Paradas a menos de esto van como un solo número ("30·31"): una encima de
+ *  otra, la de abajo no se veía (terreno 2026-10-28). */
+const METROS_MISMO_LUGAR = 12;
+
+/** Una o más paradas en el mismo lugar del mapa: un solo marcador. */
+export type LugarMapa = { lat: number; lng: number; puntos: PuntoMapa[] };
+
+export function agruparPorLugar(puntos: PuntoMapa[]): LugarMapa[] {
+  const lugares: LugarMapa[] = [];
+  for (const p of puntos) {
+    const lugar = lugares.find((l) => distanciaMetros(l, p) <= METROS_MISMO_LUGAR);
+    if (lugar) lugar.puntos.push(p);
+    else lugares.push({ lat: p.lat, lng: p.lng, puntos: [p] });
+  }
+  return lugares;
+}
+
+export function colorPunto(l: LugarMapa, previa: boolean): string {
   // En una ruta propuesta ninguna parada es "la que sigue" todavía: van todas
   // del mismo color, el de marca, igual que su línea.
   if (previa) return "#0f766e";
-  if (p.activa) return "#c0362c";
-  if (p.completada) return "#2e9e5b";
+  if (l.puntos.some((p) => p.activa)) return "#c0362c";
+  if (l.puntos.every((p) => p.completada)) return "#2e9e5b";
   return "#6e6e73";
 }
 
 /** Largo del globo: la dirección corta, en una o dos líneas. */
 const LARGO_GLOBO = 48;
 
-/** El globo que sale al tocar un número: "3 · GINEBRA 4081". Va como texto,
- *  no como HTML: la dirección viene de la guía. */
-export function contenidoGlobo(p: PuntoMapa): HTMLElement {
-  const d = p.direccion.trim();
-  const corta = d.length > LARGO_GLOBO ? `${d.slice(0, LARGO_GLOBO).replace(/\s+\S*$/, "")}…` : d;
+/** El globo que sale al tocar un número: "3 · GINEBRA 4081", una línea por
+ *  parada del lugar. Va como texto, no como HTML: la dirección viene de la guía. */
+export function contenidoGlobo(l: LugarMapa): HTMLElement {
   const el = document.createElement("div");
   el.style.cssText = "font-size:14px;font-weight:600;line-height:1.3;color:#1c1c1e";
-  el.textContent = corta ? `${p.label} · ${corta}` : p.label;
+  for (const p of l.puntos) {
+    const d = p.direccion.trim();
+    const corta = d.length > LARGO_GLOBO ? `${d.slice(0, LARGO_GLOBO).replace(/\s+\S*$/, "")}…` : d;
+    const linea = document.createElement("div");
+    linea.textContent = corta ? `${p.label} · ${corta}` : p.label;
+    el.append(linea);
+  }
   return el;
 }
 
-export function elementoParada(p: PuntoMapa, previa = false): HTMLElement {
+export function elementoParada(l: LugarMapa, previa = false): HTMLElement {
   const el = document.createElement("div");
-  el.style.cssText = `background:${colorPunto(p, previa)};color:#fff;border-radius:9999px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.4)`;
-  el.textContent = p.label;
+  const relleno = l.puntos.length > 1 ? 8 : 0;
+  el.style.cssText = `background:${colorPunto(l, previa)};color:#fff;border-radius:9999px;min-width:28px;height:28px;padding:0 ${relleno}px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.4)`;
+  el.textContent = l.puntos.map((p) => p.label).join("·");
   return el;
 }
 
