@@ -38,7 +38,7 @@ import {
   valoresDeTarifa,
   type ValoresTarifa,
 } from "./campos-tarifa";
-import { agregarDiaManual } from "./actions";
+import { agregarDiaManual } from "./actions/dia-manual";
 
 export type ConductorOpcion = { id: string; nombre: string };
 

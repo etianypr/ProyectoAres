@@ -67,7 +67,7 @@ borra su excepción en `pruebas/arquitectura.test.mjs`.
 - [x] T037 [US3] Componentes de `pantalla.tsx` → `_componentes/`: `parada-activa`, `cabecera-sin-parada`, `carril-superior`, `controles-mapa`, `contenido-hoja`, `ruta-del-dia`, `pedidos-fuera`, `advertencias-ruta`, `tu-dia`, `ventanas-pantalla`, `estado-pantalla`, `fila-pedido`, `vista-pedido`. `pantalla.tsx` 1.938 → 385 líneas; sale de A7. Hecho (2026-10-27)
 - [x] T038 [P] [US3] `_mapa/ruta-mapa.tsx` → `tipos`, `estilo`, `camara`, `marcadores-dom`, `use-camara` (`useCamaraNavegacion`), `use-marcador-conductor`. 904 → 392 líneas; sale de A7. Hecho (2026-10-27)
 - [x] T039 [P] [US3] `(app)/encomiendas/page.tsx` → `_resumen.ts` (`armarDias`, `serieDelPeriodo`, `resumirPeriodos`, `resumenPorConductor`; pruebas en `pruebas/panel-resumen.test.mjs`) y `_componentes/{tabla-dias,tabla-conductores}`. 691 → 371 líneas; sale de A7. Las consultas siguen en la página. Hecho (2026-10-27)
-- [ ] T040 [P] [US3] `(app)/encomiendas/actions.ts` → `_tarifa.ts` + `actions/{dia-manual,regla-pago,periodos}.ts`
+- [x] T040 [P] [US3] `(app)/encomiendas/actions.ts` → `_tarifa.ts` (`server-only`) + `actions/{dia-manual,regla-pago,periodos}.ts`; los formularios importan de ahí. Sale de A7. Hecho (2026-10-27)
 - [ ] T041 [US3] Dividir o excepcionar `use-dia-trabajo.ts`, `pedido-form-local.tsx` (lo adelanta 003-T009), `direccion-input.tsx`, `actividad-dia.tsx`, `agregar-dia.tsx`, `conductor-panel.tsx`; condensar comentarios narrativos al dividir
 - [ ] T042 [US3] Vaciar excepciones A7
 

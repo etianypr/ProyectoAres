@@ -29,7 +29,7 @@ import { formatCLP, formatNumber } from "@/lib/comun/format";
 import { MESES } from "@/lib/comun/fechas";
 import { nombrePeriodo, type ResumenPeriodo } from "@/lib/encomiendas/periodos";
 import type { FormState } from "@/lib/comun/forms";
-import { eliminarIngresoReal, guardarIngresoReal } from "./actions";
+import { eliminarIngresoReal, guardarIngresoReal } from "./actions/regla-pago";
 
 /** Una liquidación vieja, imputada a un mes antes de que existieran los
  *  periodos (0035). Se muestra de solo lectura: no se convierte a periodo

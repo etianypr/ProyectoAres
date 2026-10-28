@@ -26,7 +26,7 @@ import { valorPedido } from "@/lib/encomiendas/pago";
 import type { ReglaDePago } from "@/types/db";
 import { CamposTarifa, valoresDeTarifa, type ValoresTarifa } from "./campos-tarifa";
 import type { FormState } from "@/lib/comun/forms";
-import { guardarReglaPago } from "./actions";
+import { guardarReglaPago } from "./actions/regla-pago";
 
 export function ReglaPago({ regla }: { regla: ReglaDePago | null }) {
   const [abierto, setAbierto] = useState(false);

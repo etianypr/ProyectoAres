@@ -31,7 +31,7 @@ import {
   valoresDeTarifa,
   type ValoresTarifa,
 } from "./campos-tarifa";
-import { eliminarDiaManual, repreciarDia, repreciarDiaConTarifa } from "./actions";
+import { eliminarDiaManual, repreciarDia, repreciarDiaConTarifa } from "./actions/dia-manual";
 import type {
   Actividad,
   DiaTrabajo,

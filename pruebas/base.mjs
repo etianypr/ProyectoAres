@@ -75,7 +75,7 @@ for (const [tabla, deberia] of [
 // ---------------------------------------------------------------------------
 console.log("\n=== 2. Las consultas exactas del código ===");
 for (const [tabla, select, quien] of [
-  ["encomienda_actividad", "conductor_id, fecha, tipo, origen", "encomiendas/actions.ts"],
+  ["encomienda_actividad", "conductor_id, fecha, tipo, origen", "encomiendas/actions/dia-manual.ts"],
   ["encomienda_reglas_pago", "valor_pedido", "valor por entrega"],
   [
     "encomienda_ingresos_reales",
