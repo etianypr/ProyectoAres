@@ -125,7 +125,7 @@ export function PantallaEncomiendas({
   const ventanas = useVentanas();
   const { setCargandoGuia, setEscaneando, setPedirCarga } = ventanas;
   // La ruta propuesta a la vista, elegir otra alternativa y usarla.
-  const { propuesta, setPropuesta, onElegirAlternativa, onUsarPropuesta } = usePropuesta({
+  const { propuesta, setPropuesta, onElegirAlternativa, onUsarPropuesta, quitado, onQuitar, onDeshacerQuitar } = usePropuesta({
     dia,
     alArmar: setPedirCarga,
   });
@@ -377,6 +377,9 @@ export function PantallaEncomiendas({
             onUsar={onUsarPropuesta}
             onElegir={onElegirAlternativa}
             onDescartar={() => setPropuesta(null)}
+            quitado={quitado}
+            onQuitar={onQuitar}
+            onDeshacerQuitar={onDeshacerQuitar}
           />
         </div>
       ) : null}

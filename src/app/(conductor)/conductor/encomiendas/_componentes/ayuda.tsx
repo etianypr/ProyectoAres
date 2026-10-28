@@ -28,6 +28,7 @@ const SECCIONES: { titulo: string; pasos: string[] }[] = [
     titulo: "Armar la ruta",
     pasos: [
       "«Generar ruta del día» → elige una alternativa → «Usar esta ruta».",
+      "Un pedido que no va: 🗑 en la lista de la ruta propuesta («Deshacer» lo devuelve).",
       "Después «Escanear los paquetes»: cada etiqueta dice su parada.",
       "Pedido que llega tarde: «Sumar a la ruta».",
       "Toca un número del mapa para ver su dirección. El reloj es el tiempo manejando, sin las entregas.",

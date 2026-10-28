@@ -266,6 +266,45 @@ export async function elegirAlternativa(
   };
 }
 
+/** La propuesta con otras paradas: sin una que el conductor eliminó al revisarla
+ *  (terreno 2026-10-28) o con ella de vuelta. El orden de las demás no cambia:
+ *  sacar una parada de una ruta buena deja una ruta buena. La comparación se va
+ *  (sus cifras eran de la otra lista) y el trazado queda el de antes hasta que
+ *  llegue el nuevo (ver retrazar). */
+function conParadas(propuesta: PropuestaRuta, paradas: PedidoUbicado[]): PropuestaRuta {
+  const actual = propuesta.alternativas.find((a) => a.estrategia === propuesta.elegida) ?? propuesta.alternativas[0];
+  return { ...propuesta, paradas, alternativas: actual ? [{ ...actual, paradas }] : [] };
+}
+
+export function quitarParada(propuesta: PropuestaRuta, pedidoId: string): PropuestaRuta {
+  return conParadas(
+    propuesta,
+    propuesta.paradas.filter((p) => p.id !== pedidoId),
+  );
+}
+
+/** Deshacer quitarParada: vuelve a su lugar. */
+export function devolverParada(propuesta: PropuestaRuta, parada: PedidoUbicado, indice: number): PropuestaRuta {
+  const paradas = propuesta.paradas.filter((p) => p.id !== parada.id);
+  paradas.splice(Math.min(indice, paradas.length), 0, parada);
+  return conParadas(propuesta, paradas);
+}
+
+/** El trazado por calles de las paradas que tiene ahora la propuesta. */
+export async function retrazar(propuesta: PropuestaRuta): Promise<PropuestaRuta> {
+  const calles =
+    propuesta.paradas.length > 0
+      ? await obtenerRutaCalles([propuesta.partida, ...propuesta.paradas.map(coord)])
+      : null;
+  return {
+    ...propuesta,
+    trazado: calles?.trazado ?? null,
+    distanciaM: calles?.distanciaM ?? null,
+    duracionS: calles?.duracionS ?? null,
+    sinTrazado: calles == null && propuesta.paradas.length > 0,
+  };
+}
+
 /** Guarda la propuesta como la ruta del día. Entre calcular y confirmar el
  *  conductor pudo cerrar una parada o agregar un pedido: guardarRuta vuelve a leer
  *  lo guardado y conserva lo cerrado, así que la propuesta nunca lo pisa. */

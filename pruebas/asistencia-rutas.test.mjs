@@ -23,7 +23,7 @@ const { guardarPedido, registrarDisponibilidad, marcarResultado, guardarRuta, le
   almacen;
 
 const generar = await import("@/lib/encomiendas/local/generar-ruta");
-const { calcularRutaLocal, confirmarRutaLocal, elegirAlternativa } = generar;
+const { calcularRutaLocal, confirmarRutaLocal, devolverParada, elegirAlternativa, quitarParada, retrazar } = generar;
 
 const idb = await import("@/lib/encomiendas/local/idb");
 const { olvidarMatriz } = await import("@/lib/geo/mapbox/matriz");
@@ -588,6 +588,25 @@ test("elegir otra alternativa pide SU trazado, uno solo", async () => {
   assert.equal(siguiente.elegida, otra.estrategia);
   assert.deepEqual(nombres(siguiente.paradas), nombres(otra.paradas));
   assert.ok(siguiente.distanciaM > 0, "la alternativa elegida quedó sin distancia");
+});
+
+test("quitar una parada de la propuesta deja el orden de las demás; deshacer la devuelve a su lugar", async () => {
+  for (const n of [1, 2, 3]) await pedidoA(n);
+  const p = await calcularRutaLocal(HOY, inicioDe());
+  const [primera, segunda, tercera] = p.paradas;
+
+  const sin = quitarParada(p, segunda.id);
+  assert.deepEqual(nombres(sin.paradas), nombres([primera, tercera]));
+  assert.equal(sin.alternativas.length, 1, "la comparación era de la lista completa");
+  assert.deepEqual(nombres(sin.alternativas[0].paradas), nombres(sin.paradas));
+
+  const antes = consultasDeTrazado();
+  const retrazada = await retrazar(sin);
+  assert.equal(consultasDeTrazado(), antes + 1, "un trazado nuevo, uno solo");
+  assert.ok(retrazada.distanciaM > 0);
+
+  const devuelta = devolverParada(retrazada, segunda, 1);
+  assert.deepEqual(nombres(devuelta.paradas), nombres(p.paradas));
 });
 
 test("elegir la que ya está puesta no gasta ninguna consulta", async () => {

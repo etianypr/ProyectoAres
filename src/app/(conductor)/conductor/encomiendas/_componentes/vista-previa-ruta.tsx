@@ -32,12 +32,14 @@ import {
   PackageCheck,
   Phone,
   Route,
+  Trash2,
   X,
 } from "lucide-react";
 import { formatDistancia, formatDuracion } from "@/lib/comun/format";
 import { nombreVisible } from "@/lib/encomiendas/paquete";
 import { bloquePorId } from "@/lib/encomiendas/config";
 import type { EstrategiaRuta, PropuestaRuta } from "@/lib/encomiendas/local/generar-ruta";
+import type { QuitadoDeLaPropuesta } from "../_hooks/use-propuesta";
 
 // Mismas medidas que los botones de la tarjeta de la parada activa (ver
 // parada-activa.tsx): 48 px de alto, para el pulgar y sin mirar mucho.
@@ -58,6 +60,9 @@ export function VistaPreviaRuta({
   onUsar,
   onElegir,
   onDescartar,
+  quitado,
+  onQuitar,
+  onDeshacerQuitar,
 }: {
   propuesta: PropuestaRuta;
   /** Guarda la ruta en el teléfono (ver confirmarRutaLocal). */
@@ -65,6 +70,11 @@ export function VistaPreviaRuta({
   /** Cambia a otra alternativa. Pide su trazado, así que tarda un momento. */
   onElegir: (estrategia: EstrategiaRuta) => Promise<void>;
   onDescartar: () => void;
+  /** El último pedido eliminado de la propuesta, para deshacerlo. */
+  quitado: QuitadoDeLaPropuesta | null;
+  /** Elimina el pedido (del teléfono y de la propuesta). */
+  onQuitar: (pedidoId: string) => Promise<void>;
+  onDeshacerQuitar: () => Promise<void>;
 }) {
   const [guardando, setGuardando] = useState(false);
   const [cambiando, setCambiando] = useState<EstrategiaRuta | null>(null);
@@ -230,6 +240,20 @@ export function VistaPreviaRuta({
         </div>
       ) : null}
 
+      {quitado ? (
+        <p className="mt-2 flex shrink-0 items-center gap-2 rounded-xl bg-background px-3 py-1.5 text-xs">
+          <Trash2 className="h-3.5 w-3.5 shrink-0 text-muted" />
+          <span className="min-w-0 flex-1 truncate">Eliminado: {nombreVisible(quitado.parada)}</span>
+          <button
+            type="button"
+            onClick={() => void onDeshacerQuitar()}
+            className="shrink-0 rounded-full px-2 py-1 font-semibold text-brand active:bg-card"
+          >
+            Deshacer
+          </button>
+        </p>
+      ) : null}
+
       {/* El orden es lo que el conductor viene a revisar: se puede desplazar, pero
           sin comerse la pantalla — el mapa de atrás también es parte de esto. */}
       <ol className="mt-3 min-h-0 max-h-[17vh] flex-1 overflow-y-auto rounded-2xl bg-background">
@@ -265,6 +289,16 @@ export function VistaPreviaRuta({
                 por llamar
               </span>
             )}
+            {/* Un pedido que no va (terreno 2026-10-28) se elimina acá mismo. */}
+            <button
+              type="button"
+              onClick={() => void onQuitar(p.id)}
+              disabled={guardando}
+              aria-label={`Eliminar ${nombreVisible(p)}`}
+              className="-mr-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted active:bg-card disabled:opacity-50"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
           </li>
         ))}
       </ol>

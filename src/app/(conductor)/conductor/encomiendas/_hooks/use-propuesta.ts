@@ -1,17 +1,26 @@
 "use client";
 
-// La ruta propuesta a la vista: elegir otra alternativa y usarla (sale de
-// pantalla.tsx, spec 002 T036).
+// La ruta propuesta a la vista: elegir otra alternativa, quitarle pedidos y
+// usarla (sale de pantalla.tsx, spec 002 T036).
 
-import { useCallback, useState } from "react";
-import { sinEtiquetaEscaneada } from "@/lib/encomiendas/local/almacen";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { sinEtiquetaEscaneada, type PedidoEliminado } from "@/lib/encomiendas/local/almacen";
 import {
   confirmarRutaLocal,
+  devolverParada,
   elegirAlternativa,
+  quitarParada,
+  retrazar,
   type EstrategiaRuta,
+  type PedidoUbicado,
   type PropuestaRuta,
 } from "@/lib/encomiendas/local/generar-ruta";
 import type { DiaEnCurso } from "./use-dia-trabajo";
+
+/** El último pedido eliminado de la propuesta, para "Deshacer". */
+export type QuitadoDeLaPropuesta = { recibo: PedidoEliminado; parada: PedidoUbicado; indice: number };
+
+const idsDe = (p: PropuestaRuta) => p.paradas.map((x) => x.id).join();
 
 export function usePropuesta({
   dia,
@@ -21,7 +30,20 @@ export function usePropuesta({
   /** Armada la ruta: cuántos paquetes de la guía falta escanear (abre el aviso). */
   alArmar: (faltan: number) => void;
 }) {
-  const [propuesta, setPropuesta] = useState<PropuestaRuta | null>(null);
+  const [propuesta, setPropuestaEstado] = useState<PropuestaRuta | null>(null);
+  const [quitado, setQuitado] = useState<QuitadoDeLaPropuesta | null>(null);
+  // La última propuesta, para lo que termina después de un await: dos pedidos
+  // eliminados seguidos no pueden pisarse.
+  const actualRef = useRef<PropuestaRuta | null>(null);
+  useEffect(() => {
+    actualRef.current = propuesta;
+  }, [propuesta]);
+
+  const setPropuesta = useCallback((p: PropuestaRuta | null) => {
+    actualRef.current = p;
+    setPropuestaEstado(p);
+    setQuitado(null);
+  }, []);
 
   // Cambiar de alternativa pide el trazado de la nueva (una consulta), así que
   // la propuesta se reemplaza recién cuando llega. Si la consulta falla, la
@@ -31,8 +53,47 @@ export function usePropuesta({
       if (!propuesta) return;
       setPropuesta(await elegirAlternativa(propuesta, estrategia));
     },
-    [propuesta],
+    [propuesta, setPropuesta],
   );
+
+  /** Cambia las paradas a la vista ya, y el trazado cuando llega (si para
+   *  entonces las paradas siguen siendo esas). */
+  const ponerParadas = useCallback((nueva: PropuestaRuta) => {
+    actualRef.current = nueva;
+    setPropuestaEstado(nueva);
+    const ids = idsDe(nueva);
+    void retrazar(nueva).then((conTrazado) => {
+      const actual = actualRef.current;
+      if (!actual || idsDe(actual) !== ids) return;
+      actualRef.current = conTrazado;
+      setPropuestaEstado(conTrazado);
+    });
+  }, []);
+
+  /** Eliminar un pedido al revisar la ruta (terreno 2026-10-28): sale del
+   *  teléfono como en la lista, y de la propuesta. */
+  const onQuitar = useCallback(
+    async (pedidoId: string) => {
+      const antes = actualRef.current;
+      const indice = antes ? antes.paradas.findIndex((p) => p.id === pedidoId) : -1;
+      if (!antes || indice < 0) return;
+      const parada = antes.paradas[indice];
+      const recibo = await dia.eliminarPedido(pedidoId);
+      const actual = actualRef.current;
+      if (!recibo || !actual) return;
+      ponerParadas(quitarParada(actual, pedidoId));
+      setQuitado({ recibo, parada, indice });
+    },
+    [dia, ponerParadas],
+  );
+
+  const onDeshacerQuitar = useCallback(async () => {
+    if (!quitado) return;
+    setQuitado(null);
+    await dia.restaurar(quitado.recibo);
+    const actual = actualRef.current;
+    if (actual) ponerParadas(devolverParada(actual, quitado.parada, quitado.indice));
+  }, [quitado, dia, ponerParadas]);
 
   const onUsarPropuesta = useCallback(async () => {
     if (!propuesta) return;
@@ -54,7 +115,7 @@ export function usePropuesta({
     // que falló queda en el estado de cada pedido (dia.whatsapp), con su
     // botón de reintentar al lado.
     void dia.avisarPedidos(enLaRuta);
-  }, [propuesta, dia, alArmar]);
+  }, [propuesta, dia, alArmar, setPropuesta]);
 
-  return { propuesta, setPropuesta, onElegirAlternativa, onUsarPropuesta };
+  return { propuesta, setPropuesta, onElegirAlternativa, onUsarPropuesta, quitado, onQuitar, onDeshacerQuitar };
 }
