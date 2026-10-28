@@ -13,6 +13,7 @@ import { useNavegacion } from "./use-navegacion";
 import { useVozNavegacion } from "./use-voz";
 import { usePantallaEncendida } from "./use-pantalla-encendida";
 import { usePuntoEnRuta } from "./use-punto-en-ruta";
+import { useSimularRecorrido } from "@/lib/encomiendas/local/gps-simulado";
 
 /** Con la última lectura más vieja que esto, el punto que se ve ya no es dónde
  *  está el conductor. */
@@ -113,6 +114,9 @@ export function useGuiaNavegacion({
         : navegacion.trazado,
     [pegado, navegacion.trazado],
   );
+
+  // En modo prueba, el GPS simulado avanza por esta línea (gps-simulado.ts).
+  useSimularRecorrido(trazadoPorDelante);
 
   // Que la última lectura haya quedado vieja se mira con un reloj propio:
   // mientras el GPS avisa cada lectura provoca un dibujado, pero cuando DEJA de

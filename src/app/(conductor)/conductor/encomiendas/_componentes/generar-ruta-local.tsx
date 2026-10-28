@@ -15,6 +15,7 @@ import { RefreshCw, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DireccionInput } from "@/components/direccion/direccion-input";
 import { cn } from "@/lib/comun/utils";
+import { fuenteUbicacion } from "@/lib/encomiendas/local/gps-simulado";
 import {
   calcularRutaLocal,
   type PropuestaRuta,
@@ -85,12 +86,13 @@ export function GenerarRutaLocal({
     setError(null);
 
     if (opcion === "gps") {
-      if (typeof navigator === "undefined" || !navigator.geolocation) {
+      const fuente = fuenteUbicacion();
+      if (!fuente) {
         setError("Este dispositivo no puede obtener tu ubicación.");
         return;
       }
       setObteniendoUbicacion(true);
-      navigator.geolocation.getCurrentPosition(
+      fuente.getCurrentPosition(
         (pos) => {
           setObteniendoUbicacion(false);
           void disparar({ tipo: "gps", lat: pos.coords.latitude, lng: pos.coords.longitude });

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { distanciaMetros, rumboEntre } from "@/lib/geo/coordenada";
 import { alVolverAPrimerPlano } from "@/lib/nativo/entorno";
+import { fuenteUbicacion, useGpsSimulado } from "@/lib/encomiendas/local/gps-simulado";
 import type { Ubicacion } from "../_mapa/ruta-mapa";
 
 // Bajo este umbral, el "movimiento" entre dos lecturas es puro temblor de la
@@ -155,21 +156,25 @@ export function useUbicacionActual(activo: boolean): EstadoUbicacion {
     });
   }, []);
 
+  // En modo prueba con el GPS simulado, la ubicación sale del simulador
+  // (gps-simulado.ts); al encenderlo o apagarlo se vuelve a armar.
+  const simulado = useGpsSimulado();
   useEffect(() => {
-    if (!activo || typeof navigator === "undefined" || !navigator.geolocation) return;
+    const fuente = fuenteUbicacion();
+    if (!activo || !fuente) return;
 
     // maximumAge: 0 — sin esto el navegador puede entregar una posición
     // guardada de hasta 15 segundos antes, y al arrancar el día eso es la
     // del galpón de ayer. Manejando, 15 segundos son tres cuadras.
     ultimaLecturaRef.current = Date.now();
-    const watchId = navigator.geolocation.watchPosition(
+    const watchId = fuente.watchPosition(
       aplicar,
       (e) => setError(mensajeError(e)),
       { enableHighAccuracy: true, maximumAge: 0 },
     );
 
-    return () => navigator.geolocation.clearWatch(watchId);
-  }, [activo, aplicar, armado]);
+    return () => fuente.clearWatch(watchId);
+  }, [activo, aplicar, armado, simulado]);
 
   // Se arma de nuevo al volver a primer plano y cuando deja de llegar todo
   // (spec 017, N7). Armarlo de más no cuesta nada; quedarse sin GPS manejando,
@@ -189,11 +194,12 @@ export function useUbicacionActual(activo: boolean): EstadoUbicacion {
   }, [activo]);
 
   const pedirAhora = useCallback(() => {
-    if (typeof navigator === "undefined" || !navigator.geolocation) {
+    const fuente = fuenteUbicacion();
+    if (!fuente) {
       setError("Este navegador no puede entregar tu ubicación.");
       return;
     }
-    navigator.geolocation.getCurrentPosition(
+    fuente.getCurrentPosition(
       (pos) => {
         aplicar(pos);
         // Si el seguimiento había fallado (permiso concedido recién, en los

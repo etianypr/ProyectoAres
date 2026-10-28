@@ -12,6 +12,7 @@ import { esApp, versionInstalada } from "@/lib/nativo/entorno";
 import { permisosTelefono } from "@/lib/nativo/telefono";
 import { escanearCodigo } from "@/lib/nativo/escaner";
 import { entrarAlModoPrueba, salirDelModoPrueba, useModoPrueba } from "@/lib/encomiendas/local/modo-prueba";
+import { fijarConfigGps, useConfigGps, VELOCIDADES } from "@/lib/encomiendas/local/gps-simulado";
 
 type Estado = "si" | "no" | "pendiente";
 
@@ -50,6 +51,7 @@ export default function DiagnosticoPage() {
   const [lectura, setLectura] = useState<string | null>(null);
   const [escaneando, setEscaneando] = useState(false);
   const modoPrueba = useModoPrueba();
+  const gps = useConfigGps();
   // Entrar o salir pide un segundo toque: salir borra lo de la prueba.
   const [confirmando, setConfirmando] = useState(false);
   const [errorPrueba, setErrorPrueba] = useState<string | null>(null);
@@ -147,6 +149,40 @@ export default function DiagnosticoPage() {
             : "Nada se envía a la oficina ni por WhatsApp mientras esté encendido."}
         </p>
         {errorPrueba ? <p className="text-xs text-danger">{errorPrueba}</p> : null}
+        {/* El GPS simulado (gps-simulado.ts): parte en la central y avanza solo
+            por la ruta hasta la parada activa. */}
+        {modoPrueba ? (
+          <div className="space-y-2 rounded-xl bg-background p-3">
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                checked={gps.activo}
+                onChange={(e) => fijarConfigGps({ activo: e.target.checked })}
+                className="h-4 w-4 accent-[var(--brand)]"
+              />
+              GPS simulado en la central
+            </label>
+            {gps.activo ? (
+              <div className="flex items-center gap-1.5 text-xs text-muted">
+                <span className="mr-1">Velocidad</span>
+                {VELOCIDADES.map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => fijarConfigGps({ velocidad: v })}
+                    aria-pressed={gps.velocidad === v}
+                    className={cn(
+                      "h-8 min-w-11 rounded-full border px-2 font-mono font-semibold",
+                      gps.velocidad === v ? "border-brand bg-brand text-brand-foreground" : "border-separator bg-card text-foreground",
+                    )}
+                  >
+                    ×{v}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         {confirmando ? (
           <div className="grid grid-cols-2 gap-2">
             <button

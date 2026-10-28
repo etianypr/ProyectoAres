@@ -66,3 +66,35 @@ test("no se entra con actividad sin enviar: es trabajo de verdad y salir la borr
   await assert.rejects(() => prueba.entrarAlModoPrueba(), /sin enviar/);
   assert.equal(prueba.enModoPrueba(), false);
 });
+
+// ---------------------------------------------------------------------------
+// GPS simulado (terreno 2026-10-28): en el PC el "GPS" decía Santiago.
+
+const gps = await import("@/lib/encomiendas/local/gps-simulado");
+
+test("el punto simulado avanza por el camino y se queda al final", () => {
+  // Dos tramos rectos de ~111 m cada uno: al norte y después al este.
+  const camino = [[-70.3, -18.47], [-70.3, -18.469], [-70.29895, -18.469]];
+  const inicio = gps.puntoEnCamino(camino, 0);
+  assert.deepEqual([inicio.lat, inicio.lng, inicio.alFinal], [-18.47, -70.3, false]);
+  const medio = gps.puntoEnCamino(camino, 55);
+  assert.ok(medio.lat > -18.47 && medio.lat < -18.469, "a mitad del primer tramo");
+  assert.ok(Math.abs(medio.rumbo - 0) < 1, "va al norte");
+  const despues = gps.puntoEnCamino(camino, 160);
+  assert.ok(Math.abs(despues.rumbo - 90) < 2, "dobló al este");
+  const fin = gps.puntoEnCamino(camino, 10_000);
+  assert.deepEqual([fin.lat, fin.lng, fin.alFinal], [-18.469, -70.29895, true]);
+});
+
+test("el GPS simulado es solo del modo prueba, y parte en la central", async () => {
+  assert.equal(gps.gpsSimulado(), false, "fuera del modo prueba manda el aparato");
+  await prueba.entrarAlModoPrueba();
+  assert.equal(gps.gpsSimulado(), true, "en modo prueba viene encendido");
+  gps.fijarConfigGps({ activo: false });
+  assert.equal(gps.gpsSimulado(), false);
+  gps.fijarConfigGps({ activo: true });
+
+  localStorage.setItem("pucarani-partida-empresa", JSON.stringify({ texto: "Central", lat: -18.46734, lng: -70.30377 }));
+  const lectura = await new Promise((ok) => gps.fuenteUbicacion().getCurrentPosition(ok));
+  assert.deepEqual([lectura.coords.latitude, lectura.coords.longitude], [-18.46734, -70.30377]);
+});
