@@ -1,68 +1,28 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/panel/page-header";
-import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Kpi } from "@/components/ui/kpi";
-import { Vacio } from "@/components/ui/vacio";
 import { ErrorDatos } from "@/components/ui/error-datos";
 import { buttonClass } from "@/components/ui/button";
-import { Package, CalendarRange, Truck, Wallet, CircleDollarSign, Pencil } from "lucide-react";
-import { formatCLP, formatDate, formatNumber, formatTime } from "@/lib/comun/format";
-import { hoyChile, MESES_CORTOS, sumarDias } from "@/lib/comun/fechas";
+import { Package, CalendarRange, Truck, Wallet, CircleDollarSign } from "lucide-react";
+import { formatCLP, formatNumber } from "@/lib/comun/format";
+import { sumarDias } from "@/lib/comun/fechas";
 import { rangoPeriodo, etiquetaPeriodo } from "@/lib/comun/periodo";
 import { calcularIndicadores, periodoAnterior } from "@/lib/encomiendas/indicadores";
 import { getPeriodo } from "@/lib/comun/periodo-servidor";
-import {
-  agruparPorDia,
-  tarifaDelDia,
-  valorPedido,
-  type ConteoDia,
-} from "@/lib/encomiendas/pago";
-import {
-  aPeriodo,
-  indicePeriodoDe,
-  periodosEnRango,
-  type ResumenPeriodo,
-} from "@/lib/encomiendas/periodos";
-import type { DiaTrabajo, PagoDelDia } from "@/types/db";
-import { AgregarDia, type ConductorOpcion } from "./agregar-dia";
+import { valorPedido } from "@/lib/encomiendas/pago";
+import { aPeriodo, periodosEnRango } from "@/lib/encomiendas/periodos";
+import type { ConductorOpcion } from "./agregar-dia";
+import { armarDias, enCurso, resumenPorConductor, resumirPeriodos, serieDelPeriodo } from "./_resumen";
 import { ReglaPago } from "./regla-pago";
 import { CompararIngresos } from "./comparar-ingresos";
 import { GraficoDias } from "./grafico-dias";
 import { IndicadoresPeriodo } from "./_componentes/indicadores";
+import { TablaDias } from "./_componentes/tabla-dias";
+import { TablaConductores } from "./_componentes/tabla-conductores";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Encomiendas" };
-
-type Dia = {
-  fecha: string;
-  conductorId: string | null;
-  conductorNombre: string;
-  conteo: ConteoDia;
-  /** Las cifras que la base congeló para este día (0031): ingreso estimado y
-   *  desglose del pago. Esta pantalla NO las recalcula — lee lo que se escribió
-   *  cuando el día se registró, que es lo que hace que cambiar la regla de pago
-   *  no mueva ni un peso de lo que ya está.
-   *
-   *  null solo si el día no se pudo calcular: sin conductor (eliminado después)
-   *  o sin regla configurada todavía. */
-  cifras: PagoDelDia | null;
-  /** El sobre del día (0032): a qué hora salió la ruta y si ya terminó. Una
-   *  día abierto es una ruta EN CURSO y por eso todavía no tiene cifras —
-   *  la plata se cuenta una sola vez, al cerrar. */
-  diaTrabajo: DiaTrabajo | null;
-  /** Eventos cargados a mano desde la oficina (0028) y total del día: con los
-   *  dos se distingue un día íntegramente manual de uno que el teléfono mandó
-   *  a medias y la oficina completó. */
-  manuales: number;
-  total: number;
-};
-
-/** Una ruta que todavía está pasando. No tiene cifras y no debe tenerlas. */
-function enCurso(d: Dia): boolean {
-  return d.diaTrabajo != null && d.diaTrabajo.cerrada_en == null;
-}
 
 export default async function EncomiendasPage() {
   // Mismo periodo global que el resto de la app: el mes/año lo fija el
@@ -214,20 +174,7 @@ export default async function EncomiendasPage() {
     .map((c) => ({ id: c.id, nombre: c.nombre }))
     .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
 
-  // La actividad dice QUÉ pasó cada día; encomienda_pagos, cuánto valió. Se
-  // cruzan por (conductor, fecha) en vez de recalcular: las cifras de la
-  // segunda son las que se escribieron cuando el día se registró, y son las que
-  // mandan aunque la regla haya cambiado diez veces desde entonces.
-  const dias: Dia[] = agruparPorDia(actividadData ?? []).map((d) => ({
-    fecha: d.fecha,
-    conductorId: d.conductorId,
-    conductorNombre: d.eventos[0]?.conductor?.nombre ?? "Conductor eliminado",
-    conteo: d.conteo,
-    cifras: pagos.find((p) => p.fecha === d.fecha && p.conductor_id === d.conductorId) ?? null,
-    diaTrabajo: diasTrabajo.find((j) => j.fecha === d.fecha && j.conductor_id === d.conductorId) ?? null,
-    manuales: d.manuales,
-    total: d.eventos.length,
-  }));
+  const dias = armarDias(actividadData ?? [], pagos, diasTrabajo);
 
   // Días de CALENDARIO, no filas: con dos conductores saliendo los mismos 20
   // días, el KPI diría 40 en un mes que tiene 20. El pago sí se calcula por
@@ -254,64 +201,9 @@ export default async function EncomiendasPage() {
     pagos: pagosPrevios ?? [],
   });
 
-  // Serie del gráfico, atada al mismo periodo: en vista de MES un palo por
-  // cada día del mes (los días sin actividad quedan como huecos, que es justo
-  // lo que conviene ver); en vista de AÑO, uno por mes.
-  //
-  // `periodoIdx` es el corte de facturación al que pertenece esa columna, o -1
-  // si no cae en ninguno: de ahí sale el color de la barra. En la vista de AÑO
-  // una columna es un mes entero, así que solo se tiñe cuando el mes completo
-  // cae dentro de un mismo corte — un mes partido entre dos periodos no tiene
-  // un color, y pintarlo de uno de los dos sería mentir.
-  const serie =
-    periodo.mes === null
-      ? Array.from({ length: 12 }, (_, i) => {
-          const mm = String(i + 1).padStart(2, "0");
-          const pref = `${periodo.anio}-${mm}`;
-          const ultimo = new Date(periodo.anio, i + 1, 0).getDate();
-          const idxPrimero = indicePeriodoDe(`${pref}-01`, periodos);
-          const idxUltimo = indicePeriodoDe(`${pref}-${ultimo}`, periodos);
-          return {
-            clave: pref,
-            etiqueta: MESES_CORTOS[i],
-            periodoIdx: idxPrimero >= 0 && idxPrimero === idxUltimo ? idxPrimero : -1,
-            pedidos: dias
-              .filter((d) => d.fecha.startsWith(pref))
-              .reduce((a, d) => a + d.conteo.entregados, 0),
-          };
-        })
-      : Array.from({ length: new Date(periodo.anio, periodo.mes, 0).getDate() }, (_, i) => {
-          const mm = String(periodo.mes).padStart(2, "0");
-          const fecha = `${periodo.anio}-${mm}-${String(i + 1).padStart(2, "0")}`;
-          return {
-            clave: fecha,
-            etiqueta: String(i + 1),
-            periodoIdx: indicePeriodoDe(fecha, periodos),
-            pedidos: dias
-              .filter((d) => d.fecha === fecha)
-              .reduce((a, d) => a + d.conteo.entregados, 0),
-          };
-        });
+  const serie = serieDelPeriodo(periodo, dias, periodos);
 
-  // Lo que facturó cada corte. Sale de encomienda_pagos y no de `dias` porque un
-  // periodo puede desbordar el mes en pantalla por los dos lados: son las cifras
-  // congeladas de TODOS sus días, que es justo el número por el que existe la
-  // función. Se calcula para todos los periodos y no solo los visibles: el
-  // diálogo de comparar ingresos los ofrece todos, con su estimado.
-  const pagosPeriodos = pagosPeriodosData ?? [];
-  const resumenPeriodos: ResumenPeriodo[] = periodos.map((p) => {
-    const suyos = pagosPeriodos.filter((x) => x.fecha >= p.fecha_inicio && x.fecha <= p.fecha_fin);
-    const real = ingresosReales.find((r) => r.periodo_id === p.id) ?? null;
-    return {
-      ...p,
-      dias: new Set(suyos.map((x) => x.fecha)).size,
-      entregados: suyos.reduce((a, x) => a + x.pedidos_entregados, 0),
-      ingresos: suyos.reduce((a, x) => a + x.ingresos_totales, 0),
-      pago: suyos.reduce((a, x) => a + x.pago_total, 0),
-      real: real?.monto ?? null,
-      notaReal: real?.nota ?? null,
-    };
-  });
+  const resumenPeriodos = resumirPeriodos(periodos, pagosPeriodosData ?? [], ingresosReales);
 
   // Los cortes que tocan el mes/año en pantalla: son los únicos que se pintan y
   // se listan en el gráfico — uno de marzo no tiene nada que hacer en la vista de
@@ -344,30 +236,7 @@ export default async function EncomiendasPage() {
     ? sumarDias(periodos[periodos.length - 1].fecha_fin, 1)
     : desde;
 
-  // Resumen por conductor: con un solo repartidor es una fila, pero el
-  // esquema ya soporta varios y la liquidación se paga por persona.
-  const porConductor = [
-    ...dias
-      .reduce((mapa, d) => {
-        const clave = d.conductorId ?? "sin";
-        const acum = mapa.get(clave) ?? {
-          nombre: d.conductorNombre,
-          diasTrabajados: 0,
-          entregados: 0,
-          ingresos: 0,
-          pago: 0,
-        };
-        // Todo día que llegó hasta acá tiene actividad registrada, así que
-        // cuenta: no hay que preguntar si el conductor salió.
-        acum.diasTrabajados += 1;
-        acum.entregados += d.conteo.entregados;
-        acum.ingresos += d.cifras?.ingresos_totales ?? 0;
-        acum.pago += d.cifras?.pago_total ?? 0;
-        mapa.set(clave, acum);
-        return mapa;
-      }, new Map<string, { nombre: string; diasTrabajados: number; entregados: number; ingresos: number; pago: number }>())
-      .values(),
-  ].sort((a, b) => b.pago - a.pago);
+  const porConductor = resumenPorConductor(dias);
 
   return (
     <div>
@@ -488,203 +357,14 @@ export default async function EncomiendasPage() {
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_20rem]">
-        <Card className="overflow-hidden">
-          <CardHeader>
-            <CardTitle>Detalle por día</CardTitle>
-            <div className="flex flex-wrap items-start justify-end gap-2">
-              {/* Va acá y no en la cabecera de la página porque es esta tabla
-                  la que va a cambiar: se carga un día y aparece una fila. */}
-              <AgregarDia
-                conductores={conductoresEncomiendas}
-                // Sin esto, una consulta fallida deja la lista vacía y el botón
-                // se desactiva diciendo "ningún conductor tiene la categoría",
-                // que es una afirmación sobre datos que no se pudieron leer.
-                errorConductores={errorConductores?.message ?? null}
-                regla={regla}
-                hoy={hoyChile()}
-                diasConocidos={dias.map((d) => ({
-                  fecha: d.fecha,
-                  conductorId: d.conductorId,
-                  entregados: d.conteo.entregados,
-                  omitidos: d.conteo.omitidos,
-                  manuales: d.manuales,
-                  total: d.total,
-                  tarifa: tarifaDelDia(d.cifras),
-                }))}
-              />
-              {/* Acá estaba "Confirmar pagos del periodo". No queda nada que
-                  confirmar: las cifras de cada día las escribe la base cuando
-                  el día se registra (0031), así que la columna "A pagar" ya es
-                  la definitiva desde el primer momento. */}
-            </div>
-          </CardHeader>
-          {dias.length === 0 ? (
-            <CardBody>
-              <Vacio
-                titulo="No hay actividad registrada en este periodo."
-                icono={<CalendarRange className="h-7 w-7" />}
-                accion={
-                  <Link href="/encomiendas/dia" className={buttonClass({ size: "sm" })}>
-                    Ver actividad por día
-                  </Link>
-                }
-              />
-            </CardBody>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-background text-left text-xs uppercase tracking-wide text-muted">
-                  <tr>
-                    <th className="px-4 py-2.5 font-medium">Día</th>
-                    <th className="px-4 py-2.5 font-medium">Conductor</th>
-                    <th className="px-4 py-2.5 font-medium">Día de trabajo</th>
-                    <th className="px-4 py-2.5 text-right font-medium">Entregados</th>
-                    <th className="px-4 py-2.5 text-right font-medium">No entreg.</th>
-                    <th className="px-4 py-2.5 text-right font-medium">Ingresos</th>
-                    <th className="px-4 py-2.5 text-right font-medium">A pagar</th>
-                    <th className="px-4 py-2.5 text-right font-medium">Margen</th>
-                    <th className="px-4 py-2.5 font-medium">Origen</th>
-                    <th className="px-4 py-2.5 font-medium">
-                      <span className="sr-only">Editar</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {dias.map((d) => {
-                    return (
-                      <tr key={`${d.fecha}-${d.conductorId ?? "sin"}`} className="hover:bg-background">
-                        {/* La fecha ya no es un enlace: era el único acceso a
-                            la vista del día y no lo parecía —texto negro, sin
-                            ícono— así que la mitad de la tabla se veía como
-                            algo en lo que se puede hacer clic y no lo era.
-                            Ahora hay un botón que lo dice, al final de la fila. */}
-                        <td className="whitespace-nowrap px-4 py-3 font-medium">
-                          {formatDate(d.fecha)}
-                        </td>
-                        <td className="px-4 py-3 text-muted">{d.conductorNombre}</td>
-                        {/* De cuándo a cuándo salió la ruta. Reemplaza a la
-                            lista de horas de cada entrega: con la ruta hecha de
-                            corrido, ese par es todo lo que dice algo. */}
-                        <td className="whitespace-nowrap px-4 py-3 text-xs text-muted">
-                          {enCurso(d) ? (
-                            <Badge tone="amber">En curso</Badge>
-                          ) : d.diaTrabajo?.inicio && d.diaTrabajo.cerrada_en ? (
-                            <span className="tabular-nums">
-                              {formatTime(d.diaTrabajo.inicio)} – {formatTime(d.diaTrabajo.cerrada_en)}
-                            </span>
-                          ) : (
-                            "—"
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-right tabular-nums">
-                          {formatNumber(d.conteo.entregados)}
-                        </td>
-                        <td className="px-4 py-3 text-right tabular-nums text-muted">
-                          {d.conteo.omitidos > 0 ? formatNumber(d.conteo.omitidos) : "—"}
-                        </td>
-                        {/* Un guion y no un $0: que un día no tenga cifras no
-                            significa que no valga nada, significa que no se
-                            pudo calcular. Un cero ahí sería una afirmación. */}
-                        <td className="px-4 py-3 text-right tabular-nums text-ok">
-                          {d.cifras ? formatCLP(d.cifras.ingresos_totales) : "—"}
-                        </td>
-                        <td
-                          className="px-4 py-3 text-right font-semibold tabular-nums"
-                          title={
-                            d.cifras
-                              ? `Por pedidos ${formatCLP(d.cifras.pago_base)} · por día ${formatCLP(d.cifras.pago_dia)} · bono ${formatCLP(d.cifras.pago_bono)}`
-                              : undefined
-                          }
-                        >
-                          {d.cifras ? (
-                            formatCLP(d.cifras.pago_total)
-                          ) : enCurso(d) ? (
-                            // No es un problema: la ruta todavía está pasando y
-                            // se cuenta cuando termine.
-                            <span className="font-normal text-muted">Al terminar</span>
-                          ) : (
-                            <Badge tone="red">
-                              {d.conductorId ? "Sin regla" : "Sin conductor"}
-                            </Badge>
-                          )}
-                        </td>
-                        {/* Lo que deja el día: ingreso estimado menos lo que se
-                            le paga al conductor (spec 006, US3). */}
-                        <td className="px-4 py-3 text-right tabular-nums">
-                          {d.cifras ? formatCLP(d.cifras.ingresos_totales - d.cifras.pago_total) : "—"}
-                        </td>
-                        {/* Lo único que queda por distinguir del día es de dónde
-                            salieron sus números: un día del teléfono son
-                            entregas con hora, uno de oficina son cifras que
-                            alguien recordó. Paga igual, pero no prueba lo
-                            mismo. */}
-                        <td className="px-4 py-3">
-                          {d.manuales === 0 ? (
-                            <Badge tone="blue">Teléfono</Badge>
-                          ) : d.manuales === d.total ? (
-                            <Badge tone="violet">Oficina</Badge>
-                          ) : (
-                            <Badge tone="amber">Mixto</Badge>
-                          )}
-                        </td>
-                        {/* Va a la misma vista a la que llevaba la fecha, que
-                            es donde se corrige un día: recalcularlo con otra
-                            tarifa o borrarle la carga manual. */}
-                        <td className="px-4 py-3">
-                          <Link
-                            href={`/encomiendas/dia?fecha=${d.fecha}`}
-                            title={`Editar el ${formatDate(d.fecha)}`}
-                            aria-label={`Editar el día ${formatDate(d.fecha)}`}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-separator bg-white text-muted transition-colors hover:border-brand/40 hover:bg-brand-soft hover:text-brand"
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Link>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Card>
+        <TablaDias
+          dias={dias}
+          conductores={conductoresEncomiendas}
+          errorConductores={errorConductores?.message ?? null}
+          regla={regla}
+        />
 
-        <Card className="overflow-hidden">
-          <CardHeader>
-            <CardTitle>Por conductor</CardTitle>
-          </CardHeader>
-          {porConductor.length === 0 ? (
-            <CardBody>
-              <Vacio titulo="Sin actividad en el periodo." icono={<Truck className="h-7 w-7" />} />
-            </CardBody>
-          ) : (
-            <div className="divide-y divide-border">
-              {porConductor.map((c) => (
-                <div key={c.nombre} className="px-5 py-4">
-                  <p className="font-medium">{c.nombre}</p>
-                  <dl className="mt-2 space-y-1 text-sm">
-                    <div className="flex justify-between">
-                      <dt className="text-muted">Días trabajados</dt>
-                      <dd className="tabular-nums">{formatNumber(c.diasTrabajados)}</dd>
-                    </div>
-                    <div className="flex justify-between">
-                      <dt className="text-muted">Pedidos entregados</dt>
-                      <dd className="tabular-nums">{formatNumber(c.entregados)}</dd>
-                    </div>
-                    <div className="flex justify-between">
-                      <dt className="text-muted">Ingresos generados</dt>
-                      <dd className="tabular-nums text-ok">{formatCLP(c.ingresos)}</dd>
-                    </div>
-                    <div className="flex justify-between border-t border-divider pt-1.5">
-                      <dt className="font-medium">Total a pagar</dt>
-                      <dd className="font-semibold tabular-nums">{formatCLP(c.pago)}</dd>
-                    </div>
-                  </dl>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
+        <TablaConductores porConductor={porConductor} />
       </div>
     </div>
   );

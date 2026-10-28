@@ -38,7 +38,6 @@ const EXC_A7 = [
   "app/(conductor)/conductor/encomiendas/_componentes/pedido-form-local.tsx",
   "app/(conductor)/conductor/encomiendas/_hooks/use-dia-trabajo.ts",
   "app/(app)/encomiendas/actions.ts",
-  "app/(app)/encomiendas/page.tsx",
   "app/(app)/encomiendas/agregar-dia.tsx",
   "app/(app)/encomiendas/actividad-dia.tsx",
   "app/(app)/conductores/conductor-panel.tsx",
