@@ -76,7 +76,7 @@ borra su excepción en `pruebas/arquitectura.test.mjs`.
 - [x] T043 [P] [US4] `specs/001/data-model.md` marcado como superado (2026-10-20)
 - [ ] T044 [P] [US4] `docs/ARQUITECTURA.md` y `docs/CLASES.md` con nombres y estructura finales
 - [ ] T045 [P] [US4] `README.md`, `AGENTS.md`, `mcp/README.md`, `pruebas/README.md` con rutas nuevas
-- [ ] T046 [P] [US4] `docs/DOCUMENTO-PRINCIPAL.md`: rol `conductor`
+- [x] T046 [P] [US4] `docs/DOCUMENTO-PRINCIPAL.md`: rol `conductor` (verificado 2026-10-27; la prueba A8 no encuentra "chofer")
 
 ## Phase 7: Polish
 

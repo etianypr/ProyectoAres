@@ -1,7 +1,7 @@
 # Pruebas
 
 ```bash
-npm test              # 486 pruebas, sin red ni base de datos (~34 s)
+npm test              # 664 pruebas, sin red ni base de datos (~40 s)
 npm run test:base     # el esquema de encomiendas contra la base real (solo lectura)
 npm run test:esquema  # el esquema completo contra los tipos de src/types/db.ts
 ```
@@ -60,6 +60,16 @@ No hay framework de pruebas: `node:test` viene con Node.
 | `lectura-servidor.test.mjs` | Spec 005: la lectura con IA contra un doble del `fetch` (no gasta): lo que sale a Claude (modelo, foto, salida estructurada, sin pensamiento, workspace) y que la respuesta pasa por las mismas reglas que el texto pegado; rechazo → foto ilegible. |
 | `base.mjs` | El esquema de encomiendas contra lo que el código da por hecho, y la cuenta del pago cruzada contra las cifras guardadas. |
 | `esquema.mjs` | Cada campo de cada `interface` de `src/types/db.ts` existe como columna. |
+| `ubicar-direcciones.test.mjs` | Spec 016: limpiar la consulta, el catálogo de calles de Arica con tipeo acotado, completar el número en la calle y Google como último recurso. |
+| `vision.test.mjs` | Spec 005: Google Cloud Vision lee el texto de la foto en el servidor; sin clave o sin respuesta, el teléfono sigue con lo suyo. |
+| `indicadores.test.mjs` | Spec 006: entregas sobre asignado, contactados, rendimiento y margen, y la comparación con el período anterior. |
+| `renombrado-conductor.test.mjs` | Spec 002: la migración 0006 renombra todo a "conductor" y lo verifica; la cola vieja del teléfono se sigue leyendo. |
+| `listo-para-terreno.test.mjs` | Spec 017, errores del flujo: fecha del día en el teléfono, deshacer solo lo retenido, OF distinta, día que se cierra, envío con un evento rechazado. |
+| `rutas-017.test.mjs` | Spec 017, rutas: la matriz de calles por bloques (caché, cupo mensual, par sin camino) y el optimizador con horarios (cumple los bloques, determinista, por partes). |
+| `sumar-a-ruta.test.mjs` | Spec 017, R4: "Dejar como pendiente" donde menos alarga a partir de 30 min, y sumar pedidos tardíos sin mover la parada activa. |
+| `direccion-ia.test.mjs` | Spec 018: la conversación con la IA, que las coordenadas salgan de un buscador y nunca de la IA, y que nada se aplique sin que el conductor confirme. |
+| `pantalla-conductor.test.mjs` | Spec 002: lo puro de la pantalla del conductor (en qué paso está la parada, las cifras de la lista). |
+| `panel-resumen.test.mjs` | Spec 002: las cifras del panel de encomiendas (días con sus cifras congeladas, cortes, por conductor, serie del gráfico). |
 
 Los dobles de `dobles/`:
 
@@ -139,7 +149,7 @@ credenciales. Lo que sí se prueba es el adaptador entero contra un doble, con l
 cuerpos reales que Meta manda. Lo demás se valida con el número real, en la fase de
 WhatsApp (`docs/WHATSAPP.md`).
 
-Y no cubren la pantalla: no hay pruebas de componentes de React en este proyecto.
+Y no cubren la pantalla: no hay pruebas de componentes de React en este proyecto (lo puro que salió de la pantalla sí: `pantalla-conductor`, `panel-resumen`).
 Lo que se protege es el dominio —el almacén local, la ruta, la cola, los
 contratos—, que es donde un error cuesta plata o pierde el trabajo del conductor.
 La pantalla se valida a mano con los escenarios del quickstart.
