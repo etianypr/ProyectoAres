@@ -1,87 +1,25 @@
 "use client";
 
-// Campo de dirección que OFRECE direcciones mientras se escribe, como el de
-// cualquier app que pide una dirección. Sirve para dos cosas a la vez:
+// Campo de dirección que OFRECE direcciones mientras se escribe: así se sabe ahí
+// mismo que existe, y se guardan las coordenadas de la puerta elegida en vez de
+// las que adivine después el geocodificador. Elegir no es obligatorio: sin señal
+// o sin token no aparecen sugerencias y se geocodifica el texto al guardar.
 //
-//   1. Saber ahí mismo que la dirección existe. Antes el conductor escribía
-//      "Chacabuco 1234", guardaba, y recién al armar la ruta aparecía el cartel
-//      "sin ubicar" — con el paquete ya en la camioneta.
-//   2. Guardar las coordenadas EXACTAS de la puerta que eligió, en vez de las
-//      que adivine el geocodificador después con el texto suelto.
-//
-// Elegir una sugerencia no es obligatorio: si el conductor escribe a mano y guarda,
-// todo sigue funcionando como antes (se geocodifica el texto al guardar). Sin
-// señal o sin token de Mapbox simplemente no aparecen sugerencias.
-//
-// ----------------------------------------------------------------------------
-// CADA RENGLÓN DICE CUÁNTO CONFIAR EN ÉL
-//
-// La lista no es solo un menú de opciones: es la única oportunidad de ver que
-// una coincidencia es mala ANTES de salir con el paquete. Por eso cada renglón
-// muestra de dónde salió, si el número coincide y qué precisión tiene:
-//
-//   sin número   es la calle, no la puerta: la parada queda a mitad de cuadra.
-//   otro número  el proveedor encontró la calle pero NO ese número, y devolvió
-//                otro. Es el caso más peligroso de todos, porque el renglón se
-//                ve perfectamente normal: dice la calle correcta y un número.
-//   poco preciso el resultado es un barrio o una ciudad, no un domicilio.
-//   OSM/Mapbox   de qué proveedor salió. Sirve para comprobar que una corrección
-//                hecha en OpenStreetMap ya está llegando a la app (Mapbox tarda
-//                lo suyo en incorporarlas, ver lib/geo/geocoding).
-//
-// Ninguna de esas marcas bloquea nada. El conductor conoce Arica mejor que los dos
-// proveedores juntos; lo que no puede es no enterarse.
-//
-// ----------------------------------------------------------------------------
-// EL NÚMERO SE BUSCA EN LA CALLE, AUNQUE EL NOMBRE VENGA A MEDIAS
-//
-// En la boleta dice "Linderos 3536" y la calle se llama "Avenida Linderos
-// Poniente". Los proveedores contestan la calle sin número y el 3536 se pierde.
-// Por eso hay una TERCERA búsqueda, después de las otras dos: si lo que se
-// escribió aparece entero —palabra por palabra— en el nombre de una calle,
-// el número se va a buscar ahí (ver completarNumeroEnCalles en lib/geo/geocoding).
-//
-// Lo que cambia en la lista: la puerta encontrada aparece arriba con su nombre
-// completo, y las calles que NO tienen ese número desaparecen. Si el número
-// existe en dos calles que se llaman igual (Linderos Poniente y Linderos
-// Oriente son dos avenidas), salen las dos y elige el conductor.
-//
-// ----------------------------------------------------------------------------
-// Y UNA VEZ ELEGIDA, SE VE EN EL MAPA
-//
-// Con la dirección ya elegida aparece debajo una estampilla del mapa con el
-// punto (ver mapa-punto.tsx). Es el último control antes de guardar, y el único
-// que no se puede hacer leyendo: dos direcciones distintas pueden escribirse
-// casi igual, pero se ven en esquinas distintas. Un texto correcto con el punto
-// puesto a tres cuadras se ve — y ahí mismo se corrige.
-//
-// El mapa aparece SOLO cuando hay coordenadas. Una dirección que el conductor dio
-// por buena a mano no tiene punto, y no se le dibuja ninguno: inventarle un mapa
-// a lo que nadie pudo ubicar sería exactamente la mentira que el aviso de "sin
-// ubicar" está tratando de evitar.
-//
-// Pero el ESPACIO se puede reservar desde el principio (prop reservarMapa): un
-// hueco del mismo tamaño, con su icono, que dice qué falta. Así la imagen no
-// aparece de golpe corriendo de lugar el botón de guardar, y de paso ese hueco
-// dice lo que antes había que escribir debajo del campo — "así queda ubicada en
-// el mapa" antes, "ubicada en el mapa" después—, que con el mapa a la vista era
-// repetir en palabras lo que ya se estaba viendo.
+// - Cada renglón dice cuánto confiar en él: de qué proveedor salió y si es "otro
+//   número" (el más peligroso: se ve normal y no es esa puerta), "sin número" o
+//   "poco preciso" (ver lista-sugerencias.tsx). Ninguna marca bloquea nada.
+// - El número se busca en la calle aunque el nombre venga a medias ("Linderos
+//   3536" → "Avenida Linderos Poniente 3536", ver completarNumeroEnCalles).
+// - Elegida, se ve en el mapa (mapa-punto.tsx), solo si hay coordenadas; el
+//   espacio se puede reservar desde el principio (prop reservarMapa).
 
 import { useEffect, useRef, useState } from "react";
-import { Check, Loader2, MapPin, SearchX } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { cn } from "@/lib/comun/utils";
 import { inputClass } from "@/components/ui/input";
 import { MapaPunto, MapaPuntoVacio } from "./mapa-punto";
-import {
-  aplicarPuertas,
-  combinarSugerencias,
-  completarNumeroEnCalles,
-  NOMBRE_FUENTE,
-  sugerirDirecciones,
-  sugerirEnOsm,
-  type PuertasEnCalles,
-  type SugerenciaDireccion,
-} from "@/lib/geo/geocoding";
+import { ListaSugerencias } from "./lista-sugerencias";
+import { aplicarPuertas, combinarSugerencias, completarNumeroEnCalles, sugerirDirecciones, sugerirEnOsm, type PuertasEnCalles, type SugerenciaDireccion } from "@/lib/geo/geocoding";
 import type { Coordenada } from "@/lib/geo/coordenada";
 
 // Lo que se espera desde la última tecla antes de consultar. Escribiendo una
@@ -104,23 +42,6 @@ const MIN_CARACTERES = 3;
 // El clic en una sugerencia llega DESPUÉS del blur del campo. Si la lista se
 // cerrara en el blur, el toque caería en el vacío y no elegiría nada.
 const MS_CIERRE_TRAS_BLUR = 150;
-
-/** Las marcas que le corresponden a una sugerencia, de la más grave a la menos.
- *
- *  Se calculan acá y no dentro del JSX para que el orden sea explícito: si un
- *  resultado tiene dos problemas, el conductor tiene que leer primero el que lo
- *  manda a otra cuadra. */
-function marcasDe(s: SugerenciaDireccion): { texto: string; grave: boolean }[] {
-  const marcas: { texto: string; grave: boolean }[] = [];
-
-  // El más peligroso primero: el renglón se ve normal —calle correcta, un número
-  // ahí puesto— y sin embargo ese número no existe en esa calle.
-  if (s.coincideNumero === false) marcas.push({ texto: "otro número", grave: true });
-  if (s.soloCalle) marcas.push({ texto: "sin número", grave: false });
-  if (s.confianza === "baja") marcas.push({ texto: "poco preciso", grave: false });
-
-  return marcas;
-}
 
 export function DireccionInput({
   value,
@@ -415,107 +336,27 @@ export function DireccionInput({
             afuera, la vista previa que ahora se dibuja abajo la empujaba lejos
             del campo, con un hueco de mapa en el medio. */}
         {mostrarLista ? (
-          <ul
-            ref={listaRef}
+          <ListaSugerencias
+            listaRef={listaRef}
             id={id ? `${id}_sugerencias` : undefined}
-            role="listbox"
-            className="absolute left-0 right-0 top-full z-30 mt-1 max-h-64 overflow-y-auto overflow-x-hidden rounded-xl border border-separator bg-white py-1 shadow-[0_8px_24px_rgba(0,0,0,0.14)]"
-          >
-            {lista.map((s, i) => (
-              <li key={s.id} role="option" aria-selected={i === resaltada}>
-                <button
-                  type="button"
-                  // El blur del campo llega antes que el clic: con el mouse esto
-                  // evita que el campo lo pierda; en el teléfono lo cubre la
-                  // espera de MS_CIERRE_TRAS_BLUR.
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => elegir(s)}
-                  onMouseEnter={() => setResaltada(i)}
-                  className={cn(
-                    "flex w-full items-start gap-2.5 px-3 py-2.5 text-left transition-colors",
-                    i === resaltada ? "bg-brand-soft" : "bg-white",
-                  )}
-                >
-                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium leading-tight">
-                      {s.direccion}
-                    </span>
-                    <span className="flex items-center gap-1.5 text-xs text-muted">
-                      {s.detalle ? <span className="min-w-0 truncate">{s.detalle}</span> : null}
-                      {/* De qué proveedor salió, SIEMPRE y no solo en OSM: saber
-                          que una dirección la resolvió Mapbox y la otra
-                          OpenStreetMap es lo que explica por qué una trae número y
-                          la otra no. El nombre sale de NOMBRE_FUENTE y no de un
-                          ternario acá: el `else` etiquetaba como "Mapbox" todo lo
-                          que no fuera OSM. */}
-                      <span className="shrink-0 rounded bg-background px-1 text-[10px] font-semibold uppercase tracking-wide text-muted">
-                        {NOMBRE_FUENTE[s.fuente]}
-                      </span>
-                    </span>
-                  </span>
-                  {/* Las marcas de calidad. Van a la derecha, donde el pulgar no
-                      las tapa al recorrer la lista. */}
-                  {marcasDe(s).map((m) => (
-                    <span
-                      key={m.texto}
-                      className={cn(
-                        "mt-0.5 shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
-                        m.grave ? "bg-danger-bg text-danger" : "bg-warn-bg text-warn",
-                      )}
-                    >
-                      {m.texto}
-                    </span>
-                  ))}
-                </button>
-              </li>
-            ))}
-  
-            {buscandoAhora && lista.length === 0 ? (
-              <li className="px-3 py-2.5 text-xs text-muted">Buscando direcciones…</li>
-            ) : null}
-  
-            {sinResultados ? (
-              <li>
-                <p className="flex items-center gap-2 px-3 py-2.5 text-xs text-muted">
-                  <SearchX className="h-3.5 w-3.5 shrink-0" />
-                  No encontramos esa dirección.
-                </p>
-                {onConfirmarManual ? (
-                  <button
-                    type="button"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => {
-                      onConfirmarManual(consulta);
-                      setElegido({ texto: consulta, punto: null });
-                      setAbierta(false);
-                      inputRef.current?.blur();
-                    }}
-                    className="flex w-full items-start gap-2 border-t border-separator px-3 py-2.5 text-left transition-colors active:bg-background"
-                  >
-                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-warn" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium leading-tight">
-                        Usar &laquo;{consulta}&raquo; tal como está
-                      </span>
-                      {/* Antes decía "hay que marcar el punto a mano" y ese
-                          flujo no existía en ninguna parte: era una promesa que
-                          la pantalla no podía cumplir. Ahora hay dos caminos y
-                          los dos están a un toque, así que se nombran. */}
-                      <span className="block text-xs text-muted">
-                        Queda sin ubicar. Para ubicarla: &laquo;Estoy en la puerta&raquo;, o pega
-                        su Plus Code acá.
-                      </span>
-                    </span>
-                  </button>
-                ) : (
-                  <p className="px-3 pb-2.5 text-xs text-muted">
-                    Puedes guardarla igual y corregirla después.
-                  </p>
-                )}
-              </li>
-            ) : null}
-          </ul>
+            lista={lista}
+            resaltada={resaltada}
+            onResaltar={setResaltada}
+            onElegir={elegir}
+            buscando={buscandoAhora}
+            sinResultados={sinResultados}
+            consulta={consulta}
+            onUsarTalCual={
+              onConfirmarManual
+                ? () => {
+                    onConfirmarManual(consulta);
+                    setElegido({ texto: consulta, punto: null });
+                    setAbierta(false);
+                    inputRef.current?.blur();
+                  }
+                : null
+            }
+          />
         ) : null}
       </div>
 

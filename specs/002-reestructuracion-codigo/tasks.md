@@ -68,8 +68,8 @@ borra su excepción en `pruebas/arquitectura.test.mjs`.
 - [x] T038 [P] [US3] `_mapa/ruta-mapa.tsx` → `tipos`, `estilo`, `camara`, `marcadores-dom`, `use-camara` (`useCamaraNavegacion`), `use-marcador-conductor`. 904 → 392 líneas; sale de A7. Hecho (2026-10-27)
 - [x] T039 [P] [US3] `(app)/encomiendas/page.tsx` → `_resumen.ts` (`armarDias`, `serieDelPeriodo`, `resumirPeriodos`, `resumenPorConductor`; pruebas en `pruebas/panel-resumen.test.mjs`) y `_componentes/{tabla-dias,tabla-conductores}`. 691 → 371 líneas; sale de A7. Las consultas siguen en la página. Hecho (2026-10-27)
 - [x] T040 [P] [US3] `(app)/encomiendas/actions.ts` → `_tarifa.ts` (`server-only`) + `actions/{dia-manual,regla-pago,periodos}.ts`; los formularios importan de ahí. Sale de A7. Hecho (2026-10-27)
-- [ ] T041 [US3] Dividir o excepcionar `use-dia-trabajo.ts`, `pedido-form-local.tsx` (lo adelanta 003-T009), `direccion-input.tsx`, `actividad-dia.tsx`, `agregar-dia.tsx`, `conductor-panel.tsx`; condensar comentarios narrativos al dividir
-- [ ] T042 [US3] Vaciar excepciones A7
+- [x] T041 [US3] Divididos (2026-10-27): `use-dia-trabajo` (→ `use-whatsapp-dia`, `dia-trabajo-tipos`), `direccion-input` (→ `lista-sugerencias`, cabecera condensada), `actividad-dia`, `agregar-dia`, `conductor-panel` (sus diálogos a archivos propios). `pedido-form-local` baja a 572 (→ `resolver-direccion`) y queda como excepción: estados entrelazados del formulario más usado en terreno; se parte después de la prueba en terreno al dividir
+- [ ] T042 [US3] Vaciar excepciones A7 — queda solo `pedido-form-local.tsx` (ver T041)
 
 ## Phase 6: US4 - Documentación igual al código (P3)
 
