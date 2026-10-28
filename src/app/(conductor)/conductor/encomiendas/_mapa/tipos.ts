@@ -8,6 +8,8 @@ export type PuntoMapa = {
   lat: number;
   lng: number;
   label: string;
+  /** La dirección: es lo que dice el globo al tocar el número. */
+  direccion: string;
   activa: boolean;
   completada: boolean;
 };

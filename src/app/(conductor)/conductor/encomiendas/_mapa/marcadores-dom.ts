@@ -92,6 +92,20 @@ export function colorPunto(p: PuntoMapa, previa: boolean): string {
   return "#6e6e73";
 }
 
+/** Largo del globo: la dirección corta, en una o dos líneas. */
+const LARGO_GLOBO = 48;
+
+/** El globo que sale al tocar un número: "3 · GINEBRA 4081". Va como texto,
+ *  no como HTML: la dirección viene de la guía. */
+export function contenidoGlobo(p: PuntoMapa): HTMLElement {
+  const d = p.direccion.trim();
+  const corta = d.length > LARGO_GLOBO ? `${d.slice(0, LARGO_GLOBO).replace(/\s+\S*$/, "")}…` : d;
+  const el = document.createElement("div");
+  el.style.cssText = "font-size:14px;font-weight:600;line-height:1.3;color:#1c1c1e";
+  el.textContent = corta ? `${p.label} · ${corta}` : p.label;
+  return el;
+}
+
 export function elementoParada(p: PuntoMapa, previa = false): HTMLElement {
   const el = document.createElement("div");
   el.style.cssText = `background:${colorPunto(p, previa)};color:#fff;border-radius:9999px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.4)`;

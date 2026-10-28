@@ -140,11 +140,11 @@ export function VistaPreviaRuta({
           <span className="rounded-full bg-brand-soft px-2.5 py-1 font-semibold tabular-nums text-brand">
             {formatDistancia(distanciaM)}
           </span>
-          <span className="rounded-full bg-brand-soft px-2.5 py-1 font-semibold tabular-nums text-brand">
+          {/* El tiempo de ruta, con su reloj (terreno 2026-10-28). Es manejando,
+              sin las entregas: lo dice la Ayuda, no la pantalla. */}
+          <span className="flex items-center gap-1.5 rounded-full bg-brand-soft px-2.5 py-1 font-semibold tabular-nums text-brand">
+            <Clock className="h-4 w-4" aria-label="Tiempo de ruta" />
             {formatDuracion(duracionS)}
-          </span>
-          <span className="min-w-0 flex-1 truncate text-xs text-muted">
-            manejando, sin contar las entregas
           </span>
         </div>
       ) : null}
