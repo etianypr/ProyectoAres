@@ -37,9 +37,6 @@ const EXC_A6 = [];
 const EXC_A7 = [
   "app/(conductor)/conductor/encomiendas/_componentes/pedido-form-local.tsx",
   "app/(conductor)/conductor/encomiendas/_hooks/use-dia-trabajo.ts",
-  "app/(app)/encomiendas/agregar-dia.tsx",
-  "app/(app)/encomiendas/actividad-dia.tsx",
-  "app/(app)/conductores/conductor-panel.tsx",
   "components/direccion/direccion-input.tsx",
 ];
 /** A9: ciclos entre carpetas de lib (como "a>b"). */
