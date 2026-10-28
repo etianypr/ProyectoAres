@@ -83,11 +83,22 @@ type ConfigMeta = {
   idioma: string;
 };
 
+/** Pausa de los avisos, puesta por el dueño (terreno 2026-10-28): se prueba con
+ *  etiquetas reales y un pedido de prueba con teléfono no puede terminar en un
+ *  WhatsApp a un cliente de verdad. Con la pausa el servidor se comporta como
+ *  sin WhatsApp configurado: no sale ningún aviso ni se consultan respuestas.
+ *  Pausado salvo que el entorno diga WHATSAPP_EN_PAUSA=no: para reactivar se
+ *  carga esa variable en Vercel (o se cambia acá y se publica). */
+export function whatsappEnPausa(): boolean {
+  return process.env.WHATSAPP_EN_PAUSA !== "no";
+}
+
 /** Lee la configuración del entorno. Devuelve null —y no lanza— cuando falta
  *  algo: la app tiene que poder funcionar sin WhatsApp configurado. Es la
  *  situación normal en desarrollo, y el conductor sigue repartiendo igual;
  *  simplemente no se manda ningún aviso y la pantalla lo dice. */
 export function configMeta(): ConfigMeta | null {
+  if (whatsappEnPausa()) return null;
   const token = process.env.WHATSAPP_TOKEN;
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
   if (!token || !phoneNumberId) return null;

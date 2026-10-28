@@ -6,8 +6,12 @@ Lo que la app necesita de Meta y de Supabase para el aviso al receptor (spec 010
 
 **Estado (2026-10-24): en pausa.** Falta el número propio (chip) y el token de Meta. Sin
 `WHATSAPP_TOKEN` y `WHATSAPP_PHONE_NUMBER_ID` la app funciona **sin WhatsApp** (spec 013): no
-manda avisos ni consulta respuestas, y el conductor llama. Al cargar las variables en Vercel y
-volver a publicar, los avisos se activan solos.
+manda avisos ni consulta respuestas, y el conductor llama.
+
+**Pausa (2026-10-28):** además, los avisos están pausados en el código mientras se prueba con
+etiquetas reales: un pedido de prueba con teléfono no puede terminar en un WhatsApp a un cliente
+de verdad. Con la pausa el servidor se comporta como sin WhatsApp. Para reactivar, cargar
+`WHATSAPP_EN_PAUSA=no` en Vercel (además del token y el número) y volver a publicar.
 
 ## Plantilla del aviso
 
@@ -82,4 +86,5 @@ del antiguo "No podré recibirlo". El código anterior lo lee como rechazo; el n
 `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_BUSINESS_ACCOUNT_ID`,
 `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET`, `WHATSAPP_PLANTILLA_AVISO`,
 `WHATSAPP_PLANTILLA_IDIOMA`. Descripción de cada una en `.env.example`. Sin ellas la app
-funciona igual: no sale ningún aviso y todos quedan "sin respuesta".
+funciona igual: no sale ningún aviso y todos quedan "sin respuesta". `WHATSAPP_EN_PAUSA`: sin
+ella (o con cualquier valor que no sea `no`), los avisos quedan en pausa.

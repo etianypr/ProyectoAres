@@ -51,6 +51,8 @@ const AVISO = {
 };
 
 test.before(() => {
+  // Estas pruebas son del envío: con la pausa puesta no saldría nada.
+  process.env.WHATSAPP_EN_PAUSA = "no";
   process.env.WHATSAPP_TOKEN = "EAAG-token-de-prueba";
   process.env.WHATSAPP_PHONE_NUMBER_ID = "PNID_1";
   process.env.WHATSAPP_PLANTILLA_AVISO = "aviso_encomienda";
@@ -74,6 +76,21 @@ test("con token y número, WhatsApp está activo para la pantalla del conductor"
     assert.equal(whatsappActivo(), false, "sin número no hay desde dónde mandar");
   } finally {
     process.env.WHATSAPP_PHONE_NUMBER_ID = numero;
+  }
+});
+
+test("en pausa no se manda nada aunque haya token, y la pantalla no avisa ni consulta", async () => {
+  // Terreno 2026-10-28: se prueba con etiquetas reales; un pedido de prueba con
+  // teléfono no puede terminar en un WhatsApp a un cliente de verdad.
+  delete process.env.WHATSAPP_EN_PAUSA;
+  try {
+    assert.equal(configMeta(), null);
+    assert.equal(whatsappActivo(), false);
+    const r = await enviarAvisoDisponibilidad(AVISO, yaMismo);
+    assert.equal(r.ok, false);
+    assert.equal(meta.llamadas.length, 0, "salió un aviso con la pausa puesta");
+  } finally {
+    process.env.WHATSAPP_EN_PAUSA = "no";
   }
 });
 
