@@ -10,32 +10,13 @@
 // crecer con ella.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  borrarPedido,
-  cerrarDia,
-  purgarFotosCerradas,
-  deshacerResultado,
-  leerPedidos,
-  leerRuta,
-  marcarResultado,
-  marcarLlamada,
-  pedidosEnOrden,
-  restaurarPedido,
-  rutaTerminada,
-  type PedidoEliminado,
-  type Pedido,
-  type Ruta,
-} from "@/lib/encomiendas/local/almacen";
+import { borrarPedido, cerrarDia, purgarFotosCerradas, deshacerResultado, leerPedidos, leerRuta, marcarResultado, marcarLlamada, pedidosEnOrden, restaurarPedido, rutaTerminada, type PedidoEliminado, type Pedido, type Ruta } from "@/lib/encomiendas/local/almacen";
 import { estaConfirmado, type ResultadoMarcable } from "@/lib/encomiendas/estados";
-import { replanificarRuta } from "@/lib/encomiendas/local/replanificar";
+
 import { dejarParaMasTarde, sumarALaRuta } from "@/lib/encomiendas/local/sumar-a-ruta";
 import { useEnvioActividad } from "@/lib/encomiendas/local/enviar";
-import {
-  pedidosSinAviso,
-  pedirAviso,
-  pedirListaHorarios,
-  sincronizarDisponibilidad,
-} from "@/lib/encomiendas/local/sincronizar-whatsapp";
+import type { DiaEnCurso, Parada } from "./dia-trabajo-tipos";
+import { useWhatsappDia } from "./use-whatsapp-dia";
 
 /** Cuánto tiempo se puede deshacer lo que se acaba de marcar. Mientras dure, el
  *  evento no sale del teléfono (ver marcarResultado) y el día no se cierra:
@@ -45,102 +26,8 @@ import {
  *  que la entrega quede colgada tanto como para dudar de si se registró. */
 export const MS_DESHACER = 8_000;
 
-/** Cada cuánto se le pregunta al servidor si llegaron respuestas de WhatsApp.
- *
- *  Más seguido que el reintento de la cola de actividad (60 s, ver enviar.ts) y
- *  a propósito: los eventos de actividad solo tienen que llegar en algún momento,
- *  mientras que acá el conductor está ESPERANDO la respuesta para decidir el orden
- *  de la ruta. Medio minuto es lo que tarda en volver a mirar el teléfono
- *  después de cargar un pedido.
- *
- *  El sondeo existe porque las respuestas hay que ir a buscarlas: un aviso
- *  empujado mientras el teléfono no escucha se pierde y el receptor no lo repite
- *  (ver docs/WHATSAPP.md, Diseño). */
-const MS_SONDEO_WHATSAPP = 30_000;
-
-/** Un pedido de la ruta listo para mostrar: su lugar en el recorrido y si hay
- *  que contactarlo. La llamada y el resultado están en el pedido. */
-export type Parada = {
-  /** Orden de visita, empezando en 1. */
-  secuencia: number;
-  pedido: Pedido;
-  /** Si hay que contactar al receptor antes de llegar: no contestó el WhatsApp
-   *  y tampoco se lo llamó todavía. Es lo que dispara el aviso de aproximación
-   *  (FR-017). */
-  hayQueContactar: boolean;
-};
-
-export type DiaEnCurso = {
-  /** Todavía no se sabe qué hay guardado para esta fecha. */
-  cargando: boolean;
-  /** El teléfono no pudo entregar lo guardado (modo privado, sin espacio). */
-  error: string | null;
-  ruta: Ruta | null;
-  pedidos: Pedido[];
-  /** Los pedidos de la ruta, en orden de visita. */
-  paradas: Parada[];
-  /** La primera pendiente: a la que hay que ir ahora. */
-  activa: Parada | null;
-  /** Cuántas entregas quedaron guardadas sin llegar al servidor. */
-  sinEnviar: number;
-  /** Último fallo del envío (spec 017, E8). */
-  errorEnvio: string | null;
-  /** Registros que el servidor rechazó y quedaron aparte. */
-  rechazados: number;
-  enviando: boolean;
-  intentar: () => void;
-  recargar: () => Promise<void>;
-  /** Último fallo de WhatsApp, mostrable. No es una alarma: el sondeo reintenta
-   *  solo y el conductor siempre puede llamar. */
-  errorWhatsapp: string | null;
-  /** true mientras hay un envío o una sincronización en vuelo. */
-  avisando: boolean;
-  /** Manda el aviso a los pedidos que entraron en la ruta y todavía no lo
-   *  tienen. Se llama al confirmar una ruta (FR-007). */
-  avisarPedidos: (pedidoIds: string[]) => Promise<void>;
-  marcarLlamada: (pedidoId: string, resultado: "contesto" | "no_contesto") => Promise<void>;
-  /** Cierra una parada con uno de los cuatro resultados y devuelve el
-   *  identificador para deshacerla, o null si ya estaba cerrada (o si el toque
-   *  llegó mientras el anterior estaba en vuelo).
-   *
-   *  El evento queda retenido MS_DESHACER; hasta que venza, ni sale al servidor
-   *  ni se cierra el día. */
-  marcarResultado: (pedidoId: string, resultado: ResultadoMarcable) => Promise<string | null>;
-  /** Lo que las respuestas de WhatsApp le cambiaron a la ruta en curso, para
-   *  avisarle al conductor ("Ana pidió mañana", "Pedro pasa a la parada 7"). */
-  cambiosRuta: string[];
-  /** Saca de `cambiosRuta` el aviso más viejo: el conductor ya lo leyó. */
-  vistoCambioRuta: () => void;
-  /** null = se puede cerrar el día. Si no, el motivo, mostrable. */
-  motivoNoCerrar: string | null;
-  /** Reabre la parada y borra su evento. Solo funciona dentro de la ventana. */
-  /** false = ya no se podía (el evento había salido o estaba saliendo). */
-  deshacer: (pedidoId: string, eventoId: string) => Promise<boolean>;
-  /** La parada sigue pendiente y se reintenta más tarde: donde menos alarga,
-   *  al menos media hora más adelante (spec 017, R4). Devuelve en qué lugar de lo
-   *  pendiente quedó, o null si fue al final. */
-  dejarParaElFinal: (pedidoId: string) => Promise<number | null>;
-  /** Suma a la ruta en curso los pedidos de afuera que tienen punto, donde
-   *  menos alargan (spec 017, R4). Devuelve cuántos entraron. */
-  sumarALaRuta: () => Promise<number>;
-  /** Saca un pedido del teléfono —esté en la ruta o fuera de ella— y devuelve el
-   *  recibo para volver a ponerlo, o null si ya no estaba.
-   *
-   *  A diferencia de marcar una entrega, esto NO se retiene: se escribe de una,
-   *  y arrepentirse es restaurar (ver restaurar). Retenerlo dejaría la pantalla
-   *  mostrando ocho segundos un pedido que el conductor ya vio salir volando, y la
-   *  ruta contándolo.
-   *
-   *  Nada de esto sale al servidor: los pedidos del día viven solo en el
-   *  teléfono, y los eventos ya marcados se quedan en la cola tal como estaban
-   *  (ver borrarPedido). */
-  eliminarPedido: (pedidoId: string) => Promise<PedidoEliminado | null>;
-  /** Vuelve a poner lo que devolvió eliminarPedido, en su lugar de la ruta. */
-  restaurar: (eliminado: PedidoEliminado) => Promise<void>;
-  /** Vencida la ventana de deshacer: cierra el día si ya no queda nada
-   *  pendiente y manda lo que estaba retenido. */
-  confirmar: () => Promise<void>;
-};
+// Parada y DiaEnCurso viven en dia-trabajo-tipos.ts (spec 002 T041).
+export type { DiaEnCurso, Parada } from "./dia-trabajo-tipos";
 
 export function useDiaTrabajo({
   conductorId,
@@ -171,13 +58,8 @@ export function useDiaTrabajo({
     rechazados,
   } = useEnvioActividad(true, conductorId, fecha);
 
-  const [errorWhatsapp, setErrorWhatsapp] = useState<string | null>(null);
-  const [cambiosRuta, setCambiosRuta] = useState<string[]>([]);
-  const [avisando, setAvisando] = useState(false);
-  // Sin este candado, el sondeo periódico y el disparado por volver a la app
-  // mandarían el mismo lote dos veces en paralelo — el mismo problema que ya
-  // resuelve enVueloRef en la cola de actividad.
-  const whatsappEnVueloRef = useRef(false);
+  // WhatsApp: avisos, respuestas y el sondeo (ver use-whatsapp-dia.ts). Se
+  // engancha más abajo, cuando ya existen recargar y confirmar.
 
   // ------------------------------------------------------------------------
   // Doble toque
@@ -375,129 +257,13 @@ export function useDiaTrabajo({
   // WhatsApp
   // ------------------------------------------------------------------------
 
-  /** Manda los avisos que falten de una lista de pedidos.
-   *
-   *  Filtra por `pedidosSinAviso` antes de mandar: al receptor le llegaría el
-   *  mismo mensaje dos veces, y rehacer la ruta a media mañana vuelve a pasar por
-   *  acá con los mismos pedidos. El servidor tiene la misma comprobación —es la
-   *  que de verdad garantiza el "una sola vez"—, pero preguntar acá primero
-   *  ahorra una consulta por pedido ya avisado.
-   *
-   *  Va de a uno y en serie: son consultas al servidor que a su vez llama a Meta,
-   *  y treinta en paralelo con una conexión mala es la forma de que fallen todas. */
-  const avisarPedidos = useCallback(
-    async (pedidoIds: string[]) => {
-      if (!whatsapp || pedidoIds.length === 0) return;
-      setAvisando(true);
-      try {
-        // Se relee del teléfono: el estado de React puede no tener el último aviso.
-        const ids = new Set(pedidoIds);
-        const faltantes = pedidosSinAviso((await leerPedidos(fecha)).filter((p) => ids.has(p.id)));
-
-        let ultimoError: string | null = null;
-        for (const pedido of faltantes) {
-          const fallo = await pedirAviso(pedido, fecha);
-          // Se sigue con los demás: que un número esté mal no puede dejar sin
-          // aviso a los otros veintinueve receptores.
-          if (fallo) ultimoError = fallo.error;
-        }
-
-        setErrorWhatsapp(ultimoError);
-        await recargar();
-      } finally {
-        setAvisando(false);
-      }
-    },
-    [fecha, recargar, whatsapp],
-  );
-
-  /** Baja las respuestas, las aplica, manda las listas de horarios que hagan
-   *  falta y reintenta los avisos que no salieron. Es el paso 3-5 del flujo
-   *  descrito en local/sincronizar-whatsapp.ts.
-   *
-   *  El reintento vive ACÁ y no en un botón porque el estado de los avisos no es
-   *  trabajo del conductor: él ve, por parada, si al receptor hay que llamarlo
-   *  (Parada.hayQueContactar), y que el mensaje saliera al primer intento o
-   *  al tercero no cambia nada de lo que hace en la puerta. Antes había una
-   *  sección entera con contadores y un botón de reintentar por pedido, y lo que
-   *  el conductor hacía con eso era tocar reintentar hasta que el número cambiara de
-   *  color.
-   *
-   *  No insiste para siempre: `pedidosSinAviso` descarta los que ya tienen aviso
-   *  —al receptor no le puede llegar dos veces— y los que agotaron los intentos
-   *  (MAX_INTENTOS_AVISO), que es el caso del número mal escrito. */
-  const sincronizarWhatsapp = useCallback(async () => {
-    if (whatsappEnVueloRef.current) return;
-    whatsappEnVueloRef.current = true;
-    try {
-      const r = await sincronizarDisponibilidad(conductorId);
-      setErrorWhatsapp(r.error);
-
-      // "Mañana" o un bloque elegido: la ruta en curso se reordena sola y el
-      // conductor se entera por un aviso (spec 010).
-      if (r.cambios.length > 0) {
-        const avisos = await replanificarRuta(fecha, r.cambios);
-        if (avisos.length > 0) setCambiosRuta((previos) => [...previos, ...avisos]);
-        // Un "Mañana" pudo cerrar la última parada pendiente: el día se cierra
-        // igual que al marcarla a mano (spec 017, E7).
-        await confirmar();
-      }
-
-      // Los que tocaron "indicar un horario" necesitan el segundo mensaje: la
-      // lista con los bloques. Recién ahora se puede mandar, porque tocar el
-      // botón fue lo que abrió la ventana de 24 h (ver la Decisión 8).
-      if (r.pedirHorarios.length > 0) {
-        const guardados = await leerPedidos(fecha);
-        const porId = new Map(guardados.map((p) => [p.id, p] as const));
-        for (const id of r.pedirHorarios) {
-          const pedido = porId.get(id);
-          if (pedido) await pedirListaHorarios(pedido, fecha);
-        }
-      }
-
-      // Los avisos que quedaron sin salir. La ruta se lee del teléfono en vez de
-      // usar el estado del hook para no meter `ruta` en las dependencias: sería
-      // reiniciar el sondeo con cada recarga.
-      const ruta = await leerRuta(fecha);
-      const enRuta = new Set(ruta?.orden ?? []);
-      const faltantes = pedidosSinAviso(
-        (await leerPedidos(fecha)).filter((p) => enRuta.has(p.id) && p.resultado === "pendiente"),
-      );
-      // De a uno y en serie, por lo mismo que avisarPedidos: son consultas que a
-      // su vez llaman a Meta.
-      for (const pedido of faltantes) await pedirAviso(pedido, fecha);
-
-      if (r.aplicadas > 0 || r.pedirHorarios.length > 0 || faltantes.length > 0) {
-        await recargar();
-      }
-    } catch (e) {
-      // Sin esto el rechazo quedaba sin manejar (spec 017, E12).
-      setErrorWhatsapp(e instanceof Error ? e.message : "No se pudo revisar WhatsApp.");
-    } finally {
-      whatsappEnVueloRef.current = false;
-    }
-  }, [fecha, conductorId, recargar, confirmar]);
-
-  const vistoCambioRuta = useCallback(() => setCambiosRuta((previos) => previos.slice(1)), []);
-
-  // Mismo patrón que la cola de actividad: al montar, al volver la conexión, al
-  // volver a la app, y cada medio minuto. El conductor no tiene que apretar nada
-  // para enterarse de que un receptor contestó.
-  useEffect(() => {
-    if (!whatsapp) return;
-    const alVolver = () => void sincronizarWhatsapp();
-    const primera = window.setTimeout(alVolver, 0);
-    window.addEventListener("online", alVolver);
-    document.addEventListener("visibilitychange", alVolver);
-    const sondeo = setInterval(alVolver, MS_SONDEO_WHATSAPP);
-
-    return () => {
-      window.removeEventListener("online", alVolver);
-      document.removeEventListener("visibilitychange", alVolver);
-      clearInterval(sondeo);
-      clearTimeout(primera);
-    };
-  }, [sincronizarWhatsapp, whatsapp]);
+  const { errorWhatsapp, cambiosRuta, avisando, avisarPedidos, vistoCambioRuta } = useWhatsappDia({
+    whatsapp,
+    conductorId,
+    fecha,
+    recargar,
+    confirmar,
+  });
 
   // La ruta guarda el orden de visita (lo cerrado primero, ver guardarRuta), así
   // que el número de orden es la posición en la lista. Un pedido borrado a mano

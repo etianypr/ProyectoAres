@@ -36,7 +36,6 @@ const EXC_A6 = [];
 /** A7: archivos de más de 400 líneas (spec 002, US3). */
 const EXC_A7 = [
   "app/(conductor)/conductor/encomiendas/_componentes/pedido-form-local.tsx",
-  "app/(conductor)/conductor/encomiendas/_hooks/use-dia-trabajo.ts",
   "components/direccion/direccion-input.tsx",
 ];
 /** A9: ciclos entre carpetas de lib (como "a>b"). */
