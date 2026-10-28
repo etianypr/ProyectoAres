@@ -24,7 +24,6 @@ export default async function LoginPage({
         <div className="animate-slide-up mb-6 flex flex-col items-center text-center">
           <LogoDashund className="mb-3 h-20 w-20" titulo="" />
           <h1 className="text-2xl font-extrabold tracking-tight">ARES</h1>
-          <p className="text-sm text-[#6b5f57]">Gestión de encomiendas · por Dashund</p>
         </div>
 
         <div className="animate-scale-in rounded-2xl bg-card p-6 shadow-xl [animation-delay:80ms]">

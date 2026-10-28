@@ -34,7 +34,6 @@ import { LogoDashund } from "@/components/marca/logo-dashund";
 import { cn } from "@/lib/comun/utils";
 import { formatCLP, formatDateLong } from "@/lib/comun/format";
 import { borrarDatosDestinatarios, leerCola, type ResumenDia } from "@/lib/encomiendas/local/almacen";
-import { esApp } from "@/lib/nativo/entorno";
 
 /** El botón que lo abre. Vive acá, junto al panel, para que no haya dos lugares
  *  que decidir cómo se ve el menú. */
@@ -280,17 +279,15 @@ export function MenuLateral({
               <LogOut className="h-4 w-4" />
               Cerrar sesión
             </button>
-            {/* Solo en la APK (spec 015): ahí no hay barra de direcciones para
-                llegar a la pantalla de diagnóstico de otra forma. */}
-            {esApp() ? (
-              <Link
-                href="/conductor/diagnostico"
-                className="flex items-center gap-1.5 rounded-xl px-1 py-2 text-xs text-muted"
-              >
-                <Stethoscope className="h-3.5 w-3.5" />
-                Diagnóstico
-              </Link>
-            ) : null}
+            {/* También fuera de la APK: ahí vive el modo prueba, que es como se
+                prueba la app desde un PC sin escribir en la base (2026-10-28). */}
+            <Link
+              href="/conductor/diagnostico"
+              className="flex items-center gap-1.5 rounded-xl px-1 py-2 text-xs text-muted"
+            >
+              <Stethoscope className="h-3.5 w-3.5" />
+              Diagnóstico
+            </Link>
           </div>
         )}
       </div>
