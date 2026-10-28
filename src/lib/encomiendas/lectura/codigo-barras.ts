@@ -10,7 +10,7 @@
 // Una OF corta viene con ceros a la izquierda en sus 9 posiciones; sin ellos
 // calza con la guía (ofValida).
 
-import { LARGO_OF, ofValida } from "../paquete";
+import { ofValida } from "../paquete";
 
 export type CodigoEtiqueta = {
   /** Sin ceros a la izquierda (ver ofValida). */
@@ -26,13 +26,12 @@ const PREFIJO = "92";
  *  es un código de etiqueta. Acepta también la OF escrita a mano. */
 export function leerCodigoEtiqueta(texto: string): CodigoEtiqueta | null {
   const d = texto.replace(/\D/g, "");
-  if (d.length <= LARGO_OF) {
-    const of = ofValida(d);
-    return of ? { of, bulto: null } : null;
+  if (d.length === LARGO_CODIGO && d.startsWith(PREFIJO)) {
+    const of = ofValida(d.slice(14, 23));
+    const bulto = Number(d.slice(23, 26));
+    if (of) return { of, bulto: bulto > 0 ? bulto : null };
   }
-  if (d.length !== LARGO_CODIGO || !d.startsWith(PREFIJO)) return null;
-  const of = ofValida(d.slice(14, 23));
-  if (!of) return null;
-  const bulto = Number(d.slice(23, 26));
-  return { of, bulto: bulto > 0 ? bulto : null };
+  // Cualquier otro número es la OF tal cual: sin regla de largo (ofValida).
+  const of = ofValida(d);
+  return of ? { of, bulto: null } : null;
 }

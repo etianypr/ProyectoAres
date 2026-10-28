@@ -25,9 +25,9 @@ test("la OF escrita a mano (9 dígitos) también sirve, sin bulto", () => {
 });
 
 test("lo que no es un código de etiqueta no se enlaza", () => {
-  assert.equal(leerCodigoEtiqueta("1234567890"), null, "largo cualquiera");
-  assert.equal(leerCodigoEtiqueta("1200002256000020000000200"), null, "25 dígitos");
-  assert.equal(leerCodigoEtiqueta("12000022560000200000002001"), null, "sin el prefijo 92");
+  assert.deepEqual(leerCodigoEtiqueta("1234567890"), { of: "1234567890", bulto: null }, "sin regla de largo");
+  assert.deepEqual(leerCodigoEtiqueta("12000022560000200000002001").bulto, null, "sin el prefijo 92 no es etiqueta");
+  assert.equal(leerCodigoEtiqueta("sin números"), null);
   assert.equal(leerCodigoEtiqueta(""), null);
 });
 
@@ -45,7 +45,7 @@ test("la guía se lee línea por línea, con destinos limpios", () => {
       ["200000003", "MARACAIBO 1472", false],
       ["200000004", "CALLE UNO 100", false],
       ["200000005", "SAN MARCOS 1085 B", false],
-      ["2000000066", "CALLE CORTA 5", true],
+      ["200000006", "", true],
     ],
   );
 });
@@ -53,17 +53,18 @@ test("la guía se lee línea por línea, con destinos limpios", () => {
 test("la guía avisa repetidas, dudosas y la diferencia con el total", () => {
   const { avisos } = leerGuia(fixture("guia.txt"));
   assert.ok(avisos.some((a) => /repetida/.test(a)), "repetida por fotos superpuestas");
-  assert.ok(avisos.some((a) => /se leyó mal/.test(a)), "OF de 10 dígitos");
+  assert.ok(avisos.some((a) => /sin OF o sin destino/.test(a)), "línea sin destino");
   assert.ok(avisos.some((a) => /dice 8 y se leyeron 6/.test(a)), "faltan 2");
 });
 
-test("una OF corta es válida: sin marca de error y sin ceros a la izquierda", () => {
-  const g = leerGuia("OF:7000123 DESTINO:CALLE CORTA 5 OF:007000124 DESTINO:CALLE LARGA 6");
+test("una OF de otro largo vale igual: sin marca de error y sin ceros a la izquierda", () => {
+  const g = leerGuia("OF:7000123 DESTINO:CALLE CORTA 5 OF:007000124 DESTINO:CALLE LARGA 6 OF:2000000066 DESTINO:CALLE OTRA 7");
   assert.deepEqual(
     g.lineas.map((l) => [l.of, l.dudosa]),
     [
       ["7000123", false],
       ["7000124", false],
+      ["2000000066", false],
     ],
   );
 });

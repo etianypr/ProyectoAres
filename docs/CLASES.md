@@ -296,7 +296,7 @@ lo usa.
 | Indicadores del período y comparación con el anterior: `calcularIndicadores`, `periodoAnterior` (spec 006) | `encomiendas/indicadores.ts`, `(app)/encomiendas/_componentes/indicadores.tsx` |
 | APK con respaldo web: `esApp`, `alBotonAtras`, `llamar`, `llamadasDesde`, `pantallaEncendida`, `escanearCodigo` | `nativo/entorno.ts`, `nativo/telefono.ts`, `nativo/escaner.ts` |
 | Contestó o no según el registro (≥ 5 s); aviso de APK vieja | `nativo/llamada.ts`, `nativo/version.ts` |
-| OF y referencia del paquete: `formatoOf`, `ofValida` (regla de Starken: hasta 9 dígitos, sin ceros a la izquierda), `ofCorta`, `textoReferencia`, `buscarPorOf` · listas `TIPOS_PAQUETE`, `TAMANOS_PAQUETE`, `COLORES_PAQUETE` | `encomiendas/paquete.ts`, `encomiendas/catalogos.ts` |
+| OF y referencia del paquete: `formatoOf`, `ofValida` (solo dígitos, sin regla de largo ni ceros a la izquierda), `ofDistinta` (la que no tiene 9: va con ⚠), `textoReferencia`, `buscarPorOf` · listas `TIPOS_PAQUETE`, `TAMANOS_PAQUETE`, `COLORES_PAQUETE` | `encomiendas/paquete.ts`, `encomiendas/catalogos.ts` |
 | Paquete y foto en el teléfono: `guardarPaquete`, `ofRepetida`, `guardarFoto`, `purgarFotosCerradas` | `encomiendas/local/almacen/paquete.ts` |
 | Carga del día (spec 005): leer la guía, la etiqueta y su código de barras (puros) | `encomiendas/lectura/{guia,etiqueta,codigo-barras}.ts` |
 | Pedidos desde la guía y escaneo → "PARADA n de N": `crearDesdeGuia`, `aplicarLecturaEtiqueta`, `sinEtiquetaEscaneada`; dirección de la etiqueta: `cambiarDireccion` (`pedidos.ts`) | `encomiendas/local/almacen/carga.ts` |

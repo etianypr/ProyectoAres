@@ -26,7 +26,7 @@ export function guardarPaquete(
     let of = pedido.of;
     if (cambios.of !== undefined) {
       of = cambios.of === null ? null : ofValida(cambios.of);
-      if (cambios.of !== null && of === null) throw new Error("La OF tiene hasta 9 dígitos, solo números.");
+      if (cambios.of !== null && of === null) throw new Error("La OF lleva solo números.");
     }
     const actualizado: Pedido = {
       ...pedido,

@@ -9,7 +9,8 @@ import { useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/comun/utils";
 import { formatCLP, formatDistancia, formatDuracion, formatTime } from "@/lib/comun/format";
-import { formatoOf, textoReferencia } from "@/lib/encomiendas/paquete";
+import { AlertTriangle } from "lucide-react";
+import { formatoOf, ofDistinta, textoReferencia } from "@/lib/encomiendas/paquete";
 import type { Pedido } from "@/lib/encomiendas/local/almacen";
 import { useFotoGuardada } from "../_hooks/use-foto-paquete";
 
@@ -40,7 +41,12 @@ export function TarjetaParada({
       </span>
       <div className="min-w-0 flex-1">
         {pedido.of ? (
-          <p className="text-xl font-bold leading-tight tabular-nums tracking-wide">OF {formatoOf(pedido.of)}</p>
+          <p className="text-xl font-bold leading-tight tabular-nums tracking-wide">
+            OF {formatoOf(pedido.of)}
+            {ofDistinta(pedido.of) ? (
+              <AlertTriangle aria-label="OF distinta" className="ml-1.5 inline h-5 w-5 align-[-3px] text-warn" />
+            ) : null}
+          </p>
         ) : null}
         {referencia ? (
           <p className={cn("font-semibold leading-tight text-brand", pedido.of ? "text-base" : "text-lg")}>

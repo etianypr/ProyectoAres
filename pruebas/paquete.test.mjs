@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 
 const {
   formatoOf,
+  ofDistinta,
   ofValida,
   textoReferencia,
   notaPaquete,
@@ -33,10 +34,12 @@ test("la OF acepta espacios, puntos y guiones, y exige 9 dígitos", () => {
   assert.equal(ofValida(" 275 388 184 "), "275388184");
   assert.equal(ofValida("275-388-184"), "275388184");
   assert.equal(ofValida("275.388.184"), "275388184");
-  assert.equal(ofValida("7000123"), "7000123", "Starken acepta hasta 9 dígitos");
+  assert.equal(ofValida("7000123"), "7000123", "sin regla de largo");
+  assert.equal(ofValida("2753881845"), "2753881845", "sin regla de largo");
   assert.equal(ofValida("007000123"), "7000123", "sin ceros a la izquierda (código de barras)");
-  assert.equal(ofValida("2753881845"), null, "10 dígitos");
   assert.equal(ofValida("000000000"), null, "cero");
+  assert.equal(ofDistinta("275388184"), false);
+  assert.equal(ofDistinta("7000123"), true);
   assert.equal(ofValida("27538818a"), null);
   assert.equal(ofValida(""), null);
 });
@@ -111,10 +114,10 @@ test("guardarPaquete valida la OF y avisa si se repite en el día", async () => 
   assert.deepEqual(await almacen.guardarPaquete(b.id, { of: "987 654 321" }), { ofRepetida: false });
   assert.deepEqual(await almacen.guardarPaquete(b.id, { of: "123-456-789" }), { ofRepetida: true }, "se guarda igual");
   assert.equal((await almacen.leerPedidos(HOY)).find((p) => p.id === b.id).of, "123456789");
-  await assert.rejects(() => almacen.guardarPaquete(b.id, { of: "1234567890" }), /hasta 9 dígitos/);
+  await assert.rejects(() => almacen.guardarPaquete(b.id, { of: "12a45" }), /solo números/);
   assert.equal(await almacen.ofRepetida(HOY, "123456789", a.id), true);
   assert.equal(await almacen.ofRepetida(HOY, null), false);
-  assert.equal((await almacen.guardarPaquete(b.id, { of: "7000123" })).ofRepetida, false, "OF corta: Starken acepta hasta 9");
+  assert.equal((await almacen.guardarPaquete(b.id, { of: "7000123" })).ofRepetida, false, "una OF de otro largo vale igual");
 });
 
 test("una foto nueva reemplaza a la anterior", async () => {

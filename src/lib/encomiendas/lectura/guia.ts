@@ -13,8 +13,8 @@ export type LineaGuia = {
    *  la línea queda dudosa). */
   of: string;
   destino: string;
-  /** Sin OF válida (más de 9 dígitos o cero) o sin destino: el conductor la
-   *  revisa antes de crear. */
+  /** Sin OF (ningún dígito) o sin destino: el conductor la revisa antes de
+   *  crear. Una OF de otro largo no es dudosa: va con ⚠ (ofDistinta). */
   dudosa: boolean;
 };
 
@@ -130,8 +130,8 @@ export function armarGuia(
   if (dudosas > 0) {
     avisos.push(
       dudosas === 1
-        ? "Una línea se leyó mal (OF o destino): revísala."
-        : `${dudosas} líneas se leyeron mal (OF o destino): revísalas.`,
+        ? "Una línea sin OF o sin destino: revísala."
+        : `${dudosas} líneas sin OF o sin destino: revísalas.`,
     );
   }
   if (totalDeclarado != null && totalDeclarado !== lineas.length) {

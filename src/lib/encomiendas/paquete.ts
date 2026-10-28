@@ -21,32 +21,33 @@ export type ReferenciaPaquete = {
 /** Lo que necesitan de un pedido la búsqueda y el nombre en pantalla. */
 type PedidoConOf = { nombre: string; of: string | null; resultado: string };
 
-/** Largo de casi todas las OF y el máximo: el seguimiento de Starken acepta
- *  hasta 9 dígitos, y hay guías con OF más cortas (terreno 2026-10-27: una de 7). */
+/** Largo de casi todas las OF. No es una regla: una OF de otro largo vale igual
+ *  y va marcada (terreno 2026-10-28: una de 7 dígitos; "no tenemos que
+ *  regirnos a una estructura de códigos"). */
 export const LARGO_OF = 9;
 export const LARGO_NOTA_PAQUETE = 40;
 /** Con menos dígitos casi todo coincide: la búsqueda no sirve. */
 export const MIN_DIGITOS_BUSQUEDA = 3;
 
-/** "123456789" → "123 456 789"; "7000123" → "7 000 123". Lo que no es una OF
- *  queda como vino. */
+/** "123456789" → "123 456 789"; "7000123" → "7 000 123". Lo que no son solo
+ *  dígitos queda como vino. */
 export function formatoOf(of: string): string {
-  return /^\d{1,9}$/.test(of) ? of.replace(/\B(?=(\d{3})+$)/g, " ") : of;
+  return /^\d+$/.test(of) ? of.replace(/\B(?=(\d{3})+$)/g, " ") : of;
 }
 
 /** La OF escrita (con espacios, puntos o guiones) → sus dígitos sin ceros a la
- *  izquierda, o null si no es una OF. La regla es la del seguimiento de Starken:
- *  solo números, hasta 9 dígitos, distinta de cero. Sin los ceros, la OF del
- *  código de barras ("007000123") calza con la de la guía ("7000123"). */
+ *  izquierda, o null si no son solo dígitos. Sin regla de largo: la distinta se
+ *  acepta y se marca (ofDistinta). Sin los ceros, la OF del código de barras
+ *  ("007000123") calza con la de la guía ("7000123"). */
 export function ofValida(texto: string): string | null {
   const digitos = texto.replace(/[\s.\-]/g, "");
-  if (!/^\d+$/.test(digitos) || digitos.length > LARGO_OF) return null;
+  if (!/^\d+$/.test(digitos)) return null;
   return digitos.replace(/^0+/, "") || null;
 }
 
-/** Una OF válida más corta que las de siempre: se marca para compararla con la guía. */
-export function ofCorta(of: string): boolean {
-  return of.length < LARGO_OF;
+/** Una OF de otro largo que las de siempre: va con ⚠ para que se note. */
+export function ofDistinta(of: string): boolean {
+  return of.length !== LARGO_OF;
 }
 
 // Género del sustantivo, para que el texto concuerde: "bolsa blanca", "sobre blanco".

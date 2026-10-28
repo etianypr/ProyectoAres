@@ -8,7 +8,7 @@ import { useState } from "react";
 import { AlertTriangle, Check, Pencil, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/comun/utils";
 import type { LineaGuia } from "@/lib/encomiendas/lectura/guia";
-import { formatoOf, ofCorta, ofValida } from "@/lib/encomiendas/paquete";
+import { formatoOf, ofDistinta, ofValida } from "@/lib/encomiendas/paquete";
 
 export function LineasGuia({
   lineas,
@@ -79,11 +79,9 @@ export function LineasGuia({
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold tabular-nums">
                     {of ? formatoOf(of) : l.of}
-                    {/* Pocas OF son más cortas (terreno 2026-10-27): a la vista para compararla con la guía. */}
-                    {of && ofCorta(of) ? (
-                      <span className="ml-2 rounded-full bg-warn-bg px-2 py-0.5 text-xs font-medium text-warn">
-                        {of.length} dígitos
-                      </span>
+                    {/* Una OF de otro largo vale igual; el ⚠ dice que es distinta (terreno 2026-10-28). */}
+                    {of && ofDistinta(of) ? (
+                      <AlertTriangle aria-label="OF distinta" className="ml-1.5 inline h-4 w-4 align-[-2px] text-warn" />
                     ) : null}
                   </p>
                   <p className="text-sm text-muted">{l.destino}</p>

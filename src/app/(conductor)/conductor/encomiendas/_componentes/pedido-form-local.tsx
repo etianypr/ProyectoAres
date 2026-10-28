@@ -215,7 +215,7 @@ export function PedidoFormLocal({
     if (!conOf && !campos.nombre.trim()) return "El nombre del destinatario es obligatorio.";
     if (!conOf && !campos.telefono.trim()) return "El teléfono es obligatorio.";
     if (!campos.direccion.trim()) return "La dirección es obligatoria.";
-    if (ofEscrita && !of) return "La OF tiene hasta 9 dígitos. Revísala o déjala vacía.";
+    if (ofEscrita && !of) return "La OF lleva solo números. Revísala o déjala vacía.";
     return null;
   }
 
@@ -383,7 +383,7 @@ export function PedidoFormLocal({
           {ofEscrita ? (
             <p className={of ? "mt-1 flex items-center gap-1 text-xs text-ok" : "mt-1 flex items-center gap-1 text-xs text-warn"}>
               {of ? <Check className="h-3 w-3 shrink-0" /> : <AlertTriangle className="h-3 w-3 shrink-0" />}
-              {of ? `OF ${formatoOf(of)}` : "Hasta 9 dígitos, solo números."}
+              {of ? `OF ${formatoOf(of)}` : "Solo números."}
             </p>
           ) : null}
         </Field>
