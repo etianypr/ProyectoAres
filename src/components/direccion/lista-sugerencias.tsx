@@ -56,7 +56,7 @@ export function ListaSugerencias({
           ref={listaRef}
           id={id}
           role="listbox"
-          className="absolute left-0 right-0 top-full z-30 mt-1 max-h-64 overflow-y-auto overflow-x-hidden rounded-xl border border-separator bg-white py-1 shadow-[0_8px_24px_rgba(0,0,0,0.14)]"
+          className="absolute left-0 right-0 top-full z-30 mt-1 max-h-64 overflow-y-auto overflow-x-hidden rounded-xl border border-separator bg-card py-1 shadow-[0_8px_24px_rgba(0,0,0,0.14)]"
         >
           {lista.map((s, i) => (
             <li key={s.id} role="option" aria-selected={i === resaltada}>
@@ -70,7 +70,7 @@ export function ListaSugerencias({
                 onMouseEnter={() => onResaltar(i)}
                 className={cn(
                   "flex w-full items-start gap-2.5 px-3 py-2.5 text-left transition-colors",
-                  i === resaltada ? "bg-brand-soft" : "bg-white",
+                  i === resaltada ? "bg-brand-soft" : "bg-card",
                 )}
               >
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-brand" />

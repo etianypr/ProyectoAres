@@ -13,35 +13,16 @@
 // - Elegida, se ve en el mapa (mapa-punto.tsx), solo si hay coordenadas; el
 //   espacio se puede reservar desde el principio (prop reservarMapa).
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Check, Loader2 } from "lucide-react";
 import { cn } from "@/lib/comun/utils";
 import { inputClass } from "@/components/ui/input";
+import { CajaCampo, entradaCampo } from "@/components/ui/campo";
 import { MapaPunto, MapaPuntoVacio } from "./mapa-punto";
 import { ListaSugerencias } from "./lista-sugerencias";
 import { aplicarPuertas, combinarSugerencias, completarNumeroEnCalles, sugerirDirecciones, sugerirEnOsm, type PuertasEnCalles, type SugerenciaDireccion } from "@/lib/geo/geocoding";
 import type { Coordenada } from "@/lib/geo/coordenada";
-
-// Lo que se espera desde la última tecla antes de consultar. Escribiendo una
-// dirección entera, esto son unas pocas consultas en vez de una por letra.
-const MS_ESPERA_TECLEO = 300;
-
-// A OpenStreetMap se le pregunta con más pausa: no completa palabras a medias
-// (escribir "chacab" no le devuelve nada), así que solo aporta cuando el conductor
-// terminó de escribir, y su política de uso pide no consultarlo seguido.
-const MS_ESPERA_OSM = 800;
-
-// Y el número colgado se busca al final, cuando el conductor ya paró de escribir:
-// cada intento son una o dos consultas más (ver completarNumeroEnCalles), y
-// tecleando "3536" dígito a dígito serían cuatro intentos por un solo número.
-// Con esta espera, escribir seguido no cuesta nada.
-const MS_ESPERA_NUMERO = 500;
-
-const MIN_CARACTERES = 3;
-
-// El clic en una sugerencia llega DESPUÉS del blur del campo. Si la lista se
-// cerrara en el blur, el toque caería en el vacío y no elegiría nada.
-const MS_CIERRE_TRAS_BLUR = 150;
+import { MIN_CARACTERES, MS_CIERRE_TRAS_BLUR, MS_ESPERA_NUMERO, MS_ESPERA_OSM, MS_ESPERA_TECLEO } from "./esperas";
 
 export function DireccionInput({
   value,
@@ -78,6 +59,7 @@ export function DireccionInput({
   id,
   name,
   placeholder = "Calle y número",
+  etiqueta,
   disabled,
   className,
 }: {
@@ -94,9 +76,15 @@ export function DireccionInput({
   /** Para formularios que se envían con FormData (ver empresa-form). */
   name?: string;
   placeholder?: string;
+  /** Con etiqueta, la caja de la app del conductor: la etiqueta va adentro
+   *  (ver ui/campo.tsx). Sin ella, el campo de siempre del panel. */
+  etiqueta?: string;
   disabled?: boolean;
   className?: string;
 }) {
+  // La etiqueta de la caja y la lista de sugerencias se cuelgan de este id.
+  const propio = useId();
+  const idCampo = id ?? propio;
   const [sugerencias, setSugerencias] = useState<SugerenciaDireccion[]>([]);
   // Las de OpenStreetMap llegan medio segundo después que las de Mapbox, así que
   // se guardan junto AL TEXTO que las pidió: mientras el conductor sigue
@@ -296,40 +284,54 @@ export function DireccionInput({
   // ubicar. No es "todavía no eligió": eligió, y lo que eligió no tiene punto.
   const sinUbicarAMano = elegido != null && elegido.texto === consulta && elegido.punto === null;
 
+  const icono = buscandoAhora ? (
+    <Loader2 className="h-4 w-4 animate-spin text-muted" />
+  ) : confirmada ? (
+    <Check className="h-4 w-4 text-ok" />
+  ) : null;
+
+  const entrada = (
+    <input
+      ref={inputRef}
+      id={idCampo}
+      name={name}
+      value={value}
+      disabled={disabled}
+      placeholder={placeholder}
+      autoComplete="off"
+      role="combobox"
+      aria-expanded={mostrarLista}
+      aria-autocomplete="list"
+      aria-controls={`${idCampo}_sugerencias`}
+      className={etiqueta ? entradaCampo : cn(inputClass, icono && "pr-9")}
+      onChange={(e) => {
+        onChange(e.target.value);
+        setAbierta(true);
+      }}
+      onFocus={() => {
+        if (cierreRef.current) clearTimeout(cierreRef.current);
+        setAbierta(true);
+      }}
+      onBlur={() => {
+        cierreRef.current = setTimeout(() => setAbierta(false), MS_CIERRE_TRAS_BLUR);
+      }}
+      onKeyDown={onKeyDown}
+    />
+  );
+
   return (
     <div className={cn("relative", className)}>
       <div className="relative">
-        <input
-          ref={inputRef}
-          id={id}
-          name={name}
-          value={value}
-          disabled={disabled}
-          placeholder={placeholder}
-          autoComplete="off"
-          role="combobox"
-          aria-expanded={mostrarLista}
-          aria-autocomplete="list"
-          aria-controls={id ? `${id}_sugerencias` : undefined}
-          className={cn(inputClass, (confirmada || buscandoAhora) && "pr-9")}
-          onChange={(e) => {
-            onChange(e.target.value);
-            setAbierta(true);
-          }}
-          onFocus={() => {
-            if (cierreRef.current) clearTimeout(cierreRef.current);
-            setAbierta(true);
-          }}
-          onBlur={() => {
-            cierreRef.current = setTimeout(() => setAbierta(false), MS_CIERRE_TRAS_BLUR);
-          }}
-          onKeyDown={onKeyDown}
-        />
-        {buscandoAhora ? (
-          <Loader2 className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted" />
-        ) : confirmada ? (
-          <Check className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ok" />
-        ) : null}
+        {etiqueta ? (
+          <CajaCampo etiqueta={etiqueta} htmlFor={idCampo} fin={icono}>
+            {entrada}
+          </CajaCampo>
+        ) : (
+          <>
+            {entrada}
+            {icono ? <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">{icono}</span> : null}
+          </>
+        )}
 
         {/* La lista cuelga del contenedor DEL CAMPO y no del componente entero:
             su "top-full" tiene que caer justo debajo del input. Colgada del de
@@ -338,7 +340,7 @@ export function DireccionInput({
         {mostrarLista ? (
           <ListaSugerencias
             listaRef={listaRef}
-            id={id ? `${id}_sugerencias` : undefined}
+            id={`${idCampo}_sugerencias`}
             lista={lista}
             resaltada={resaltada}
             onResaltar={setResaltada}

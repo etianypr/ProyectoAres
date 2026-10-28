@@ -11,6 +11,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ArrowLeft, CircleHelp, ClipboardPaste, Loader2, X } from "lucide-react";
+import { CampoArea } from "@/components/ui/campo";
 import { armarGuia, leerGuia, limpiarDestino, type LineaGuia } from "@/lib/encomiendas/lectura/guia";
 import { ofValida } from "@/lib/encomiendas/paquete";
 import { crearDesdeGuia, fijarCoordenadas } from "@/lib/encomiendas/local/almacen";
@@ -275,12 +276,12 @@ export function CargarGuia({
                 Volver a las fotos
               </button>
             ) : null}
-            <textarea
+            <CampoArea
+              etiqueta="Texto de la guía"
               value={texto}
               onChange={(e) => setTexto(e.target.value)}
               rows={10}
-              placeholder="Pega acá el texto de la guía"
-              className="w-full rounded-2xl border border-separator bg-card p-3 font-mono text-xs outline-none focus:border-brand"
+              className="font-mono text-xs font-normal leading-5"
             />
           </>
         ) : null}

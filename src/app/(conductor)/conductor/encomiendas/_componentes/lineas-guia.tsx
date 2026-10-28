@@ -7,6 +7,7 @@
 import { useState } from "react";
 import { AlertTriangle, Check, Pencil, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/comun/utils";
+import { Campo } from "@/components/ui/campo";
 import type { LineaGuia } from "@/lib/encomiendas/lectura/guia";
 import { formatoOf, ofDistinta, ofValida } from "@/lib/encomiendas/paquete";
 
@@ -59,20 +60,21 @@ export function LineasGuia({
             <li key={i} className={cn("flex items-start gap-1 px-3 py-2.5", mala && "bg-warn-bg")}>
               {editando ? (
                 <div className="min-w-0 flex-1 space-y-1.5">
-                  <input
-                    aria-label="OF"
+                  <Campo
+                    compacto
+                    etiqueta="OF"
                     inputMode="numeric"
                     value={of ? formatoOf(of) : l.of}
                     onChange={(e) => onCambiar(i, { of: e.target.value })}
-                    className="w-full rounded-lg border border-separator bg-background px-2 py-1.5 text-sm font-semibold tabular-nums outline-none focus:border-brand"
-                    placeholder="OF"
+                    tono={of ? "normal" : "aviso"}
+                    className="font-mono font-semibold tabular-nums"
                   />
-                  <input
-                    aria-label="Destino"
+                  <Campo
+                    compacto
+                    etiqueta="Destino"
                     value={l.destino}
                     onChange={(e) => onCambiar(i, { destino: e.target.value })}
-                    className="w-full rounded-lg border border-separator bg-background px-2 py-1.5 text-sm outline-none focus:border-brand"
-                    placeholder="Destino"
+                    tono={l.destino.trim() ? "normal" : "aviso"}
                   />
                 </div>
               ) : (

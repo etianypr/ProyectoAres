@@ -41,7 +41,7 @@ export function BuscarOf({
             value={texto}
             onChange={(e) => setTexto(e.target.value)}
             placeholder="Últimos dígitos de la OF"
-            className="h-11 w-full rounded-full border border-separator bg-card pl-9 pr-3 text-base outline-none focus:border-brand"
+            className="h-11 w-full rounded-full border border-separator bg-card pl-9 pr-3 font-mono text-base tabular-nums outline-none transition-[border-color,box-shadow] duration-150 placeholder:font-sans placeholder:text-muted/60 focus:border-brand focus:shadow-[0_0_0_3.5px_var(--brand-ring)]"
           />
         </div>
         <button

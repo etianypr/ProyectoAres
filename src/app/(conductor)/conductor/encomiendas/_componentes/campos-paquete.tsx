@@ -9,6 +9,7 @@
 import { useRef, useState } from "react";
 import { Camera, Trash2 } from "lucide-react";
 import { cn } from "@/lib/comun/utils";
+import { Campo } from "@/components/ui/campo";
 import {
   COLORES_PAQUETE,
   TAMANOS_PAQUETE,
@@ -158,13 +159,12 @@ export function CamposPaquete({
         muestra={MUESTRA}
       />
 
-      <input
-        aria-label="Algo distintivo del paquete"
+      <Campo
+        etiqueta="Algo distintivo"
         value={valor.nota}
         maxLength={LARGO_NOTA_PAQUETE}
         onChange={(e) => onCambiar({ nota: e.target.value })}
-        placeholder="Algo distintivo: cinta roja, dice FRÁGIL…"
-        className="h-10 rounded-xl border border-separator bg-card px-3 text-sm outline-none focus:border-brand"
+        placeholder="Cinta roja, dice FRÁGIL…"
         enterKeyHint="done"
       />
 

@@ -17,18 +17,16 @@
 import { useMemo, useState } from "react";
 import { ResolverDireccion, type PorResolver } from "./resolver-direccion";
 import { AlertTriangle, Check, Save, StickyNote } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Campo, CampoArea, NotaCampo } from "@/components/ui/campo";
 import { DireccionInput } from "@/components/direccion/direccion-input";
 
 import { MarcarAqui } from "./marcar-aqui";
 import { entraSolo, type Marca } from "@/lib/geo/marcar";
-import { Textarea } from "@/components/ui/textarea";
-import { Field } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ubicarDireccion, type SugerenciaDireccion } from "@/lib/geo/geocoding";
 import { normalizarTelefono } from "@/lib/comun/telefono";
 import { guardarPedido, ofRepetida, reiniciarDisponibilidad, type Pedido } from "@/lib/encomiendas/local/almacen";
-import { formatoOf, ofValida } from "@/lib/encomiendas/paquete";
+import { ofDistinta, ofValida } from "@/lib/encomiendas/paquete";
 
 const VACIO = { nombre: "", telefono: "", direccion: "", notas: "" };
 
@@ -358,63 +356,39 @@ export function PedidoFormLocal({
     // escrito. Un formulario que se llena treinta veces al día no puede pedir
     // un gesto extra para cerrarse.
     <form onSubmit={onSubmit} className="flex h-full min-h-0 flex-col">
-      {/* gap-3 y no gap-4: veinte píxeles repartidos en cinco huecos son la
-          diferencia entre que los campos entren de una o no.
+      {/* La etiqueta va dentro de cada caja (ui/campo.tsx): sin el renglón de
+          encima, los campos entran de una sin deslizar.
           content-start porque una rejilla que scrollea estira sus filas para
           llenar el hueco cuando sobra alto, y los campos se irían separando
           solos en un teléfono grande. */}
-      <div className="grid min-h-0 flex-1 content-start gap-3 overflow-y-auto px-4 pt-3">
-        {/* Opcional: normalmente llega sola desde la guía o el código de barras
-            (spec 005). A mano sirve para que la etiqueta encuentre este pedido. */}
-        <Field
-          label="OF (orden de flete)"
-          htmlFor="pl_of"
-          hint={ofEscrita ? undefined : "Opcional: así el escaneo de la etiqueta encuentra este pedido."}
-        >
-          <Input
+      <div className="grid min-h-0 flex-1 content-start gap-2.5 overflow-y-auto px-4 pt-3">
+        {/* OF y teléfono, cortos y de números, comparten renglón. La OF es
+            opcional: normalmente llega sola desde la guía o el código de barras
+            (spec 005). */}
+        <div className="grid grid-cols-2 gap-2.5">
+          <Campo
             id="pl_of"
+            etiqueta="OF"
+            extra="opcional"
             inputMode="numeric"
             placeholder="123 456 789"
             value={ofTexto}
             onChange={(e) => setOfTexto(e.target.value)}
             autoComplete="off"
             enterKeyHint="next"
+            className="font-mono tabular-nums"
+            tono={ofEscrita && !of ? "aviso" : "normal"}
+            fin={
+              of && ofDistinta(of) ? (
+                <AlertTriangle aria-label="OF distinta" className="h-4 w-4 text-warn" />
+              ) : of ? (
+                <Check aria-hidden className="h-4 w-4 text-ok" />
+              ) : null
+            }
           />
-          {ofEscrita ? (
-            <p className={of ? "mt-1 flex items-center gap-1 text-xs text-ok" : "mt-1 flex items-center gap-1 text-xs text-warn"}>
-              {of ? <Check className="h-3 w-3 shrink-0" /> : <AlertTriangle className="h-3 w-3 shrink-0" />}
-              {of ? `OF ${formatoOf(of)}` : "Solo números."}
-            </p>
-          ) : null}
-        </Field>
-
-        <Field
-          label={of || pedido?.of ? "Nombre del destinatario (lo trae la etiqueta)" : "Nombre del destinatario"}
-          htmlFor="pl_nombre"
-        >
-          <Input
-            id="pl_nombre"
-            value={campos.nombre}
-            onChange={(e) => set("nombre", e.target.value)}
-            // Los nombres van con mayúscula inicial y el teclado pasa al campo
-            // siguiente en vez de intentar enviar el formulario a medio llenar.
-            autoCapitalize="words"
-            autoComplete="off"
-            enterKeyHint="next"
-          />
-        </Field>
-
-        <Field
-          label="Teléfono"
-          htmlFor="pl_telefono"
-          hint={
-            telefonoEscrito
-              ? undefined
-              : "Escribe solo el número: el +569 se agrega solo."
-          }
-        >
-          <Input
+          <Campo
             id="pl_telefono"
+            etiqueta="Teléfono"
             type="tel"
             // inputMode "tel" saca el teclado numérico con el + y los signos, que
             // es la diferencia entre teclear un número y pelear con un teclado
@@ -425,70 +399,66 @@ export function PedidoFormLocal({
             onChange={(e) => set("telefono", e.target.value)}
             autoComplete="off"
             enterKeyHint="next"
+            className="tabular-nums"
+            tono={telefonoEscrito && (!telefono.ok || telefono.aviso) ? "aviso" : "normal"}
+            fin={telefonoEscrito && telefono.ok && !telefono.aviso ? <Check aria-hidden className="h-4 w-4 text-ok" /> : null}
           />
-          {/* El número normalizado, en vivo. Es la confirmación de que el aviso
-              va a salir al destinatario correcto — y de que no hace falta
-              escribir el prefijo. */}
-          {telefonoEscrito && telefono.ok ? (
-            <p
-              className={
-                telefono.aviso
-                  ? "mt-1 flex items-start gap-1 text-xs text-warn"
-                  : "mt-1 flex items-center gap-1 text-xs text-ok"
-              }
-            >
-              {telefono.aviso ? (
-                <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
-              ) : (
-                <Check className="h-3 w-3 shrink-0" />
-              )}
-              <span>
+        </div>
+
+        {/* Lo que dicen los dos campos de arriba, debajo del renglón y a todo el
+            ancho: en media caja un aviso se partía en cuatro líneas. El número
+            normalizado confirma que el +569 se agregó solo y que la llamada va
+            al destinatario correcto; cambiarlo descarta lo que había contestado
+            el anterior, y el conductor tiene que saberlo antes de guardar. */}
+        {(ofEscrita && !of) || telefonoEscrito || numeroCambiado ? (
+          <div className="-mt-1 space-y-0.5">
+            {ofEscrita && !of ? <NotaCampo tono="aviso">La OF lleva solo números.</NotaCampo> : null}
+            {telefonoEscrito && telefono.ok ? (
+              <NotaCampo tono={telefono.aviso ? "aviso" : "ok"}>
                 {telefono.telefono.legible}
                 {telefono.aviso ? ` — ${telefono.aviso}` : null}
-              </span>
-            </p>
-          ) : null}
-          {telefonoEscrito && !telefono.ok ? (
-            <p className="mt-1 flex items-start gap-1 text-xs text-warn">
-              <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
-              <span>{telefono.motivo}</span>
-            </p>
-          ) : null}
-          {/* Cambiar el número descarta lo que había contestado el anterior, y el
-              conductor tiene que saberlo antes de guardar. */}
-          {numeroCambiado ? (
-            <p className="mt-1 flex items-start gap-1 text-xs text-warn">
-              <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
-              <span>
-                Es otro número: se descarta lo que había contestado el anterior.
-              </span>
-            </p>
-          ) : null}
-        </Field>
+              </NotaCampo>
+            ) : null}
+            {telefonoEscrito && !telefono.ok ? <NotaCampo tono="aviso">{telefono.motivo}</NotaCampo> : null}
+            {numeroCambiado ? (
+              <NotaCampo tono="aviso">Es otro número: se descarta lo que había contestado el anterior.</NotaCampo>
+            ) : null}
+          </div>
+        ) : null}
 
-        {/* Sin descripción debajo y sin el "ubicada en el mapa" de antes: los dos
-            decían en palabras lo que el mapa de abajo ya muestra. Lo que falta o
-            lo que está mal lo dice ese mismo espacio —que ahora está reservado
-            desde el principio—, del tamaño que se merece. */}
-        <Field label="Dirección" htmlFor="pl_direccion">
-          <DireccionInput
-            id="pl_direccion"
-            value={campos.direccion}
-            onChange={(texto) => set("direccion", texto)}
-            onSeleccionar={(s) => {
-              setElegida({ texto: s.direccion, lat: s.lat, lng: s.lng });
-              setAceptadaAMano(null);
-            }}
-            confirmada={direccionConfirmada}
-            punto={puntoPreview}
-            reservarMapa
-            onConfirmarManual={(texto) => {
-              setAceptadaAMano(texto);
-              setElegida(null);
-              setPorResolver(null);
-            }}
-          />
-        </Field>
+        <Campo
+          id="pl_nombre"
+          etiqueta="Destinatario"
+          placeholder="Nombre y apellido"
+          value={campos.nombre}
+          onChange={(e) => set("nombre", e.target.value)}
+          // Los nombres van con mayúscula inicial y el teclado pasa al campo
+          // siguiente en vez de intentar enviar el formulario a medio llenar.
+          autoCapitalize="words"
+          autoComplete="off"
+          enterKeyHint="next"
+        />
+
+        {/* Sin descripción debajo: lo que falta o lo que está mal lo dice el mapa
+            de abajo, en un espacio reservado desde el principio. */}
+        <DireccionInput
+          id="pl_direccion"
+          etiqueta="Dirección"
+          value={campos.direccion}
+          onChange={(texto) => set("direccion", texto)}
+          onSeleccionar={(s) => {
+            setElegida({ texto: s.direccion, lat: s.lat, lng: s.lng });
+            setAceptadaAMano(null);
+          }}
+          confirmada={direccionConfirmada}
+          punto={puntoPreview}
+          reservarMapa
+          onConfirmarManual={(texto) => {
+            setAceptadaAMano(texto);
+            setElegida(null);
+            setPorResolver(null);
+          }}
+        />
 
         {/* El último recurso, y en Arica el más confiable: el conductor parado en
             la puerta. Va acá, pegado a la dirección y NO escondido detrás de un
@@ -497,33 +467,29 @@ export function PedidoFormLocal({
             cuadra, y entró desde "Sin ubicar — toca para corregir". */}
         <MarcarAqui onUsar={(m) => void usarMarca(m)} deshabilitado={guardando} />
 
-        {/* La nota es opcional y la mayoría de los pedidos no lleva ninguna,
-            pero el recuadro ocupaba lo mismo estuviera vacío o no: cien píxeles
-            que empujaban el botón de guardar fuera de la pantalla en todos los
-            pedidos, para servir a unos pocos.
-            Plegada es un renglón. Se abre tocándola —y con el cursor ya
-            adentro, porque quien la toca es porque va a escribir— y se queda
-            abierta sola cuando el pedido que se está corrigiendo ya tenía una:
-            ahí esconderla sería esconder un dato escrito. */}
+        {/* La nota es opcional y la mayoría de los pedidos no lleva ninguna:
+            plegada es un renglón. Se abre tocándola —con el cursor ya adentro,
+            porque quien la toca es porque va a escribir— y se queda abierta sola
+            cuando el pedido que se está corrigiendo ya tenía una: ahí esconderla
+            sería esconder un dato escrito. */}
         {notasAbiertas ? (
-          <Field label="Notas" htmlFor="pl_notas">
-            <Textarea
-              id="pl_notas"
-              placeholder="Depto, timbre, seña de la casa"
-              value={campos.notas}
-              onChange={(e) => set("notas", e.target.value)}
-              enterKeyHint="done"
-              // Solo cuando la abrió el conductor. Editando un pedido que ya traía
-              // nota, robarle el foco al primer campo sería empezar por el final.
-              autoFocus={!pedido?.notas}
-              rows={2}
-            />
-          </Field>
+          <CampoArea
+            id="pl_notas"
+            etiqueta="Notas"
+            placeholder="Depto, timbre, seña de la casa"
+            value={campos.notas}
+            onChange={(e) => set("notas", e.target.value)}
+            enterKeyHint="done"
+            // Solo cuando la abrió el conductor. Editando un pedido que ya traía
+            // nota, robarle el foco al primer campo sería empezar por el final.
+            autoFocus={!pedido?.notas}
+            rows={2}
+          />
         ) : (
           <button
             type="button"
             onClick={() => setNotasAbiertas(true)}
-            className="flex items-center gap-2 rounded-xl border border-dashed border-separator px-3 py-2.5 text-sm font-medium text-muted active:bg-background"
+            className="flex min-h-11 items-center gap-2 rounded-[14px] border border-dashed border-separator px-3.5 text-sm font-medium text-muted active:bg-background"
           >
             <StickyNote className="h-4 w-4 shrink-0 text-brand" />
             Agregar una nota

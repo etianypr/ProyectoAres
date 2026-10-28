@@ -7,6 +7,7 @@
 
 import { useRef, useState } from "react";
 import { AlertTriangle, Camera, ClipboardPaste, Loader2 } from "lucide-react";
+import { CampoArea } from "@/components/ui/campo";
 import { formatCLP } from "@/lib/comun/format";
 import type { CodigoEtiqueta } from "@/lib/encomiendas/lectura/codigo-barras";
 import { leerEtiqueta } from "@/lib/encomiendas/lectura/etiqueta";
@@ -264,12 +265,13 @@ export function Resultado({
       {pegando ? (
         <div className="space-y-2">
           <p className="text-xs text-muted">Google Lens sobre la etiqueta → Texto → Copiar todo, y pégalo acá.</p>
-          <textarea
+          <CampoArea
+            etiqueta="Texto de la etiqueta"
             autoFocus
             rows={6}
             value={textoEtiqueta}
             onChange={(e) => setTextoEtiqueta(e.target.value)}
-            className="w-full rounded-2xl border border-separator bg-card p-3 text-xs outline-none focus:border-brand"
+            className="text-xs font-normal leading-5"
           />
           <button
             type="button"

@@ -170,6 +170,7 @@ export function GenerarRutaLocal({
           </div>
           {opcion === "direccion" ? (
             <DireccionInput
+              etiqueta="Dirección de partida"
               value={direccion}
               onChange={setDireccion}
               onSeleccionar={(s) =>

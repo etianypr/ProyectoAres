@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AlertTriangle, Loader2, PackagePlus, ScanLine, X } from "lucide-react";
+import { Campo } from "@/components/ui/campo";
 import { leerCodigoEtiqueta, type CodigoEtiqueta } from "@/lib/encomiendas/lectura/codigo-barras";
 import { formatoOf } from "@/lib/encomiendas/paquete";
 import { aplicarLecturaEtiqueta, type ResultadoEscaneo } from "@/lib/encomiendas/local/almacen";
@@ -135,12 +136,17 @@ export function EscanearEtiqueta({
                 {fase.error}
               </p>
             ) : null}
-            <input
+            <Campo
+              etiqueta="OF"
               inputMode="numeric"
               value={codigoEscrito}
               onChange={(e) => setCodigoEscrito(e.target.value)}
-              placeholder="OF"
-              className="h-12 w-full rounded-2xl border border-separator bg-card px-4 text-lg tabular-nums outline-none focus:border-brand"
+              placeholder="123 456 789"
+              enterKeyHint="search"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && codigoEscrito.trim()) void procesar(codigoEscrito);
+              }}
+              className="font-mono text-lg tabular-nums"
             />
             <button
               type="button"
