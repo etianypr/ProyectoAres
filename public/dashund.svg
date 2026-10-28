@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="40 36 120 136">
+  <!-- Logo de Dashund (2026-10-28): la cara de un perro salchicha, de frente.
+       El mismo dibujo que src/components/marca/logo-dashund.tsx. -->
+  <path d="M76 60 C56 63 44 92 47 124 C49 141 62 146 70 133 C78 119 81 93 80 71 Z" fill="#9e3912"/>
+  <path d="M124 60 C144 63 156 92 153 124 C151 141 138 146 130 133 C122 119 119 93 120 71 Z" fill="#9e3912"/>
+  <path d="M100 42 C121 42 133 57 133 79 C133 104 119 125 112 148 C109 159 105 167 100 167 C95 167 91 159 88 148 C81 125 67 104 67 79 C67 57 79 42 100 42 Z" fill="#d4531a"/>
+  <ellipse cx="88" cy="91" rx="4.2" ry="5.6" fill="#221a15" transform="rotate(-12 88 91)"/>
+  <ellipse cx="112" cy="91" rx="4.2" ry="5.6" fill="#221a15" transform="rotate(12 112 91)"/>
+  <path d="M93 156 C93 151 107 151 107 156 C107 162 103 166 100 166 C97 166 93 162 93 156 Z" fill="#221a15"/>
+</svg>

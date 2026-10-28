@@ -30,6 +30,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Check, CircleHelp, LogOut, Menu, Search, Stethoscope, X } from "lucide-react";
+import { LogoDashund } from "@/components/marca/logo-dashund";
 import { cn } from "@/lib/comun/utils";
 import { formatCLP, formatDateLong } from "@/lib/comun/format";
 import { borrarDatosDestinatarios, leerCola, type ResumenDia } from "@/lib/encomiendas/local/almacen";
@@ -134,7 +135,8 @@ export function MenuLateral({
       >
         {/* Quién está. La cruz al lado y no en la esquina opuesta: el menú se
             abre con el pulgar izquierdo y se cierra con el mismo pulgar. */}
-        <div className="flex items-start gap-2 px-4 pb-4 pt-2">
+        <div className="flex items-start gap-3 px-4 pb-4 pt-2">
+          <LogoDashund className="h-11 w-10 shrink-0" titulo="" />
           <div className="min-w-0 flex-1">
             <p className="text-xs text-muted">Sesión de</p>
             <p className="truncate text-lg font-semibold leading-tight">{nombreConductor}</p>

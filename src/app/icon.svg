@@ -1,9 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#c2410c"/>
-  <rect x="14" y="15" width="36" height="27" rx="6" fill="#ffffff"/>
-  <rect x="18" y="20" width="12" height="9" rx="2" fill="#c2410c"/>
-  <rect x="34" y="20" width="12" height="9" rx="2" fill="#c2410c"/>
-  <rect x="18" y="33" width="28" height="4" rx="2" fill="#c2410c" opacity="0.35"/>
-  <circle cx="23" cy="45" r="4.5" fill="#ffffff"/>
-  <circle cx="41" cy="45" r="4.5" fill="#ffffff"/>
+  <!-- Favicon: el logo de Dashund (public/dashund.svg) sobre el crema del tema. -->
+  <rect width="64" height="64" rx="14" fill="#f4f0ec"/>
+  <svg x="7" y="5" width="50" height="56" viewBox="40 36 120 136">
+    <path d="M76 60 C56 63 44 92 47 124 C49 141 62 146 70 133 C78 119 81 93 80 71 Z" fill="#9e3912"/>
+    <path d="M124 60 C144 63 156 92 153 124 C151 141 138 146 130 133 C122 119 119 93 120 71 Z" fill="#9e3912"/>
+    <path d="M100 42 C121 42 133 57 133 79 C133 104 119 125 112 148 C109 159 105 167 100 167 C95 167 91 159 88 148 C81 125 67 104 67 79 C67 57 79 42 100 42 Z" fill="#d4531a"/>
+    <ellipse cx="88" cy="91" rx="4.2" ry="5.6" fill="#221a15" transform="rotate(-12 88 91)"/>
+    <ellipse cx="112" cy="91" rx="4.2" ry="5.6" fill="#221a15" transform="rotate(12 112 91)"/>
+    <path d="M93 156 C93 151 107 151 107 156 C107 162 103 166 100 166 C97 166 93 162 93 156 Z" fill="#221a15"/>
+  </svg>
 </svg>

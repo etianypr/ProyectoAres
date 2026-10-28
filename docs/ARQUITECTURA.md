@@ -172,6 +172,7 @@ src/
 ├── app/(app)/                    panel: encomiendas (dia/_componentes) · conductores (_componentes) · configuracion · @modal
 ├── app/(conductor)/conductor/    PWA y APK: encomiendas (pantalla, que solo une · _componentes: parada activa, carril, hoja, ventanas · _hooks: navegación, acciones de la parada, propuesta, botón atrás · _mapa: ruta-mapa, estilo, cámara, marcadores) · diagnostico (APK)
 ├── app/(conductor)/tema-dashund  el tema de la app del conductor (diseño "Plano" con el naranja de Dashund, Manrope + IBM Plex Mono); solo lo carga el layout del conductor
+├── components/marca/logo-dashund  el logo de Dashund (cara de perro salchicha): inicio de sesión, menú, pantalla de carga; public/dashund.svg es el mismo dibujo y de ahí salen los íconos (scripts/generar-iconos.mjs)
 ├── app/api/                      whatsapp (send · status · webhook) · lectura (IA, spec 005) · geocodificar (Google, spec 016) · texto (Cloud Vision, spec 005)
 ├── components/                   ui (primitivas) · direccion (campo y vista previa) · panel (marco del panel)
 ├── lib/                          una carpeta por dominio, sin archivos sueltos

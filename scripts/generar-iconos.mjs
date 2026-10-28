@@ -1,118 +1,69 @@
-// Genera los íconos de la PWA a partir de public/logo.png.
+// Genera los íconos de la PWA y de la APK a partir de public/dashund.svg.
 //
-// El logo original es vertical (982×1200) e incluye el texto "TRANSPORTES
-// PUCARANI" y márgenes blancos: sirve para documentos, pero como ícono de
-// pantalla de inicio queda diminuto y con bordes muertos. Acá se recorta solo
-// el isotipo "TP", se invierte azul<->blanco (conservando el amarillo) y se
-// compone centrado sobre un cuadrado azul de marca.
+// Desde 2026-10-28 el ícono es el logo de Dashund —la empresa que desarrolla
+// ARES—: la cara de un perro salchicha, naranja, sobre el crema del tema de la
+// app del conductor (src/app/(conductor)/tema-dashund.css). Antes era el
+// isotipo "TP" de Transportes Pucarani, recortado de public/logo.png; ese
+// archivo queda para documentos.
 //
-// Correr después de cambiar public/logo.png:
+// Correr después de cambiar public/dashund.svg:
 //   node scripts/generar-iconos.mjs            (web + Android)
 //   node scripts/generar-iconos.mjs --android  (solo los íconos de la APK, spec 015)
+// La APK toma los íconos nuevos recién al compilarla e instalarla de nuevo.
 import fs from "node:fs";
 import path from "node:path";
 import sharp from "sharp";
 
 const RAIZ = process.cwd();
 const PUBLIC = path.join(RAIZ, "public");
-const ORIGEN = path.join(PUBLIC, "logo.png");
+const ORIGEN = path.join(PUBLIC, "dashund.svg");
 
-// Paleta real del logo (muestreada de public/logo.png).
-//
-// ⚠️ ESTE AZUL YA NO ES EL COLOR DE MARCA. La identidad de ARES Encomiendas es
-// naranja (--brand en globals.css); este azul es el del LOGO DE LA EMPRESA, que
-// es un activo de marca y no se recolorea desde un script.
-//
-// O sea que los íconos de la pantalla de inicio siguen siendo azules a
-// propósito: son el logo, no el tema de la app. Lo que sí acompaña al naranja es
-// el chrome (theme_color del manifest) y el favicon dibujado a mano
-// (src/app/icon.svg). Si algún día hay un logo naranja, se reemplaza
-// public/logo.png y se vuelve a correr esto.
-const AZUL = [12, 63, 155];
-const AMARILLO = [251, 196, 18];
-const BLANCO = [255, 255, 255];
-const FONDO = { r: AZUL[0], g: AZUL[1], b: AZUL[2], alpha: 1 };
-
-// Recorta el isotipo: la mitad superior del logo (sin el texto), ajustada a
-// sus bordes reales. Da un cuadrado exacto porque el isotipo es un círculo.
-async function recortarIsotipo() {
-  const meta = await sharp(ORIGEN).metadata();
-  const superior = await sharp(ORIGEN)
-    .extract({ left: 0, top: 0, width: meta.width, height: Math.round(meta.height * 0.68) })
-    .toBuffer();
-  return sharp(superior).trim({ threshold: 10 }).toBuffer();
-}
-
-// Invierte azul<->blanco y deja el amarillo intacto, para que la marca se lea
-// sobre el fondo azul lleno del ícono.
-async function invertir(entrada) {
-  const { data, info } = await sharp(entrada)
-    .ensureAlpha()
-    .raw()
-    .toBuffer({ resolveWithObject: true });
-
-  for (let i = 0; i < data.length; i += 4) {
-    const [r, g, b] = [data[i], data[i + 1], data[i + 2]];
-    if (g - b > 60 && r > 150) {
-      [data[i], data[i + 1], data[i + 2]] = AMARILLO;
-      continue;
-    }
-    // El canal rojo separa limpio el azul (12) del blanco (255), así que sirve
-    // de mezcla y conserva el antialias de los bordes.
-    const t = Math.min(1, Math.max(0, (255 - r) / 243));
-    for (let c = 0; c < 3; c++) {
-      data[i + c] = Math.round(AZUL[c] + (BLANCO[c] - AZUL[c]) * t);
-    }
-  }
-
-  return sharp(data, { raw: { width: info.width, height: info.height, channels: 4 } })
-    .png()
-    .toBuffer();
-}
-
-// Compone la marca centrada sobre un cuadrado azul.
-// `ocupacion` es la fracción del lado que ocupa la marca: 0.62 para el ícono
-// maskable, donde Android recorta hasta un círculo del 80% del lado.
-async function componer(marca, lado, ocupacion) {
-  const interior = Math.round(lado * ocupacion);
-  const escalada = await sharp(marca)
-    .resize(interior, interior, { fit: "contain", background: FONDO })
-    .toBuffer();
-  const margen = Math.round((lado - interior) / 2);
-
-  return sharp({ create: { width: lado, height: lado, channels: 4, background: FONDO } })
-    .composite([{ input: escalada, top: margen, left: margen }])
-    .png()
-    .toBuffer();
-}
+/** El crema del tema (--background en tema-dashund.css). */
+const CREMA = { r: 0xf4, g: 0xf0, b: 0xec, alpha: 1 };
+const CREMA_HEX = "#F4F0EC";
 
 if (!fs.existsSync(ORIGEN)) {
   console.error(`No existe ${ORIGEN}`);
   process.exit(1);
 }
 
-const marca = await invertir(await recortarIsotipo());
+// El logo a buena resolución: se rasteriza una vez, grande, y se achica.
+const marca = await sharp(fs.readFileSync(ORIGEN), { density: 1200 }).png().toBuffer();
+
+// Compone el logo centrado sobre un cuadrado crema. `ocupacion` es la fracción
+// del lado que ocupa: menos en el maskable, donde Android recorta hasta un
+// círculo del 80 % del lado.
+async function componer(lado, ocupacion) {
+  const interior = Math.round(lado * ocupacion);
+  const escalada = await sharp(marca)
+    .resize(interior, interior, { fit: "contain", background: { ...CREMA, alpha: 0 } })
+    .toBuffer();
+  const margen = Math.round((lado - interior) / 2);
+  return sharp({ create: { width: lado, height: lado, channels: 4, background: CREMA } })
+    .composite([{ input: escalada, top: margen, left: margen }])
+    .png()
+    .toBuffer();
+}
 
 const salidas = [
   // Android / manifest
-  ["icon-192.png", 192, 0.78],
-  ["icon-512.png", 512, 0.78],
-  // Android maskable: la marca se achica para sobrevivir el recorte circular
-  ["icon-maskable-512.png", 512, 0.62],
+  ["icon-192.png", 192, 0.74],
+  ["icon-512.png", 512, 0.74],
+  // Android maskable: el logo se achica para sobrevivir el recorte circular
+  ["icon-maskable-512.png", 512, 0.58],
   // iOS: se referencia desde src/app/(conductor)/layout.tsx; iOS redondea solo
-  ["apple-icon.png", 180, 0.78],
+  ["apple-icon.png", 180, 0.74],
 ];
 
 const soloAndroid = process.argv.includes("--android");
 
 for (const [nombre, lado, ocupacion] of soloAndroid ? [] : salidas) {
-  const destino = path.join(PUBLIC, nombre);
-  await sharp(await componer(marca, lado, ocupacion)).toFile(destino);
+  await sharp(await componer(lado, ocupacion)).toFile(path.join(PUBLIC, nombre));
   console.log(`✓ public/${nombre} (${lado}×${lado})`);
 }
 
 // APK Android (spec 015). El ícono adaptativo muestra solo el centro (72 de 108 dp):
-// la marca va al 0.6 del lado, como en el maskable. Los PNG cuadrado y redondo son
+// el logo va al 0.56 del lado, como en el maskable. Los PNG cuadrado y redondo son
 // el respaldo de los lanzadores viejos.
 const RES = path.join(RAIZ, "android", "app", "src", "main", "res");
 if (fs.existsSync(RES)) {
@@ -120,7 +71,7 @@ if (fs.existsSync(RES)) {
   for (const [nombre, factor] of Object.entries(densidades)) {
     const dir = path.join(RES, `mipmap-${nombre}`);
     const lado = Math.round(48 * factor);
-    const cuadrado = await componer(marca, lado, 0.78);
+    const cuadrado = await componer(lado, 0.74);
     await sharp(cuadrado).toFile(path.join(dir, "ic_launcher.png"));
     const circulo = Buffer.from(
       `<svg width="${lado}" height="${lado}"><circle cx="${lado / 2}" cy="${lado / 2}" r="${lado / 2}"/></svg>`,
@@ -130,27 +81,28 @@ if (fs.existsSync(RES)) {
       .png()
       .toFile(path.join(dir, "ic_launcher_round.png"));
     const frente = Math.round(108 * factor);
-    await sharp(await componer(marca, frente, 0.6)).toFile(path.join(dir, "ic_launcher_foreground.png"));
+    await sharp(await componer(frente, 0.56)).toFile(path.join(dir, "ic_launcher_foreground.png"));
   }
   fs.writeFileSync(
     path.join(RES, "values", "ic_launcher_background.xml"),
     `<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#0C3F9B</color>
+    <color name="ic_launcher_background">${CREMA_HEX}</color>
 </resources>
 `,
   );
-  // Pantalla de carga (Android 10 y 11; desde el 12 el sistema usa el ícono): la
-  // marca al 30 % del lado corto sobre el azul, respetando el tamaño de cada archivo
-  // que trae la plantilla de Capacitor.
+  // Pantalla de carga (Android 10 y 11; desde el 12 el sistema usa el ícono): el
+  // logo al 30 % del lado corto sobre el crema, respetando el tamaño de cada
+  // archivo que trae la plantilla de Capacitor.
   for (const carpeta of fs.readdirSync(RES).filter((d) => d.startsWith("drawable"))) {
     const archivo = path.join(RES, carpeta, "splash.png");
     if (!fs.existsSync(archivo)) continue;
     const { width, height } = await sharp(archivo).metadata();
     const interior = Math.round(Math.min(width, height) * 0.3);
-    const escalada = await sharp(marca).resize(interior, interior, { fit: "contain", background: FONDO }).toBuffer();
-    const fondo = sharp({ create: { width, height, channels: 4, background: FONDO } });
-    const destino = await fondo
+    const escalada = await sharp(marca)
+      .resize(interior, interior, { fit: "contain", background: { ...CREMA, alpha: 0 } })
+      .toBuffer();
+    const destino = await sharp({ create: { width, height, channels: 4, background: CREMA } })
       .composite([{ input: escalada, top: Math.round((height - interior) / 2), left: Math.round((width - interior) / 2) }])
       .png()
       .toBuffer();

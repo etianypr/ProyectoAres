@@ -23,11 +23,11 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: "/conductor/encomiendas",
     scope: "/conductor",
     display: "standalone",
-    // El naranja de --brand. background_color es lo que el sistema pinta
-    // mientras la app arranca, antes de que cargue nada: con otro color, abrir
-    // la app empieza con un destello azul.
-    background_color: "#c2410c",
-    theme_color: "#c2410c",
+    // El tema Dashund (tema-dashund.css). background_color es lo que el sistema
+    // pinta mientras la app arranca, antes de que cargue nada: el crema del ícono,
+    // para que abrir la app no empiece con un destello de otro color.
+    background_color: "#f4f0ec",
+    theme_color: "#c4491a",
     icons: [
       { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
       { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },

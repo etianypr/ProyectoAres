@@ -1,5 +1,5 @@
 import { LoginForm } from "./login-form";
-import { Package } from "lucide-react";
+import { LogoDashund } from "@/components/marca/logo-dashund";
 
 // El nombre de la empresa NO se lee de la base acá: esta página es pública y
 // consultarla antes de autenticar filtraría de quién es el sistema a cualquiera
@@ -17,14 +17,14 @@ export default async function LoginPage({
   const redirectTo = redirect && redirect.startsWith("/") ? redirect : "/";
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand to-brand-dark p-4">
+    // El crema y el logo de Dashund, la empresa que desarrolla ARES (2026-10-28).
+    // No dice de qué empresa es el sistema: eso sigue sin leerse antes de entrar.
+    <div className="flex min-h-screen items-center justify-center bg-[#f4f0ec] p-4 text-[#221a15]">
       <div className="w-full max-w-sm">
-        <div className="animate-slide-up mb-6 flex flex-col items-center text-center text-white">
-          <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25">
-            <Package className="h-7 w-7" />
-          </div>
-          <h1 className="text-xl font-semibold">Gestión de encomiendas</h1>
-          <p className="text-sm text-white/70">Reparto, días de trabajo y liquidación</p>
+        <div className="animate-slide-up mb-6 flex flex-col items-center text-center">
+          <LogoDashund className="mb-3 h-20 w-20" titulo="" />
+          <h1 className="text-2xl font-extrabold tracking-tight">ARES</h1>
+          <p className="text-sm text-[#6b5f57]">Gestión de encomiendas · por Dashund</p>
         </div>
 
         <div className="animate-scale-in rounded-2xl bg-card p-6 shadow-xl [animation-delay:80ms]">
@@ -32,7 +32,7 @@ export default async function LoginPage({
           <LoginForm redirectTo={redirectTo} />
         </div>
 
-        <p className="animate-fade-in mt-4 text-center text-xs text-white/60 [animation-delay:200ms]">
+        <p className="animate-fade-in mt-4 text-center text-xs text-[#6b5f57] [animation-delay:200ms]">
           Acceso exclusivo para personal autorizado.
         </p>
       </div>
