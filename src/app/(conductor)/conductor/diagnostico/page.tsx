@@ -6,11 +6,12 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Check, Minus, ScanLine, X } from "lucide-react";
+import { ArrowLeft, Check, FlaskConical, Minus, ScanLine, X } from "lucide-react";
 import { cn } from "@/lib/comun/utils";
 import { esApp, versionInstalada } from "@/lib/nativo/entorno";
 import { permisosTelefono } from "@/lib/nativo/telefono";
 import { escanearCodigo } from "@/lib/nativo/escaner";
+import { entrarAlModoPrueba, salirDelModoPrueba, useModoPrueba } from "@/lib/encomiendas/local/modo-prueba";
 
 type Estado = "si" | "no" | "pendiente";
 
@@ -48,6 +49,10 @@ export default function DiagnosticoPage() {
   const [info, setInfo] = useState<Info | null>(null);
   const [lectura, setLectura] = useState<string | null>(null);
   const [escaneando, setEscaneando] = useState(false);
+  const modoPrueba = useModoPrueba();
+  // Entrar o salir pide un segundo toque: salir borra lo de la prueba.
+  const [confirmando, setConfirmando] = useState(false);
+  const [errorPrueba, setErrorPrueba] = useState<string | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -68,6 +73,17 @@ export default function DiagnosticoPage() {
       });
     })();
   }, []);
+
+  async function cambiarModoPrueba() {
+    setErrorPrueba(null);
+    try {
+      if (modoPrueba) await salirDelModoPrueba();
+      else await entrarAlModoPrueba();
+    } catch (e) {
+      setErrorPrueba(e instanceof Error ? e.message : "No se pudo cambiar el modo prueba.");
+    }
+    setConfirmando(false);
+  }
 
   async function probarEscaner() {
     setEscaneando(true);
@@ -115,6 +131,49 @@ export default function DiagnosticoPage() {
       {lectura ? (
         <p className="break-all rounded-2xl bg-card px-4 py-3 font-mono text-sm shadow-soft">{lectura}</p>
       ) : null}
+
+      {/* Modo prueba (terreno 2026-10-28): ver lib/encomiendas/local/modo-prueba.ts. */}
+      <section className="space-y-2 rounded-2xl bg-card p-4 shadow-soft">
+        <div className="flex items-center gap-2">
+          <FlaskConical className="h-4 w-4 shrink-0 text-warn" />
+          <h2 className="flex-1 text-sm font-semibold">Modo prueba</h2>
+          <span className={cn("text-xs font-semibold", modoPrueba ? "text-warn" : "text-muted")}>
+            {modoPrueba ? "Encendido" : "Apagado"}
+          </span>
+        </div>
+        <p className="text-xs text-muted">
+          {modoPrueba
+            ? "Nada se envía a la oficina ni por WhatsApp. Al salir se borran los pedidos de prueba de este teléfono."
+            : "Nada se envía a la oficina ni por WhatsApp mientras esté encendido."}
+        </p>
+        {errorPrueba ? <p className="text-xs text-danger">{errorPrueba}</p> : null}
+        {confirmando ? (
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirmando(false)}
+              className="h-11 rounded-full border border-separator bg-card text-sm font-semibold text-muted"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={() => void cambiarModoPrueba()}
+              className="h-11 rounded-full bg-warn text-sm font-semibold text-white"
+            >
+              {modoPrueba ? "Salir y borrar" : "Entrar"}
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setConfirmando(true)}
+            className="h-11 w-full rounded-full border border-separator bg-card text-sm font-semibold text-warn"
+          >
+            {modoPrueba ? "Salir del modo prueba" : "Entrar al modo prueba"}
+          </button>
+        )}
+      </section>
     </div>
   );
 }

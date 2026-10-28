@@ -55,6 +55,7 @@ const SECCIONES: { titulo: string; pasos: string[] }[] = [
     pasos: [
       "Al terminar, revisa los no entregados y confirma: se borran los datos de los clientes del teléfono.",
       "Sin señal todo queda guardado y se envía solo.",
+      "Para probar sin enviar nada: Menú → Diagnóstico → Modo prueba.",
     ],
   },
 ];

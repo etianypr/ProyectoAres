@@ -26,6 +26,7 @@ import {
   quitarDeCola,
   type ActividadPorEnviar,
 } from "./almacen";
+import { enModoPrueba } from "./modo-prueba";
 
 // Un tope por consulta para no armar un cuerpo enorme con una conexión mala:
 // un día completo sin señal son ~60 eventos, así que en la práctica va
@@ -62,6 +63,8 @@ export type ResultadoEnvioCola = {
  *  evento es una fila distinta que hay que poder tachar de a una; acá hay un
  *  solo dato que siempre se puede volver a escribir entero. */
 export async function sincronizarDiaTrabajo(conductorId: string, fecha: string): Promise<void> {
+  // En modo prueba no sale nada (ver modo-prueba.ts).
+  if (enModoPrueba()) return;
   // Si el día ya se borró (spec 007), el inicio y el cierre siguen en su resumen.
   const ruta = (await leerRuta(fecha)) ?? (await leerDiaGuardado(fecha));
   // Sin ruta generada no hay día que abrir. Un día que solo tiene llamadas
@@ -92,6 +95,8 @@ export async function sincronizarDiaTrabajo(conductorId: string, fecha: string):
 export async function enviarActividadPendiente(): Promise<ResultadoEnvioCola> {
   const cola = await leerCola();
   if (cola.length === 0) return { enviados: 0, pendientes: 0 };
+  // En modo prueba la cola se llena pero no se manda: al salir se borra.
+  if (enModoPrueba()) return { enviados: 0, pendientes: cola.length };
 
   const lote = cola.slice(0, MAX_POR_ENVIO);
   const supabase = createClient();

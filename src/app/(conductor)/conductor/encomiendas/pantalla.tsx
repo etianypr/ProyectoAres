@@ -36,6 +36,8 @@ import { ControlesMapa } from "./_componentes/controles-mapa";
 import { VistaPedido } from "./_componentes/vista-pedido";
 import { GenerarRutaLocal } from "./_componentes/generar-ruta-local";
 import { VistaPreviaRuta } from "./_componentes/vista-previa-ruta";
+import { useModoPrueba } from "@/lib/encomiendas/local/modo-prueba";
+import { CintaModoPrueba } from "./_componentes/cinta-modo-prueba";
 
 // mapbox-gl toca `window` apenas se importa — aunque este archivo ya es "use
 // client", Next.js igual lo renderiza una vez en el servidor antes de hidratar,
@@ -49,7 +51,7 @@ export function PantallaEncomiendas({
   nombreConductor,
   fecha: fechaDelServidor,
   direccionEmpresa,
-  whatsapp,
+  whatsapp: whatsappServidor,
   lecturaIA,
   apkMinima,
   apkUrl,
@@ -75,6 +77,9 @@ export function PantallaEncomiendas({
 }) {
   // E1 (spec 017): la fecha la decide el teléfono, no el HTML (que puede ser
   // de ayer). No cambia en medio de una ruta empezada y abierta.
+  // En modo prueba no sale ningún WhatsApp (ver modo-prueba.ts).
+  const modoPrueba = useModoPrueba();
+  const whatsapp = whatsappServidor && !modoPrueba;
   const rutaEnCursoRef = useRef(false);
   const rutaEnCurso = useCallback(() => rutaEnCursoRef.current, []);
   const fecha = useFechaDelDia(fechaDelServidor, rutaEnCurso);
@@ -283,6 +288,8 @@ export function PantallaEncomiendas({
       </div>
 
       <PilaNotificaciones notificaciones={notificaciones} onAltura={setAltoNotificaciones} />
+
+      <CintaModoPrueba visible={modoPrueba} />
 
       <VentanasPantalla
         ventanas={ventanas}

@@ -294,6 +294,7 @@ lo usa.
 | Botones y payload: orden `CONFIRMAR · MANANA · HORARIO`, `leerAccion` (RECHAZAR legado → MANANA) | `encomiendas/catalogos.ts`, `encomiendas/config.ts` |
 | Llegada estimada y lugar de un pedido con horario; dónde menos alarga uno nuevo o uno que se reintenta (`lugarMasBarato`, `lugarParaReintentar`) | `encomiendas/local/planificar.ts` |
 | "Dejar como pendiente" y pedidos tardíos sin rehacer la ruta (`dejarParaMasTarde`, `sumarALaRuta`) | `encomiendas/local/sumar-a-ruta.ts` |
+| Modo prueba: nada a la base ni por WhatsApp; al salir se borra lo de la prueba (`enModoPrueba`, `entrarAlModoPrueba`, `salirDelModoPrueba`, `useModoPrueba`; `localStorage` `ares-modo-prueba`) | `encomiendas/local/modo-prueba.ts` |
 | La ruta en curso se reordena con las respuestas | `encomiendas/local/replanificar.ts` |
 | `Coordenada`, `PuntoLngLat`, `Trazado`, `distanciaMetros`, `CENTRO_ARICA`, `RECUADRO_ARICA` | `geo/coordenada.ts` |
 | Contrato teléfono ↔ `/api/whatsapp/*` | `encomiendas/contrato-whatsapp.ts` |
