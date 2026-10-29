@@ -837,3 +837,14 @@ test("elegirAcceso: una casa junto a la troncal se corre a su calle (o a la loca
   assert.ok(mismaCalle("Avenida Santiago Arata Gandolfo", "AVENIDA SANTIAGO ARATA"));
   assert.ok(!mismaCalle("Avenida Capitán Ávalos", "Avenida Linderos"));
 });
+
+// ------------------------------------------------- el número de un lugar
+const { cifraDelLugar } = await import("@/app/(conductor)/conductor/encomiendas/_mapa/capa-paradas");
+
+test("cifraDelLugar: varias paradas en el mismo punto se escriben cortas", () => {
+  assert.equal(cifraDelLugar(["7"]), "7");
+  assert.equal(cifraDelLugar(["30", "31"]), "30–31");
+  assert.equal(cifraDelLugar(["41", "42", "43", "40"]), "40–43", "seguidas aunque vengan desordenadas");
+  assert.equal(cifraDelLugar(["5", "9"]), "5+1");
+  assert.equal(cifraDelLugar(["12", "15", "20"]), "12+2");
+});

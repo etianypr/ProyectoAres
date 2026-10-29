@@ -39,6 +39,19 @@ function estadoDe(l: LugarMapa, previa: boolean): Estado {
   return "pendiente";
 }
 
+/** Lo que va escrito en un lugar con varias paradas: "40–43" si son seguidas,
+ *  "41+3" si no. Antes iban todas ("41·42·43·40") y el círculo quedaba enorme;
+ *  al tocarlo, el globo las sigue nombrando una por una. */
+export function cifraDelLugar(etiquetas: string[]): string {
+  if (etiquetas.length === 1) return etiquetas[0];
+  const numeros = etiquetas.map(Number);
+  if (numeros.every(Number.isInteger)) {
+    const orden = [...numeros].sort((a, b) => a - b);
+    if (orden.every((n, i) => i === 0 || n === orden[i - 1] + 1)) return `${orden[0]}–${orden[orden.length - 1]}`;
+  }
+  return `${etiquetas[0]}+${etiquetas.length - 1}`;
+}
+
 type Propiedades = { i: number; cifra: string; color: string; encima: number; radio: number; letra: number };
 type Punto = { type: "Feature"; geometry: { type: "Point"; coordinates: [number, number] }; properties: Propiedades };
 export type DatosParadas = { type: "FeatureCollection"; features: Punto[] };
@@ -57,16 +70,17 @@ export function datosParadas(
   });
   const features = lugares.map((l, i) => {
     const estado = estadoDe(l, previa);
-    const cifra = l.puntos.map((p) => p.label).join("·");
+    const cifra = cifraDelLugar(l.puntos.map((p) => p.label));
     const grande = estado === "activa";
+    // Tres o más caracteres ("100", "40–43") no caben en el círculo de dos.
+    const largo = cifra.length;
     return punto(l.lng, l.lat, {
       i,
       cifra,
       color: COLORES[estado],
       encima: ENCIMA[estado],
-      // Varias cifras ("30·31") no caben en el círculo de una.
-      radio: (grande ? 16 : 13) + Math.max(0, cifra.length - 2) * 3,
-      letra: grande ? 13 : 11.5,
+      radio: (grande ? 16 : 13) + (largo >= 3 ? 3 : 0) + (largo >= 5 ? 3 : 0),
+      letra: largo >= 5 ? 10 : largo >= 4 ? 11 : grande ? 13 : 11.5,
     });
   });
   if (central) {
