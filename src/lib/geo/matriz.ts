@@ -1,40 +1,36 @@
 // Distancias por calle entre la partida y TODAS las paradas (spec 017, R1).
 //
-// Antes se pedían en UNA consulta, y Mapbox acepta 25 coordenadas por consulta:
-// un día de más de 24 paradas —el normal son 60— se ordenaba en línea recta, y
-// medido sobre días reales eso sale 9–13 % más largo. Ahora se pide por bloques.
+// Con esto se decide el ORDEN de la ruta. Desde 2026-10-30 se piden a
+// OpenRouteService y no a Mapbox: Mapbox cobra por cada par pasado lo gratis y
+// no tiene tope de gasto (unas pruebas mías dejaron una cuenta de US$66). ORS es
+// gratis y sin tarjeta: pasado su límite RECHAZA la consulta, nunca cobra.
 //
-// Lo que cuesta: Mapbox cobra por ELEMENTO (un par origen→destino): 100.000 al
-// mes gratis y después US$2 cada 1.000. Un día de 60 paradas son ~3.600. Para no
-// pasarse:
+// Límites de ORS (plan gratis, verificados contra la API real):
+//   · 3.500 pares por consulta (60 × 60 devuelve 400, código 6004);
+//   · 500 consultas al día y 40 por minuto. Un día de 67 puntos son 2 consultas.
+// Un punto sin calle cerca (en el mar, mal ubicado) vuelve con sus pares en null,
+// sin botar la consulta entera.
+//
+// Para gastar lo menos posible:
 //   · cada par se guarda en memoria el día entero: rehacer la ruta con los
 //     mismos pedidos no pide nada, y sumar un pedido pide solo su fila y su
-//     columna (~120 elementos);
+//     columna;
 //   · no se piden pares que nunca se usan (un punto a sí mismo). Volver a la
-//     partida sí: la ruta termina donde empezó (terreno 2026-10-28);
-//   · un tope mensual (TOPE_MENSUAL) que, al alcanzarse, deja ordenar en línea
-//     recta y lo avisa.
+//     partida sí: la ruta termina donde empezó (terreno 2026-10-28).
 //
 // No se guarda en el teléfono: son puntos de destinatarios y la memoria se va al
-// cerrar la app, que es lo que se quiere.
+// cerrar la app, que es lo que se quiere. La consulta sale directo del teléfono a
+// ORS (nunca por el servidor), con una clave pública como el token de Mapbox.
 
-import { distanciaMetros, type Coordenada } from "../coordenada";
+import { distanciaMetros, type Coordenada } from "./coordenada";
 import { tope } from "@/lib/comun/tope";
-import { tokenMapbox } from "./token";
 
-const MATRIX = "https://api.mapbox.com/directions-matrix/v1/mapbox/driving";
+const MATRIX = "https://api.openrouteservice.org/v2/matrix/driving-car";
 
-/** Coordenadas por consulta (verificado: 26 devuelve 422). */
-const MAX_COORDENADAS = 25;
-/** Bloques de la primera vez: 12 orígenes × 13 destinos = 25 coordenadas. */
-const ORIGENES_POR_BLOQUE = 12;
-const DESTINOS_POR_BLOQUE = 13;
-/** Consultas a la vez: Mapbox admite 60 por minuto. */
-const EN_PARALELO = 4;
-
-/** Elementos por mes que se permiten gastar: el gratis de Mapbox son 100.000 y
- *  queda margen para las pruebas. */
-export const TOPE_MENSUAL = 90_000;
+/** Pares (orígenes × destinos) por consulta que acepta ORS. */
+const MAX_PARES = 3_500;
+/** Consultas a la vez: ORS admite 40 por minuto. */
+const EN_PARALELO = 2;
 
 /** Sin matriz, la línea recta se alarga en este factor (el mismo de planificar.ts). */
 const FACTOR_CALLES = 1.3;
@@ -43,51 +39,25 @@ const FACTOR_CALLES = 1.3;
  *  —infinito— y la mejora local se apagaba para el día entero (spec 017, R3). */
 const METROS_SIN_CAMINO = 20_000;
 
+/** Clave pública de OpenRouteService: la única lectura de NEXT_PUBLIC_ORS_KEY.
+ *  Se lee al llamar para que las pruebas puedan ponerla y quitarla. */
+export function claveOrs(): string | null {
+  return process.env.NEXT_PUBLIC_ORS_KEY || null;
+}
+
 export type MatrizCalles = {
   /** metros[i][j] por calle; el 0 es la partida. Los pares que no llegaron
    *  van estimados en línea recta. */
   metros: number[][];
-  /** false si algún bloque no llegó: esos pares van estimados. */
+  /** false si alguna consulta no llegó: esos pares van estimados. */
   completa: boolean;
-  /** Cuántos elementos se pidieron a Mapbox esta vez (0 = todo salió de memoria). */
+  /** Cuántos pares se pidieron esta vez (0 = todo salió de memoria). */
   pedidos: number;
 };
 
-/** Por qué no hay matriz: se ordena en línea recta y la propuesta lo avisa. */
+/** Por qué no hay matriz: se ordena en línea recta y la propuesta lo avisa.
+ *  "cupo" = ORS dijo que se acabaron las consultas gratis del día. */
 export type SinMatriz = { metros: null; motivo: "sin_token" | "cupo" | "sin_respuesta" };
-
-/** Cuánto queda del tope del mes. Se puede reemplazar en las pruebas. */
-export type Cupo = { disponible(): number; gastar(elementos: number): void };
-
-const CLAVE_CUPO = "ares-matriz-elementos";
-
-function mesActual(): string {
-  return new Date().toISOString().slice(0, 7);
-}
-
-/** El cupo vive en el teléfono (localStorage): es un contador, no un dato de nadie. */
-export const cupoDelTelefono: Cupo = {
-  disponible() {
-    try {
-      const guardado = JSON.parse(globalThis.localStorage?.getItem(CLAVE_CUPO) ?? "null") as {
-        mes?: string;
-        usados?: number;
-      } | null;
-      const usados = guardado?.mes === mesActual() ? (guardado.usados ?? 0) : 0;
-      return Math.max(0, TOPE_MENSUAL - usados);
-    } catch {
-      return TOPE_MENSUAL;
-    }
-  },
-  gastar(elementos) {
-    try {
-      const usados = TOPE_MENSUAL - this.disponible() + elementos;
-      globalThis.localStorage?.setItem(CLAVE_CUPO, JSON.stringify({ mes: mesActual(), usados }));
-    } catch {
-      // Sin almacenamiento no hay contador: se sigue igual.
-    }
-  },
-};
 
 /** Pares ya conocidos, por clave de punto (~1 m). */
 const conocidos = new Map<string, number>();
@@ -113,9 +83,10 @@ export type Consulta = { origenes: number[]; destinos: number[] };
 /**
  * Qué consultas hacen falta para los pares que faltan. Pura.
  *
- * Si falta casi todo (la primera vez del día), bloques fijos de 12 × 13: cada par
- * se pide una sola vez. Si faltan pocos (un pedido nuevo, otra partida), por
- * líneas: la fila o columna con más pares faltantes, de a 24.
+ * Si falta casi todo (la primera vez del día), bloques de orígenes contra TODOS
+ * los destinos, tantos orígenes como entren en MAX_PARES: cada par se pide una
+ * sola vez. Si faltan pocos (un pedido nuevo, otra partida), por líneas: la
+ * fila o columna con más pares faltantes.
  */
 export function planificarConsultas(n: number, faltan: Set<number>): Consulta[] {
   if (faltan.size === 0) return [];
@@ -124,15 +95,12 @@ export function planificarConsultas(n: number, faltan: Set<number>): Consulta[] 
 
   if (faltan.size >= (n * n) / 3) {
     const todos = Array.from({ length: n }, (_, i) => i);
+    const porBloque = Math.max(1, Math.floor(MAX_PARES / n));
     // La partida también es destino: la ruta vuelve a ella.
-    const llegadas = todos;
-    for (let a = 0; a < n; a += ORIGENES_POR_BLOQUE) {
-      const origenes = todos.slice(a, a + ORIGENES_POR_BLOQUE);
-      for (let b = 0; b < llegadas.length; b += DESTINOS_POR_BLOQUE) {
-        const destinos = llegadas.slice(b, b + DESTINOS_POR_BLOQUE);
-        if (origenes.some((i) => destinos.some((j) => faltan.has(par(i, j))))) {
-          consultas.push({ origenes, destinos });
-        }
+    for (let a = 0; a < n; a += porBloque) {
+      const origenes = todos.slice(a, a + porBloque);
+      if (origenes.some((i) => todos.some((j) => faltan.has(par(i, j))))) {
+        consultas.push({ origenes, destinos: todos });
       }
     }
     return consultas;
@@ -158,36 +126,43 @@ export function planificarConsultas(n: number, faltan: Set<number>): Consulta[] 
         pendientes.delete(k);
       }
     }
-    for (let a = 0; a < otros.length; a += MAX_COORDENADAS - 1) {
-      const grupo = otros.slice(a, a + MAX_COORDENADAS - 1);
+    for (let a = 0; a < otros.length; a += MAX_PARES) {
+      const grupo = otros.slice(a, a + MAX_PARES);
       consultas.push(esFila ? { origenes: [linea], destinos: grupo } : { origenes: grupo, destinos: [linea] });
     }
   }
   return consultas;
 }
 
-/** Elementos que cobra Mapbox por una consulta. */
+/** Pares que pide una consulta. */
 export function elementos(c: Consulta): number {
   return c.origenes.length * c.destinos.length;
 }
 
-/** Hace una consulta y guarda sus pares. false si no llegó. */
-async function consultar(puntos: Coordenada[], c: Consulta, token: string): Promise<boolean> {
+type Resultado = "llego" | "cupo" | "fallo";
+
+/** Hace una consulta y guarda sus pares. */
+async function consultar(puntos: Coordenada[], c: Consulta, clave: string): Promise<Resultado> {
   // Las coordenadas de la consulta: la unión de orígenes y destinos, sin repetir.
   const indices = [...new Set([...c.origenes, ...c.destinos])];
   const posicion = new Map(indices.map((i, k) => [i, k] as const));
-  const query = new URLSearchParams({
-    annotations: "distance",
-    sources: c.origenes.map((i) => posicion.get(i)).join(";"),
-    destinations: c.destinos.map((j) => posicion.get(j)).join(";"),
-    access_token: token,
-  });
-  const coords = indices.map((i) => `${puntos[i].lng},${puntos[i].lat}`).join(";");
   try {
-    const res = await fetch(`${MATRIX}/${coords}?${query}`, { signal: tope(15_000) });
-    if (!res.ok) return false;
+    const res = await fetch(MATRIX, {
+      method: "POST",
+      headers: { Authorization: clave, "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        locations: indices.map((i) => [puntos[i].lng, puntos[i].lat]),
+        sources: c.origenes.map((i) => posicion.get(i)),
+        destinations: c.destinos.map((j) => posicion.get(j)),
+        metrics: ["distance"],
+        units: "m",
+      }),
+      signal: tope(15_000),
+    });
+    if (res.status === 429) return "cupo";
+    if (!res.ok) return "fallo";
     const datos = (await res.json()) as { distances?: (number | null)[][] };
-    if (!Array.isArray(datos.distances)) return false;
+    if (!Array.isArray(datos.distances)) return "fallo";
     c.origenes.forEach((i, a) =>
       c.destinos.forEach((j, b) => {
         const d = datos.distances?.[a]?.[b];
@@ -197,21 +172,18 @@ async function consultar(puntos: Coordenada[], c: Consulta, token: string): Prom
         );
       }),
     );
-    return true;
+    return "llego";
   } catch {
-    return false;
+    return "fallo";
   }
 }
 
 /**
- * La matriz de metros por calle entre `puntos` (el 0 es la partida). Sin token,
- * sin cupo en el mes o sin respuesta, `metros` es null y se ordena en línea
+ * La matriz de metros por calle entre `puntos` (el 0 es la partida). Sin clave,
+ * sin consultas en el día o sin respuesta, `metros` es null y se ordena en línea
  * recta, como siempre. Nunca lanza.
  */
-export async function matrizCalles(
-  puntos: Coordenada[],
-  cupo: Cupo = cupoDelTelefono,
-): Promise<MatrizCalles | SinMatriz> {
+export async function matrizCalles(puntos: Coordenada[]): Promise<MatrizCalles | SinMatriz> {
   const n = puntos.length;
   const claves = puntos.map(clavePunto);
   const clavePar = (i: number, j: number) => `${claves[i]}>${claves[j]}`;
@@ -228,22 +200,21 @@ export async function matrizCalles(
   let completa = true;
   let pedidos = 0;
   if (faltan.size > 0) {
-    const token = tokenMapbox();
-    if (!token) return { metros: null, motivo: "sin_token" };
+    const clave = claveOrs();
+    if (!clave) return { metros: null, motivo: "sin_token" };
     const consultas = planificarConsultas(n, faltan);
-    const necesarios = consultas.reduce((s, c) => s + elementos(c), 0);
-    if (necesarios > cupo.disponible()) return { metros: null, motivo: "cupo" };
+    let sinCupo = false;
 
     for (let k = 0; k < consultas.length; k += EN_PARALELO) {
       const tanda = consultas.slice(k, k + EN_PARALELO);
-      const llegaron = await Promise.all(tanda.map((c) => consultar(puntos, c, token)));
+      const resultados = await Promise.all(tanda.map((c) => consultar(puntos, c, clave)));
       tanda.forEach((c, x) => {
-        if (llegaron[x]) pedidos += elementos(c);
+        if (resultados[x] === "llego") pedidos += elementos(c);
         else completa = false;
+        if (resultados[x] === "cupo") sinCupo = true;
       });
     }
-    cupo.gastar(pedidos);
-    if (pedidos === 0) return { metros: null, motivo: "sin_respuesta" };
+    if (pedidos === 0) return { metros: null, motivo: sinCupo ? "cupo" : "sin_respuesta" };
   }
 
   const metros = puntos.map((a, i) =>

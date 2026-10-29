@@ -1,7 +1,7 @@
 // Cómo se arma la ruta cuando entran en juego las respuestas de los receptores.
 //
 // Corre calcularRutaLocal() de verdad, sobre IndexedDB de verdad, con la matriz
-// de Mapbox y el trazado respondidos por un doble del fetch global. Lo que se
+// de OpenRouteService y el trazado de Mapbox respondidos por un doble del fetch global. Lo que se
 // verifica es lo que el documento principal pide y que la distancia sola no
 // puede dar:
 //
@@ -26,7 +26,7 @@ const generar = await import("@/lib/encomiendas/local/generar-ruta");
 const { calcularRutaLocal, confirmarRutaLocal, devolverParada, elegirAlternativa, quitarParada, retrazar } = generar;
 
 const idb = await import("@/lib/encomiendas/local/idb");
-const { olvidarMatriz } = await import("@/lib/geo/mapbox/matriz");
+const { olvidarMatriz } = await import("@/lib/geo/matriz");
 const reloj = await import("./dobles/reloj.mjs");
 
 const HOY = "2026-08-20";
@@ -86,19 +86,20 @@ function puntosDeUrl(url) {
 }
 
 function instalar() {
-  globalThis.fetch = async (entrada) => {
+  globalThis.fetch = async (entrada, init) => {
     const url = typeof entrada === "string" ? entrada : entrada.url;
     consultas.push(url);
 
-    if (url.includes("directions-matrix")) {
+    if (url.includes("openrouteservice")) {
       if (!respondeMatriz) return new Response("no", { status: 503 });
-      // Como la API real: filas = sources, columnas = destinations (la matriz
-      // del día se pide por bloques, spec 017).
-      const puntos = puntosDeUrl(url);
-      const q = new URL(url).searchParams;
-      const indices = (clave) =>
-        q.get(clave) ? q.get(clave).split(";").map(Number) : puntos.map((_, i) => i);
-      const distances = indices("sources").map((i) => indices("destinations").map((j) => metros(puntos[i], puntos[j])));
+      // Como la API real de ORS: POST con [lng, lat]; filas = sources,
+      // columnas = destinations (la matriz del día se pide por bloques, spec 017).
+      const cuerpo = JSON.parse(init.body);
+      const puntos = cuerpo.locations.map(([lng, lat]) => ({ lat, lng }));
+      const todos = puntos.map((_, i) => i);
+      const distances = (cuerpo.sources ?? todos).map((i) =>
+        (cuerpo.destinations ?? todos).map((j) => metros(puntos[i], puntos[j])),
+      );
       return Response.json({ distances });
     }
 
@@ -125,11 +126,12 @@ function instalar() {
   };
 }
 
-const consultasDeMatriz = () => consultas.filter((u) => u.includes("directions-matrix")).length;
+const consultasDeMatriz = () => consultas.filter((u) => u.includes("openrouteservice")).length;
 const consultasDeTrazado = () => consultas.filter((u) => u.includes("directions/v5")).length;
 
 test.before(() => {
   process.env.NEXT_PUBLIC_MAPBOX_TOKEN = "pk.prueba";
+  process.env.NEXT_PUBLIC_ORS_KEY = "ors.prueba";
   instalar();
 });
 test.after(() => {

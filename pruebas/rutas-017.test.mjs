@@ -1,7 +1,8 @@
 // Rutas al siguiente nivel (spec 017, US3): la matriz de calles por bloques (R1)
-// y el optimizador con horarios (R2, R5). Mapbox se reemplaza con un doble de
-// fetch que contesta la línea recta × 1,2 para los orígenes y destinos pedidos.
-process.env.NEXT_PUBLIC_MAPBOX_TOKEN = "pk.token-de-prueba";
+// y el optimizador con horarios (R2, R5). OpenRouteService se reemplaza con un
+// doble de fetch que contesta la línea recta × 1,2 para los orígenes y destinos
+// pedidos.
+process.env.NEXT_PUBLIC_ORS_KEY = "ors.clave-de-prueba";
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -11,7 +12,7 @@ import {
   matrizCalles,
   olvidarMatriz,
   planificarConsultas,
-} from "@/lib/geo/mapbox/matriz";
+} from "@/lib/geo/matriz";
 import { evaluar, optimizarConHorarios } from "@/lib/rutas/orden-paradas/con-horarios";
 import { ordenarParadas } from "@/lib/rutas/orden-paradas";
 import { optimizarSinCongelar } from "@/lib/rutas/orden-paradas/sin-congelar";
@@ -22,23 +23,27 @@ function alAzar(n, semilla = 1) {
   return Array.from({ length: n }, () => ({ lat: -18.44 - rnd() * 0.07, lng: -70.26 - rnd() * 0.08 }));
 }
 
-const cupoLibre = () => ({ disponible: () => Infinity, gastar() {} });
+/** ORS acepta 3.500 pares por consulta (verificado: 60 × 60 devuelve 400). */
+const MAX_PARES = 3_500;
 
-/** Doble de la Matrix API. `sinCamino(i, j)` = null para ese par. */
-function mapboxFalso({ registro = [], falla = () => false, sinCamino = () => false } = {}) {
-  return async (url) => {
-    const u = new URL(String(url));
-    const coords = u.pathname.split("/").pop().split(";").map((c) => {
-      const [lng, lat] = c.split(",").map(Number);
-      return { lat, lng };
-    });
-    assert.ok(coords.length <= 25, `una consulta llevó ${coords.length} coordenadas`);
-    const origenes = u.searchParams.get("sources").split(";").map(Number);
-    const destinos = u.searchParams.get("destinations").split(";").map(Number);
+/** Doble de la Matrix API de ORS. `sinCamino(a, b)` = null para ese par;
+ *  `estado(k)` = el código HTTP de la consulta k (200 si no dice nada). */
+function orsFalso({ registro = [], estado = () => 200, sinCamino = () => false } = {}) {
+  return async (url, init) => {
+    assert.match(String(url), /api\.openrouteservice\.org\/v2\/matrix\/driving-car/);
+    assert.equal(init.method, "POST");
+    assert.equal(init.headers.Authorization, "ors.clave-de-prueba");
+    const cuerpo = JSON.parse(init.body);
+    const coords = cuerpo.locations.map(([lng, lat]) => ({ lat, lng }));
+    const origenes = cuerpo.sources;
+    const destinos = cuerpo.destinations;
+    assert.ok(origenes.length * destinos.length <= MAX_PARES, `una consulta pidió ${origenes.length * destinos.length} pares`);
     registro.push({ coords: coords.length, elementos: origenes.length * destinos.length });
-    if (falla(registro.length)) return { ok: false, json: async () => ({}) };
+    const status = estado(registro.length);
+    if (status !== 200) return { ok: false, status, json: async () => ({}) };
     return {
       ok: true,
+      status,
       json: async () => ({
         distances: origenes.map((i) =>
           destinos.map((j) => (sinCamino(coords[i], coords[j]) ? null : distanciaMetros(coords[i], coords[j]) * 1.2)),
@@ -60,7 +65,7 @@ async function conFetch(doble, fn) {
 
 // ------------------------------------------------------------- R1: consultas
 test("planificarConsultas: la primera vez, cada par una sola vez, también la vuelta a la partida", () => {
-  const n = 61;
+  const n = 67;
   const faltan = new Set();
   // La ruta es cerrada (terreno 2026-10-28): volver a la partida (j = 0) se pide.
   for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) if (i !== j) faltan.add(i * n + j);
@@ -68,14 +73,15 @@ test("planificarConsultas: la primera vez, cada par una sola vez, también la vu
 
   const vistos = new Map();
   for (const c of consultas) {
-    assert.ok(new Set([...c.origenes, ...c.destinos]).size <= 25);
+    assert.ok(elementos(c) <= MAX_PARES);
     for (const i of c.origenes) for (const j of c.destinos) vistos.set(i * n + j, (vistos.get(i * n + j) ?? 0) + 1);
   }
   for (const k of faltan) assert.equal(vistos.get(k), 1, `el par ${k} se pidió ${vistos.get(k) ?? 0} veces`);
   const total = consultas.reduce((s, c) => s + elementos(c), 0);
   // n × n: los únicos de más son los de cada punto a sí mismo.
   assert.equal(total, n * n);
-  assert.ok(consultas.length <= 30, `${consultas.length} consultas`);
+  // Un día de 67 puntos son 2 consultas de las 500 gratis del día.
+  assert.equal(consultas.length, 2);
 });
 
 test("planificarConsultas: un pedido nuevo pide solo su fila y su columna", () => {
@@ -90,7 +96,7 @@ test("planificarConsultas: un pedido nuevo pide solo su fila y su columna", () =
   const consultas = planificarConsultas(n, faltan);
   const total = consultas.reduce((s, c) => s + elementos(c), 0);
   assert.equal(total, faltan.size);
-  assert.ok(consultas.length <= 6, `${consultas.length} consultas para un pedido`);
+  assert.equal(consultas.length, 2, `${consultas.length} consultas para un pedido`);
 });
 
 // ----------------------------------------------------------- R1: matrizCalles
@@ -98,31 +104,31 @@ test("matrizCalles: con 61 puntos arma la matriz completa por bloques", async ()
   olvidarMatriz();
   const puntos = alAzar(61, 3);
   const registro = [];
-  const r = await conFetch(mapboxFalso({ registro }), () => matrizCalles(puntos, cupoLibre()));
+  const r = await conFetch(orsFalso({ registro }), () => matrizCalles(puntos));
   assert.ok(r.metros, "no armó la matriz");
   assert.equal(r.completa, true);
   assert.equal(r.metros.length, 61);
   const err = Math.abs(r.metros[5][40] - distanciaMetros(puntos[5], puntos[40]) * 1.2);
-  assert.ok(err < 1e-6, "el par no es el que contestó Mapbox");
+  assert.ok(err < 1e-6, "el par no es el que contestó ORS");
   assert.equal(r.pedidos, 61 * 61, "con la vuelta a la partida");
-  assert.ok(registro.length <= 30);
+  assert.equal(registro.length, 2);
 });
 
 test("matrizCalles: rehacer con los mismos puntos no consulta; un pedido más pide ~2n", async () => {
   olvidarMatriz();
   const puntos = alAzar(40, 5);
-  await conFetch(mapboxFalso(), () => matrizCalles(puntos, cupoLibre()));
+  await conFetch(orsFalso(), () => matrizCalles(puntos));
 
   const otra = [];
-  const r = await conFetch(mapboxFalso({ registro: otra }), () => matrizCalles(puntos, cupoLibre()));
+  const r = await conFetch(orsFalso({ registro: otra }), () => matrizCalles(puntos));
   assert.equal(otra.length, 0, "volvió a pedir lo que ya tenía");
   assert.equal(r.pedidos, 0);
 
   const nuevo = { lat: -18.47, lng: -70.3 };
   const mas = [];
-  const r2 = await conFetch(mapboxFalso({ registro: mas }), () => matrizCalles([...puntos, nuevo], cupoLibre()));
-  assert.ok(r2.pedidos <= 2 * 41, `un pedido nuevo pidió ${r2.pedidos} elementos`);
-  assert.ok(mas.length <= 4);
+  const r2 = await conFetch(orsFalso({ registro: mas }), () => matrizCalles([...puntos, nuevo]));
+  assert.ok(r2.pedidos <= 2 * 41, `un pedido nuevo pidió ${r2.pedidos} pares`);
+  assert.ok(mas.length <= 2);
 });
 
 test("matrizCalles: un par sin camino vale caro pero FINITO (R3)", async () => {
@@ -130,8 +136,8 @@ test("matrizCalles: un par sin camino vale caro pero FINITO (R3)", async () => {
   const puntos = alAzar(6, 9);
   const aislado = puntos[3];
   const r = await conFetch(
-    mapboxFalso({ sinCamino: (a, b) => a.lat === aislado.lat || b.lat === aislado.lat }),
-    () => matrizCalles(puntos, cupoLibre()),
+    orsFalso({ sinCamino: (a, b) => a.lat === aislado.lat || b.lat === aislado.lat }),
+    () => matrizCalles(puntos),
   );
   assert.ok(Number.isFinite(r.metros[1][3]) && r.metros[1][3] > 20_000);
   // Con el costo finito, el orden se sigue optimizando.
@@ -139,32 +145,40 @@ test("matrizCalles: un par sin camino vale caro pero FINITO (R3)", async () => {
   assert.equal(new Set(orden).size, 6);
 });
 
-test("matrizCalles: sin cupo no consulta nada y lo dice", async () => {
+test("matrizCalles: sin clave de ORS no consulta nada y lo dice", async () => {
   olvidarMatriz();
-  const registro = [];
-  let gastado = 0;
-  const cupo = { disponible: () => 100, gastar: (n) => (gastado += n) };
-  const r = await conFetch(mapboxFalso({ registro }), () => matrizCalles(alAzar(20, 2), cupo));
-  assert.equal(r.metros, null);
-  assert.equal(r.motivo, "cupo");
-  assert.equal(registro.length, 0);
-  assert.equal(gastado, 0);
+  const clave = process.env.NEXT_PUBLIC_ORS_KEY;
+  delete process.env.NEXT_PUBLIC_ORS_KEY;
+  try {
+    const registro = [];
+    const r = await conFetch(orsFalso({ registro }), () => matrizCalles(alAzar(20, 2)));
+    assert.equal(r.metros, null);
+    assert.equal(r.motivo, "sin_token");
+    assert.equal(registro.length, 0);
+  } finally {
+    process.env.NEXT_PUBLIC_ORS_KEY = clave;
+  }
 });
 
-test("matrizCalles: descuenta del cupo solo lo que llegó; sin red avisa", async () => {
+test("matrizCalles: si ORS dice que se acabaron las consultas del día, lo dice (nunca cobra)", async () => {
   olvidarMatriz();
-  let gastado = 0;
-  const cupo = { disponible: () => 1_000_000, gastar: (n) => (gastado += n) };
-  const puntos = alAzar(30, 4);
-  const r = await conFetch(mapboxFalso({ falla: (k) => k === 2 }), () => matrizCalles(puntos, cupo));
-  assert.equal(r.completa, false, "un bloque no llegó y no lo dijo");
-  assert.equal(gastado, r.pedidos);
+  const r = await conFetch(orsFalso({ estado: () => 429 }), () => matrizCalles(alAzar(20, 2)));
+  assert.equal(r.metros, null);
+  assert.equal(r.motivo, "cupo");
+});
+
+test("matrizCalles: si una consulta no llega, esos pares van estimados; sin red avisa", async () => {
+  olvidarMatriz();
+  const puntos = alAzar(67, 4);
+  const r = await conFetch(orsFalso({ estado: (k) => (k === 2 ? 503 : 200) }), () => matrizCalles(puntos));
+  assert.equal(r.completa, false, "una consulta no llegó y no lo dijo");
+  assert.ok(r.pedidos > 0 && r.pedidos < 67 * 67);
   assert.ok(r.metros.every((fila) => fila.every(Number.isFinite)), "un par sin dato quedó sin estimar");
 
   olvidarMatriz();
   const sinRed = await conFetch(async () => {
     throw new Error("sin señal");
-  }, () => matrizCalles(puntos, cupo));
+  }, () => matrizCalles(puntos));
   assert.equal(sinRed.metros, null);
   assert.equal(sinRed.motivo, "sin_respuesta");
 });

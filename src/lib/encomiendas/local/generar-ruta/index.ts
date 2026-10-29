@@ -32,7 +32,7 @@
 
 import { distanciaMetros, type Coordenada } from "@/lib/geo/coordenada";
 import { obtenerRutaCalles } from "@/lib/geo/mapbox/direcciones";
-import { matrizCalles } from "@/lib/geo/mapbox/matriz";
+import { matrizCalles } from "@/lib/geo/matriz";
 import { nombreVisible } from "@/lib/encomiendas/paquete";
 import { resultadoCerrado } from "@/lib/encomiendas/estados";
 import { minutoDelDia } from "../planificar";
@@ -190,9 +190,9 @@ export async function calcularRutaLocal(
       ? calle.metros.slice(0, -1).map((fila, i) => [i === 0 ? 0 : fila[fila.length - 1], ...fila.slice(1, -1)])
       : calle.metros;
   if (calle.metros === null && calle.motivo === "cupo") {
-    advertencias.push(
-      "Este mes ya se usaron las distancias por calle gratuitas: el orden se calculó en línea recta.",
-    );
+    advertencias.push("Hoy ya se usaron las distancias por calle gratuitas: el orden se calculó en línea recta.");
+  } else if (calle.metros === null && calle.motivo === "sin_token") {
+    advertencias.push("Sin distancias por calle configuradas: el orden se calculó en línea recta.");
   } else if (calle.metros === null && calle.motivo === "sin_respuesta") {
     advertencias.push("Sin señal para las distancias por calle: el orden se calculó en línea recta.");
   } else if (calle.metros !== null && !calle.completa) {

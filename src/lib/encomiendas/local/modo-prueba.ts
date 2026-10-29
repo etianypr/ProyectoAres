@@ -12,7 +12,7 @@
 // Se guarda solo en el teléfono (localStorage): es un estado de ESTE teléfono.
 
 import { useSyncExternalStore } from "react";
-import { olvidarMatriz } from "@/lib/geo/mapbox/matriz";
+import { olvidarMatriz } from "@/lib/geo/matriz";
 import { enFila } from "./almacen/fila";
 import { STORES, STORES_DEL_DIA, escribir, leerTodos } from "./idb";
 

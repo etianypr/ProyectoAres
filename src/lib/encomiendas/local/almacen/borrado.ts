@@ -3,7 +3,7 @@
 // direcciones y rutas se van al cerrar el día o la sesión. La cola de eventos
 // no se toca: no tiene datos de personas y sin ella el conductor no cobra.
 
-import { olvidarMatriz } from "@/lib/geo/mapbox/matriz";
+import { olvidarMatriz } from "@/lib/geo/matriz";
 import { STORES, STORES_DEL_DIA, clavesFotosDe, escribir, leerTodos } from "../idb";
 import { enFila } from "./fila";
 import { leerDiaGuardado, leerPedidos, leerRuta, leerTodosLosPedidos, pedidosEnOrden } from "./lecturas";

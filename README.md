@@ -89,7 +89,8 @@ cifras). El primer usuario registrado es admin.
 
 | Proveedor | Variable | Uso |
 |---|---|---|
-| Mapbox | `NEXT_PUBLIC_MAPBOX_TOKEN` (pública; restringir por URL) | mapa, direcciones, navegación, matriz de distancias por calle (tope de 90.000 elementos al mes en el teléfono, spec 017) |
+| Mapbox | `NEXT_PUBLIC_MAPBOX_TOKEN` (pública; restringir por URL) | mapa, direcciones, navegación |
+| OpenRouteService | `NEXT_PUBLIC_ORS_KEY` (pública, gratis y sin tarjeta) | matriz de distancias por calle con que se ordena la ruta (500 consultas al día; un día son 2) |
 | Google Cloud Vision | `GOOGLE_VISION_KEY` o la misma `GOOGLE_MAPS_KEY` (servidor) | texto de las fotos de etiquetas y guía (el lector de Google Lens, spec 005) |
 | Google Geocoding | `GOOGLE_MAPS_KEY` (servidor) | último recurso para ubicar direcciones que Mapbox y OSM no numeran (spec 016) |
 | OpenStreetMap / Nominatim | — | segunda opinión de direcciones; catálogo de calles (Overpass, solo al regenerarlo) |

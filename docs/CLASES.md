@@ -189,11 +189,12 @@ bloque reordenan la ruta en curso (`replanificarRuta`): lo cerrado primero, lo s
 su orden, lo con horario donde la llegada estimada cae en su bloque (`planificar.ts`); cada
 cambio llega como notificación al conductor.
 
-**Armado de la ruta (spec 017).** La matriz de metros por calle se pide a Mapbox por bloques de
-≤ 25 coordenadas (`matrizCalles`): cada par queda en memoria el día entero (no en el teléfono:
-son puntos de destinatarios), un pedido más pide solo su fila y su columna, y un contador
-mensual en `localStorage` (`ares-matriz-elementos`, tope 90.000 de los 100.000 gratis) corta a
-línea recta con aviso. Un par sin camino vale línea recta × 1,3 + 20 km, nunca infinito.
+**Armado de la ruta (spec 017).** La matriz de metros por calle se pide a OpenRouteService
+(desde 2026-10-30; antes Mapbox, que cobra pasado lo gratis y no tiene tope de gasto) por
+bloques de ≤ 3.500 pares (`matrizCalles`; un día de 67 puntos son 2 de las 500 consultas gratis
+del día): cada par queda en memoria el día entero (no en el teléfono: son puntos de
+destinatarios) y un pedido más pide solo su fila y su columna. Sin clave, sin consultas en el
+día (ORS contesta 429; nunca cobra) o sin red, se ordena en línea recta con aviso. Un par sin camino vale línea recta × 1,3 + 20 km, nunca infinito.
 "Respeta horarios" sale del optimizador con horarios (`optimizarConHorarios`: metros + 2000 por
 minuto fuera de bloque + 50 por minuto de espera + 5000 por minuto pasadas las 18:00, con el
 mismo reloj de `planificar.ts`), que corre por partes para no congelar la pantalla
@@ -342,7 +343,7 @@ lo usa.
 | Sesión y puertas (`exigirPanel`, `exigirConductor`); rol y destino por rol (`leerRol`, `inicioSegunRol`); ficha por usuario | `auth/sesion.ts`, `auth/roles.ts`, `auth/conductor-de-usuario.ts` |
 | Días "YYYY-MM-DD" en hora de Chile (`hoyChile`, `sumarDias`, `esFecha`), `MESES`; periodo del panel y su cookie | `comun/fechas.ts`, `comun/periodo.ts` (+ `periodo-servidor.ts`) |
 | Orden de paradas (exacto hasta 14 puntos; si no, construcción + mejora + sacudidas; la propuesta busca a fondo —hasta 300 sacudidas seguidas sin mejora— con la pantalla `BuscandoRuta` encima, y reusa el orden de un grupo repetido entre estrategias) · con horarios (`optimizarConHorarios`, por partes en `optimizarSinCongelar`) | `rutas/orden-paradas/` (`con-horarios.ts`, `sin-congelar.ts`) |
-| Matriz de calles por bloques, en memoria y con tope mensual (`matrizCalles`, `planificarConsultas`) | `geo/mapbox/matriz.ts` |
+| Matriz de calles por bloques, en memoria, con OpenRouteService (`matrizCalles`, `planificarConsultas`) | `geo/matriz.ts` |
 | Corregir con IA una dirección sin ubicar (spec 018): conversación y validación (`conversacionValida`), una ida con Claude (`pasoDireccionIA`, `server-only`), el bucle en el teléfono (`corregirConIA`, `interpretar`); los del día, a confirmar por el conductor (`corregirSinUbicar`, `esSegura` —la calle entera, sin el número, nunca es segura—, `aplicarCorreccion`) | `geo/direccion-ia/{contrato,servidor,cliente}.ts`, `src/app/api/direccion-ia/route.ts`, `encomiendas/local/corregir-direcciones.ts` |
 | Trazado en el teléfono: pegar al camino, rumbo, metros restantes · Mapbox: token, direcciones, navegación (`PasoNavegacion` con `duracionS` y `salida` de rotonda; al salir hacia una parada pide también la ruta sin rumbo; `elegirSalida` la usa si ahorra 200 m desde el mismo punto (casa atrás o parada en esquina) y marca "Da la vuelta" solo si arranca hacia atrás; dar la vuelta solo en calles anchas (`vuelta.ts`: clase de Mapbox trunk/primary/secondary/tertiary), y la ruta del día se vuelve a pedir con el rumbo fijo donde se devolvía en un pasaje o residencial; antes de armar la ruta, una parada pegada a una troncal que no es su calle se corre a la calle local (`acceso.ts`, Tilequery; `corregirAccesos`)) · recorrido del tramo: `pasoEnCurso` (el cartel cambia al doblar la esquina, o al aparecer sobre un paso posterior) y `restanteDelTramo` (metros a la maniobra, metros y segundos a la parada) | `geo/trazado.ts` · `geo/mapbox/` (`recorrido.ts`) |
 | Ubicar una dirección (`ubicarDireccion`): limpiar la consulta, `coincidenciaCalle` (tipeo acotado), catálogo de calles de Arica (`callesParecidas`, `largoDeCalle`) | `geo/geocoding/`: `ubicar.ts`, `consulta.ts`, `calles.ts` + `calles-arica.ts` (generado), `completar-numero.ts`, `mapbox.ts`, `nominatim.ts`, `codigo.ts`; `index.ts` es el barril |
