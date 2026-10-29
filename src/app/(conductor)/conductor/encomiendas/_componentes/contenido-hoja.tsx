@@ -77,6 +77,7 @@ export function ContenidoHoja({
             metaBono={metaBono}
             entregadasDelDia={pedidos.filter((p) => p.resultado === "entregado").length}
             onEliminar={onEliminar}
+            onEditar={onEditar}
           />
         </>
       ) : null}

@@ -47,7 +47,11 @@ const SECCIONES: { titulo: string; pasos: string[] }[] = [
   },
   {
     titulo: "Lista",
-    pasos: ["Desliza un pedido a la izquierda para eliminarlo.", "Menú → «Buscar un paquete por su OF» con los últimos dígitos."],
+    pasos: [
+      "Toca un pedido pendiente para corregir su OF, teléfono o dirección.",
+      "Desliza un pedido a la izquierda para eliminarlo.",
+      "Menú → «Buscar un paquete por su OF» con los últimos dígitos.",
+    ],
   },
   {
     titulo: "Cerrar el día y sin señal",

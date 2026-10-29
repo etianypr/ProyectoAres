@@ -7,6 +7,7 @@ import { Check, Clock, Phone, X } from "lucide-react";
 import { cn } from "@/lib/comun/utils";
 import { bloquePorId } from "@/lib/encomiendas/config";
 import { nombreVisible } from "@/lib/encomiendas/paquete";
+import type { Pedido } from "@/lib/encomiendas/local/almacen";
 import type { Parada } from "../_hooks/use-dia-trabajo";
 import { FilaDeslizable } from "./fila-deslizable";
 import { MetaBono } from "./meta-bono";
@@ -20,6 +21,7 @@ export function RutaDelDia({
   metaBono,
   entregadasDelDia,
   onEliminar,
+  onEditar,
 }: {
   paradas: Parada[];
   activaId: string | null;
@@ -30,6 +32,9 @@ export function RutaDelDia({
   metaBono: number | null;
   entregadasDelDia: number;
   onEliminar: (pedidoId: string) => void;
+  /** Tocar una parada pendiente abre su edición: con la ruta armada se corrige
+   *  ahí la OF, el teléfono o la dirección (terreno 2026-10-29). */
+  onEditar: (pedido: Pedido) => void;
 }) {
   return (
     <Seccion titulo="Ruta del día">
@@ -49,6 +54,8 @@ export function RutaDelDia({
           <ol className="overflow-hidden rounded-2xl bg-card shadow-soft">
             {paradas.map((p, i) => {
               const esActiva = p.pedido.id === activaId;
+              // Una cerrada es el registro del día (ver el deslizar, abajo): no se edita.
+              const editable = p.pedido.resultado === "pendiente";
               return (
                 <FilaDeslizable
                   key={p.pedido.id}
@@ -62,56 +69,60 @@ export function RutaDelDia({
                   // haría desaparecer de la vista del conductor sin que nada
                   // más cambie. Para eliminar hay que dejarla pendiente.
                   habilitado={p.pedido.resultado === "pendiente"}
-                  className={cn(
-                    "flex items-center gap-3 px-3.5 py-2.5 text-sm",
-                    esActiva ? "bg-brand-soft" : "bg-card",
-                  )}
+                  className={esActiva ? "bg-brand-soft" : "bg-card"}
                 >
-                  <span
-                    className={cn(
-                      "w-5 shrink-0 text-center text-xs font-semibold tabular-nums",
-                      esActiva ? "text-brand" : "text-muted",
-                    )}
+                  <button
+                    type="button"
+                    disabled={!editable}
+                    onClick={() => onEditar(p.pedido)}
+                    className="flex w-full items-center gap-3 px-3.5 py-2.5 text-left text-sm transition-colors active:bg-background disabled:active:bg-transparent"
                   >
-                    {p.secuencia}
-                  </span>
-                  <span className="min-w-0 flex-1">
                     <span
                       className={cn(
-                        "block truncate font-medium leading-tight",
-                        p.pedido.resultado === "entregado" && "text-muted",
+                        "w-5 shrink-0 text-center text-xs font-semibold tabular-nums",
+                        esActiva ? "text-brand" : "text-muted",
                       )}
                     >
-                      {nombreVisible(p.pedido)}
+                      {p.secuencia}
                     </span>
-                    <span className="block truncate text-xs text-muted">
-                      {p.pedido.direccion}
-                    </span>
-                  </span>
-                  {/* Lo que contestó el receptor, en la propia lista: es
-                      lo que el conductor mira para decidir el orden real y a
-                      quién llamar. Cada estado con icono, no solo color. */}
-                  {p.pedido.resultado === "pendiente" ? (
-                    p.pedido.bloqueHorarioId ? (
-                      <span className="flex shrink-0 items-center gap-0.5 text-[10px] font-semibold tabular-nums text-brand">
-                        <Clock className="h-3 w-3" />
-                        {bloquePorId(p.pedido.bloqueHorarioId)?.desde ?? ""}
+                    <span className="min-w-0 flex-1">
+                      <span
+                        className={cn(
+                          "block truncate font-medium leading-tight",
+                          p.pedido.resultado === "entregado" && "text-muted",
+                        )}
+                      >
+                        {nombreVisible(p.pedido)}
                       </span>
-                    ) : p.pedido.disponibilidad === "confirmado" ? (
-                      <Check className="h-3.5 w-3.5 shrink-0 text-ok" aria-label="Confirmó" />
-                    ) : p.hayQueContactar ? (
-                      <Phone
-                        className="h-3.5 w-3.5 shrink-0 text-muted"
-                        aria-label="Hay que llamarlo"
-                      />
-                    ) : null
-                  ) : null}
+                      <span className="block truncate text-xs text-muted">
+                        {p.pedido.direccion}
+                      </span>
+                    </span>
+                    {/* Lo que contestó el receptor, en la propia lista: es
+                        lo que el conductor mira para decidir el orden real y a
+                        quién llamar. Cada estado con icono, no solo color. */}
+                    {p.pedido.resultado === "pendiente" ? (
+                      p.pedido.bloqueHorarioId ? (
+                        <span className="flex shrink-0 items-center gap-0.5 text-[10px] font-semibold tabular-nums text-brand">
+                          <Clock className="h-3 w-3" />
+                          {bloquePorId(p.pedido.bloqueHorarioId)?.desde ?? ""}
+                        </span>
+                      ) : p.pedido.disponibilidad === "confirmado" ? (
+                        <Check className="h-3.5 w-3.5 shrink-0 text-ok" aria-label="Confirmó" />
+                      ) : p.hayQueContactar ? (
+                        <Phone
+                          className="h-3.5 w-3.5 shrink-0 text-muted"
+                          aria-label="Hay que llamarlo"
+                        />
+                      ) : null
+                    ) : null}
     
-                  {p.pedido.resultado === "entregado" ? (
-                    <Check className="h-4 w-4 shrink-0 text-ok" />
-                  ) : p.pedido.resultado === "no_entregado" ? (
-                    <X className="h-4 w-4 shrink-0 text-danger" aria-label="No entregado" />
-                  ) : null}
+                    {p.pedido.resultado === "entregado" ? (
+                      <Check className="h-4 w-4 shrink-0 text-ok" />
+                    ) : p.pedido.resultado === "no_entregado" ? (
+                      <X className="h-4 w-4 shrink-0 text-danger" aria-label="No entregado" />
+                    ) : null}
+                  </button>
                 </FilaDeslizable>
               );
             })}
