@@ -18,6 +18,7 @@ import { useApkVieja, useResumenAyer } from "./_hooks/use-avisos-del-dia";
 import { usePuntosMapa } from "./_hooks/use-puntos-mapa";
 import { PantallaCargando, PantallaError } from "./_componentes/estado-pantalla";
 import { useUbicacionActual } from "./_hooks/use-ubicacion-actual";
+import { useEvento } from "./_hooks/use-evento";
 import { armarNotificaciones } from "./_componentes/notificaciones-pantalla";
 import { useGuiaNavegacion } from "./_hooks/use-guia-navegacion";
 import { useBrujula } from "./_hooks/use-brujula";
@@ -125,6 +126,9 @@ export function PantallaEncomiendas({
   // La vista de formulario abierta dentro de la hoja: "nuevo" o el pedido que se
   // está corrigiendo. null = cerrada.
   const [formPedido, setFormPedido] = useState<"nuevo" | Pedido | null>(null);
+  // Estables entre dibujados: la lista no se redibuja con cada lectura del GPS.
+  const eliminarDeLaLista = useEvento((id: string) => void onEliminarPedido(id));
+  const editarDeLaLista = useEvento((p: Pedido) => setFormPedido(p));
   const [alturaCerrada, setAlturaCerrada] = useState(140);
   // Las ventanas que se abren encima (ver _componentes/ventanas-pantalla.tsx).
   const ventanas = useVentanas();
@@ -364,8 +368,8 @@ export function PantallaEncomiendas({
           noEntregadas={noEntregadas}
           porcentaje={porcentaje}
           onEscanear={() => setEscaneando(true)}
-          onEliminar={(id) => void onEliminarPedido(id)}
-          onEditar={(p) => setFormPedido(p)}
+          onEliminar={eliminarDeLaLista}
+          onEditar={editarDeLaLista}
           onSumar={async () => {
             const cuantos = await correr(() => dia.sumarALaRuta());
             if (cuantos) avisar(cuantos === 1 ? "1 pedido entró a la ruta" : `${cuantos} pedidos entraron a la ruta`);

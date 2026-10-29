@@ -10,13 +10,14 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { CENTRO_ARICA, aLngLat, type Trazado } from "@/lib/geo/coordenada";
 import { ESTILO, FUENTE_DIA, FUENTE_NAV, FUENTE_PREVIA, TOKEN, agregarLineas, apagarVerdeDelTrafico, linea, soportaWebGL } from "./estilo";
-import { agruparPorLugar, contenidoGlobo, elementoCentral, elementoParada } from "./marcadores-dom";
+import { agruparPorLugar, contenidoGlobo, type LugarMapa } from "./marcadores-dom";
+import { agregarParadas, datosParadas, lugarTocado, ponerParadas } from "./capa-paradas";
 import type { PreviaRuta, PuntoMapa, Ubicacion } from "./tipos";
 import { useCamaraNavegacion } from "./use-camara";
 import { useMarcadorConductor } from "./use-marcador-conductor";
 
 // Piezas: tipos.ts (lo que recibe), estilo.ts, camara.ts, marcadores-dom.ts
-// (spec 002 T038).
+// (spec 002 T038), capa-paradas.ts (las paradas, dibujadas por el mapa).
 export type { PreviaRuta, PuntoMapa, Ubicacion } from "./tipos";
 
 
@@ -105,7 +106,10 @@ export function RutaMapa({
   /** El conductor eligió el zoom con dos dedos: el zoom por velocidad se calla
    *  hasta que vuelva a entrar al modo navegación. */
   const zoomManualRef = useRef(false);
-  const marcadoresParadasRef = useRef<mapboxgl.Marker[]>([]);
+  /** Los lugares dibujados: al tocar uno se abre su globo. */
+  const lugaresRef = useRef<LugarMapa[]>([]);
+  /** Si lo dibujado era una ruta propuesta: al aparecer una, sus puntos entran. */
+  const eraPreviaRef = useRef(false);
   // El handler de arrastre se registra una sola vez, al crear el mapa, así
   // que lee la última versión del callback desde un ref en vez de quedarse
   // con la primera.
@@ -142,7 +146,19 @@ export function RutaMapa({
       apagarVerdeDelTrafico(mapa);
 
       agregarLineas(mapa);
+      agregarParadas(mapa);
       setMapaListo(true);
+    });
+
+    // Tocar un número abre un globo con su dirección; tocar el mapa lo cierra.
+    mapa.on("click", (e) => {
+      const i = lugarTocado(mapa, e.point);
+      const lugar = i != null ? lugaresRef.current[i] : null;
+      if (!lugar) return;
+      new mapboxgl.Popup({ offset: 18, closeButton: false, maxWidth: "260px" })
+        .setLngLat([lugar.lng, lugar.lat])
+        .setDOMContent(contenidoGlobo(lugar))
+        .addTo(mapa);
     });
 
     mapa.on("error", (e) => {
@@ -201,7 +217,6 @@ export function RutaMapa({
       // Es el MISMO objeto ref, leído al limpiar a propósito: el cuadro en curso.
       if (cuadro.current != null) cancelAnimationFrame(cuadro.current);
       marcadorUbicacionRef.current = null;
-      marcadoresParadasRef.current = [];
       mapa.remove();
       mapaRef.current = null;
     };
@@ -215,26 +230,12 @@ export function RutaMapa({
     const mapa = mapaRef.current;
     if (!mapa || !mapaListo) return;
 
-    // Tocar el número abre un globo con su dirección; tocar el mapa lo cierra.
     // Las paradas en el mismo lugar van juntas ("30·31"): si no, una tapa a la otra.
-    marcadoresParadasRef.current = agruparPorLugar(puntosDibujados).map((l, i) =>
-      new mapboxgl.Marker({ element: elementoParada(l, previa != null, i), anchor: "bottom" })
-        .setLngLat([l.lng, l.lat])
-        .setPopup(
-          new mapboxgl.Popup({ offset: 36, closeButton: false, maxWidth: "260px" }).setDOMContent(contenidoGlobo(l)),
-        )
-        .addTo(mapa),
-    );
-    if (central) {
-      marcadoresParadasRef.current.push(
-        new mapboxgl.Marker({ element: elementoCentral(), anchor: "bottom" }).setLngLat([central.lng, central.lat]).addTo(mapa),
-      );
-    }
-
-    return () => {
-      for (const m of marcadoresParadasRef.current) m.remove();
-      marcadoresParadasRef.current = [];
-    };
+    const lugares = agruparPorLugar(puntosDibujados);
+    lugaresRef.current = lugares;
+    const esPrevia = previa != null;
+    ponerParadas(mapa, datosParadas(lugares, esPrevia, central ?? null), esPrevia && !eraPreviaRef.current);
+    eraPreviaRef.current = esPrevia;
   }, [puntosDibujados, previa, central, mapaListo]);
 
   // Los dos trazados. Actualizar los datos de la fuente es todo lo que hace

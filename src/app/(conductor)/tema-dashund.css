@@ -36,66 +36,8 @@
   --brand-shadow-alta: rgba(140, 52, 14, 0.28);
 }
 
-/* --------------------------------------------------------------------------
-   Puntos del mapa: una pastilla con punta, la cifra en monoespaciada. La punta
-   marca el lugar exacto (el marcador se ancla abajo). Ver marcadores-dom.ts.
-   -------------------------------------------------------------------------- */
-.pin-parada {
-  --pin: var(--naranja-dashund);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  cursor: pointer;
-  filter: drop-shadow(0 3px 4px rgba(34, 26, 21, 0.28));
-}
-.pin-parada > span {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 26px;
-  height: 26px;
-  padding: 0 7px;
-  border-radius: 13px;
-  background: var(--pin);
-  color: #fff;
-  box-shadow: 0 0 0 2px var(--card);
-  font: 600 11.5px/1 var(--font-cifras), ui-monospace, monospace;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
-}
-.pin-parada::after {
-  content: "";
-  width: 0;
-  height: 0;
-  margin-top: -1px;
-  border-left: 6px solid transparent;
-  border-right: 6px solid transparent;
-  border-top: 7px solid var(--pin);
-}
-.pin-parada[data-estado="pendiente"] { --pin: #8a7d74; }
-.pin-parada[data-estado="hecha"] { --pin: var(--ok); }
-.pin-parada[data-estado="activa"] > span { min-width: 32px; height: 32px; border-radius: 16px; font-size: 13px; }
-.pin-parada[data-estado="central"] { --pin: var(--central); }
-.pin-parada[data-estado="central"] > span {
-  min-width: 32px;
-  height: 32px;
-  border-radius: 16px;
-  font: 800 14px/1 var(--font-texto), ui-sans-serif, system-ui, sans-serif;
-}
-
-/* La ruta propuesta entra con sus puntos en orden: desacelera y apenas rebota.
-   Los de la ruta del día no se animan: se redibujan al marcar una entrega. */
-.pin-parada[data-estado="previa"] {
-  transform-origin: 50% 100%;
-  animation: pin-entra 0.42s cubic-bezier(0.34, 1.4, 0.64, 1) both;
-  animation-delay: var(--retraso, 0ms);
-}
-@keyframes pin-entra {
-  from {
-    opacity: 0;
-    transform: scale(0.2);
-  }
-}
+/* Los puntos del mapa ya no son elementos de la página: los dibuja el mapa
+   (ver _mapa/capa-paradas.ts), con estos mismos colores. */
 
 /* La hoja de la ruta propuesta sube y frena despacio. */
 .sube-y-frena {
@@ -134,7 +76,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pin-parada[data-estado="previa"],
   .sube-y-frena {
     animation: none;
   }

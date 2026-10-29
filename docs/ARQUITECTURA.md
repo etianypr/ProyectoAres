@@ -170,7 +170,7 @@ multiplicaría las consultas a Mapbox y le haría elegir al conductor entre opci
 src/
 ├── proxy.ts                      sesión Supabase por request (lib/supabase/sesion-proxy)
 ├── app/(app)/                    panel: encomiendas (dia/_componentes) · conductores (_componentes) · configuracion · @modal
-├── app/(conductor)/conductor/    PWA y APK: encomiendas (pantalla, que solo une · _componentes: parada activa, carril, hoja, ventanas · _hooks: navegación, acciones de la parada, propuesta, botón atrás · _mapa: ruta-mapa, estilo, cámara, marcadores) · diagnostico (APK)
+├── app/(conductor)/conductor/    PWA y APK: encomiendas (pantalla, que solo une · _componentes: parada activa, carril, hoja, ventanas · _hooks: navegación, acciones de la parada, propuesta, botón atrás · _mapa: ruta-mapa, estilo, cámara, marcadores, capa-paradas: las paradas dibujadas por el mapa —WebGL—, no como elementos de la página) · diagnostico (APK)
 ├── app/(conductor)/tema-dashund  el tema de la app del conductor (diseño "Plano" con el naranja de Dashund, Manrope + IBM Plex Mono); solo lo carga el layout del conductor
 ├── components/marca/logo-dashund  el logo de Dashund (cara de perro salchicha): inicio de sesión, menú, pantalla de carga; public/dashund.svg es el mismo dibujo y de ahí salen los íconos (scripts/generar-iconos.mjs)
 ├── components/ui/campo           la caja de texto del conductor: la etiqueta va adentro (52 px, 44 la compacta) y el estado en un renglón debajo; DireccionInput la usa cuando recibe `etiqueta`

@@ -1,6 +1,6 @@
-// Los marcadores del mapa como elementos del DOM: las paradas numeradas y el punto
-// del conductor, su tamaño según el zoom y cómo se desliza (sale de ruta-mapa.tsx,
-// spec 002 T038).
+// El punto del conductor como elemento del DOM, su tamaño según el zoom y cómo se
+// desliza, y los lugares de las paradas con su globo (sale de ruta-mapa.tsx, spec
+// 002 T038). Las paradas las dibuja el mapa: ver capa-paradas.ts.
 
 import type mapboxgl from "mapbox-gl";
 import { distanciaMetros, type PuntoLngLat } from "@/lib/geo/coordenada";
@@ -115,39 +115,6 @@ export function contenidoGlobo(l: LugarMapa): HTMLElement {
     linea.textContent = corta ? `${p.label} · ${corta}` : p.label;
     el.append(linea);
   }
-  return el;
-}
-
-/** El estado que pinta el punto (ver .pin-parada en tema-dashund.css). */
-function estadoDe(l: LugarMapa, previa: boolean): string {
-  if (previa) return "previa";
-  if (l.puntos.some((p) => p.activa)) return "activa";
-  if (l.puntos.every((p) => p.completada)) return "hecha";
-  return "pendiente";
-}
-
-/** Una pastilla con punta, anclada abajo (la punta es el lugar). En la ruta
- *  propuesta entran en orden: `orden` escalona la animación. */
-export function elementoParada(l: LugarMapa, previa = false, orden = 0): HTMLElement {
-  const el = document.createElement("div");
-  el.className = "pin-parada";
-  el.dataset.estado = estadoDe(l, previa);
-  el.style.setProperty("--retraso", `${Math.min(orden, 40) * 35}ms`);
-  const cifra = document.createElement("span");
-  cifra.textContent = l.puntos.map((p) => p.label).join("·");
-  el.append(cifra);
-  return el;
-}
-
-/** La central de carga: de donde sale y adonde vuelve la ruta. */
-export function elementoCentral(): HTMLElement {
-  const el = document.createElement("div");
-  el.className = "pin-parada";
-  el.dataset.estado = "central";
-  el.setAttribute("aria-label", "Central de carga");
-  const letra = document.createElement("span");
-  letra.textContent = "C";
-  el.append(letra);
   return el;
 }
 

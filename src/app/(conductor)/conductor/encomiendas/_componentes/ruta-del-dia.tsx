@@ -3,6 +3,7 @@
 // La lista de paradas de la ruta del día, en la hoja (sale de pantalla.tsx, spec
 // 002 T037).
 
+import { memo } from "react";
 import { Check, Clock, Phone, X } from "lucide-react";
 import { cn } from "@/lib/comun/utils";
 import { bloquePorId } from "@/lib/encomiendas/config";
@@ -13,7 +14,10 @@ import { FilaDeslizable } from "./fila-deslizable";
 import { MetaBono } from "./meta-bono";
 import { Seccion } from "./seccion";
 
-export function RutaDelDia({
+// Memorizada: con 60 paradas es lo más pesado de la hoja, y la pantalla se
+// vuelve a dibujar con cada lectura del GPS. Solo se redibuja si cambia algo
+// suyo (las acciones llegan estables, ver use-evento.ts).
+export const RutaDelDia = memo(function RutaDelDia({
   paradas,
   activaId,
   entregadas,
@@ -129,4 +133,4 @@ export function RutaDelDia({
           </ol>
         </Seccion>
   );
-}
+});
