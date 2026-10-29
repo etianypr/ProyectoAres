@@ -21,9 +21,13 @@ const EVENTO = "ares-gps-simulado";
 const CLAVE_PARTIDA = "pucarani-partida-empresa";
 /** 30 km/h: lo que se anda en Arica entre parada y parada. */
 const METROS_POR_SEGUNDO = 30 / 3.6;
-const MS_LECTURA = 1000;
+/** Una lectura por segundo, como el GPS de verdad; a ×10 y ×20, cuatro: si no,
+ *  el punto saltaría 80-170 m de una lectura a otra. */
+function msLectura(): number {
+  return leerConfigGps().velocidad > 5 ? 250 : 1000;
+}
 
-export const VELOCIDADES = [1, 5, 20] as const;
+export const VELOCIDADES = [1, 5, 10, 20] as const;
 export type ConfigGps = { activo: boolean; velocidad: number };
 
 /** Sin nada guardado, activo: en modo prueba lo normal es no tener el GPS real. */
@@ -108,7 +112,9 @@ let camino: Trazado | null = null;
 let recorrido = 0;
 const oyentes = new Map<number, Avisar>();
 let siguienteId = 1;
-let reloj: ReturnType<typeof setInterval> | null = null;
+let reloj: ReturnType<typeof setTimeout> | null = null;
+/** Cuándo avanzó por última vez: se avanza por el tiempo que pasó de verdad. */
+let ultimoAvance = 0;
 
 function inicio(): Coordenada {
   try {
@@ -129,9 +135,12 @@ function lectura(): GeolocationPosition {
 }
 
 function avanzar(): void {
+  const ahora = Date.now();
+  const segundos = ultimoAvance ? (ahora - ultimoAvance) / 1000 : 0;
+  ultimoAvance = ahora;
   if (camino && camino.length > 1) {
     const ritmo = METROS_POR_SEGUNDO * leerConfigGps().velocidad;
-    recorrido += ritmo * (MS_LECTURA / 1000);
+    recorrido += ritmo * segundos;
     const p = puntoEnCamino(camino, recorrido);
     posicion = { lat: p.lat, lng: p.lng };
     rumbo = p.rumbo ?? rumbo;
@@ -141,6 +150,16 @@ function avanzar(): void {
   }
   const l = lectura();
   for (const avisar of oyentes.values()) avisar(l);
+}
+
+/** El reloj se vuelve a programar en cada lectura: así cambiar la velocidad
+ *  cambia también cada cuánto se lee. */
+function programar(): void {
+  reloj = setTimeout(() => {
+    avanzar();
+    if (oyentes.size > 0) programar();
+    else reloj = null;
+  }, msLectura());
 }
 
 /** El camino a seguir: la línea de navegación hasta la parada activa. Se
@@ -157,13 +176,16 @@ export const geolocalizacionSimulada = {
     const id = siguienteId++;
     oyentes.set(id, avisar);
     setTimeout(() => avisar(lectura()), 0);
-    reloj ??= setInterval(avanzar, MS_LECTURA);
+    if (!reloj) {
+      ultimoAvance = Date.now();
+      programar();
+    }
     return id;
   },
   clearWatch(id: number): void {
     oyentes.delete(id);
     if (oyentes.size === 0 && reloj) {
-      clearInterval(reloj);
+      clearTimeout(reloj);
       reloj = null;
     }
   },

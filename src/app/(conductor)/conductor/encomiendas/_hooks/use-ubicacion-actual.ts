@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { distanciaMetros, rumboEntre } from "@/lib/geo/coordenada";
 import { alVolverAPrimerPlano } from "@/lib/nativo/entorno";
-import { fuenteUbicacion, useGpsSimulado } from "@/lib/encomiendas/local/gps-simulado";
+import { fuenteUbicacion, gpsSimulado, useGpsSimulado } from "@/lib/encomiendas/local/gps-simulado";
 import type { Ubicacion } from "../_mapa/ruta-mapa";
 
 // Bajo este umbral, el "movimiento" entre dos lecturas es puro temblor de la
@@ -117,7 +117,9 @@ export function useUbicacionActual(activo: boolean): EstadoUbicacion {
       }
 
       const segundos = Math.max(0.001, (tomadaEn - anterior.tomadaEn) / 1000);
-      if (anteriorBuena && distanciaMetros(anterior, actual) / segundos > VELOCIDAD_IMPOSIBLE_MS) return;
+      // El simulado a ×10 o ×20 va "imposiblemente" rápido a propósito: el filtro
+      // es para los saltos falsos del GPS de verdad.
+      if (anteriorBuena && !gpsSimulado() && distanciaMetros(anterior, actual) / segundos > VELOCIDAD_IMPOSIBLE_MS) return;
     }
 
     let heading = pos.coords.heading;

@@ -299,7 +299,7 @@ lo usa.
 | Llegada estimada y lugar de un pedido con horario; dónde menos alarga uno nuevo o uno que se reintenta (`lugarMasBarato`, `lugarParaReintentar`) | `encomiendas/local/planificar.ts` |
 | "Dejar como pendiente" y pedidos tardíos sin rehacer la ruta (`dejarParaMasTarde`, `sumarALaRuta`) | `encomiendas/local/sumar-a-ruta.ts` |
 | Modo prueba: nada a la base ni por WhatsApp; al salir se borra lo de la prueba (`enModoPrueba`, `entrarAlModoPrueba`, `salirDelModoPrueba`, `useModoPrueba`; `localStorage` `ares-modo-prueba`) | `encomiendas/local/modo-prueba.ts` |
-| GPS simulado del modo prueba: parte en la central y avanza solo por la línea de navegación hasta la parada activa, a ×1, ×5 o ×20 (`fuenteUbicacion`, `useSimularRecorrido`, `puntoEnCamino`; `localStorage` `ares-gps-simulado`) | `encomiendas/local/gps-simulado.ts` |
+| GPS simulado del modo prueba: parte en la central y avanza solo por la línea de navegación hasta la parada activa, a ×1, ×5, ×10 o ×20 —sobre ×5 lee cuatro veces por segundo y no pasa por el filtro de velocidad imposible— (`fuenteUbicacion`, `useSimularRecorrido`, `puntoEnCamino`; `localStorage` `ares-gps-simulado`) | `encomiendas/local/gps-simulado.ts` |
 | La ruta en curso se reordena con las respuestas | `encomiendas/local/replanificar.ts` |
 | `Coordenada`, `PuntoLngLat`, `Trazado`, `distanciaMetros`, `CENTRO_ARICA`, `RECUADRO_ARICA` | `geo/coordenada.ts` |
 | Contrato teléfono ↔ `/api/whatsapp/*` | `encomiendas/contrato-whatsapp.ts` |
