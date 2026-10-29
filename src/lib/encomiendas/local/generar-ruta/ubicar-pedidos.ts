@@ -1,6 +1,7 @@
 // Volver a ubicar, antes de armar la ruta, los pedidos que quedaron sin punto.
 
 import { ubicarDireccion } from "@/lib/geo/geocoding";
+import { puntoDeAcceso, type Acceso } from "@/lib/geo/mapbox/acceso";
 import { nombreVisible } from "@/lib/encomiendas/paquete";
 import { fijarCoordenadas, type Pedido } from "../almacen";
 import type { PedidoUbicado } from "./tipos";
@@ -79,5 +80,51 @@ export async function reintentarUbicar(
       return coord ? { ...p, lat: coord.lat, lng: coord.lng } : p;
     }),
     advertencias,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Paradas pegadas a una carretera (terreno 2026-10-29, ver geo/mapbox/acceso.ts)
+// ---------------------------------------------------------------------------
+
+/** Lo ya revisado en esta sesión, por punto: regenerar no vuelve a preguntar. */
+const accesosRevisados = new Map<string, Acceso | null>();
+/** Consultas a la vez. */
+const EN_PARALELO = 6;
+
+/** Corre a la calle local las paradas que Mapbox engancharía a una carretera que
+ *  no es su calle, y lo guarda en el pedido. Devuelve los pedidos con el punto
+ *  nuevo y un aviso por cada uno que se movió. */
+export async function corregirAccesos(
+  ubicados: PedidoUbicado[],
+): Promise<{ ubicados: PedidoUbicado[]; advertencias: string[] }> {
+  const accesos: (Acceso | null)[] = new Array(ubicados.length).fill(null);
+  for (let i = 0; i < ubicados.length; i += EN_PARALELO) {
+    await Promise.all(
+      ubicados.slice(i, i + EN_PARALELO).map(async (p, k) => {
+        const clave = `${p.lat},${p.lng}`;
+        if (!accesosRevisados.has(clave)) accesosRevisados.set(clave, await puntoDeAcceso(p, p.direccion));
+        accesos[i + k] = accesosRevisados.get(clave) ?? null;
+      }),
+    );
+  }
+
+  const movidos = ubicados.flatMap((p, i) => {
+    const a = accesos[i];
+    return a ? [{ pedido: p, acceso: a }] : [];
+  });
+  if (movidos.length === 0) return { ubicados, advertencias: [] };
+
+  await fijarCoordenadas(movidos.map(({ pedido, acceso }) => ({ id: pedido.id, ...acceso.punto })));
+  const nuevos = new Map(movidos.map(({ pedido, acceso }) => [pedido.id, acceso.punto]));
+  return {
+    ubicados: ubicados.map((p) => {
+      const punto = nuevos.get(p.id);
+      return punto ? { ...p, lat: punto.lat, lng: punto.lng } : p;
+    }),
+    advertencias: movidos.map(
+      ({ pedido, acceso }) =>
+        `"${nombreVisible(pedido)}" quedaba pegado a ${acceso.carretera ?? "la carretera"}: se ubicó en ${acceso.calle ?? "la calle de al lado"}, por donde se llega.`,
+    ),
   };
 }

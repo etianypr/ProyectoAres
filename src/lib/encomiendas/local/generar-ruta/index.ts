@@ -38,7 +38,7 @@ import { resultadoCerrado } from "@/lib/encomiendas/estados";
 import { minutoDelDia } from "../planificar";
 import { guardarRuta, leerPedidos, leerRuta, pedidosEnOrden } from "../almacen";
 import { resolverInicio } from "./partida";
-import { reintentarUbicar, tieneCoordenadas } from "./ubicar-pedidos";
+import { corregirAccesos, reintentarUbicar, tieneCoordenadas } from "./ubicar-pedidos";
 import { coord, elegirUtiles, medir, metrosPorMatriz, ordenPorEstrategia, TITULOS, vueltaPorMatriz } from "./estrategias";
 import { paradasLejanas } from "./lejanas";
 import { ordenConHorarios } from "./horarios";
@@ -97,7 +97,10 @@ export async function calcularRutaLocal(
 
   // "Mañana" ya cerró el pedido como no entregado (ver registrarDisponibilidad):
   // no llega acá. Lo que queda son los que se pueden visitar hoy.
-  const ubicados = pendientes.filter(tieneCoordenadas);
+  // Una parada pegada a una carretera que no es su calle se corre a la calle
+  // por donde se llega (acceso.ts): si no, la ruta da la vuelta por la carretera.
+  const accesos = await corregirAccesos(pendientes.filter(tieneCoordenadas));
+  const ubicados = accesos.ubicados;
   const sinUbicar = pendientes.filter((p) => !tieneCoordenadas(p));
 
   // A diferencia de la versión del servidor, un pedido con la dirección mal
@@ -116,7 +119,7 @@ export async function calcularRutaLocal(
   // Las advertencias de la propuesta: lo que el reintento de ubicar dejó dicho,
   // más un resumen de los que quedaron fuera. Se arma acá y no en la pantalla
   // para que la lista viaje con la ruta guardada.
-  const advertencias = [...reintento.advertencias];
+  const advertencias = [...reintento.advertencias, ...accesos.advertencias];
   if (sinUbicar.length > 0) {
     advertencias.push(
       sinUbicar.length === 1

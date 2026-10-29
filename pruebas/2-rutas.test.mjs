@@ -815,3 +815,25 @@ test("penalizacionPorSentido: en calle estrecha cobra entrar y salir por el mism
   assert.equal(pen(2, 3, 2), 0, "las paradas de calle ancha o sin dato no pagan");
   assert.equal(penalizacionPorSentido(puntos, [null, { ...estrecha, clase: "tertiary" }, null, null, null]), null);
 });
+
+// ------------------------------------------- paradas pegadas a una carretera
+const { elegirAcceso, mismaCalle } = await import("@/lib/geo/mapbox/acceso");
+
+test("elegirAcceso: una casa junto a la troncal se corre a su calle (o a la local más cercana)", () => {
+  const via = (clase, nombre, metros, lng) => ({ clase, nombre, metros, punto: { lat: -18.426, lng } });
+  const alrededor = [
+    via("trunk", "Avenida Capitán Ávalos", 6, -70.2905),
+    via("street", "Zapiga", 7, -70.2906),
+    via("path", null, 3, -70.2904),
+    via("street", "Avenida Santiago Arata Gandolfo", 60, -70.2911),
+  ];
+  const a = elegirAcceso(alrededor, "AVENIDA SANTIAGO ARATA 4551, CONDOMINIO NORTE");
+  assert.equal(a.calle, "Avenida Santiago Arata Gandolfo", "prefiere la calle de la dirección");
+  assert.equal(a.carretera, "Avenida Capitán Ávalos");
+  assert.equal(elegirAcceso(alrededor, "PASAJE TRES 120").calle, "Zapiga", "si no está, la local más cercana");
+  assert.equal(elegirAcceso(alrededor, "AV. CAPITAN AVALOS 1234"), null, "la dirección es de esa avenida: no se toca");
+  assert.equal(elegirAcceso([via("street", "Zapiga", 5, -70.29), ...alrededor], "PASAJE TRES 120"), null, "ya está en una calle local");
+  assert.equal(elegirAcceso([via("trunk", "Ruta 5", 4, -70.29), via("street", "Lejos", 400, -70.3)], "PASAJE TRES 120"), null, "sin calle local cerca, se deja");
+  assert.ok(mismaCalle("Avenida Santiago Arata Gandolfo", "AVENIDA SANTIAGO ARATA"));
+  assert.ok(!mismaCalle("Avenida Capitán Ávalos", "Avenida Linderos"));
+});

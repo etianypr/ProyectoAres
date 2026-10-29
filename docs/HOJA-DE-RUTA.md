@@ -113,6 +113,25 @@ Se midió contra lo que hace ARES (búsqueda local iterada sobre la matriz real 
 - **ALNS o Tabu** tienen sentido si llegan varios conductores o ventanas horarias apretadas
   para muchos clientes (`con-horarios.ts`). Hoy no.
 
+Segunda tanda de la misma revisión (citas del dueño, no verificadas), y qué se decidió:
+
+- **Costo con varios criterios (distancia, tiempo, giros complejos, semáforos; colonias de
+  hormigas con 12,3 % menos costo).** El dueño pidió menos kilómetros: el objetivo sigue siendo
+  km. De los giros complejos se tomó el que más pesa acá: no dar la vuelta en pasajes ni
+  residenciales (`geo/mapbox/vuelta.ts`, `generar-ruta/sentido.ts`). El tiempo vendría gratis en
+  la misma matriz si algún día sirve de desempate.
+- **Probabilidad de fallo en el primer intento.** Necesita historial por cliente, y los datos de
+  clientes se borran cada día. Ya están "llámalo antes de bajar" y "Dejar como pendiente". Más
+  adelante, si sirve, por zona y hora sin datos personales.
+- **Reoptimizar en ruta al llegar pedidos (horizonte rodante).** Decisión del dueño: lo hace el
+  conductor a mano (Rehacer la ruta → Desde: Mi ubicación), que ordena solo lo pendiente.
+- **Posponer clientes muy caros.** Ya hay aviso de parada lejana y se puede quitar de la
+  propuesta. Apareció un caso que el aviso no veía: una parada cerca de otras pero pegada por
+  Mapbox a la troncal (6,8 km de vuelta por la carretera); ahora se corre a la calle por donde se
+  llega (`geo/mapbox/acceso.ts`).
+- **Casilleros o depósitos compartidos.** Decisión de negocio con Starken, fuera de la app.
+- **Construcción aleatoria en milisegundos.** No hace falta: la búsqueda tarda 1-2 s.
+
 ## Fuera de alcance
 
 Varios conductores o mandantes · seguir paquetes entre días · prueba de entrega con
