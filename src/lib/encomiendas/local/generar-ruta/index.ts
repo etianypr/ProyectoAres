@@ -43,6 +43,7 @@ import { coord, elegirUtiles, medir, metrosPorMatriz, ordenPorEstrategia, TITULO
 import { paradasLejanas } from "./lejanas";
 import { ordenConHorarios } from "./horarios";
 import { ordenarConSentido } from "./sentido";
+import { matrizPorZonas, zonasPorCercania } from "./zonas";
 import type { Alternativa, EstrategiaRuta, PedidoUbicado, PropuestaRuta, PuntoInicio, ResultadoRuta } from "./tipos";
 
 export type { Alternativa, EstrategiaRuta, PedidoUbicado, PropuestaRuta, PuntoInicio, ResultadoRuta } from "./tipos";
@@ -193,10 +194,13 @@ export async function calcularRutaLocal(
   // La ruta termina donde empezó (terreno 2026-10-28): cada orden se arma y se
   // mide contando la vuelta a la base.
   const vuelta = vueltaPorMatriz(llegada, indiceEnMatriz, matriz);
+  // Cada zona una sola vez (zonas.ts): el ORDEN se decide cobrando cada cambio
+  // de zona; los km, los tiempos y los avisos siguen con la matriz real.
+  const matrizOrden = matriz ? matrizPorZonas(matriz, zonasPorCercania(matriz)) : null;
 
   // Los tres órdenes. Ninguno consulta nada: todos reusan la matriz de arriba.
   const orden = (estrategia: EstrategiaRuta) =>
-    ordenPorEstrategia(estrategia, base, ubicados, indiceEnMatriz, matriz, minutosDeInicio, llegada);
+    ordenPorEstrategia(estrategia, base, ubicados, indiceEnMatriz, matrizOrden, minutosDeInicio, llegada);
   const corta = orden("corta");
   const ordenes: Record<EstrategiaRuta, PedidoUbicado[]> = {
     corta,
@@ -229,7 +233,7 @@ export async function calcularRutaLocal(
   // El orden otra vez, sabiendo en qué paradas no se puede dar la vuelta
   // (sentido.ts). Solo la más corta: las otras tienen un orden que respetar.
   if (calles && recomendada.estrategia === "corta") {
-    const conSentido = await ordenarConSentido(base, paradas, indiceEnMatriz, matriz, calles, llegada);
+    const conSentido = await ordenarConSentido(base, paradas, indiceEnMatriz, matrizOrden, calles, llegada);
     if (conSentido) {
       paradas = conSentido.paradas;
       calles = conSentido.calles;

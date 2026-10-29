@@ -363,3 +363,40 @@ test("con penalización: ordenarParadas nunca sale peor que el arranque que se l
     );
   }
 });
+
+// -------------------------------------------------- cada zona una sola vez
+// Criterio del dueño (terreno 2026-10-29): terminar una zona antes de pasar a la
+// siguiente, y no volver a pisarla.
+const { zonasPorCercania, matrizPorZonas, zonasRepetidas } = await import("@/lib/encomiendas/local/generar-ruta/zonas");
+
+/** Un día con barrios: grupos de casas juntas, repartidos por la ciudad. */
+function diaConBarrios(barrios, casas, semilla) {
+  const r = azar(semilla);
+  const puntos = [{ lat: -18.471152, lng: -70.289929 }];
+  for (let b = 0; b < barrios; b++) {
+    const centro = { lat: -18.44 - r() * 0.07, lng: -70.26 - r() * 0.08 };
+    for (let c = 0; c < casas; c++) puntos.push({ lat: centro.lat + (r() - 0.5) * 0.004, lng: centro.lng + (r() - 0.5) * 0.004 });
+  }
+  return puntos;
+}
+
+test("zonas: las casas de un mismo barrio quedan juntas y barrios lejanos, separados", () => {
+  const puntos = diaConBarrios(2, 4, 3);
+  const matriz = puntos.map((a) => puntos.map((b) => distanciaMetros(a, b) * 1.3));
+  const zona = zonasPorCercania(matriz);
+  assert.equal(zona[0], -1, "la base no tiene zona");
+  assert.equal(new Set(zona.slice(1, 5)).size, 1, "el primer barrio quedó partido");
+  assert.equal(new Set(zona.slice(5, 9)).size, 1, "el segundo barrio quedó partido");
+});
+
+test("zonas: con el costo de cambiar de zona, la ruta no pisa ninguna zona dos veces", () => {
+  for (const semilla of [11, 12, 13, 14, 15]) {
+    const puntos = diaConBarrios(8, 6, semilla);
+    const matriz = matrizCalles(puntos, semilla);
+    const zona = zonasPorCercania(matriz);
+    const orden = ordenarParadas(puntos, matrizPorZonas(matriz, zona), (i) => matriz[i][0], true);
+    assert.deepEqual([...orden].sort((a, b) => a - b), [...puntos.keys()], "no es una permutación");
+    assert.equal(orden[0], 0);
+    assert.equal(zonasRepetidas(orden, zona), 0, `semilla ${semilla}: volvió a una zona`);
+  }
+});

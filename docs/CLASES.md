@@ -213,6 +213,12 @@ más corta" cobrando entrar y salir por el mismo extremo (`Penalizacion` en `ord
 simétrica; las jugadas la calculan solo donde cambian vecinos) y se queda con la que mide menos por
 calles. En la prueba de 66 paradas (48 en calle estrecha): 42,77 → 42,58 km.
 
+**Cada zona una sola vez** (criterio del dueño, terreno 2026-10-29): `generar-ruta/zonas.ts` agrupa las
+paradas en zonas por distancia por calle (enlace promedio, `ZONA_M` = 900 m) y el orden se decide con
+`matrizPorZonas`, que cobra 3 km por cada cambio de zona; los km, tiempos y avisos siguen con la matriz
+real. En la prueba de 66 paradas: 17 zonas, 0 repetidas (sin zonas, 2), 38,71 km en vez de 37,00 por
+calles (+4,6 %, +4 min).
+
 Partiendo de "Mi ubicación" u otra dirección, la ruta termina igual en la central (terreno
 2026-10-29: repasar lo pendiente y volver): `calcularRutaLocal(fecha, inicio, fin)`, `PropuestaRuta.llegada`,
 y la columna 0 de la matriz pasa a ser la distancia HASTA la central, así que todo lo que cuenta
