@@ -107,6 +107,20 @@
   }
 }
 
+/* La barra de "Buscando la ruta más corta" (buscando-ruta.tsx): va y vuelve con
+   transform, que se sigue animando aunque la página esté calculando. */
+.barra-buscando {
+  animation: barra-buscando 1.1s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
+}
+@keyframes barra-buscando {
+  from {
+    transform: translateX(-10%);
+  }
+  to {
+    transform: translateX(210%);
+  }
+}
+
 /* El globo del mapa, en la letra y los colores de la app. */
 .mapboxgl-popup-content {
   border-radius: 14px !important;

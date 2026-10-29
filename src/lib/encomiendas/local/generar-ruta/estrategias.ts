@@ -100,6 +100,12 @@ export function metrosConVuelta(orden: PedidoUbicado[], metros: MetrosEntre, vue
  *
  *  Con `volverA` el grupo es el último del día: se ordena sabiendo que después
  *  se vuelve a la base, así que no termina en la otra punta. */
+/** Lo ya ordenado en esta propuesta. Las estrategias piden varias veces el mismo
+ *  grupo —un día sin confirmados ni horarios es el mismo grupo tres veces— y a
+ *  fondo cada orden son segundos. La clave del mapa es el de índices, que es
+ *  uno por propuesta: con la propuesta siguiente se olvida solo. */
+const yaOrdenados = new WeakMap<Map<string, number>, Map<string, PedidoUbicado[]>>();
+
 function ordenarGrupo(
   desde: Coordenada,
   grupo: PedidoUbicado[],
@@ -109,6 +115,12 @@ function ordenarGrupo(
   volverA?: Coordenada,
 ): PedidoUbicado[] {
   if (grupo.length <= 1) return grupo;
+
+  const clave = `${desde.lat},${desde.lng}|${volverA ? "vuelve" : ""}|${grupo.map((p) => p.id).sort().join(",")}`;
+  let memoria = yaOrdenados.get(indiceEnMatriz);
+  if (!memoria) yaOrdenados.set(indiceEnMatriz, (memoria = new Map()));
+  const guardado = memoria.get(clave);
+  if (guardado) return [...guardado];
 
   const puntos = [desde, ...grupo.map(coord)];
   const indices = [indiceDesde, ...grupo.map((p) => indiceEnMatriz.get(p.id) ?? -1)];
@@ -128,9 +140,13 @@ function ordenarGrupo(
         return m != null && Number.isFinite(m) ? m : distanciaMetros(puntos[i], volverA);
       }
     : undefined;
-  const orden = ordenarParadas(puntos, sub, vuelta);
+  // A fondo: la propuesta busca la ruta con menos kilómetros aunque tarde unos
+  // segundos, con pantalla de carga (terreno 2026-10-29).
+  const orden = ordenarParadas(puntos, sub, vuelta, true);
   // El índice 0 es el punto de partida; el resto mapea a grupo[i - 1].
-  return orden.slice(1).map((i) => grupo[i - 1]);
+  const resultado = orden.slice(1).map((i) => grupo[i - 1]);
+  memoria.set(clave, resultado);
+  return [...resultado];
 }
 
 /** Concatena grupos ordenando cada uno desde donde terminó el anterior. Es lo

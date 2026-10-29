@@ -62,9 +62,18 @@ function doblePuente(orden: number[], azar: () => number): number[] {
   ];
 }
 
-/** Mejora todos los arranques, se queda con el mejor y después lo sacude unas
- *  cuantas veces por si hay algo mejor a la vuelta de la esquina. */
-export function mejorDeVariosArranques(arranques: number[][], costo: Costo): number[] {
+/** A fondo (terreno 2026-10-29: "que sea la ruta con menos kilómetros, aunque se
+ *  demore"): se sigue sacudiendo hasta que pasan estas sacudidas SEGUIDAS sin
+ *  encontrar nada mejor. Medido en una ruta real de 67 puntos y en días al azar
+ *  de 41 a 81: la mejor ruta conocida aparece antes de las 200 sacudidas, y
+ *  8.000 no bajaron ni un metro más. */
+const SACUDIDAS_SIN_MEJORA = 300;
+/** Tope, por si un día raro sigue mejorando de a centímetros. */
+const TOPE_SACUDIDAS = 5000;
+
+/** Mejora todos los arranques, se queda con el mejor y después lo sacude por si
+ *  hay algo mejor a la vuelta de la esquina: unas cuantas veces, o a fondo. */
+export function mejorDeVariosArranques(arranques: number[][], costo: Costo, aFondo = false): number[] {
   let mejor = arranques[0];
   let mejorCosto = Infinity;
 
@@ -83,13 +92,17 @@ export function mejorDeVariosArranques(arranques: number[][], costo: Costo): num
   // quedaban clavadas en un valle malo. Sigue siendo reproducible —el mismo
   // día da siempre la misma ruta— pero cada día explora distinto.
   const azar = alAzar(Math.round(mejorCosto) * 31 + mejor.length);
-  const sacudidas = sacudidasPara(mejor.length);
-  for (let i = 0; i < sacudidas; i++) {
+  const tope = aFondo ? TOPE_SACUDIDAS : sacudidasPara(mejor.length);
+  let sinMejora = 0;
+  for (let i = 0; i < tope && !(aFondo && sinMejora >= SACUDIDAS_SIN_MEJORA); i++) {
     const candidato = mejorarLocal(doblePuente(mejor, azar), costo);
     const total = distanciaOrden(candidato, costo);
     if (total < mejorCosto - EPSILON) {
       mejorCosto = total;
       mejor = candidato;
+      sinMejora = 0;
+    } else {
+      sinMejora++;
     }
   }
   return mejor;

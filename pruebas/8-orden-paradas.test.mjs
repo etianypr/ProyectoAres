@@ -269,3 +269,23 @@ test("ruta cerrada: un pedido tarde no va al final gratis si después hay que vo
   assert.equal(lugarMasBarato(orden, nuevo, metros), 1, "abierta: al final, que sale gratis");
   assert.equal(lugarMasBarato(orden, nuevo, metros, 0, vueltaEstimada(base, base)), 0, "cerrada: el final ya no es gratis");
 });
+
+// ---------------------------------------------- a fondo (terreno 2026-10-29)
+// La propuesta busca la ruta con menos kilómetros aunque tarde unos segundos.
+// Lo que se fija: nunca sale más larga que la búsqueda rápida, y el mismo día da
+// siempre la misma ruta (si no, regenerar le cambiaría el orden al conductor).
+test("a fondo: nunca más larga que la rápida, y el mismo día da la misma ruta", () => {
+  let mejoroAlguna = false;
+  for (const [n, semilla] of [[30, 3], [45, 8], [60, 21]]) {
+    const puntos = puntosDelDia(n, semilla);
+    const matriz = matrizCalles(puntos, semilla);
+    const vuelta = (i) => matriz[i][0];
+    const conVuelta = (orden) => largo(orden, (a, b) => matriz[a][b]) + vuelta(orden[orden.length - 1]);
+    const rapida = ordenarParadas(puntos, matriz, vuelta);
+    const aFondo = ordenarParadas(puntos, matriz, vuelta, true);
+    assert.ok(conVuelta(aFondo) <= conVuelta(rapida) + 1e-6, `${n} paradas: a fondo salió más larga`);
+    assert.deepEqual(ordenarParadas(puntos, matriz, vuelta, true), aFondo, `${n} paradas: cambió al repetir`);
+    if (conVuelta(aFondo) < conVuelta(rapida) - 1) mejoroAlguna = true;
+  }
+  assert.ok(mejoroAlguna, "a fondo no mejoró ningún día: no está buscando más");
+});

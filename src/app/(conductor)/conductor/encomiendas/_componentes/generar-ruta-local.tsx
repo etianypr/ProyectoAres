@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { DireccionInput } from "@/components/direccion/direccion-input";
 import { cn } from "@/lib/comun/utils";
 import { fuenteUbicacion } from "@/lib/encomiendas/local/gps-simulado";
+import { BuscandoRuta, esperarDibujo } from "./buscando-ruta";
 import {
   calcularRutaLocal,
   type PropuestaRuta,
@@ -66,6 +67,7 @@ export function GenerarRutaLocal({
     setError(null);
     setArmando(true);
     try {
+      await esperarDibujo();
       onPropuesta(await calcularRutaLocal(fecha, puntoInicio));
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo armar la ruta.");
@@ -127,6 +129,7 @@ export function GenerarRutaLocal({
 
   return (
     <div className="space-y-2">
+      {armando ? <BuscandoRuta /> : null}
       <Button onClick={onClick} disabled={ocupado} className="w-full justify-center">
         <RefreshCw className={cn("h-4 w-4", ocupado && "animate-spin")} />
         {obteniendoUbicacion

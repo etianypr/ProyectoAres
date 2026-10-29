@@ -65,6 +65,10 @@ export function ordenarParadas(
   puntos: Coordenada[],
   matriz?: number[][] | null,
   vuelta?: (i: number) => number,
+  /** Buscar a fondo: hasta que no aparece nada mejor (ver perturbacion.ts). Es
+   *  lo que usa la propuesta de ruta, con pantalla de carga; sin esto, unas
+   *  décimas de segundo. */
+  aFondo = false,
 ): number[] {
   const n = puntos.length;
   if (n <= 2) return puntos.map((_, i) => i);
@@ -98,7 +102,7 @@ export function ordenarParadas(
   // arranque más en vez de una comparación aparte.
   if (matriz) arranques.push(mejorarLocal(vecinoMasCercano(n, enLineaRecta), enLineaRecta));
 
-  return desempatarSentido(mejorDeVariosArranques(arranques, costo), costo, vuelta != null);
+  return desempatarSentido(mejorDeVariosArranques(arranques, costo, aFondo), costo, vuelta != null);
 }
 
 /** Una ruta cerrada se puede recorrer en los dos sentidos. Si al revés mide lo
