@@ -15,7 +15,7 @@ import {
 } from "@/lib/geo/trazado";
 import { ordenarParadas } from "@/lib/rutas/orden-paradas";
 import { obtenerRutaCalles } from "@/lib/geo/mapbox/direcciones";
-import { obtenerNavegacion, convieneDarLaVuelta } from "@/lib/geo/mapbox/navegacion";
+import { obtenerNavegacion, elegirSalida } from "@/lib/geo/mapbox/navegacion";
 
 // Arica, coordenadas reales de la zona de reparto.
 const EMPRESA = { lat: -18.471152, lng: -70.289929 };
@@ -622,23 +622,41 @@ function conDoble(respuestas) {
   return { urls, restaurar: () => (globalThis.fetch = original) };
 }
 
-test("convieneDarLaVuelta: solo si arranca hacia atrás, ahorra 200 m y es la misma calzada", () => {
+test("elegirSalida: sin rumbo si ahorra 200 m desde el mismo punto; 'Da la vuelta' solo si arranca hacia atrás", () => {
   const p = (lng, lat) => ({ lng, lat });
   const deFrente = { metros: 985, salida: p(-70.2899, -18.4711), arranque: 90 };
   const atras = { metros: 119, salida: p(-70.2899, -18.4711), arranque: 270 };
-  assert.equal(convieneDarLaVuelta(deFrente, atras, 90), true);
-  assert.equal(convieneDarLaVuelta(deFrente, { ...atras, metros: 850 }, 90), false, "ahorrar 135 m no vale la maniobra");
-  assert.equal(convieneDarLaVuelta(deFrente, { ...atras, arranque: 100 }, 90), false, "no arranca hacia atrás");
-  assert.equal(
-    convieneDarLaVuelta(deFrente, { ...atras, salida: p(-70.2899, -18.47125) }, 90),
-    false,
+  const SI_VUELTA = { sinRumbo: true, daLaVuelta: true };
+  const NO = { sinRumbo: false, daLaVuelta: false };
+  assert.deepEqual(elegirSalida(deFrente, atras, 90), SI_VUELTA);
+  assert.deepEqual(elegirSalida(deFrente, { ...atras, metros: 850 }, 90), NO, "ahorrar 135 m no vale la maniobra");
+  // En la esquina: la salida corta dobla a la calle de al lado. Se usa, pero no
+  // es "dar la vuelta": eso ya lo dice la instrucción de Mapbox.
+  assert.deepEqual(elegirSalida(deFrente, { ...atras, arranque: 0 }, 90), { sinRumbo: true, daLaVuelta: false });
+  assert.deepEqual(
+    elegirSalida(deFrente, { ...atras, salida: p(-70.2899, -18.47125) }, 90),
+    NO,
     "15 m al lado es la calzada de enfrente",
   );
-  assert.equal(convieneDarLaVuelta(deFrente, { ...atras, salida: null }, 90), false);
-  assert.equal(convieneDarLaVuelta(deFrente, { ...atras, arranque: null }, 90), false);
+  assert.deepEqual(elegirSalida(deFrente, { ...atras, salida: null }, 90), NO);
+  assert.deepEqual(elegirSalida(deFrente, { ...atras, arranque: null }, 90), { sinRumbo: true, daLaVuelta: false });
   // El ángulo da la vuelta por el norte: 350° y 20° son casi lo mismo.
-  assert.equal(convieneDarLaVuelta(deFrente, { ...atras, arranque: 20 }, 350), false);
-  assert.equal(convieneDarLaVuelta(deFrente, { ...atras, arranque: 190 }, 10), true);
+  assert.deepEqual(elegirSalida(deFrente, { ...atras, arranque: 20 }, 350), { sinRumbo: true, daLaVuelta: false });
+  assert.deepEqual(elegirSalida(deFrente, { ...atras, arranque: 190 }, 10), SI_VUELTA);
+});
+
+test("obtenerNavegacion: parada en la esquina, sale doblando sin decir 'Da la vuelta'", async () => {
+  // La salida corta va al norte por la calle de al lado: el auto mira al este.
+  const ESQUINA = { metros: 140, coords: [AUTO, [-70.2899, -18.4705], [-70.291, -18.4705], CASA] };
+  const doble = conDoble({ deFrente: () => respuestaRuta(DE_FRENTE), sinRumbo: () => respuestaRuta(ESQUINA) });
+  try {
+    const r = await obtenerNavegacion({ lng: AUTO[0], lat: AUTO[1] }, { lng: CASA[0], lat: CASA[1] }, 90, { permitirVuelta: true });
+    assert.equal(r.trazado.length, ESQUINA.coords.length, "usa la salida corta");
+    assert.equal(r.daLaVuelta, false);
+    assert.doesNotMatch(r.pasos[0].avisos[0].texto, /Da la vuelta/);
+  } finally {
+    doble.restaurar();
+  }
 });
 
 test("obtenerNavegacion: saliendo hacia la parada con la casa atrás, da la vuelta y lo dice", async () => {

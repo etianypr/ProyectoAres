@@ -67,26 +67,30 @@ type PasoCrudo = {
 const TOLERANCIA_RUMBO = 90;
 
 // ---------------------------------------------------------------------------
-// Dar la vuelta (terreno 2026-10-28). Con el rumbo, Mapbox NUNCA arranca la
-// ruta dando la vuelta: obliga a seguir de frente hasta poder doblar. Con la
-// casa siguiente 120 m detrás del auto eso era una vuelta a la manzana de 700 m
-// a 1,4 km (medido en Diego Portales, Av. Argentina y Pey Casado), cuando un
-// conductor la da en la misma calle. Al salir hacia una parada se piden las dos
-// —de frente y sin rumbo— y se usa la que da la vuelta solo si conviene.
+// Salir sin rumbo (terreno 2026-10-28). Con el rumbo, Mapbox NUNCA arranca la
+// ruta dando la vuelta ni doblando hacia atrás: obliga a seguir de frente
+// hasta poder doblar. Con la casa siguiente 120 m detrás del auto eso era una
+// vuelta a la manzana de 700 m a 1,4 km (Diego Portales, Av. Argentina, Pey
+// Casado), y con la parada en una esquina —el auto llega por una calle y la
+// salida corta va por la de al lado— rodeos de 280 a 500 m. Un conductor ahí
+// da la vuelta o dobla. Al salir hacia una parada se piden las dos —de frente
+// y sin rumbo— y se usa la sin rumbo si conviene.
 // ---------------------------------------------------------------------------
 
-/** Dar la vuelta tiene que ahorrar al menos esto para proponerla. */
-const AHORRO_MINIMO_VUELTA_M = 200;
-/** Las dos consultas engancharon el auto en la MISMA calzada si sus puntos de
- *  salida quedan a menos de esto. En una avenida con bandejón las calzadas van
- *  a 10-20 m: más lejos, la ruta sin rumbo salió por la de enfrente y "dar la
- *  vuelta" sería cruzar el bandejón. */
+/** La ruta sin rumbo tiene que ahorrar al menos esto para usarla. */
+const AHORRO_MINIMO_M = 200;
+/** Las dos consultas engancharon el auto en el MISMO punto si sus salidas
+ *  quedan a menos de esto. En una avenida con bandejón las calzadas van a
+ *  10-20 m: más lejos, la ruta sin rumbo salió por la de enfrente y tomarla
+ *  sería cruzar el bandejón. */
 const MISMA_CALZADA_M = 6;
-/** La ruta arranca hacia atrás si sus primeros metros se apartan más que esto
- *  del rumbo del auto. */
+/** Arranca hacia atrás —"Da la vuelta"— si sus primeros metros se apartan más
+ *  que esto del rumbo del auto. Menos es doblar en la esquina, y eso ya lo dice
+ *  la instrucción de Mapbox. */
 const GRADOS_HACIA_ATRAS = 120;
-/** Cuánto de la ruta se mira para saber hacia dónde arranca. */
-const METROS_ARRANQUE = 25;
+/** Cuánto de la ruta se mira para saber hacia dónde arranca: poco, porque en
+ *  una esquina la ruta dobla a los 10-20 m. */
+const METROS_ARRANQUE = 10;
 
 /** Lo que se compara de cada ruta. */
 export type SalidaRuta = {
@@ -97,13 +101,21 @@ export type SalidaRuta = {
   arranque: number | null;
 };
 
-/** ¿Se usa la ruta que da la vuelta en vez de la de frente? Pura. */
-export function convieneDarLaVuelta(deFrente: SalidaRuta, sinRumbo: SalidaRuta, rumbo: number): boolean {
-  if (sinRumbo.arranque == null || !deFrente.salida || !sinRumbo.salida) return false;
-  const giro = Math.abs((((sinRumbo.arranque - rumbo) % 360) + 540) % 360 - 180);
-  if (giro <= GRADOS_HACIA_ATRAS) return false;
-  if (deFrente.metros - sinRumbo.metros < AHORRO_MINIMO_VUELTA_M) return false;
-  return distanciaMetros(deFrente.salida, sinRumbo.salida) <= MISMA_CALZADA_M;
+/** ¿Se sale sin rumbo, y eso es dar la vuelta? Pura. */
+export function elegirSalida(
+  deFrente: SalidaRuta,
+  sinRumbo: SalidaRuta,
+  rumbo: number,
+): { sinRumbo: boolean; daLaVuelta: boolean } {
+  const conviene =
+    deFrente.salida != null &&
+    sinRumbo.salida != null &&
+    deFrente.metros - sinRumbo.metros >= AHORRO_MINIMO_M &&
+    distanciaMetros(deFrente.salida, sinRumbo.salida) <= MISMA_CALZADA_M;
+  if (!conviene) return { sinRumbo: false, daLaVuelta: false };
+  const giro =
+    sinRumbo.arranque == null ? 0 : Math.abs((((sinRumbo.arranque - rumbo) % 360) + 540) % 360 - 180);
+  return { sinRumbo: true, daLaVuelta: giro > GRADOS_HACIA_ATRAS };
 }
 
 type RutaCruda = { distance?: number; geometry?: { coordinates?: Trazado }; legs?: { steps?: PasoCrudo[] }[] };
@@ -139,7 +151,7 @@ export async function obtenerNavegacion(
    *  enfrente y devolver una ruta que arranca dando toda la vuelta. */
   rumbo?: number | null,
   /** Saliendo hacia una parada: se pide también la ruta sin rumbo, por si la
-   *  casa queda atrás y conviene dar la vuelta (ver convieneDarLaVuelta). */
+   *  casa queda atrás o en la esquina y conviene salir sin él (ver elegirSalida). */
   { permitirVuelta = false }: { permitirVuelta?: boolean } = {},
 ): Promise<{ pasos: PasoNavegacion[]; trazado: Trazado; daLaVuelta: boolean } | null> {
   const comunes = {
@@ -170,8 +182,10 @@ export async function obtenerNavegacion(
         pedir(puntos, conRumbo).catch(() => null),
         pedir(puntos, comunes).catch(() => null),
       ]);
-      daLaVuelta = deFrente != null && sinRumbo != null && convieneDarLaVuelta(medir(deFrente), medir(sinRumbo), grados!);
-      ruta = (daLaVuelta ? sinRumbo : (deFrente ?? sinRumbo))?.ruta;
+      const eleccion =
+        deFrente && sinRumbo ? elegirSalida(medir(deFrente), medir(sinRumbo), grados!) : { sinRumbo: false, daLaVuelta: false };
+      daLaVuelta = eleccion.daLaVuelta;
+      ruta = (eleccion.sinRumbo ? sinRumbo : (deFrente ?? sinRumbo))?.ruta;
     } else {
       // Si el rumbo dejó a la consulta sin ninguna calzada que cumpla (pasa con
       // un rumbo viejo, o estando dentro de un estacionamiento), se reintenta sin
