@@ -161,7 +161,7 @@ export function RutaMapa({
       const i = lugarTocado(mapa, e.point);
       const lugar = i != null ? lugaresRef.current[i] : null;
       if (!lugar) return;
-      new mapboxgl.Popup({ offset: 18, closeButton: false, maxWidth: "260px" })
+      new mapboxgl.Popup({ offset: 36, closeButton: false, maxWidth: "260px" })
         .setLngLat([lugar.lng, lugar.lat])
         .setDOMContent(contenidoGlobo(lugar))
         .addTo(mapa);
