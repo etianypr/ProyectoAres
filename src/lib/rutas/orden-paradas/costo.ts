@@ -14,11 +14,28 @@ export function conFinal(tramo: Costo, vuelta?: (a: number) => number): Costo {
   return (a, b) => (b === FIN ? (vuelta ? vuelta(a) : 0) : tramo(a, b));
 }
 
-export function distanciaOrden(orden: number[], costo: Costo): number {
+/** Lo que cuesta pasar por `parada` viniendo de `anterior` y siguiendo a
+ *  `siguiente` (FIN = volver a la base), además de los tramos: en una calle
+ *  estrecha, entrar y salir por el mismo extremo es un rodeo (terreno
+ *  2026-10-29, ver generar-ruta/sentido.ts). Tiene que ser SIMÉTRICA —pen(a, s, b)
+ *  igual a pen(b, s, a)—: así dar vuelta un tramo no cambia la de adentro. */
+export type Penalizacion = ((anterior: number, parada: number, siguiente: number) => number) & {
+  /** La penalización más alta de una parada: una jugada que empeora los tramos
+   *  en más de lo que podría ahorrar en penalizaciones ni se mira. */
+  maximo?: number;
+};
+
+/** La penalización de la parada en la posición k del orden. */
+export function penalizacionEn(orden: number[], k: number, pen: Penalizacion): number {
+  return pen(orden[k - 1], orden[k], k + 1 < orden.length ? orden[k + 1] : FIN);
+}
+
+export function distanciaOrden(orden: number[], costo: Costo, pen?: Penalizacion): number {
   let total = 0;
   for (let i = 0; i < orden.length - 1; i++) {
     total += costo(orden[i], orden[i + 1]);
   }
+  if (pen) for (let k = 1; k < orden.length; k++) total += penalizacionEn(orden, k, pen);
   return orden.length > 0 ? total + costo(orden[orden.length - 1], FIN) : total;
 }
 

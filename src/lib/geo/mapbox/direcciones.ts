@@ -79,11 +79,24 @@ function enTramos(puntos: Coordenada[], max: number): Coordenada[][] {
   return grupos;
 }
 
+/** La calle de cada punto de la ruta, según Mapbox: para que el plan sepa dónde
+ *  no se puede dar la vuelta (ver generar-ruta/sentido.ts). */
+export type CalleDelPunto = {
+  /** Clase de Mapbox Streets v8 (ver vuelta.ts). */
+  clase: string | null;
+  /** Rumbo con que se llega: la dirección de la calle en ese punto. */
+  eje: number | null;
+  /** Metros de más que costó pasarlo de frente, si la ruta se devolvía ahí. */
+  extraM: number | null;
+};
+
 export type RutaCalles = {
   /** [lng, lat] por punto — formato GeoJSON. */
   trazado: Trazado;
   distanciaM: number;
   duracionS: number;
+  /** Uno por punto pedido (null en el primero y donde no hubo dato). */
+  puntos?: (CalleDelPunto | null)[];
 };
 
 // ---------------------------------------------------------------------------
@@ -173,9 +186,10 @@ async function pedirTramo(tramo: Coordenada[], rumbos: (number | null)[]): Promi
 
 /** Un tramo de la ruta, sin vueltas en calles estrechas. Si fijar el rumbo
  *  deja a Mapbox sin camino, se queda con la pasada anterior. */
-async function tramoSinReversa(tramo: Coordenada[]): Promise<RutaCruda | null> {
+async function tramoSinReversa(tramo: Coordenada[]): Promise<{ ruta: RutaCruda; puntos: (CalleDelPunto | null)[] } | null> {
   const rumbos: (number | null)[] = tramo.map(() => null);
-  let ruta = await pedirTramo(tramo, rumbos);
+  const primera = await pedirTramo(tramo, rumbos);
+  let ruta = primera;
   for (let pasada = 1; ruta && pasada < MAX_PASADAS; pasada++) {
     const nuevas = vueltasEnEstrechas(ruta, rumbos);
     if (nuevas.length === 0) break;
@@ -184,7 +198,23 @@ async function tramoSinReversa(tramo: Coordenada[]): Promise<RutaCruda | null> {
     if (!otra) break;
     ruta = otra;
   }
-  return ruta;
+  if (!ruta || !primera) return null;
+  // La calle de cada punto sale de la primera pasada (la libre); lo que costó
+  // pasarlo de frente, de comparar sus dos tramos con la final.
+  const libres = primera.legs ?? [];
+  const finales = ruta.legs ?? [];
+  const puntos = tramo.map((_, i): CalleDelPunto | null => {
+    const llega = libres[i - 1];
+    if (!llega) return null;
+    const antes = (llega.distance ?? 0) + (libres[i]?.distance ?? 0);
+    const despues = (finales[i - 1]?.distance ?? 0) + (finales[i]?.distance ?? 0);
+    return {
+      clase: claseAlFinal(llega.steps),
+      eje: rumboAlLlegar(geometriaDelTramo(llega.steps)),
+      extraM: rumbos[i] != null ? Math.max(0, Math.round(despues - antes)) : null,
+    };
+  });
+  return { ruta, puntos };
 }
 
 // Trazado real (por calles) de la ruta ya ordenada, con su distancia y duración.
@@ -198,10 +228,17 @@ export async function obtenerRutaCalles(
   const trazado: Trazado = [];
   let distanciaM = 0;
   let duracionS = 0;
+  const puntos: (CalleDelPunto | null)[] = puntosOrdenados.map(() => null);
+  let desde = 0;
 
   for (const tramo of enTramos(puntosOrdenados, MAX_PUNTOS_POR_CONSULTA)) {
-    const ruta = await tramoSinReversa(tramo);
-    if (!ruta) return null;
+    const pedido = await tramoSinReversa(tramo);
+    if (!pedido) return null;
+    const { ruta } = pedido;
+    pedido.puntos.forEach((p, i) => {
+      if (p) puntos[desde + i] = p;
+    });
+    desde += tramo.length - 1;
 
     // Un tramo a medias sería peor que ninguno: el conductor vería una línea que
     // se corta en el medio de la ciudad y parece la ruta completa.
@@ -216,5 +253,6 @@ export async function obtenerRutaCalles(
     trazado,
     distanciaM: Math.round(distanciaM),
     duracionS: Math.round(duracionS),
+    puntos,
   };
 }

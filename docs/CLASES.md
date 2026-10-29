@@ -206,6 +206,13 @@ Una parada lejos de todas (más de 2 km de la más cercana y más de 4 km de des
 propuesta con lo que suma (`paradasLejanas`, `generar-ruta/lejanas.ts`): en terreno, un punto en la mitad
 de una calle de 5 km sumaba 15,8 km a una ruta de 56.
 
+En pasajes y calles residenciales no se da la vuelta (terreno 2026-10-29, `geo/mapbox/vuelta.ts`): la
+ruta por calles los pasa de frente y devuelve, por punto, la clase de la calle, su dirección y lo que
+costó (`CalleDelPunto`). Con eso `ordenarConSentido` (`generar-ruta/sentido.ts`) vuelve a ordenar "la
+más corta" cobrando entrar y salir por el mismo extremo (`Penalizacion` en `orden-paradas/costo.ts`,
+simétrica; las jugadas la calculan solo donde cambian vecinos) y se queda con la que mide menos por
+calles. En la prueba de 66 paradas (48 en calle estrecha): 42,77 → 42,58 km.
+
 La ruta del día es **cerrada** (terreno 2026-10-28): termina donde empezó, en la central de carga.
 El optimizador trata el final como un punto más (`FIN` en `orden-paradas/costo.ts`: 0 en una ruta
 abierta, volver a la base en una cerrada), la matriz pide también la vuelta a la partida, el

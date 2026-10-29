@@ -791,3 +791,27 @@ test("obtenerRutaCalles: en una avenida se puede dar la vuelta (una sola consult
     globalThis.fetch = original;
   }
 });
+
+// ------------------------------------- el plan sabe dónde no se da la vuelta
+const { penalizacionPorSentido } = await import("@/lib/encomiendas/local/generar-ruta/sentido");
+const { FIN } = await import("@/lib/rutas/orden-paradas/costo");
+
+test("penalizacionPorSentido: en calle estrecha cobra entrar y salir por el mismo extremo", () => {
+  // La parada 1 está en un pasaje que corre de oeste a este (eje 90°).
+  const puntos = [
+    { lat: -18.47, lng: -70.31 }, // base, al oeste
+    { lat: -18.47, lng: -70.3 }, // la parada del pasaje
+    { lat: -18.47, lng: -70.305 }, // al oeste también
+    { lat: -18.47, lng: -70.295 }, // al este
+    { lat: -18.465, lng: -70.3 }, // al norte: de costado
+  ];
+  const estrecha = { clase: "street", eje: 90, extraM: 600 };
+  const pen = penalizacionPorSentido(puntos, [null, estrecha, null, null, null]);
+  assert.equal(pen(2, 1, 0), 600, "llega del oeste y vuelve al oeste: se devuelve");
+  assert.equal(pen(2, 1, FIN), 600, "volver a la base (al oeste) cuenta igual");
+  assert.equal(pen(2, 1, 3), 0, "del oeste al este: pasa de frente");
+  assert.equal(pen(3, 1, 2), 0, "y al revés tampoco");
+  assert.equal(pen(4, 1, 2), 0, "una de costado no se cobra");
+  assert.equal(pen(2, 3, 2), 0, "las paradas de calle ancha o sin dato no pagan");
+  assert.equal(penalizacionPorSentido(puntos, [null, { ...estrecha, clase: "tertiary" }, null, null, null]), null);
+});

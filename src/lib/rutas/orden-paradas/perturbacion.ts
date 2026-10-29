@@ -1,4 +1,4 @@
-import { EPSILON, distanciaOrden, type Costo } from "./costo";
+import { EPSILON, distanciaOrden, type Costo, type Penalizacion } from "./costo";
 import { mejorarLocal } from "./mejora";
 
 // ----------------------------------------------------------------------------
@@ -73,13 +73,18 @@ const TOPE_SACUDIDAS = 5000;
 
 /** Mejora todos los arranques, se queda con el mejor y después lo sacude por si
  *  hay algo mejor a la vuelta de la esquina: unas cuantas veces, o a fondo. */
-export function mejorDeVariosArranques(arranques: number[][], costo: Costo, aFondo = false): number[] {
+export function mejorDeVariosArranques(
+  arranques: number[][],
+  costo: Costo,
+  aFondo = false,
+  pen?: Penalizacion,
+): number[] {
   let mejor = arranques[0];
   let mejorCosto = Infinity;
 
   for (const arranque of arranques) {
-    const candidato = mejorarLocal(arranque, costo);
-    const total = distanciaOrden(candidato, costo);
+    const candidato = mejorarLocal(arranque, costo, pen);
+    const total = distanciaOrden(candidato, costo, pen);
     if (total < mejorCosto) {
       mejorCosto = total;
       mejor = candidato;
@@ -95,8 +100,8 @@ export function mejorDeVariosArranques(arranques: number[][], costo: Costo, aFon
   const tope = aFondo ? TOPE_SACUDIDAS : sacudidasPara(mejor.length);
   let sinMejora = 0;
   for (let i = 0; i < tope && !(aFondo && sinMejora >= SACUDIDAS_SIN_MEJORA); i++) {
-    const candidato = mejorarLocal(doblePuente(mejor, azar), costo);
-    const total = distanciaOrden(candidato, costo);
+    const candidato = mejorarLocal(doblePuente(mejor, azar), costo, pen);
+    const total = distanciaOrden(candidato, costo, pen);
     if (total < mejorCosto - EPSILON) {
       mejorCosto = total;
       mejor = candidato;

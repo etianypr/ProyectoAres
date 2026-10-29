@@ -289,3 +289,77 @@ test("a fondo: nunca más larga que la rápida, y el mismo día da la misma ruta
   }
   assert.ok(mejoroAlguna, "a fondo no mejoró ningún día: no está buscando más");
 });
+
+// ------------------------------------- calles donde no se da la vuelta (2026-10-29)
+// La búsqueda calcula el cambio de la penalización solo en las paradas que
+// cambian de vecinos. Si esa cuenta estuviera mal, el resultado no sería un
+// óptimo local con el costo completo: acá se prueban TODAS las jugadas a la fuerza.
+const { mejorarLocal } = await import("@/lib/rutas/orden-paradas/mejora");
+const { FIN, conFinal, distanciaOrden } = await import("@/lib/rutas/orden-paradas/costo");
+
+function penalizacionAlAzar(n, semilla) {
+  const r = azar(semilla * 31 + 7);
+  const estrecha = Array.from({ length: n }, (_, i) => i > 0 && r() < 0.4);
+  const lado = Array.from({ length: n }, () => Array.from({ length: n }, () => Math.floor(r() * 3) - 1));
+  const metros = Array.from({ length: n }, () => 100 + r() * 900);
+  const pen = (a, s, b) => {
+    if (!estrecha[s]) return 0;
+    const la = lado[s][a];
+    const lb = lado[s][b === FIN ? 0 : b];
+    return la !== 0 && la === lb ? metros[s] : 0;
+  };
+  pen.maximo = 1000;
+  return pen;
+}
+
+test("con penalización: la búsqueda llega a un óptimo local del costo COMPLETO", () => {
+  for (const semilla of [1, 2, 3, 4]) {
+    const n = 18;
+    const puntos = puntosDelDia(n, semilla);
+    const matriz = matrizCalles(puntos, semilla);
+    const costo = conFinal((a, b) => matriz[a][b], (i) => matriz[i][0]);
+    const pen = penalizacionAlAzar(n, semilla);
+    const inicial = [0, ...Array.from({ length: n - 1 }, (_, i) => i + 1)];
+    const total = (o) => distanciaOrden(o, costo, pen);
+    const resultado = mejorarLocal(inicial, costo, pen);
+    assert.ok(total(resultado) <= total(inicial) + 1e-6, "empeoró");
+    const mejor = total(resultado);
+    // 2-opt: dar vuelta cualquier tramo.
+    for (let i = 1; i < n - 1; i++) {
+      for (let j = i + 1; j < n; j++) {
+        const o = [...resultado.slice(0, i), ...resultado.slice(i, j + 1).reverse(), ...resultado.slice(j + 1)];
+        assert.ok(total(o) >= mejor - 1e-6, `semilla ${semilla}: un 2-opt (${i},${j}) todavía mejoraba`);
+      }
+    }
+    // Or-opt: mover un grupo de 1 a 3, derecho o dado vuelta.
+    for (let largo = 1; largo <= 3; largo++) {
+      for (let i = 1; i + largo <= n; i++) {
+        const seg = resultado.slice(i, i + largo);
+        const resto = [...resultado.slice(0, i), ...resultado.slice(i + largo)];
+        for (let p = 1; p <= resto.length; p++) {
+          for (const s of [seg, [...seg].reverse()]) {
+            const o = [...resto.slice(0, p), ...s, ...resto.slice(p)];
+            assert.ok(total(o) >= mejor - 1e-6, `semilla ${semilla}: mover ${largo} desde ${i} a ${p} todavía mejoraba`);
+          }
+        }
+      }
+    }
+  }
+});
+
+test("con penalización: ordenarParadas nunca sale peor que el arranque que se le da", () => {
+  for (const semilla of [5, 6, 7]) {
+    const n = 40;
+    const puntos = puntosDelDia(n, semilla);
+    const matriz = matrizCalles(puntos, semilla);
+    const vuelta = (i) => matriz[i][0];
+    const costo = conFinal((a, b) => matriz[a][b], vuelta);
+    const pen = penalizacionAlAzar(n, semilla);
+    const arranque = ordenarParadas(puntos, matriz, vuelta);
+    const conSentido = ordenarParadas(puntos, matriz, vuelta, true, { penalizacion: pen, arranque });
+    assert.ok(
+      distanciaOrden(conSentido, costo, pen) <= distanciaOrden(arranque, costo, pen) + 1e-6,
+      `semilla ${semilla}: salió peor que el arranque`,
+    );
+  }
+});

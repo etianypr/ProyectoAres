@@ -42,6 +42,7 @@ import { reintentarUbicar, tieneCoordenadas } from "./ubicar-pedidos";
 import { coord, elegirUtiles, medir, metrosPorMatriz, ordenPorEstrategia, TITULOS, vueltaPorMatriz } from "./estrategias";
 import { paradasLejanas } from "./lejanas";
 import { ordenConHorarios } from "./horarios";
+import { ordenarConSentido } from "./sentido";
 import type { Alternativa, EstrategiaRuta, PedidoUbicado, PropuestaRuta, PuntoInicio, ResultadoRuta } from "./tipos";
 
 export type { Alternativa, EstrategiaRuta, PedidoUbicado, PropuestaRuta, PuntoInicio, ResultadoRuta } from "./tipos";
@@ -188,15 +189,8 @@ export async function calcularRutaLocal(
   }));
 
   const alternativas = elegirUtiles(candidatas);
-  const recomendada = alternativas[0];
-  const paradas = recomendada.paradas;
-  // Una parada lejos de todas: se avisa con lo que cuesta (terreno 2026-10-28).
-  const lejanas = paradasLejanas(paradas, base, metros, vuelta);
-  for (const l of lejanas) {
-    advertencias.push(
-      `${l.direccion} queda a ${(l.metrosAlResto / 1000).toFixed(1)} km del resto y suma ${(l.metrosQueSuma / 1000).toFixed(1)} km a la ruta: revisa la dirección.`,
-    );
-  }
+  let recomendada = alternativas[0];
+  let paradas = recomendada.paradas;
 
   // El trazado se pide SOLO para la recomendada, y no para las tres. Es la
   // consulta caraaa de este armado (ver la Decisión 5): mostrar tres opciones no
@@ -207,7 +201,27 @@ export async function calcularRutaLocal(
   // entra) lo resuelve obtenerRutaCalles partiendo el pedido en tramos y
   // pegando los trazados.
   // Con la vuelta: la línea del mapa, los km y el reloj cuentan el regreso.
-  const calles = await obtenerRutaCalles([base, ...paradas.map(coord), base]);
+  let calles = await obtenerRutaCalles([base, ...paradas.map(coord), base]);
+
+  // El orden otra vez, sabiendo en qué paradas no se puede dar la vuelta
+  // (sentido.ts). Solo la más corta: las otras tienen un orden que respetar.
+  if (calles && recomendada.estrategia === "corta") {
+    const conSentido = await ordenarConSentido(base, paradas, indiceEnMatriz, matriz, calles);
+    if (conSentido) {
+      paradas = conSentido.paradas;
+      calles = conSentido.calles;
+      recomendada = { ...recomendada, paradas, ...medir(paradas, metros, vuelta, minutosDeInicio) };
+      alternativas[0] = recomendada;
+    }
+  }
+
+  // Una parada lejos de todas: se avisa con lo que cuesta (terreno 2026-10-28).
+  const lejanas = paradasLejanas(paradas, base, metros, vuelta);
+  for (const l of lejanas) {
+    advertencias.push(
+      `${l.direccion} queda a ${(l.metrosAlResto / 1000).toFixed(1)} km del resto y suma ${(l.metrosQueSuma / 1000).toFixed(1)} km a la ruta: revisa la dirección.`,
+    );
+  }
 
   if (recomendada.bloquesIncumplidos > 0) {
     advertencias.push(

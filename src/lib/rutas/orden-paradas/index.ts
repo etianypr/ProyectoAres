@@ -4,7 +4,7 @@
 // exacto, inviable en tiempo razonable ya pasando ~15-20 paradas), pero es el
 // estándar de la industria para este tamaño de problema sin pagar un solver.
 import { distanciaMetros, type Coordenada } from "@/lib/geo/coordenada";
-import { conFinal, distanciaOrden, type Costo } from "./costo";
+import { conFinal, distanciaOrden, type Costo, type Penalizacion } from "./costo";
 import { exacto } from "./exacto";
 import { insercionMasBarata, vecinoMasCercano } from "./construccion";
 import { mejorarLocal } from "./mejora";
@@ -69,6 +69,10 @@ export function ordenarParadas(
    *  lo que usa la propuesta de ruta, con pantalla de carga; sin esto, unas
    *  décimas de segundo. */
   aFondo = false,
+  /** Lo que cuesta pasar por cada parada según de dónde se llega y adónde se
+   *  sigue (calles donde no se da la vuelta, ver generar-ruta/sentido.ts), y un
+   *  orden de arranque: con él, el resultado nunca sale peor que ese orden. */
+  extra: { penalizacion?: Penalizacion; arranque?: number[] } = {},
 ): number[] {
   const n = puntos.length;
   if (n <= 2) return puntos.map((_, i) => i);
@@ -80,7 +84,8 @@ export function ordenarParadas(
 
   // Día chico: el óptimo exacto sale en milisegundos, así que no hay razón para
   // conformarse con una aproximación.
-  if (n <= MAX_EXACTO) {
+  // El exacto mide solo tramos: con penalización se usa la búsqueda.
+  if (n <= MAX_EXACTO && !extra.penalizacion) {
     const optimo = exacto(n, costo);
     if (optimo) return desempatarSentido(optimo, costo, vuelta != null);
   }
@@ -102,7 +107,8 @@ export function ordenarParadas(
   // arranque más en vez de una comparación aparte.
   if (matriz) arranques.push(mejorarLocal(vecinoMasCercano(n, enLineaRecta), enLineaRecta));
 
-  return desempatarSentido(mejorDeVariosArranques(arranques, costo, aFondo), costo, vuelta != null);
+  if (extra.arranque) arranques.unshift(extra.arranque);
+  return desempatarSentido(mejorDeVariosArranques(arranques, costo, aFondo, extra.penalizacion), costo, vuelta != null);
 }
 
 /** Una ruta cerrada se puede recorrer en los dos sentidos. Si al revés mide lo
