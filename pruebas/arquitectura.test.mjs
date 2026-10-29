@@ -47,6 +47,7 @@ const PROVEEDORES = {
   "vision.googleapis.com": "Google Cloud Vision",
   "graph.facebook.com": "Meta WhatsApp",
   "api.openrouteservice.org": "OpenRouteService",
+  "www.google.com": "Google Maps (app)",
 };
 /** A10: hosts que aparecen en el código pero no se contactan. */
 const HOSTS_NO_CONTACTADOS = ["www.w3.org"];
