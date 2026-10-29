@@ -65,6 +65,7 @@ export function InstruccionNavegacion({
   paso,
   siguiente,
   metros,
+  daLaVuelta = false,
   resumen,
 }: {
   paso: PasoNavegacion;
@@ -77,6 +78,8 @@ export function InstruccionNavegacion({
   /** Metros hasta la maniobra recalculados con el GPS (ver useNavegacion): se
    *  prefiere antes que paso.distanciaM, que se queda vieja entre consultas. */
   metros: number | null;
+  /** La ruta arranca hacia atrás: antes que la distancia, la vuelta. */
+  daLaVuelta?: boolean;
   /** Cómo va el día, a la derecha y dentro del mismo cartel (ver
    *  CAJA_CARRIL). Va acá adentro y no como pastilla aparte porque arriba del
    *  mapa hay una sola franja legible manejando, y dos cajas flotando en ella
@@ -92,13 +95,15 @@ export function InstruccionNavegacion({
 
   return (
     <div className={cn(CAJA_NAVEGACION, "min-w-0 flex-1")}>
-      {iconoManiobra(maniobra)}
+      {daLaVuelta ? <RotateCcw className="h-7 w-7 shrink-0 text-[#ffb48a]" /> : iconoManiobra(maniobra)}
       <div className="min-w-0 flex-1">
         {/* Manejando se lee primero CUÁNTO falta y después hacia dónde: la
             distancia va grande arriba y la calle debajo (spec 017, N12). El
             banner de Mapbox es el texto corto (la calle a la que se entra) y
             la instrucción es la frase completa. */}
-        {distancia > 0 ? (
+        {daLaVuelta ? (
+          <p className="text-[22px] font-extrabold leading-tight tracking-tight">Da la vuelta</p>
+        ) : distancia > 0 ? (
           <p className="font-mono text-[24px] font-semibold leading-tight tracking-tight">{formatDistancia(distancia)}</p>
         ) : null}
         <p className="truncate text-sm font-semibold leading-tight opacity-85">

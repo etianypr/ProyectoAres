@@ -15,7 +15,7 @@ import {
 } from "@/lib/geo/trazado";
 import { ordenarParadas } from "@/lib/rutas/orden-paradas";
 import { obtenerRutaCalles } from "@/lib/geo/mapbox/direcciones";
-import { obtenerNavegacion } from "@/lib/geo/mapbox/navegacion";
+import { obtenerNavegacion, convieneDarLaVuelta } from "@/lib/geo/mapbox/navegacion";
 
 // Arica, coordenadas reales de la zona de reparto.
 const EMPRESA = { lat: -18.471152, lng: -70.289929 };
@@ -568,5 +568,126 @@ test("las consultas de ruta van con continue_straight=false (el bug de las vuelt
     assert.equal(new URL(urls[0]).searchParams.get("language"), "es");
   } finally {
     globalThis.fetch = original;
+  }
+});
+
+// ------------------------------------------------- dar la vuelta (terreno 2026-10-28)
+// El auto mira al este y la casa queda 120 m al oeste, en la misma calle. De
+// frente, Mapbox da la vuelta a la manzana; sin rumbo, la ruta arranca hacia atrás.
+const AUTO = [-70.2899, -18.4711];
+const CASA = [-70.291, -18.4711];
+
+function respuestaRuta({ metros, coords, salida = coords[0] }) {
+  return {
+    ok: true,
+    json: async () => ({
+      routes: [
+        {
+          distance: metros,
+          geometry: { coordinates: coords },
+          legs: [
+            {
+              steps: [
+                {
+                  maneuver: { type: "depart", instruction: "Dirígete por la calle" },
+                  distance: metros,
+                  geometry: { coordinates: coords },
+                  voiceInstructions: [{ announcement: "Dirígete por la calle.", distanceAlongGeometry: metros }],
+                },
+                {
+                  maneuver: { type: "arrive", instruction: "Has llegado" },
+                  distance: 0,
+                  geometry: { coordinates: [coords[coords.length - 1]] },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      waypoints: [{ location: salida }, { location: coords[coords.length - 1] }],
+    }),
+  };
+}
+
+const DE_FRENTE = { metros: 985, coords: [AUTO, [-70.288, -18.4711], [-70.288, -18.4725], [-70.291, -18.4725], CASA] };
+const HACIA_ATRAS = { metros: 119, coords: [AUTO, [-70.2905, -18.4711], CASA] };
+
+function conDoble(respuestas) {
+  const original = globalThis.fetch;
+  const urls = [];
+  globalThis.fetch = async (url) => {
+    urls.push(String(url));
+    return new URL(String(url)).searchParams.has("bearings") ? respuestas.deFrente() : respuestas.sinRumbo();
+  };
+  return { urls, restaurar: () => (globalThis.fetch = original) };
+}
+
+test("convieneDarLaVuelta: solo si arranca hacia atrás, ahorra 200 m y es la misma calzada", () => {
+  const p = (lng, lat) => ({ lng, lat });
+  const deFrente = { metros: 985, salida: p(-70.2899, -18.4711), arranque: 90 };
+  const atras = { metros: 119, salida: p(-70.2899, -18.4711), arranque: 270 };
+  assert.equal(convieneDarLaVuelta(deFrente, atras, 90), true);
+  assert.equal(convieneDarLaVuelta(deFrente, { ...atras, metros: 850 }, 90), false, "ahorrar 135 m no vale la maniobra");
+  assert.equal(convieneDarLaVuelta(deFrente, { ...atras, arranque: 100 }, 90), false, "no arranca hacia atrás");
+  assert.equal(
+    convieneDarLaVuelta(deFrente, { ...atras, salida: p(-70.2899, -18.47125) }, 90),
+    false,
+    "15 m al lado es la calzada de enfrente",
+  );
+  assert.equal(convieneDarLaVuelta(deFrente, { ...atras, salida: null }, 90), false);
+  assert.equal(convieneDarLaVuelta(deFrente, { ...atras, arranque: null }, 90), false);
+  // El ángulo da la vuelta por el norte: 350° y 20° son casi lo mismo.
+  assert.equal(convieneDarLaVuelta(deFrente, { ...atras, arranque: 20 }, 350), false);
+  assert.equal(convieneDarLaVuelta(deFrente, { ...atras, arranque: 190 }, 10), true);
+});
+
+test("obtenerNavegacion: saliendo hacia la parada con la casa atrás, da la vuelta y lo dice", async () => {
+  const doble = conDoble({ deFrente: () => respuestaRuta(DE_FRENTE), sinRumbo: () => respuestaRuta(HACIA_ATRAS) });
+  try {
+    const r = await obtenerNavegacion({ lng: AUTO[0], lat: AUTO[1] }, { lng: CASA[0], lat: CASA[1] }, 90, { permitirVuelta: true });
+    assert.equal(doble.urls.length, 2, "pide las dos rutas");
+    assert.equal(r.daLaVuelta, true);
+    assert.equal(r.trazado.length, HACIA_ATRAS.coords.length, "usa la ruta corta");
+    assert.match(r.pasos[0].avisos[0].texto, /^Da la vuelta\. /);
+  } finally {
+    doble.restaurar();
+  }
+});
+
+test("obtenerNavegacion: sin permiso para la vuelta (se salió del camino) pide solo la de frente", async () => {
+  const doble = conDoble({ deFrente: () => respuestaRuta(DE_FRENTE), sinRumbo: () => respuestaRuta(HACIA_ATRAS) });
+  try {
+    const r = await obtenerNavegacion({ lng: AUTO[0], lat: AUTO[1] }, { lng: CASA[0], lat: CASA[1] }, 90);
+    assert.equal(doble.urls.length, 1);
+    assert.equal(r.daLaVuelta, false);
+    assert.equal(r.trazado.length, DE_FRENTE.coords.length);
+  } finally {
+    doble.restaurar();
+  }
+});
+
+test("obtenerNavegacion: en la calzada de enfrente (bandejón) no da la vuelta", async () => {
+  const doble = conDoble({
+    deFrente: () => respuestaRuta(DE_FRENTE),
+    sinRumbo: () => respuestaRuta({ ...HACIA_ATRAS, salida: [-70.2899, -18.47125] }),
+  });
+  try {
+    const r = await obtenerNavegacion({ lng: AUTO[0], lat: AUTO[1] }, { lng: CASA[0], lat: CASA[1] }, 90, { permitirVuelta: true });
+    assert.equal(r.daLaVuelta, false);
+    assert.equal(r.trazado.length, DE_FRENTE.coords.length);
+    assert.doesNotMatch(r.pasos[0].avisos[0].texto, /Da la vuelta/);
+  } finally {
+    doble.restaurar();
+  }
+});
+
+test("obtenerNavegacion: si la de frente falla, sirve la sin rumbo aunque no convenga la vuelta", async () => {
+  const doble = conDoble({ deFrente: () => ({ ok: false, json: async () => ({}) }), sinRumbo: () => respuestaRuta(HACIA_ATRAS) });
+  try {
+    const r = await obtenerNavegacion({ lng: AUTO[0], lat: AUTO[1] }, { lng: CASA[0], lat: CASA[1] }, 90, { permitirVuelta: true });
+    assert.equal(r.daLaVuelta, false);
+    assert.equal(r.trazado.length, HACIA_ATRAS.coords.length);
+  } finally {
+    doble.restaurar();
   }
 });

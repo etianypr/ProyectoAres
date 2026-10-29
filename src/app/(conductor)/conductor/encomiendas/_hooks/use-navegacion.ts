@@ -58,6 +58,10 @@ const VELOCIDAD_MINIMA_RECALCULO_MS = 2;
  *  puede enganchar la salida en la calzada contraria. */
 const MS_RUMBO_VIGENTE = 25_000;
 
+// Con la ruta que da la vuelta (ver obtenerNavegacion), el cartel dice "Da la
+// vuelta" hasta que el auto anduvo esto por el camino: ahí ya la dio.
+const METROS_VUELTA_HECHA = 30;
+
 /** Lo que el hook necesita de la lectura de GPS. */
 export type OrigenNavegacion = Coordenada & {
   /** Rumbo, que se le pasa a Mapbox para que enganche el arranque de la ruta
@@ -85,6 +89,8 @@ type Tramo = {
   /** Si la consulta que lo trajo llevaba el rumbo del auto. Sin rumbo, Mapbox
    *  puede haber enganchado la salida en la calzada contraria. */
   conRumbo: boolean;
+  /** La ruta arranca dando la vuelta: la casa quedaba atrás. */
+  daLaVuelta: boolean;
 };
 
 export type Navegacion = {
@@ -109,6 +115,9 @@ export type Navegacion = {
   metrosAParada: number | null;
   segundosAParada: number | null;
   llegada: number | null;
+  /** El cartel dice "Da la vuelta": la ruta arranca hacia atrás y el auto
+   *  todavía no la dio. */
+  daLaVuelta: boolean;
 };
 
 const VACIA: Navegacion = {
@@ -121,6 +130,7 @@ const VACIA: Navegacion = {
   metrosAParada: null,
   segundosAParada: null,
   llegada: null,
+  daLaVuelta: false,
 };
 
 export function useNavegacion(
@@ -224,7 +234,11 @@ export function useNavegacion(
     enVueloRef.current = { id, destino };
     ultimaConsultaRef.current = Date.now();
 
-    void obtenerNavegacion(origen, destino, rumbo).then((res) => {
+    // Saliendo hacia la parada —recién cambiada, o al aparecer el rumbo en los
+    // primeros metros— se compara con la ruta que da la vuelta. Al salirse del
+    // camino no: si siguió de frente, eso decidió.
+    const permitirVuelta = cambioDestino || aparecioElRumbo;
+    void obtenerNavegacion(origen, destino, rumbo, { permitirVuelta }).then((res) => {
       // Otra consulta más nueva ya la reemplazó (cambió la parada, o el hook se
       // apagó): esta respuesta es de un camino que ya no se va a recorrer.
       if (id !== ultimoIdRef.current) return;
@@ -251,6 +265,7 @@ export function useNavegacion(
         pasos: res.pasos,
         trazado: res.trazado,
         conRumbo: rumbo != null,
+        daLaVuelta: res.daLaVuelta,
       });
     });
   }, [habilitado, origen, destino, tramo, reintento]);
@@ -300,5 +315,10 @@ export function useNavegacion(
     // lectura vieja da una llegada vieja, que es lo honesto.
     llegada:
       restante && origen?.tomadaEn != null ? origen.tomadaEn + restante.segundosAParada * 1000 : null,
+    daLaVuelta:
+      tramo.daLaVuelta &&
+      indice === 0 &&
+      paso != null &&
+      (restante?.metrosAManiobra ?? paso.distanciaM) > paso.distanciaM - METROS_VUELTA_HECHA,
   };
 }

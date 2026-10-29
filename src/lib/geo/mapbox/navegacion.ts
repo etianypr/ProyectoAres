@@ -1,6 +1,7 @@
 // Indicaciones paso a paso de Mapbox, en español y con avisos de voz, para el
 // tramo desde donde está el conductor hasta la parada activa.
-import type { Coordenada, Trazado } from "@/lib/geo/coordenada";
+import { distanciaMetros, type Coordenada, type Trazado } from "@/lib/geo/coordenada";
+import { rumboDelCamino } from "@/lib/geo/trazado";
 import { urlDirections } from "./direcciones";
 import { tope } from "@/lib/comun/tope";
 
@@ -65,6 +66,70 @@ type PasoCrudo = {
 // arriesgar que la consulta se quede sin ningún camino válido.
 const TOLERANCIA_RUMBO = 90;
 
+// ---------------------------------------------------------------------------
+// Dar la vuelta (terreno 2026-10-28). Con el rumbo, Mapbox NUNCA arranca la
+// ruta dando la vuelta: obliga a seguir de frente hasta poder doblar. Con la
+// casa siguiente 120 m detrás del auto eso era una vuelta a la manzana de 700 m
+// a 1,4 km (medido en Diego Portales, Av. Argentina y Pey Casado), cuando un
+// conductor la da en la misma calle. Al salir hacia una parada se piden las dos
+// —de frente y sin rumbo— y se usa la que da la vuelta solo si conviene.
+// ---------------------------------------------------------------------------
+
+/** Dar la vuelta tiene que ahorrar al menos esto para proponerla. */
+const AHORRO_MINIMO_VUELTA_M = 200;
+/** Las dos consultas engancharon el auto en la MISMA calzada si sus puntos de
+ *  salida quedan a menos de esto. En una avenida con bandejón las calzadas van
+ *  a 10-20 m: más lejos, la ruta sin rumbo salió por la de enfrente y "dar la
+ *  vuelta" sería cruzar el bandejón. */
+const MISMA_CALZADA_M = 6;
+/** La ruta arranca hacia atrás si sus primeros metros se apartan más que esto
+ *  del rumbo del auto. */
+const GRADOS_HACIA_ATRAS = 120;
+/** Cuánto de la ruta se mira para saber hacia dónde arranca. */
+const METROS_ARRANQUE = 25;
+
+/** Lo que se compara de cada ruta. */
+export type SalidaRuta = {
+  metros: number;
+  /** Donde Mapbox enganchó al auto (waypoints[0]). */
+  salida: Coordenada | null;
+  /** Hacia dónde van sus primeros metros, en grados desde el norte. */
+  arranque: number | null;
+};
+
+/** ¿Se usa la ruta que da la vuelta en vez de la de frente? Pura. */
+export function convieneDarLaVuelta(deFrente: SalidaRuta, sinRumbo: SalidaRuta, rumbo: number): boolean {
+  if (sinRumbo.arranque == null || !deFrente.salida || !sinRumbo.salida) return false;
+  const giro = Math.abs((((sinRumbo.arranque - rumbo) % 360) + 540) % 360 - 180);
+  if (giro <= GRADOS_HACIA_ATRAS) return false;
+  if (deFrente.metros - sinRumbo.metros < AHORRO_MINIMO_VUELTA_M) return false;
+  return distanciaMetros(deFrente.salida, sinRumbo.salida) <= MISMA_CALZADA_M;
+}
+
+type RutaCruda = { distance?: number; geometry?: { coordinates?: Trazado }; legs?: { steps?: PasoCrudo[] }[] };
+
+/** Una consulta: la ruta, o null si Mapbox no encontró camino (un error de red
+ *  sube, y quien llama decide). */
+async function pedir(puntos: Coordenada[], params: Record<string, string>) {
+  const res = await fetch(urlDirections(puntos, params), { signal: tope(8_000) });
+  if (!res.ok) return null;
+  const json = (await res.json()) as { routes?: RutaCruda[]; waypoints?: { location?: [number, number] }[] };
+  const ruta = json.routes?.[0];
+  if (!ruta) return null;
+  const donde = json.waypoints?.[0]?.location;
+  return { ruta, salida: Array.isArray(donde) ? { lng: donde[0], lat: donde[1] } : null };
+}
+
+function medir(r: { ruta: RutaCruda; salida: Coordenada | null }): SalidaRuta {
+  const trazado = r.ruta.geometry?.coordinates ?? [];
+  const inicio = trazado[0] ? { lng: trazado[0][0], lat: trazado[0][1] } : null;
+  return {
+    metros: r.ruta.distance ?? Infinity,
+    salida: r.salida,
+    arranque: inicio ? rumboDelCamino(inicio, trazado, METROS_ARRANQUE, 0) : null,
+  };
+}
+
 export async function obtenerNavegacion(
   origen: Coordenada,
   destino: Coordenada,
@@ -73,7 +138,10 @@ export async function obtenerNavegacion(
    *  sentido va: en una avenida dividida puede engancharlo en la calzada de
    *  enfrente y devolver una ruta que arranca dando toda la vuelta. */
   rumbo?: number | null,
-): Promise<{ pasos: PasoNavegacion[]; trazado: Trazado } | null> {
+  /** Saliendo hacia una parada: se pide también la ruta sin rumbo, por si la
+   *  casa queda atrás y conviene dar la vuelta (ver convieneDarLaVuelta). */
+  { permitirVuelta = false }: { permitirVuelta?: boolean } = {},
+): Promise<{ pasos: PasoNavegacion[]; trazado: Trazado; daLaVuelta: boolean } | null> {
   const comunes = {
     steps: "true",
     language: "es",
@@ -89,20 +157,28 @@ export async function obtenerNavegacion(
   const grados = rumbo == null || Number.isNaN(rumbo) ? null : ((Math.round(rumbo) % 360) + 360) % 360;
   const conRumbo =
     grados == null ? null : { ...comunes, bearings: `${grados},${TOLERANCIA_RUMBO};` };
+  const puntos = [origen, destino];
 
-  let ruta:
-    | { geometry?: { coordinates?: Trazado }; legs?: { steps?: PasoCrudo[] }[] }
-    | undefined;
+  let ruta: RutaCruda | undefined;
+  let daLaVuelta = false;
   try {
-    // Tope de 8 s: con 4G inestable una consulta colgada bloqueaba todo
-    // recálculo hacia ese destino (spec 017, N6).
-    let res = conRumbo ? await fetch(urlDirections([origen, destino], conRumbo), { signal: tope(8_000) }) : null;
-    // Si el rumbo dejó a la consulta sin ninguna calzada que cumpla (pasa con
-    // un rumbo viejo, o estando dentro de un estacionamiento), se reintenta sin
-    // él: mejor una ruta imperfecta que ninguna instrucción en pantalla.
-    if (!res || !res.ok) res = await fetch(urlDirections([origen, destino], comunes), { signal: tope(8_000) });
-    if (!res.ok) return null;
-    ruta = (await res.json()).routes?.[0];
+    // Tope de 8 s por consulta: con 4G inestable una consulta colgada bloqueaba
+    // todo recálculo hacia ese destino (spec 017, N6).
+    if (conRumbo && permitirVuelta) {
+      // Las dos a la vez: la espera es la de una sola.
+      const [deFrente, sinRumbo] = await Promise.all([
+        pedir(puntos, conRumbo).catch(() => null),
+        pedir(puntos, comunes).catch(() => null),
+      ]);
+      daLaVuelta = deFrente != null && sinRumbo != null && convieneDarLaVuelta(medir(deFrente), medir(sinRumbo), grados!);
+      ruta = (daLaVuelta ? sinRumbo : (deFrente ?? sinRumbo))?.ruta;
+    } else {
+      // Si el rumbo dejó a la consulta sin ninguna calzada que cumpla (pasa con
+      // un rumbo viejo, o estando dentro de un estacionamiento), se reintenta sin
+      // él: mejor una ruta imperfecta que ninguna instrucción en pantalla.
+      const r = (conRumbo ? await pedir(puntos, conRumbo) : null) ?? (await pedir(puntos, comunes));
+      ruta = r?.ruta;
+    }
   } catch {
     // Acá sí se traga todo, token incluido: esto corre en bucle mientras el
     // conductor maneja y no puede llenar la pantalla de errores. Si falta el token,
@@ -113,22 +189,30 @@ export async function obtenerNavegacion(
   const pasos = ruta?.legs?.[0]?.steps;
   if (!Array.isArray(pasos)) return null;
 
-  return {
-    pasos: pasos.map((p) => ({
-      instruccion: p.maneuver?.instruction ?? "",
-      banner: p.bannerInstructions?.[0]?.primary?.text ?? null,
-      distanciaM: Math.round(p.distance ?? 0),
-      duracionS: Math.round(p.duration ?? 0),
-      tipo: p.maneuver?.type ?? "continue",
-      salida: typeof p.maneuver?.exit === "number" ? p.maneuver.exit : null,
-      modificador: p.maneuver?.modifier ?? null,
-      trazado: p.geometry?.coordinates ?? [],
-      avisos: (p.voiceInstructions ?? [])
-        .filter((a) => a.announcement)
-        .map((a) => ({ texto: a.announcement!, aMetros: Math.round(a.distanceAlongGeometry ?? 0) }))
-        // Del más lejano al más cercano, que es el orden en que se van diciendo.
-        .sort((a, b) => b.aMetros - a.aMetros),
-    })),
-    trazado: ruta?.geometry?.coordinates ?? [],
-  };
+  const resultado = pasos.map((p) => ({
+    instruccion: p.maneuver?.instruction ?? "",
+    banner: p.bannerInstructions?.[0]?.primary?.text ?? null,
+    distanciaM: Math.round(p.distance ?? 0),
+    duracionS: Math.round(p.duration ?? 0),
+    tipo: p.maneuver?.type ?? "continue",
+    salida: typeof p.maneuver?.exit === "number" ? p.maneuver.exit : null,
+    modificador: p.maneuver?.modifier ?? null,
+    trazado: p.geometry?.coordinates ?? [],
+    avisos: (p.voiceInstructions ?? [])
+      .filter((a) => a.announcement)
+      .map((a) => ({ texto: a.announcement!, aMetros: Math.round(a.distanceAlongGeometry ?? 0) }))
+      // Del más lejano al más cercano, que es el orden en que se van diciendo.
+      .sort((a, b) => b.aMetros - a.aMetros),
+  }));
+
+  // La vuelta se dice con el primer aviso del tramo, que es el que suena al
+  // salir: un aviso aparte quedaría tapado por ese (ver useVozNavegacion).
+  if (daLaVuelta && resultado[0]) {
+    const [primero, ...resto] = resultado[0].avisos;
+    resultado[0].avisos = primero
+      ? [{ ...primero, texto: `Da la vuelta. ${primero.texto}` }, ...resto]
+      : [{ texto: "Da la vuelta.", aMetros: resultado[0].distanciaM }];
+  }
+
+  return { pasos: resultado, trazado: ruta?.geometry?.coordinates ?? [], daLaVuelta };
 }

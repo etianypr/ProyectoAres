@@ -99,6 +99,7 @@ export function CarrilSuperior({
             paso={navegacion.paso}
             siguiente={navegacion.siguiente}
             metros={navegacion.metrosAManiobra}
+            daLaVuelta={navegacion.daLaVuelta}
             resumen={resumen}
           />
         ) : resumen ? (
