@@ -11,7 +11,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { CENTRO_ARICA, aLngLat, type Trazado } from "@/lib/geo/coordenada";
 import { ESTILO, FUENTE_DIA, FUENTE_NAV, FUENTE_PREVIA, TOKEN, agregarLineas, apagarVerdeDelTrafico, linea, soportaWebGL } from "./estilo";
 import { agruparPorLugar, contenidoGlobo, type LugarMapa } from "./marcadores-dom";
-import { agregarParadas, datosParadas, lugarTocado, ponerParadas } from "./capa-paradas";
+import { agregarParadas, datosParadas, fuentesDelTema, lugarTocado, ponerParadas } from "./capa-paradas";
 import type { PreviaRuta, PuntoMapa, Ubicacion } from "./tipos";
 import { useCamaraNavegacion } from "./use-camara";
 import { useMarcadorConductor } from "./use-marcador-conductor";
@@ -147,7 +147,13 @@ export function RutaMapa({
 
       agregarLineas(mapa);
       agregarParadas(mapa);
-      setMapaListo(true);
+      // Las pastillas se dibujan con la letra del tema (capa-paradas.ts): se
+      // espera a que esté cargada, con tope, para no quedarse sin puntos.
+      const letras = fuentesDelTema();
+      void Promise.race([
+        Promise.all([document.fonts.load(`600 12px ${letras.cifras}`), document.fonts.load(`800 14px ${letras.texto}`)]),
+        new Promise((listo) => setTimeout(listo, 1500)),
+      ]).finally(() => setMapaListo(true));
     });
 
     // Tocar un número abre un globo con su dirección; tocar el mapa lo cierra.
