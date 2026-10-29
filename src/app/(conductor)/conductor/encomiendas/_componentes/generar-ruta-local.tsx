@@ -68,7 +68,10 @@ export function GenerarRutaLocal({
     setArmando(true);
     try {
       await esperarDibujo();
-      onPropuesta(await calcularRutaLocal(fecha, puntoInicio));
+      // Partiendo de otro lado, la ruta termina igual en la central (terreno
+      // 2026-10-29: repasar lo pendiente y volver).
+      const fin = puntoInicio.tipo === "empresa" ? undefined : ({ tipo: "empresa", direccion: direccionEmpresa } as const);
+      onPropuesta(await calcularRutaLocal(fecha, puntoInicio, fin));
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo armar la ruta.");
     } finally {

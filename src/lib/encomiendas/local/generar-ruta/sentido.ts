@@ -72,6 +72,8 @@ export async function ordenarConSentido(
   indiceEnMatriz: Map<string, number>,
   matriz: number[][] | null,
   calles: RutaCalles,
+  /** Donde termina la ruta (la columna 0 de la matriz son las distancias hasta acá). */
+  llegada: Coordenada = base,
 ): Promise<{ paradas: PedidoUbicado[]; calles: RutaCalles } | null> {
   if (!matriz || !calles.puntos) return null;
   const puntos = [base, ...paradas.map((p) => ({ lat: p.lat, lng: p.lng }))];
@@ -81,7 +83,7 @@ export async function ordenarConSentido(
   const indices = [0, ...paradas.map((p) => indiceEnMatriz.get(p.id) ?? -1)];
   if (indices.some((i) => i < 0)) return null;
   const sub = indices.map((f) => indices.map((c) => matriz[f]?.[c] ?? Infinity));
-  const vuelta = (i: number) => matriz[indices[i]]?.[0] ?? distanciaMetros(puntos[i], base);
+  const vuelta = (i: number) => matriz[indices[i]]?.[0] ?? distanciaMetros(puntos[i], llegada);
   const orden = ordenarParadas(puntos, sub, vuelta, false, {
     penalizacion: pen,
     arranque: puntos.map((_, i) => i),
@@ -89,7 +91,7 @@ export async function ordenarConSentido(
 
   const nuevas = orden.slice(1).map((i) => paradas[i - 1]);
   if (nuevas.every((p, k) => p.id === paradas[k].id)) return null;
-  const otra = await obtenerRutaCalles([base, ...nuevas.map((p) => ({ lat: p.lat, lng: p.lng })), base]);
+  const otra = await obtenerRutaCalles([base, ...nuevas.map((p) => ({ lat: p.lat, lng: p.lng })), llegada]);
   if (!otra || otra.distanciaM >= calles.distanciaM) return null;
   return { paradas: nuevas, calles: otra };
 }

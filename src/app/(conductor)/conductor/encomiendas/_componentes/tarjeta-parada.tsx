@@ -53,14 +53,18 @@ export function TarjetaParada({
             {referencia}
           </p>
         ) : null}
-        <p
-          className={cn(
-            "truncate",
-            conPaquete ? "mt-0.5 text-sm font-medium" : "text-lg font-semibold leading-tight",
-          )}
-        >
-          {pedido.nombre || "Escanea la etiqueta para ver el destinatario"}
-        </p>
+        {/* Sin nombre todavía (llega al escanear la etiqueta) no se dice nada: el
+            aviso que había acá estorbaba más de lo que ayudaba (terreno 2026-10-29). */}
+        {pedido.nombre ? (
+          <p
+            className={cn(
+              "truncate",
+              conPaquete ? "mt-0.5 text-sm font-medium" : "text-lg font-semibold leading-tight",
+            )}
+          >
+            {pedido.nombre}
+          </p>
+        ) : null}
         <p className="truncate text-sm text-muted">{pedido.direccion}</p>
         {/* Spec 005: lo que hay que cobrar, en palabras y no solo en color. */}
         {pedido.porPagar ? (

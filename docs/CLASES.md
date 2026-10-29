@@ -213,6 +213,15 @@ más corta" cobrando entrar y salir por el mismo extremo (`Penalizacion` en `ord
 simétrica; las jugadas la calculan solo donde cambian vecinos) y se queda con la que mide menos por
 calles. En la prueba de 66 paradas (48 en calle estrecha): 42,77 → 42,58 km.
 
+Partiendo de "Mi ubicación" u otra dirección, la ruta termina igual en la central (terreno
+2026-10-29: repasar lo pendiente y volver): `calcularRutaLocal(fecha, inicio, fin)`, `PropuestaRuta.llegada`,
+y la columna 0 de la matriz pasa a ser la distancia HASTA la central, así que todo lo que cuenta
+"volver a la base" cuenta volver a la central sin tocar el optimizador; `Ruta.partida` guarda la
+central. "Dejar como pendiente" decide dónde reintentar con las distancias por calle que ya están en
+memoria (`metrosEnMemoria`): simulado en una ruta de 66 paradas, el reintento sale 0,8 a 1,5 km más
+corto por día, y reintentar en el camino gana a juntar todo en un repaso final (5 % de fallas: 6,1
+contra 9,1 km; 10 %: 10,6 contra 12,5 km). Anticipar el repaso en el orden no conviene (46,3 → 47,1 km).
+
 La ruta del día es **cerrada** (terreno 2026-10-28): termina donde empezó, en la central de carga.
 El optimizador trata el final como un punto más (`FIN` en `orden-paradas/costo.ts`: 0 en una ruta
 abierta, volver a la base en una cerrada), la matriz pide también la vuelta a la partida, el

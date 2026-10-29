@@ -23,6 +23,9 @@ export type PropuestaRuta = {
   fecha: string;
   /** Punto de partida ya resuelto a coordenadas. */
   partida: Coordenada;
+  /** Donde termina: la central, aunque se parta de "Mi ubicación" u otra
+   *  dirección (terreno 2026-10-29). Sin esto, donde partió. */
+  llegada?: Coordenada;
   /** Las paradas que faltan, en el orden de visita propuesto. */
   paradas: PedidoUbicado[];
   /** Trazado por calles de todo el recorrido, [lng, lat] por punto. */

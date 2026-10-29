@@ -258,6 +258,24 @@ test("la ruta vuelve a la partida: el trazado termina en ella y la ruta la guard
   assert.deepEqual(ruta.partida, p.partida, "la ruta no guardó adonde vuelve");
 });
 
+test("partiendo de Mi ubicación, la ruta termina en la central (repaso y volver)", async () => {
+  // Terreno 2026-10-29: al final del día el conductor repasa lo pendiente desde
+  // donde está y vuelve a la central. Antes la ruta volvía a donde partió.
+  for (const n of [1, 2, 3]) await pedidoA(n);
+  const inicio = inicioDe();
+  const central = { lat: BASE.lat + 4 * GRADOS_POR_KM, lng: BASE.lng };
+  const p = await calcularRutaLocal(HOY, inicio, { tipo: "direccion", direccion: "Central", ...central });
+
+  assert.deepEqual(p.partida, { lat: inicio.lat, lng: inicio.lng }, "no parte de donde está el conductor");
+  assert.deepEqual(p.llegada, central);
+  const [lng, lat] = p.trazado[p.trazado.length - 1];
+  assert.ok(Math.abs(lat - central.lat) < 1e-5 && Math.abs(lng - central.lng) < 1e-5, "el trazado no termina en la central");
+
+  await confirmarRutaLocal(p);
+  const ruta = await leerRuta(HOY);
+  assert.deepEqual(ruta.partida, central, "la ruta guardada no vuelve a la central");
+});
+
 test("una parada lejos de todas se avisa con lo que suma; un día normal no avisa nada", async () => {
   // Terreno 2026-10-28: una dirección en la mitad de una calle de 5 km sumaba
   // 15,8 km a una ruta de 56. El orden era el mejor; lo que fallaba era el punto.

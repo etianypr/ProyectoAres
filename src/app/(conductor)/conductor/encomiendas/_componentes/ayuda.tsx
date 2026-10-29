@@ -30,7 +30,7 @@ const SECCIONES: { titulo: string; pasos: string[] }[] = [
       "Un pedido que no va: 🗑 en la lista de la ruta propuesta («Deshacer» lo devuelve).",
       "Después «Escanear los paquetes»: cada etiqueta dice su parada.",
       "Pedido que llega tarde: «Sumar a la ruta».",
-      "Reordenar lo que falta desde donde estás: Rehacer la ruta → Desde: Mi ubicación → «Regenerar ruta».",
+      "Repasar lo que falta desde donde estás: Rehacer la ruta → Desde: Mi ubicación → «Regenerar ruta». Termina en la central.",
       "Toca un número del mapa para ver su dirección. El reloj es el tiempo manejando, sin las entregas.",
     ],
   },

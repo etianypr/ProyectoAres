@@ -96,6 +96,13 @@ function clavePunto(p: Coordenada): string {
   return `${p.lat.toFixed(5)},${p.lng.toFixed(5)}`;
 }
 
+/** La distancia por calle de a hasta b si ya se pidió hoy, sin consultar nada
+ *  (null si no está). Sirve con la ruta andando: reubicar una parada no puede
+ *  esperar a la red. */
+export function metrosEnMemoria(a: Coordenada, b: Coordenada): number | null {
+  return conocidos.get(`${clavePunto(a)}>${clavePunto(b)}`) ?? null;
+}
+
 /** Olvida los pares guardados (al cerrar el día, y en las pruebas). */
 export function olvidarMatriz(): void {
   conocidos.clear();

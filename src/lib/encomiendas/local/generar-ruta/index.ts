@@ -30,7 +30,7 @@
 //   horarios.ts         "respeta horarios" con el optimizador con horarios (spec 017)
 //   index.ts            calcular, elegir y confirmar la propuesta
 
-import type { Coordenada } from "@/lib/geo/coordenada";
+import { distanciaMetros, type Coordenada } from "@/lib/geo/coordenada";
 import { obtenerRutaCalles } from "@/lib/geo/mapbox/direcciones";
 import { matrizCalles } from "@/lib/geo/mapbox/matriz";
 import { nombreVisible } from "@/lib/encomiendas/paquete";
@@ -52,7 +52,10 @@ export type { Alternativa, EstrategiaRuta, PedidoUbicado, PropuestaRuta, PuntoIn
  *  qué hora se parte, la ruta que saldría es la misma y no hay nada que
  *  preguntarle a Mapbox. Antes no miraba los horarios: un cliente que eligió
  *  bloque seguía recibiendo la propuesta vieja (spec 017, R3). */
-function huella(fecha: string, base: Coordenada, ubicados: PedidoUbicado[], minutosDeInicio: number): string {
+/** Partida y llegada a menos de esto son el mismo punto: la ruta es cerrada. */
+const METROS_MISMO_PUNTO = 30;
+
+function huella(fecha: string, base: Coordenada, llegada: Coordenada, ubicados: PedidoUbicado[], minutosDeInicio: number): string {
   const paradas = ubicados
     .map((p) => `${p.id}:${p.lat.toFixed(5)},${p.lng.toFixed(5)}:${p.bloqueHorarioId ?? ""}:${p.disponibilidad}`)
     .sort()
@@ -60,7 +63,7 @@ function huella(fecha: string, base: Coordenada, ubicados: PedidoUbicado[], minu
   // La partida se redondea a ~10 m: partiendo del GPS, un metro de diferencia
   // entre dos lecturas no cambia el orden de treinta paradas. La hora, al cuarto
   // de hora: cambia qué bloques se alcanzan.
-  return `${fecha}|${base.lat.toFixed(4)},${base.lng.toFixed(4)}|${Math.floor(minutosDeInicio / 15)}|${paradas}`;
+  return `${fecha}|${base.lat.toFixed(4)},${base.lng.toFixed(4)}>${llegada.lat.toFixed(4)},${llegada.lng.toFixed(4)}|${Math.floor(minutosDeInicio / 15)}|${paradas}`;
 }
 
 /** Antes de esta hora no se reparte: armar la ruta a las 7:00 no puede suponer
@@ -82,6 +85,10 @@ let ultimaPropuesta: { huella: string; propuesta: PropuestaRuta } | null = null;
 export async function calcularRutaLocal(
   fecha: string,
   inicio: PuntoInicio,
+  /** Donde termina, si no es donde parte: la central, partiendo de "Mi
+   *  ubicación" u otra dirección (terreno 2026-10-29: repasar lo pendiente y
+   *  volver a la central). Sin esto, la ruta vuelve a donde partió. */
+  fin?: PuntoInicio,
 ): Promise<PropuestaRuta> {
   // Solo los del día y sin marcar: lo ya cerrado (entregado o no entregado) no
   // se vuelve a rutear.
@@ -115,6 +122,9 @@ export async function calcularRutaLocal(
   }
 
   const base = await resolverInicio(inicio, { lat: ubicados[0].lat, lng: ubicados[0].lng });
+  // Si no se puede ubicar la central, la ruta vuelve a donde partió, como antes.
+  const llegada = fin ? await resolverInicio(fin, base).catch(() => base) : base;
+  const terminaEnOtroLado = distanciaMetros(base, llegada) > METROS_MISMO_PUNTO;
 
   // Las advertencias de la propuesta: lo que el reintento de ubicar dejó dicho,
   // más un resumen de los que quedaron fuera. Se arma acá y no en la pantalla
@@ -137,7 +147,7 @@ export async function calcularRutaLocal(
   // porque la pregunta es "si salgo AHORA, ¿llego?".
   const minutosDeInicio = Math.max(minutoDelDia(), MINUTO_SALIDA_MAS_TEMPRANA);
 
-  const clave = huella(fecha, base, ubicados, minutosDeInicio);
+  const clave = huella(fecha, base, llegada, ubicados, minutosDeInicio);
   if (ultimaPropuesta?.huella === clave) {
     return {
       ...ultimaPropuesta.propuesta,
@@ -147,13 +157,23 @@ export async function calcularRutaLocal(
     };
   }
 
-  const puntos: Coordenada[] = [base, ...ubicados.map((p) => ({ lat: p.lat, lng: p.lng }))];
+  const puntos: Coordenada[] = [
+    base,
+    ...ubicados.map((p) => ({ lat: p.lat, lng: p.lng })),
+    ...(terminaEnOtroLado ? [llegada] : []),
+  ];
 
   // Distancias reales por calles para decidir el orden, por bloques y guardadas
   // en memoria el día entero (spec 017, R1). Sin ellas se ordena en línea recta
   // y la propuesta lo dice.
   const calle = await matrizCalles(puntos);
-  const matriz = calle.metros;
+  // Terminando en otro lado, la columna 0 pasa a ser lo que cuesta llegar a la
+  // central (la última fila/columna, que después se saca): así todo lo que
+  // cuenta "volver a la base" cuenta volver a la central, sin tocar el optimizador.
+  const matriz =
+    calle.metros && terminaEnOtroLado
+      ? calle.metros.slice(0, -1).map((fila, i) => [i === 0 ? 0 : fila[fila.length - 1], ...fila.slice(1, -1)])
+      : calle.metros;
   if (calle.metros === null && calle.motivo === "cupo") {
     advertencias.push(
       "Este mes ya se usaron las distancias por calle gratuitas: el orden se calculó en línea recta.",
@@ -172,11 +192,11 @@ export async function calcularRutaLocal(
   const metros = metrosPorMatriz(base, indiceEnMatriz, matriz);
   // La ruta termina donde empezó (terreno 2026-10-28): cada orden se arma y se
   // mide contando la vuelta a la base.
-  const vuelta = vueltaPorMatriz(base, indiceEnMatriz, matriz);
+  const vuelta = vueltaPorMatriz(llegada, indiceEnMatriz, matriz);
 
   // Los tres órdenes. Ninguno consulta nada: todos reusan la matriz de arriba.
   const orden = (estrategia: EstrategiaRuta) =>
-    ordenPorEstrategia(estrategia, base, ubicados, indiceEnMatriz, matriz, minutosDeInicio);
+    ordenPorEstrategia(estrategia, base, ubicados, indiceEnMatriz, matriz, minutosDeInicio, llegada);
   const corta = orden("corta");
   const ordenes: Record<EstrategiaRuta, PedidoUbicado[]> = {
     corta,
@@ -204,12 +224,12 @@ export async function calcularRutaLocal(
   // entra) lo resuelve obtenerRutaCalles partiendo el pedido en tramos y
   // pegando los trazados.
   // Con la vuelta: la línea del mapa, los km y el reloj cuentan el regreso.
-  let calles = await obtenerRutaCalles([base, ...paradas.map(coord), base]);
+  let calles = await obtenerRutaCalles([base, ...paradas.map(coord), llegada]);
 
   // El orden otra vez, sabiendo en qué paradas no se puede dar la vuelta
   // (sentido.ts). Solo la más corta: las otras tienen un orden que respetar.
   if (calles && recomendada.estrategia === "corta") {
-    const conSentido = await ordenarConSentido(base, paradas, indiceEnMatriz, matriz, calles);
+    const conSentido = await ordenarConSentido(base, paradas, indiceEnMatriz, matriz, calles, llegada);
     if (conSentido) {
       paradas = conSentido.paradas;
       calles = conSentido.calles;
@@ -237,6 +257,7 @@ export async function calcularRutaLocal(
   const propuesta: PropuestaRuta = {
     fecha,
     partida: base,
+    llegada,
     paradas,
     trazado: calles?.trazado ?? null,
     distanciaM: calles?.distanciaM ?? null,
@@ -283,7 +304,7 @@ export async function elegirAlternativa(
   const calles = await obtenerRutaCalles([
     propuesta.partida,
     ...alternativa.paradas.map(coord),
-    propuesta.partida,
+    propuesta.llegada ?? propuesta.partida,
   ]);
 
   return {
@@ -325,7 +346,7 @@ export function devolverParada(propuesta: PropuestaRuta, parada: PedidoUbicado, 
 export async function retrazar(propuesta: PropuestaRuta): Promise<PropuestaRuta> {
   const calles =
     propuesta.paradas.length > 0
-      ? await obtenerRutaCalles([propuesta.partida, ...propuesta.paradas.map(coord), propuesta.partida])
+      ? await obtenerRutaCalles([propuesta.partida, ...propuesta.paradas.map(coord), propuesta.llegada ?? propuesta.partida])
       : null;
   return {
     ...propuesta,
@@ -348,7 +369,7 @@ export async function confirmarRutaLocal(propuesta: PropuestaRuta): Promise<Resu
     duracionS: propuesta.duracionS,
     advertencias: propuesta.advertencias,
     propuestasComparadas: propuesta.alternativas.length,
-    partida: propuesta.partida,
+    partida: propuesta.llegada ?? propuesta.partida,
   });
 
   return { ruta, sinUbicar: propuesta.sinUbicar, sinTrazado: propuesta.sinTrazado };

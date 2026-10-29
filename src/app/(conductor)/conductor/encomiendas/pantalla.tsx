@@ -278,7 +278,7 @@ export function PantallaEncomiendas({
           trazado={dia.ruta?.trazado ?? null}
           geometriaNavegacion={trazadoPorDelante}
           previa={previa}
-          central={propuesta?.partida ?? dia.ruta?.partida ?? null}
+          central={propuesta?.llegada ?? propuesta?.partida ?? dia.ruta?.partida ?? null}
           siguiendo={enNavegacion}
           onArrastre={() => {
             // Mover el mapa para mirar bien una ruta propuesta no es "quiero

@@ -116,7 +116,7 @@ function ordenarGrupo(
 ): PedidoUbicado[] {
   if (grupo.length <= 1) return grupo;
 
-  const clave = `${desde.lat},${desde.lng}|${volverA ? "vuelve" : ""}|${grupo.map((p) => p.id).sort().join(",")}`;
+  const clave = `${desde.lat},${desde.lng}|${volverA ? `${volverA.lat},${volverA.lng}` : ""}|${grupo.map((p) => p.id).sort().join(",")}`;
   let memoria = yaOrdenados.get(indiceEnMatriz);
   if (!memoria) yaOrdenados.set(indiceEnMatriz, (memoria = new Map()));
   const guardado = memoria.get(clave);
@@ -157,6 +157,7 @@ function encadenar(
   grupos: PedidoUbicado[][],
   indiceEnMatriz: Map<string, number>,
   matriz: number[][] | null,
+  llegada: Coordenada = base,
 ): PedidoUbicado[] {
   const salida: PedidoUbicado[] = [];
   let desde = base;
@@ -165,7 +166,7 @@ function encadenar(
 
   for (const [k, grupo] of grupos.entries()) {
     if (grupo.length === 0) continue;
-    const ordenado = ordenarGrupo(desde, grupo, indiceEnMatriz, matriz, indiceDesde, k === ultimo ? base : undefined);
+    const ordenado = ordenarGrupo(desde, grupo, indiceEnMatriz, matriz, indiceDesde, k === ultimo ? llegada : undefined);
     salida.push(...ordenado);
     const ultima = ordenado[ordenado.length - 1];
     desde = coord(ultima);
@@ -182,9 +183,12 @@ export function ordenPorEstrategia(
   indiceEnMatriz: Map<string, number>,
   matriz: number[][] | null,
   minutosDeInicio: number,
+  /** Donde termina: la central aunque se parta de otro lado (terreno 2026-10-29).
+   *  La columna 0 de la matriz son las distancias HASTA acá. */
+  llegada: Coordenada = base,
 ): PedidoUbicado[] {
   if (estrategia === "corta") {
-    return ordenarGrupo(base, ubicados, indiceEnMatriz, matriz, 0, base);
+    return ordenarGrupo(base, ubicados, indiceEnMatriz, matriz, 0, llegada);
   }
 
   if (estrategia === "confirmados") {
@@ -199,6 +203,7 @@ export function ordenPorEstrategia(
       ],
       indiceEnMatriz,
       matriz,
+      llegada,
     );
   }
 
@@ -210,9 +215,9 @@ export function ordenPorEstrategia(
   const conBloque = ubicados.filter((p) => bloquePorId(p.bloqueHorarioId));
   const sinBloque = ubicados.filter((p) => !bloquePorId(p.bloqueHorarioId));
   const metros = metrosPorMatriz(base, indiceEnMatriz, matriz);
-  const vuelta = vueltaPorMatriz(base, indiceEnMatriz, matriz);
+  const vuelta = vueltaPorMatriz(llegada, indiceEnMatriz, matriz);
   const insertado = ubicarConHorario(
-    ordenarGrupo(base, sinBloque, indiceEnMatriz, matriz, 0, base),
+    ordenarGrupo(base, sinBloque, indiceEnMatriz, matriz, 0, llegada),
     conBloque,
     minutosDeInicio,
     metros,
@@ -225,7 +230,7 @@ export function ordenPorEstrategia(
   //
   // Es el ARRANQUE de "respeta horarios": el optimizador con horarios
   // (horarios.ts) parte de este orden y de la más corta, y se queda con lo mejor.
-  const tramos = reordenarTramos(base, insertado, indiceEnMatriz, matriz);
+  const tramos = reordenarTramos(base, insertado, indiceEnMatriz, matriz, llegada);
   const fuera = (orden: PedidoUbicado[]) => fueraDeHorario(orden, minutosDeInicio, metros).length;
   // A igual cumplimiento manda la distancia: antes el reordenado ganaba aunque
   // saliera más largo (spec 017, R3).
@@ -243,6 +248,7 @@ function reordenarTramos(
   orden: PedidoUbicado[],
   indiceEnMatriz: Map<string, number>,
   matriz: number[][] | null,
+  llegada: Coordenada = base,
 ): PedidoUbicado[] {
   const salida: PedidoUbicado[] = [];
   let tramo: PedidoUbicado[] = [];
@@ -250,7 +256,7 @@ function reordenarTramos(
     const anterior = salida[salida.length - 1];
     const desde = anterior ? coord(anterior) : base;
     const indiceDesde = anterior ? (indiceEnMatriz.get(anterior.id) ?? 0) : 0;
-    salida.push(...ordenarGrupo(desde, tramo, indiceEnMatriz, matriz, indiceDesde, ultimo ? base : undefined));
+    salida.push(...ordenarGrupo(desde, tramo, indiceEnMatriz, matriz, indiceDesde, ultimo ? llegada : undefined));
     tramo = [];
   };
   for (const p of orden) {
