@@ -3,6 +3,7 @@
 import { distanciaMetros, type Coordenada, type Trazado } from "@/lib/geo/coordenada";
 import { rumboDelCamino } from "@/lib/geo/trazado";
 import { urlDirections } from "./direcciones";
+import { claseAlInicio, permiteDarLaVuelta } from "./vuelta";
 import { tope } from "@/lib/comun/tope";
 
 /** Aviso de voz de una maniobra, tal como lo entrega Mapbox. */
@@ -46,6 +47,7 @@ type PasoCrudo = {
   geometry?: { coordinates?: Trazado };
   bannerInstructions?: { primary?: { text?: string } }[];
   voiceInstructions?: { announcement?: string; distanceAlongGeometry?: number }[];
+  intersections?: { mapbox_streets_v8?: { class?: string } }[];
 };
 
 // Tramo de navegación (posición actual → parada activa): instrucciones paso a
@@ -99,6 +101,8 @@ export type SalidaRuta = {
   salida: Coordenada | null;
   /** Hacia dónde van sus primeros metros, en grados desde el norte. */
   arranque: number | null;
+  /** El tipo de la calle donde está el auto (Mapbox Streets v8), ver vuelta.ts. */
+  calle: string | null;
 };
 
 /** ¿Se sale sin rumbo, y eso es dar la vuelta? Pura. */
@@ -115,7 +119,11 @@ export function elegirSalida(
   if (!conviene) return { sinRumbo: false, daLaVuelta: false };
   const giro =
     sinRumbo.arranque == null ? 0 : Math.abs((((sinRumbo.arranque - rumbo) % 360) + 540) % 360 - 180);
-  return { sinRumbo: true, daLaVuelta: giro > GRADOS_HACIA_ATRAS };
+  const daLaVuelta = giro > GRADOS_HACIA_ATRAS;
+  // Dar la vuelta solo en una calle ancha de doble sentido: en un pasaje o una
+  // residencial angosta es salir en reversa. Doblar en la esquina, en cualquiera.
+  if (daLaVuelta && !permiteDarLaVuelta(sinRumbo.calle ?? deFrente.calle)) return { sinRumbo: false, daLaVuelta: false };
+  return { sinRumbo: true, daLaVuelta };
 }
 
 type RutaCruda = { distance?: number; geometry?: { coordinates?: Trazado }; legs?: { steps?: PasoCrudo[] }[] };
@@ -139,6 +147,7 @@ function medir(r: { ruta: RutaCruda; salida: Coordenada | null }): SalidaRuta {
     metros: r.ruta.distance ?? Infinity,
     salida: r.salida,
     arranque: inicio ? rumboDelCamino(inicio, trazado, METROS_ARRANQUE, 0) : null,
+    calle: claseAlInicio(r.ruta.legs?.[0]?.steps?.[0]),
   };
 }
 

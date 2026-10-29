@@ -11,7 +11,8 @@
 // avisos de voz con la distancia calculada ("En 300 metros, gire a la derecha
 // hacia Vicuña Mackenna"). Con OSRM había que traducir a mano su vocabulario de
 // maniobras y no había voz posible.
-import type { Coordenada, Trazado } from "@/lib/geo/coordenada";
+import { distanciaMetros, rumboEntre, type Coordenada, type Trazado } from "@/lib/geo/coordenada";
+import { claseAlFinal, permiteDarLaVuelta } from "./vuelta";
 import { tokenMapbox } from "./token";
 import { tope } from "@/lib/comun/tope";
 
@@ -85,6 +86,107 @@ export type RutaCalles = {
   duracionS: number;
 };
 
+// ---------------------------------------------------------------------------
+// Sin salir en reversa de un pasaje (terreno 2026-10-29). Con continue_straight
+// en false la ruta puede dar la vuelta en CUALQUIER parada, y en un pasaje o una
+// residencial angosta eso es "entrar y salir en reversa". En esas paradas la
+// ruta se vuelve a pedir con el rumbo de llegada fijo: Mapbox la hace pasar de
+// frente (medido: 380 m pasan a 1.006 y 1.580 m, que es lo que de verdad se
+// maneja). En avenidas y calles principales se sigue pudiendo dar la vuelta
+// (ver vuelta.ts).
+// ---------------------------------------------------------------------------
+
+/** Pasadas como mucho: fijar una parada cambia cómo se llega a las siguientes. */
+const MAX_PASADAS = 3;
+/** Una parada donde la ruta sale con más de esto de giro respecto de cómo
+ *  llegó es una vuelta en U. */
+const GRADOS_VUELTA = 120;
+/** Cuántos metros del tramo se miran para el rumbo de llegada y de salida. */
+const METROS_RUMBO = 20;
+/** Margen del rumbo fijo: la calle puede curvarse un poco. */
+const MARGEN_RUMBO = 45;
+
+type PasoCrudo = { geometry?: { coordinates?: Trazado }; intersections?: { mapbox_streets_v8?: { class?: string } }[] };
+type RutaCruda = { geometry: { coordinates: Trazado }; distance: number; duration: number; legs?: { distance?: number; steps?: PasoCrudo[] }[] };
+
+const rumboEntrePuntos = (a: [number, number], b: [number, number]) =>
+  rumboEntre({ lng: a[0], lat: a[1] }, { lng: b[0], lat: b[1] });
+const metrosEntre = (a: [number, number], b: [number, number]) =>
+  distanciaMetros({ lng: a[0], lat: a[1] }, { lng: b[0], lat: b[1] });
+
+function geometriaDelTramo(pasos: PasoCrudo[] | undefined): Trazado {
+  return (pasos ?? []).flatMap((p) => p.geometry?.coordinates ?? []);
+}
+
+/** Rumbo con el que se llega al final de la línea (sus últimos metros). */
+function rumboAlLlegar(linea: Trazado): number | null {
+  const fin = linea[linea.length - 1];
+  for (let i = linea.length - 2, acumulado = 0; i >= 0; i--) {
+    acumulado += metrosEntre(linea[i], linea[i + 1]);
+    if (acumulado >= METROS_RUMBO) return rumboEntrePuntos(linea[i], fin);
+  }
+  return null;
+}
+
+/** Rumbo con el que sale la línea (sus primeros metros). */
+function rumboAlSalir(linea: Trazado): number | null {
+  for (let i = 1, acumulado = 0; i < linea.length; i++) {
+    acumulado += metrosEntre(linea[i - 1], linea[i]);
+    if (acumulado >= METROS_RUMBO) return rumboEntrePuntos(linea[0], linea[i]);
+  }
+  return null;
+}
+
+/** Las paradas intermedias donde la ruta da la vuelta en una calle estrecha,
+ *  con el rumbo con que se llega a ellas. */
+function vueltasEnEstrechas(ruta: RutaCruda, rumbos: (number | null)[]): { i: number; rumbo: number }[] {
+  const salida: { i: number; rumbo: number }[] = [];
+  const tramos = ruta.legs ?? [];
+  for (let i = 1; i < tramos.length; i++) {
+    if (rumbos[i] != null) continue;
+    const llega = tramos[i - 1];
+    const sale = tramos[i];
+    const llegada = rumboAlLlegar(geometriaDelTramo(llega.steps));
+    const partida = rumboAlSalir(geometriaDelTramo(sale.steps));
+    if (llegada == null || partida == null) continue;
+    const giro = Math.abs((((partida - llegada) % 360) + 540) % 360 - 180);
+    if (giro > GRADOS_VUELTA && !permiteDarLaVuelta(claseAlFinal(llega.steps))) salida.push({ i, rumbo: llegada });
+  }
+  return salida;
+}
+
+async function pedirTramo(tramo: Coordenada[], rumbos: (number | null)[]): Promise<RutaCruda | null> {
+  const params: Record<string, string> = { steps: "true" };
+  if (rumbos.some((r) => r != null)) {
+    params.bearings = rumbos.map((r) => (r == null ? "" : `${Math.round(r)},${MARGEN_RUMBO}`)).join(";");
+  }
+  try {
+    const res = await fetch(urlDirections(tramo, params), { signal: tope(15_000) });
+    if (!res.ok) return null;
+    return ((await res.json()).routes?.[0] as RutaCruda | undefined) ?? null;
+  } catch (e) {
+    // Un token faltante NO es una falla de red: tiene que llegar al llamador.
+    if (e instanceof ErrorTokenMapbox) throw e;
+    return null;
+  }
+}
+
+/** Un tramo de la ruta, sin vueltas en calles estrechas. Si fijar el rumbo
+ *  deja a Mapbox sin camino, se queda con la pasada anterior. */
+async function tramoSinReversa(tramo: Coordenada[]): Promise<RutaCruda | null> {
+  const rumbos: (number | null)[] = tramo.map(() => null);
+  let ruta = await pedirTramo(tramo, rumbos);
+  for (let pasada = 1; ruta && pasada < MAX_PASADAS; pasada++) {
+    const nuevas = vueltasEnEstrechas(ruta, rumbos);
+    if (nuevas.length === 0) break;
+    for (const { i, rumbo } of nuevas) rumbos[i] = rumbo;
+    const otra = await pedirTramo(tramo, rumbos);
+    if (!otra) break;
+    ruta = otra;
+  }
+  return ruta;
+}
+
 // Trazado real (por calles) de la ruta ya ordenada, con su distancia y duración.
 // Devuelve null si la API no respondió: el llamador conserva el trazado anterior
 // en vez de dejar al conductor con un mapa en blanco (ver guardarRuta).
@@ -98,16 +200,7 @@ export async function obtenerRutaCalles(
   let duracionS = 0;
 
   for (const tramo of enTramos(puntosOrdenados, MAX_PUNTOS_POR_CONSULTA)) {
-    let ruta: { geometry: { coordinates: Trazado }; distance: number; duration: number };
-    try {
-      const res = await fetch(urlDirections(tramo, {}), { signal: tope(15_000) });
-      if (!res.ok) return null;
-      ruta = (await res.json()).routes?.[0];
-    } catch (e) {
-      // Un token faltante NO es una falla de red: tiene que llegar al llamador.
-      if (e instanceof ErrorTokenMapbox) throw e;
-      return null;
-    }
+    const ruta = await tramoSinReversa(tramo);
     if (!ruta) return null;
 
     // Un tramo a medias sería peor que ninguno: el conductor vería una línea que

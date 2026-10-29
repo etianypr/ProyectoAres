@@ -91,6 +91,28 @@ Los avisos pasan a una fase posterior: falta el chip del negocio y el token de M
 la app ayuda con la ruta y con llamar: sin las variables de Meta no manda avisos, no consulta
 respuestas ni muestra el error del canal. Cuando estén, se activan solos (`docs/WHATSAPP.md`).
 
+## Algoritmo de rutas: qué se midió (2026-10-29)
+
+El dueño trajo una revisión de literatura que recomienda, para una ciudad como Arica, dos
+fases: sectorizar (HSAC o k-means) y optimizar dentro de cada sector con ALNS o Tabu Search
+(cita un 22,6 % menos de tiempo de viaje). Las citas son del dueño; acá no se verificaron.
+Se midió contra lo que hace ARES (búsqueda local iterada sobre la matriz real de calles,
+`lib/rutas/orden-paradas`, a fondo en la propuesta):
+
+- **Con un solo conductor, sectorizar empeora.** En días al azar de 41 a 81 puntos, armar
+  por 3, 4 o 6 sectores y optimizar cada uno dio rutas entre 4 % y 20 % más largas que
+  optimizar todo junto. Sectorizar sirve para repartir entre varios vehículos o con miles de
+  entregas; con una camioneta y ~60 paradas solo le pone paredes a la búsqueda. El 22,6 % se
+  compara contra métodos simples (vecino más cercano), no contra una búsqueda como esta.
+- **El orden está en el óptimo práctico.** En la ruta real de 67 puntos del 29-10, la búsqueda
+  a fondo llega a 39,22 km en 1,4 s en el PC; 87.000 intentos en 60 s no bajaron un metro.
+- **Lo que sí vale de esa revisión es la calibración local**, y es por donde se gana: la matriz
+  es por calles reales (Mapbox, asimétrica: 13,7 % en promedio por los sentidos únicos), las
+  direcciones mal ubicadas cuestan más que cualquier mejora del orden (dos paradas mal
+  puestas subían la ruta de 39,3 a 59,1 km), y dar la vuelta solo donde la calle lo permite.
+- **ALNS o Tabu** tienen sentido si llegan varios conductores o ventanas horarias apretadas
+  para muchos clientes (`con-horarios.ts`). Hoy no.
+
 ## Fuera de alcance
 
 Varios conductores o mandantes · seguir paquetes entre días · prueba de entrega con

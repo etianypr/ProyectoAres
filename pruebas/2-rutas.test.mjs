@@ -577,7 +577,7 @@ test("las consultas de ruta van con continue_straight=false (el bug de las vuelt
 const AUTO = [-70.2899, -18.4711];
 const CASA = [-70.291, -18.4711];
 
-function respuestaRuta({ metros, coords, salida = coords[0] }) {
+function respuestaRuta({ metros, coords, salida = coords[0], clase = "tertiary" }) {
   return {
     ok: true,
     json: async () => ({
@@ -590,6 +590,7 @@ function respuestaRuta({ metros, coords, salida = coords[0] }) {
               steps: [
                 {
                   maneuver: { type: "depart", instruction: "Dirígete por la calle" },
+                  intersections: [{ mapbox_streets_v8: { class: clase } }],
                   distance: metros,
                   geometry: { coordinates: coords },
                   voiceInstructions: [{ announcement: "Dirígete por la calle.", distanceAlongGeometry: metros }],
@@ -624,8 +625,8 @@ function conDoble(respuestas) {
 
 test("elegirSalida: sin rumbo si ahorra 200 m desde el mismo punto; 'Da la vuelta' solo si arranca hacia atrás", () => {
   const p = (lng, lat) => ({ lng, lat });
-  const deFrente = { metros: 985, salida: p(-70.2899, -18.4711), arranque: 90 };
-  const atras = { metros: 119, salida: p(-70.2899, -18.4711), arranque: 270 };
+  const deFrente = { metros: 985, salida: p(-70.2899, -18.4711), arranque: 90, calle: "tertiary" };
+  const atras = { metros: 119, salida: p(-70.2899, -18.4711), arranque: 270, calle: "tertiary" };
   const SI_VUELTA = { sinRumbo: true, daLaVuelta: true };
   const NO = { sinRumbo: false, daLaVuelta: false };
   assert.deepEqual(elegirSalida(deFrente, atras, 90), SI_VUELTA);
@@ -643,6 +644,26 @@ test("elegirSalida: sin rumbo si ahorra 200 m desde el mismo punto; 'Da la vuelt
   // El ángulo da la vuelta por el norte: 350° y 20° son casi lo mismo.
   assert.deepEqual(elegirSalida(deFrente, { ...atras, arranque: 20 }, 350), { sinRumbo: true, daLaVuelta: false });
   assert.deepEqual(elegirSalida(deFrente, { ...atras, arranque: 190 }, 10), SI_VUELTA);
+  // En un pasaje o una residencial angosta no se da la vuelta: sería salir en
+  // reversa (terreno 2026-10-29). Doblar en la esquina sí.
+  const pasaje = { ...atras, calle: "street" };
+  assert.deepEqual(elegirSalida({ ...deFrente, calle: "street" }, pasaje, 90), NO);
+  assert.deepEqual(elegirSalida({ ...deFrente, calle: null }, { ...atras, calle: null }, 90), NO, "sin dato de la calle, no");
+  assert.deepEqual(elegirSalida({ ...deFrente, calle: "street" }, { ...pasaje, arranque: 0 }, 90), { sinRumbo: true, daLaVuelta: false });
+});
+
+test("obtenerNavegacion: con la casa atrás en un pasaje, sigue de frente", async () => {
+  const doble = conDoble({
+    deFrente: () => respuestaRuta({ ...DE_FRENTE, clase: "street" }),
+    sinRumbo: () => respuestaRuta({ ...HACIA_ATRAS, clase: "street" }),
+  });
+  try {
+    const r = await obtenerNavegacion({ lng: AUTO[0], lat: AUTO[1] }, { lng: CASA[0], lat: CASA[1] }, 90, { permitirVuelta: true });
+    assert.equal(r.daLaVuelta, false);
+    assert.equal(r.trazado.length, DE_FRENTE.coords.length, "no sale en reversa del pasaje");
+  } finally {
+    doble.restaurar();
+  }
 });
 
 test("obtenerNavegacion: parada en la esquina, sale doblando sin decir 'Da la vuelta'", async () => {
@@ -707,5 +728,66 @@ test("obtenerNavegacion: si la de frente falla, sirve la sin rumbo aunque no con
     assert.equal(r.trazado.length, HACIA_ATRAS.coords.length);
   } finally {
     doble.restaurar();
+  }
+});
+
+// ------------------------------- la ruta del día no sale en reversa de un pasaje
+// El auto llega a la parada hacia el este y la ruta libre sigue hacia el oeste:
+// da la vuelta en la parada. En un pasaje eso es salir en reversa (terreno 2026-10-29).
+function respuestaConTramos(clase, distancia) {
+  return {
+    ok: true,
+    json: async () => ({
+      routes: [
+        {
+          distance: distancia,
+          duration: distancia / 8,
+          geometry: { coordinates: [[-70.3, -18.47], [-70.299, -18.47], [-70.2995, -18.47]] },
+          legs: [
+            { steps: [{ geometry: { coordinates: [[-70.3, -18.47], [-70.299, -18.47]] }, intersections: [{ mapbox_streets_v8: { class: clase } }] }] },
+            { steps: [{ geometry: { coordinates: [[-70.299, -18.47], [-70.2995, -18.47]] }, intersections: [{ mapbox_streets_v8: { class: clase } }] }] },
+          ],
+        },
+      ],
+    }),
+  };
+}
+const TRES = [
+  { lat: -18.47, lng: -70.3 },
+  { lat: -18.47, lng: -70.299 },
+  { lat: -18.47, lng: -70.2995 },
+];
+
+test("obtenerRutaCalles: en un pasaje, la parada se pasa de frente (rumbo fijo)", async () => {
+  const original = globalThis.fetch;
+  const urls = [];
+  globalThis.fetch = async (url) => {
+    urls.push(new URL(String(url)));
+    return respuestaConTramos("street", urls.length === 1 ? 160 : 900);
+  };
+  try {
+    const r = await obtenerRutaCalles(TRES);
+    assert.equal(urls.length, 2, "vuelve a pedir con el rumbo fijo");
+    assert.equal(urls[0].searchParams.get("bearings"), null);
+    assert.equal(urls[1].searchParams.get("bearings"), ";90,45;", "solo la parada, con el rumbo de llegada");
+    assert.equal(r.distanciaM, 900, "los km son los de pasar de frente");
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test("obtenerRutaCalles: en una avenida se puede dar la vuelta (una sola consulta)", async () => {
+  const original = globalThis.fetch;
+  let consultas = 0;
+  globalThis.fetch = async () => {
+    consultas++;
+    return respuestaConTramos("tertiary", 160);
+  };
+  try {
+    const r = await obtenerRutaCalles(TRES);
+    assert.equal(consultas, 1);
+    assert.equal(r.distanciaM, 160);
+  } finally {
+    globalThis.fetch = original;
   }
 });
