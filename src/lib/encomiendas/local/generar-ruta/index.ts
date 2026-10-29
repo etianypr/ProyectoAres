@@ -55,6 +55,17 @@ export type { Alternativa, EstrategiaRuta, PedidoUbicado, PropuestaRuta, PuntoIn
  *  bloque seguía recibiendo la propuesta vieja (spec 017, R3). */
 /** Partida y llegada a menos de esto son el mismo punto: la ruta es cerrada. */
 const METROS_MISMO_PUNTO = 30;
+/** La matriz para ordenar por zonas (zonas.ts); si algo fallara, la de siempre. */
+function conZonas(matriz: number[][]): number[][] {
+  try {
+    return matrizPorZonas(matriz, zonasPorCercania(matriz));
+  } catch {
+    return matriz;
+  }
+}
+
+/** Pasado esto armando la ruta, no se piden más mejoras (ver ordenarConSentido). */
+const MS_PARA_MEJORAS = 25_000;
 
 function huella(fecha: string, base: Coordenada, llegada: Coordenada, ubicados: PedidoUbicado[], minutosDeInicio: number): string {
   const paradas = ubicados
@@ -107,7 +118,10 @@ export async function calcularRutaLocal(
   // no llega acá. Lo que queda son los que se pueden visitar hoy.
   // Una parada pegada a una carretera que no es su calle se corre a la calle
   // por donde se llega (acceso.ts): si no, la ruta da la vuelta por la carretera.
-  const accesos = await corregirAccesos(pendientes.filter(tieneCoordenadas));
+  const empezo = Date.now();
+  const conPunto = pendientes.filter(tieneCoordenadas);
+  // Si la revisión de calles falla, se sigue con los puntos como estaban.
+  const accesos = await corregirAccesos(conPunto).catch(() => ({ ubicados: conPunto, advertencias: [] as string[] }));
   const ubicados = accesos.ubicados;
   const sinUbicar = pendientes.filter((p) => !tieneCoordenadas(p));
 
@@ -196,7 +210,7 @@ export async function calcularRutaLocal(
   const vuelta = vueltaPorMatriz(llegada, indiceEnMatriz, matriz);
   // Cada zona una sola vez (zonas.ts): el ORDEN se decide cobrando cada cambio
   // de zona; los km, los tiempos y los avisos siguen con la matriz real.
-  const matrizOrden = matriz ? matrizPorZonas(matriz, zonasPorCercania(matriz)) : null;
+  const matrizOrden = matriz ? conZonas(matriz) : null;
 
   // Los tres órdenes. Ninguno consulta nada: todos reusan la matriz de arriba.
   const orden = (estrategia: EstrategiaRuta) =>
@@ -232,8 +246,10 @@ export async function calcularRutaLocal(
 
   // El orden otra vez, sabiendo en qué paradas no se puede dar la vuelta
   // (sentido.ts). Solo la más corta: las otras tienen un orden que respetar.
-  if (calles && recomendada.estrategia === "corta") {
-    const conSentido = await ordenarConSentido(base, paradas, indiceEnMatriz, matrizOrden, calles, llegada);
+  // Es una mejora: si falla, o el armado ya tomó más de MS_PARA_MEJORAS (mala
+  // señal), se queda la ruta que ya está.
+  if (calles && recomendada.estrategia === "corta" && Date.now() - empezo < MS_PARA_MEJORAS) {
+    const conSentido = await ordenarConSentido(base, paradas, indiceEnMatriz, matrizOrden, calles, llegada).catch(() => null);
     if (conSentido) {
       paradas = conSentido.paradas;
       calles = conSentido.calles;

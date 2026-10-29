@@ -11,6 +11,7 @@ import type { Navegacion } from "../_hooks/use-navegacion";
 import type { Parada } from "../_hooks/use-dia-trabajo";
 import { SALIDAS, type Fase, type Salida } from "../_hooks/fase-parada";
 import { TarjetaParada } from "./tarjeta-parada";
+import { abrirEnMapas } from "@/lib/nativo/mapas";
 
 // Botones de la hoja: a ancho completo y de 48 px. Es lo que el conductor aprieta
 // manejando, con el pulgar y sin mirar mucho.
@@ -69,6 +70,11 @@ export function ParadaActiva({
       <TarjetaParada
         secuencia={activa.secuencia}
         pedido={activa.pedido}
+        onAbrirMapas={
+          activa.pedido.lat != null && activa.pedido.lng != null
+            ? () => abrirEnMapas({ lat: activa.pedido.lat!, lng: activa.pedido.lng! })
+            : undefined
+        }
         faltan={
           navegacion.metrosAParada != null
             ? {

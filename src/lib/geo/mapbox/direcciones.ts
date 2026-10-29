@@ -111,6 +111,8 @@ export type RutaCalles = {
 
 /** Pasadas como mucho: fijar una parada cambia cómo se llega a las siguientes. */
 const MAX_PASADAS = 3;
+/** Con la red lenta no se empieza otra pasada después de esto: queda la que hay. */
+const MS_PASADAS = 12_000;
 /** Una parada donde la ruta sale con más de esto de giro respecto de cómo
  *  llegó es una vuelta en U. */
 const GRADOS_VUELTA = 120;
@@ -190,7 +192,8 @@ async function tramoSinReversa(tramo: Coordenada[]): Promise<{ ruta: RutaCruda; 
   const rumbos: (number | null)[] = tramo.map(() => null);
   const primera = await pedirTramo(tramo, rumbos);
   let ruta = primera;
-  for (let pasada = 1; ruta && pasada < MAX_PASADAS; pasada++) {
+  const empezo = Date.now();
+  for (let pasada = 1; ruta && pasada < MAX_PASADAS && Date.now() - empezo < MS_PASADAS; pasada++) {
     const nuevas = vueltasEnEstrechas(ruta, rumbos);
     if (nuevas.length === 0) break;
     for (const { i, rumbo } of nuevas) rumbos[i] = rumbo;

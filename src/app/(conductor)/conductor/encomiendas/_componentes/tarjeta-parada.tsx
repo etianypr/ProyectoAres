@@ -9,7 +9,7 @@ import { useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/comun/utils";
 import { formatCLP, formatDistancia, formatDuracion, formatTime } from "@/lib/comun/format";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Navigation } from "lucide-react";
 import { formatoOf, ofDistinta, textoReferencia } from "@/lib/encomiendas/paquete";
 import type { Pedido } from "@/lib/encomiendas/local/almacen";
 import { useFotoGuardada } from "../_hooks/use-foto-paquete";
@@ -19,6 +19,7 @@ export function TarjetaParada({
   pedido,
   faltan,
   estado,
+  onAbrirMapas,
 }: {
   secuencia: number;
   pedido: Pedido;
@@ -28,6 +29,9 @@ export function TarjetaParada({
   faltan: { metros: number; segundos: number | null; llegada: number | null } | null;
   /** El renglón de lo que contestó el receptor (lo arma la pantalla). */
   estado: ReactNode;
+  /** Seguir en Google Maps (nativo/mapas.ts): los km de la parada son el botón,
+   *  y sin datos de navegación aparece igual, que es cuando más hace falta. */
+  onAbrirMapas?: () => void;
 }) {
   const referencia = textoReferencia(pedido.referencia);
   const conPaquete = pedido.of != null || referencia != null;
@@ -83,12 +87,19 @@ export function TarjetaParada({
         {estado}
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1.5">
-        {faltan && faltan.metros > 0 ? (
+        {(faltan && faltan.metros > 0) || onAbrirMapas ? (
           <div className="flex flex-col items-end">
-            <span className="rounded-full bg-brand-soft px-2.5 py-1 text-xs font-semibold tabular-nums text-brand">
-              {formatDistancia(faltan.metros)}
-            </span>
-            {faltan.segundos != null && faltan.segundos > 0 ? (
+            <button
+              type="button"
+              disabled={!onAbrirMapas}
+              onClick={onAbrirMapas}
+              aria-label="Seguir en Google Maps"
+              className="flex items-center gap-1 rounded-full bg-brand-soft px-2.5 py-1 text-xs font-semibold tabular-nums text-brand active:scale-[0.97] disabled:active:scale-100"
+            >
+              {onAbrirMapas ? <Navigation className="h-3 w-3 shrink-0" /> : null}
+              {faltan && faltan.metros > 0 ? formatDistancia(faltan.metros) : "Maps"}
+            </button>
+            {faltan?.segundos != null && faltan.segundos > 0 ? (
               <span className="mt-0.5 text-[11px] tabular-nums text-muted">
                 {formatDuracion(faltan.segundos)}
                 {faltan.llegada != null ? ` · ${formatTime(new Date(faltan.llegada))}` : ""}

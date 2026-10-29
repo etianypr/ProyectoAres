@@ -91,6 +91,8 @@ export async function reintentarUbicar(
 const accesosRevisados = new Map<string, Acceso | null>();
 /** Consultas a la vez. */
 const EN_PARALELO = 6;
+/** Tope de la revisión entera: con mala señal no puede demorar el armado. */
+const MS_REVISION = 10_000;
 
 /** Corre a la calle local las paradas que Mapbox engancharía a una carretera que
  *  no es su calle, y lo guarda en el pedido. Devuelve los pedidos con el punto
@@ -99,7 +101,9 @@ export async function corregirAccesos(
   ubicados: PedidoUbicado[],
 ): Promise<{ ubicados: PedidoUbicado[]; advertencias: string[] }> {
   const accesos: (Acceso | null)[] = new Array(ubicados.length).fill(null);
-  for (let i = 0; i < ubicados.length; i += EN_PARALELO) {
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return { ubicados, advertencias: [] };
+  const hasta = Date.now() + MS_REVISION;
+  for (let i = 0; i < ubicados.length && Date.now() < hasta; i += EN_PARALELO) {
     await Promise.all(
       ubicados.slice(i, i + EN_PARALELO).map(async (p, k) => {
         const clave = `${p.lat},${p.lng}`;
