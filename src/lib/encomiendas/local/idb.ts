@@ -23,7 +23,12 @@ import { hoyChile } from "@/lib/comun/fechas";
 import { migrarV2, type AvisoV2, type PedidoV2, type RutaV2 } from "./almacen/migrar";
 import type { ActividadPorEnviar, Foto, Pedido, ResumenDia, Ruta } from "./almacen/tipos";
 
-const NOMBRE_BASE = "pucarani-encomiendas";
+const NOMBRE_BASE = "dashund-encomiendas";
+/** El nombre que tuvo hasta 2026-10-30, cuando la empresa pasó a llamarse Dashund.
+ *  Se borra al crear la nueva: si no, en un navegador quedaba huérfana con los
+ *  pedidos de ese día y el cierre del día ya no la alcanzaba. Se puede quitar
+ *  desde 2027. */
+const NOMBRE_ANTERIOR = "pucarani-encomiendas";
 
 // Subir la versión al agregar o quitar un store o un índice, o al mover datos
 // entre stores. Un campo nuevo dentro de un objeto no la necesita —IndexedDB no
@@ -130,6 +135,13 @@ function abrir(): Promise<IDBDatabase> {
       // queda en la versión anterior con todo como estaba.
       const tx = solicitud.transaction;
       if (tx && evento.oldVersion > 0 && evento.oldVersion < 3) migrarAV3(tx);
+      if (evento.oldVersion === 0) {
+        try {
+          indexedDB.deleteDatabase(NOMBRE_ANTERIOR);
+        } catch {
+          // Sin poder borrarla no hay nada más que hacer: no tapa abrir la nueva.
+        }
+      }
     };
 
     solicitud.onsuccess = () => {

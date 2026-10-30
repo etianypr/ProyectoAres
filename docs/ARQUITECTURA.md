@@ -113,7 +113,7 @@ vista esencial: `docs/CLASES.md` §1. Todas llevan `empresa_id` (trigger
 `src/lib/encomiendas/pago.ts` copia la aritmética solo para la vista previa
 (`pruebas/base.mjs` verifica que coincidan).
 
-### Teléfono (IndexedDB `pucarani-encomiendas` v5)
+### Teléfono (IndexedDB `dashund-encomiendas` v5)
 
 | Store | Clave | Contenido | Relación |
 |---|---|---|---|

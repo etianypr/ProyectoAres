@@ -58,7 +58,8 @@ real.
 - Teléfono con la versión vieja abierta durante el renombrado: su envío falla, los eventos
   quedan en cola y salen al recargar (sin pérdida).
 - Fotos ya subidas en `fotos/choferes/`: se conservan; las nuevas van a `conductores/`.
-- Base IndexedDB `pucarani-encomiendas`: no se renombra.
+- Base IndexedDB: se renombró a `dashund-encomiendas` el 2026-10-30 (la empresa pasó a
+  llamarse Dashund); la anterior se borra al crear la nueva.
 - Pieza que no baja de 400 líneas sin separar lo que va junto: excepción documentada.
 
 ## Requirements *(mandatory)*

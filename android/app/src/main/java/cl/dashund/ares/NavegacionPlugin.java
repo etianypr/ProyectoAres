@@ -1,4 +1,4 @@
-package cl.pucarani.ares;
+package cl.dashund.ares;
 
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;

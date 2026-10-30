@@ -339,7 +339,7 @@ lo usa.
 | Pedidos desde la guía y escaneo → "PARADA n de N": `crearDesdeGuia`, `aplicarLecturaEtiqueta`, `sinEtiquetaEscaneada`; dirección de la etiqueta: `cambiarDireccion` (`pedidos.ts`) | `encomiendas/local/almacen/carga.ts` |
 | Lectura de una foto: primero el texto en el teléfono (`leerImagen`, `textoDeFoto` con ML Kit, `etiquetaCompleta`) y, si no alcanza, la IA: esquemas, contrato, llamada a Claude (`server-only`) | `encomiendas/lectura/{esquemas,contrato,servidor}.ts`, `encomiendas/local/lectura-cliente.ts`, `src/app/api/lectura/route.ts` |
 | Cierre del día: no entregados, resumen y borrado; cierre de sesión | `encomiendas/local/almacen/borrado.ts` (`STORES_DEL_DIA` en `idb.ts`) |
-| Plugin nativo `Telefono` (Java) | `android/app/src/main/java/cl/pucarani/ares/TelefonoPlugin.java` |
+| Plugin nativo `Telefono` (Java) | `android/app/src/main/java/cl/dashund/ares/TelefonoPlugin.java` |
 | Sesión y puertas (`exigirPanel`, `exigirConductor`); rol y destino por rol (`leerRol`, `inicioSegunRol`); ficha por usuario | `auth/sesion.ts`, `auth/roles.ts`, `auth/conductor-de-usuario.ts` |
 | Días "YYYY-MM-DD" en hora de Chile (`hoyChile`, `sumarDias`, `esFecha`), `MESES`; periodo del panel y su cookie | `comun/fechas.ts`, `comun/periodo.ts` (+ `periodo-servidor.ts`) |
 | Orden de paradas (exacto hasta 14 puntos; si no, construcción + mejora + sacudidas; la propuesta busca a fondo —hasta 300 sacudidas seguidas sin mejora— con la pantalla `BuscandoRuta` encima, y reusa el orden de un grupo repetido entre estrategias) · con horarios (`optimizarConHorarios`, por partes en `optimizarSinCongelar`) | `rutas/orden-paradas/` (`con-horarios.ts`, `sin-congelar.ts`) |

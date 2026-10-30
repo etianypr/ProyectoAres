@@ -20,7 +20,7 @@ import { callarNativo, hablarNativo, hayVozNativa } from "@/lib/nativo/telefono"
 import type { Navegacion } from "./use-navegacion";
 import { elegirVoz } from "./voz";
 
-const CLAVE_PREFERENCIA = "pucarani-voz-navegacion";
+const CLAVE_PREFERENCIA = "dashund-voz-navegacion";
 
 function haySintesis(): boolean {
   return typeof window !== "undefined" && "speechSynthesis" in window;

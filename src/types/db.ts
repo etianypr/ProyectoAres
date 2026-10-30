@@ -1,7 +1,7 @@
 // Tipos del dominio (espejo del esquema en Supabase/Postgres).
 //
-// Este proyecto salió del sistema de gestión general de Transportes Pucarani, del
-// que se quedó SOLO con encomiendas. Lo que quedó fuera —cotizaciones, viajes,
+// Este proyecto salió de un sistema de gestión general anterior, del que se
+// quedó SOLO con encomiendas. Lo que quedó fuera —cotizaciones, viajes,
 // facturas, taxis, flota, cobranzas, integración SII— no está "pendiente de
 // portar": no es parte de este negocio. Si alguna vez hace falta facturar, se
 // diseña de nuevo acá, no se copia de allá.

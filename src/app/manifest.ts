@@ -7,9 +7,9 @@ import type { MetadataRoute } from "next";
 // herramienta nueva del conductor debe vivir bajo /conductor/* para quedar
 // dentro de este scope.
 //
-// Los íconos son cuadrados con solo el isotipo sobre azul de marca; se generan
-// desde public/logo.png con `node scripts/generar-iconos.mjs` (correrlo de nuevo
-// si cambia el logo). El "maskable" trae la marca más chica porque Android
+// Los íconos son la cara del perro salchicha de Dashund sobre el crema del tema;
+// se generan desde public/dashund.svg con `node scripts/generar-iconos.mjs`
+// (correrlo de nuevo si cambia el logo). El "maskable" trae la marca más chica porque Android
 // recorta el ícono a un círculo del 80% del lado.
 export default function manifest(): MetadataRoute.Manifest {
   return {

@@ -25,7 +25,7 @@ import type { PuntoInicio } from "./tipos";
 /** La dirección de la empresa no se muda. Geocodificarla una vez por armado de
  *  ruta era una consulta regalada. Se guarda contra el TEXTO: si el
  *  administrador la corrige, la clave cambia y se vuelve a ubicar sola. */
-const CLAVE_PARTIDA = "pucarani-partida-empresa";
+const CLAVE_PARTIDA = "dashund-partida-empresa";
 
 function partidaGuardada(direccion: string): Coordenada | null {
   try {

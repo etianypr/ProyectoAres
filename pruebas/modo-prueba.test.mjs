@@ -94,7 +94,7 @@ test("el GPS simulado es solo del modo prueba, y parte en la central", async () 
   assert.equal(gps.gpsSimulado(), false);
   gps.fijarConfigGps({ activo: true });
 
-  localStorage.setItem("pucarani-partida-empresa", JSON.stringify({ texto: "Central", lat: -18.46734, lng: -70.30377 }));
+  localStorage.setItem("dashund-partida-empresa", JSON.stringify({ texto: "Central", lat: -18.46734, lng: -70.30377 }));
   const lectura = await new Promise((ok) => gps.fuenteUbicacion().getCurrentPosition(ok));
   assert.deepEqual([lectura.coords.latitude, lectura.coords.longitude], [-18.46734, -70.30377]);
 });

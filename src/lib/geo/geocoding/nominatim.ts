@@ -14,7 +14,7 @@ import { BBOX_ARICA, CANDIDATOS_POR_PROVEEDOR, MIN_CARACTERES, type SugerenciaDi
 // manda solo. Verificado: responde "access-control-allow-origin: *", así que la
 // llamada desde el teléfono funciona.
 const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search";
-const USER_AGENT = "sistema-gestion-pucarani/1.0 (encomiendas; contacto: admin de la empresa)";
+const USER_AGENT = "ares-dashund/1.0 (encomiendas; contacto: admin de la empresa)";
 
 // El límite de una por segundo se respeta ACÁ, en el transporte, y no en cada
 // pantalla que consulta: es la única forma de que nadie se lo pase por delante

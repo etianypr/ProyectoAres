@@ -37,7 +37,7 @@ deploy de Vercel le llega solo. Reinstalar hace falta solo si cambia `android/`;
   y hay que respaldarla: firmada con otra, la APK nueva no se instala encima.
 - **Navegación de Google** (spec 019): la clave entra al compilar con la variable `MAPS_API_KEY`
   (en GitHub, el secreto del mismo nombre). Sin ella la APK compila igual y navega con
-  OpenRouteService. La clave se restringe a la app Android `cl.pucarani.ares` con la huella
+  OpenRouteService. La clave se restringe a la app Android `cl.dashund.ares` con la huella
   SHA-1 de la firma (la de depuración y la de release son distintas).
 - **Instalar**: pasar el archivo al teléfono, abrirlo y permitir "instalar apps desconocidas".
 - **Build local** (Windows, JDK 21 + Android SDK 36, `android/local.properties` con

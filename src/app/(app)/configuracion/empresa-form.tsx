@@ -61,7 +61,7 @@ export function EmpresaForm({ empresa }: { empresa?: Empresa }) {
         </CardHeader>
         <CardBody className="grid gap-4 sm:grid-cols-2">
           <Field label="Nombre comercial" htmlFor="nombre">
-            <Input id="nombre" name="nombre" defaultValue={empresa?.nombre ?? "Transportes Pucarani"} required />
+            <Input id="nombre" name="nombre" defaultValue={empresa?.nombre ?? "Dashund"} required />
           </Field>
           <Field label="Razón social / representante" htmlFor="razon_social">
             <Input id="razon_social" name="razon_social" defaultValue={empresa?.razon_social ?? ""} />

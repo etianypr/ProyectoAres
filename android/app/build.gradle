@@ -11,10 +11,10 @@ def codigoApk = (System.getenv("APK_VERSION_CODE") ?: "1").toInteger()
 def claveMapsGoogle = System.getenv("MAPS_API_KEY") ?: ""
 
 android {
-    namespace = "cl.pucarani.ares"
+    namespace = "cl.dashund.ares"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "cl.pucarani.ares"
+        applicationId "cl.dashund.ares"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode codigoApk

@@ -40,7 +40,7 @@ const pedido = (id, resultado) => ({
 
 async function crearBaseV3() {
   await new Promise((resolve, reject) => {
-    const s = indexedDB.open("pucarani-encomiendas", 3);
+    const s = indexedDB.open("dashund-encomiendas", 3);
     s.onupgradeneeded = () => {
       const base = s.result;
       base.createObjectStore("pedidos", { keyPath: "id" });

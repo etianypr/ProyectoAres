@@ -82,12 +82,12 @@ Detalle en [data-model.md](data-model.md); contrato del puente en
 ```text
 specs/015-app-android/   spec · plan · research · data-model · contracts/nativo.md · quickstart · tasks
 
-capacitor.config.ts                 ✱ appId cl.pucarani.ares · server.url · errorPath
+capacitor.config.ts                 ✱ appId cl.dashund.ares · server.url · errorPath
 capacitor/www/sin-senal.html        ✱ página local si no hay red en el primer arranque
 android/                            ✱ proyecto generado por `npx cap add android` (se versiona)
 └── app/src/main/
     ├── AndroidManifest.xml         ✱ permisos
-    └── java/cl/pucarani/ares/
+    └── java/cl/dashund/ares/
         ├── MainActivity.java       ✱ registra TelefonoPlugin
         └── TelefonoPlugin.java     ✱ llamar · llamadasDesde · pantallaEncendida
 .github/workflows/apk.yml           ✱ build y firma

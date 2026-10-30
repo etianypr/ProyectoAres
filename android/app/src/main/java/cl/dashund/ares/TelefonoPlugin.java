@@ -1,4 +1,4 @@
-package cl.pucarani.ares;
+package cl.dashund.ares;
 
 import android.Manifest;
 import android.content.Intent;

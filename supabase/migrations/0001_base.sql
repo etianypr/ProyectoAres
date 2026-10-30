@@ -11,8 +11,8 @@
 -- ----------------------------------------------------------------------------
 -- DE DÓNDE SALE
 --
--- Este esquema es la consolidación de las migraciones 0004–0035 del sistema de
--- gestión general de Transportes Pucarani, quedándose SOLO con lo que necesita
+-- Este esquema es la consolidación de las migraciones 0004–0035 de un sistema de
+-- gestión general anterior, quedándose SOLO con lo que necesita
 -- el reparto de encomiendas. Los cuerpos de las funciones se copiaron TEXTUALES:
 -- de ellos sale el sueldo del conductor, así que no se reescribieron ni se
 -- "mejoraron" al mudarlos. Lo que cambió es qué tablas existen.

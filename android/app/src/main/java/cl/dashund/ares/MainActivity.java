@@ -1,4 +1,4 @@
-package cl.pucarani.ares;
+package cl.dashund.ares;
 
 import android.os.Bundle;
 

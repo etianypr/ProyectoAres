@@ -75,7 +75,7 @@ export function valorPedido(tarifa: Tarifa | null | undefined): number {
 }
 
 // Ingreso ESTIMADO, no real: Starken maneja el valor de cada envío en su
-// propio sistema y Pucarani nunca lo conoce (ver la 0021). Lo real se anota a
+// propio sistema y la empresa nunca lo conoce (ver la 0021). Lo real se anota a
 // mano por mes y se contrasta contra esto (encomienda_ingresos_reales, 0029).
 //
 // El valor por entrega se pide explícito y no se toma de una constante: es

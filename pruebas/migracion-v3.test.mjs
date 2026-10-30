@@ -55,7 +55,7 @@ const rutaV2 = (fecha, paradas, cerradaEn = null) => ({
  *  en una ruta, E se rechazó por WhatsApp. */
 async function crearBaseV2() {
   await new Promise((resolve, reject) => {
-    const solicitud = indexedDB.open("pucarani-encomiendas", 2);
+    const solicitud = indexedDB.open("dashund-encomiendas", 2);
     solicitud.onupgradeneeded = () => {
       const base = solicitud.result;
       base.createObjectStore("pedidos", { keyPath: "id" }).createIndex("por_estado", "estado");
@@ -157,7 +157,7 @@ test("el día en curso sigue igual en pantalla: misma cuenta y mismo cierre pend
 
 test("se borran el índice por estado y el store de avisos aparte", async () => {
   const base = await new Promise((resolve, reject) => {
-    const s = indexedDB.open("pucarani-encomiendas");
+    const s = indexedDB.open("dashund-encomiendas");
     s.onsuccess = () => resolve(s.result);
     s.onerror = () => reject(s.error);
   });

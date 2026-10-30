@@ -16,7 +16,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 const url = process.env.CAP_SERVER_URL ?? "https://proyecto-ares-five.vercel.app/conductor";
 
 const config: CapacitorConfig = {
-  appId: "cl.pucarani.ares",
+  appId: "cl.dashund.ares",
   appName: "ARES",
   webDir: "capacitor/www",
   server: {

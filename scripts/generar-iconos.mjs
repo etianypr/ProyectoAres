@@ -2,9 +2,7 @@
 //
 // Desde 2026-10-28 el ícono es el logo de Dashund —la empresa que desarrolla
 // ARES—: la cara de un perro salchicha, naranja, sobre el crema del tema de la
-// app del conductor (src/app/(conductor)/tema-dashund.css). Antes era el
-// isotipo "TP" de Transportes Pucarani, recortado de public/logo.png; ese
-// archivo queda para documentos.
+// app del conductor (src/app/(conductor)/tema-dashund.css).
 //
 // Correr después de cambiar public/dashund.svg:
 //   node scripts/generar-iconos.mjs            (web + Android)

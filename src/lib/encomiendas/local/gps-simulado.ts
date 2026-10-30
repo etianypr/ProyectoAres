@@ -18,7 +18,7 @@ import { enModoPrueba, useModoPrueba } from "./modo-prueba";
 const CLAVE = "ares-gps-simulado";
 const EVENTO = "ares-gps-simulado";
 /** Donde generar-ruta/partida.ts guarda la central ya ubicada. */
-const CLAVE_PARTIDA = "pucarani-partida-empresa";
+const CLAVE_PARTIDA = "dashund-partida-empresa";
 /** 30 km/h: lo que se anda en Arica entre parada y parada. */
 const METROS_POR_SEGUNDO = 30 / 3.6;
 /** Una lectura por segundo, como el GPS de verdad; a ×10 y ×20, cuatro: si no,
