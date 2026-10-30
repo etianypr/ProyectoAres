@@ -1,7 +1,7 @@
 // Cómo se mueve la cámara en modo navegación: zoom, inclinación, relleno y
 // cuándo girar (sale de ruta-mapa.tsx, spec 002 T038).
 
-import type mapboxgl from "mapbox-gl";
+import type * as maplibregl from "maplibre-gl";
 
 // Zoom e inclinación al ENTRAR a modo navegación — nivel calle y vista
 // inclinada, como Google Maps/Waze al arrancar un viaje. La inclinación es lo
@@ -64,7 +64,7 @@ export function zoomPorVelocidad(velocidad: number | null | undefined): number {
 // los fitBounds de más abajo dejan el suyo puesto. Sin esto, al descartar una
 // ruta propuesta (que encuadra con 48% abajo) el punto arrancaría el viaje
 // pegado al borde de arriba.
-export const SIN_RELLENO: mapboxgl.PaddingOptions = { top: 0, right: 0, bottom: 0, left: 0 };
+export const SIN_RELLENO: maplibregl.PaddingOptions = { top: 0, right: 0, bottom: 0, left: 0 };
 
 // Por debajo de esto no se gira. El rumbo casi siempre viene estimado (en
 // iPhone el GPS no entrega heading), así que oscila uno o dos grados entre

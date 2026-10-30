@@ -40,7 +40,7 @@ import { VistaPreviaRuta } from "./_componentes/vista-previa-ruta";
 import { useModoPrueba } from "@/lib/encomiendas/local/modo-prueba";
 import { CintaModoPrueba } from "./_componentes/cinta-modo-prueba";
 
-// mapbox-gl toca `window` apenas se importa — aunque este archivo ya es "use
+// maplibre-gl toca `window` apenas se importa — aunque este archivo ya es "use
 // client", Next.js igual lo renderiza una vez en el servidor antes de hidratar,
 // donde `window` no existe. ssr:false lo deja cargar solo en el navegador.
 const RutaMapa = dynamic(() => import("./_mapa/ruta-mapa").then((m) => m.RutaMapa), {

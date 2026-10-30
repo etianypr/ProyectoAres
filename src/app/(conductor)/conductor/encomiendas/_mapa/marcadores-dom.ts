@@ -2,7 +2,7 @@
 // desliza, y los lugares de las paradas con su globo (sale de ruta-mapa.tsx, spec
 // 002 T038). Las paradas las dibuja el mapa: ver capa-paradas.ts.
 
-import type mapboxgl from "mapbox-gl";
+import type * as maplibregl from "maplibre-gl";
 import { distanciaMetros, type PuntoLngLat } from "@/lib/geo/coordenada";
 import { MS_DESPLAZAMIENTO, ZOOM_NAVEGACION } from "./camara";
 import type { PuntoMapa } from "./tipos";
@@ -19,7 +19,7 @@ export const METROS_MAXIMOS_DESLIZAR = 150;
  * también se anima, y por el lado corto.
  */
 export function deslizarMarcador(
-  marcador: mapboxgl.Marker,
+  marcador: maplibregl.Marker,
   hasta: PuntoLngLat,
   rotacion: number,
   cuadro: { current: number | null },
@@ -76,9 +76,9 @@ export function escalaMarcador(zoom: number): number {
 }
 
 // Se escala el SVG y no el elemento del marcador: ese transform lo escribe
-// Mapbox —posición, giro e inclinación— y pisarlo deja el punto clavado en una
+// MapLibre —posición, giro e inclinación— y pisarlo deja el punto clavado en una
 // esquina de la pantalla.
-export function ajustarEscalaMarcador(marcador: mapboxgl.Marker, zoom: number): void {
+export function ajustarEscalaMarcador(marcador: maplibregl.Marker, zoom: number): void {
   const svg = marcador.getElement().querySelector("svg");
   if (svg) svg.style.transform = `scale(${escalaMarcador(zoom).toFixed(3)})`;
 }
@@ -122,7 +122,7 @@ export function contenidoGlobo(l: LugarMapa): HTMLElement {
 // El marcador del conductor
 // ----------------------------------------------------------------------------
 // TODO lo que lo compone vive en el plano de la CALLE: se crea con
-// pitchAlignment "map", así que Mapbox le aplica rotateX(inclinación) +
+// pitchAlignment "map", así que MapLibre le aplica rotateX(inclinación) +
 // rotateZ(giro) y queda acostado sobre el pavimento. Inclinando o girando el
 // mapa, el marcador se inclina y gira con él — está pegado al terreno, no
 // dibujado sobre el vidrio.

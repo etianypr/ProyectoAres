@@ -42,7 +42,8 @@ Solo sobreviven conteos (asignados, entregados, no entregados).
 | Anthropic (en uso, piloto; spec 005: las fotos de la guía y, desde 2026-10-28, TODAS las de etiquetas, para describir el paquete; spec 018: las direcciones que no se ubicaron) | fotos de guía y etiquetas (OF, destino, destinatario, teléfono, dirección, pago); direcciones y lo que devolvieron los buscadores (sin nombre ni teléfono) | servidor (tránsito, `/api/lectura`, `/api/direccion-ia`) | EE.UU. | ≤30 días API; cero retención a solicitar | pendiente |
 
 No reciben datos de destinatarios: Supabase (solo actividad y fichas de conductores),
-el escáner de Google de la APK (ML Kit: lee la
+OpenFreeMap (el mapa del conductor desde la spec 019: recibe solo los pedidos de los trozos de
+mapa de la zona que se mira, sin puntos, nombres ni direcciones), el escáner de Google de la APK (ML Kit: lee la
 etiqueta en el teléfono; según Google, la imagen no sale de ahí) y el lector de texto de la APK
 (ML Kit con el modelo dentro de la APK: la foto de la guía y de la etiqueta se lee sin red). El WhatsApp propio del conductor se incluye en
 la autorización para dejarlo explícito.

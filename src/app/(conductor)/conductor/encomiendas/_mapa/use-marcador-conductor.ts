@@ -5,7 +5,7 @@
 // 002 T038).
 
 import { useEffect, type RefObject } from "react";
-import mapboxgl from "mapbox-gl";
+import * as maplibregl from "maplibre-gl";
 import { aLngLat } from "@/lib/geo/coordenada";
 import { ajustarEscalaMarcador, deslizarMarcador, elementoUbicacion } from "./marcadores-dom";
 import type { Ubicacion } from "./tipos";
@@ -20,14 +20,14 @@ export function useMarcadorConductor({
   marcadorUbicacionRef,
   cuadroMarcadorRef,
 }: {
-  mapaRef: RefObject<mapboxgl.Map | null>;
+  mapaRef: RefObject<maplibregl.Map | null>;
   mapaListo: boolean;
   miUbicacion?: Ubicacion | null;
   rumbo?: number | null;
   rumboBrujula?: number | null;
   siguiendo: boolean;
   /** Los crea el mapa: al desarmarse los suelta (ver la limpieza en ruta-mapa). */
-  marcadorUbicacionRef: RefObject<mapboxgl.Marker | null>;
+  marcadorUbicacionRef: RefObject<maplibregl.Marker | null>;
   cuadroMarcadorRef: RefObject<number | null>;
 }) {
   // El marcador del conductor. Se crea UNA vez y después solo se le actualiza la
@@ -44,10 +44,10 @@ export function useMarcadorConductor({
     const rotacion = (conHaz ? rumboDelHaz : rumbo) ?? 0;
 
     if (!marcadorUbicacionRef.current) {
-      marcadorUbicacionRef.current = new mapboxgl.Marker({
+      marcadorUbicacionRef.current = new maplibregl.Marker({
         element: elementoUbicacion(),
         // Acostado sobre la calle y girando con ella. De acá sale la
-        // perspectiva —Mapbox le aplica rotateX(inclinación)— y por eso basta
+        // perspectiva —MapLibre le aplica rotateX(inclinación)— y por eso basta
         // con darle el rumbo real, sin compensar el giro del mapa.
         rotationAlignment: "map",
         pitchAlignment: "map",

@@ -93,7 +93,8 @@ cifras). El primer usuario registrado es admin.
 
 | Proveedor | Variable | Uso |
 |---|---|---|
-| Mapbox | `NEXT_PUBLIC_MAPBOX_TOKEN` (pública; restringir por URL) | mapa, direcciones, navegación |
+| Mapbox | `NEXT_PUBLIC_MAPBOX_TOKEN` (pública; restringir por URL) | búsqueda de direcciones y calle cercana a la parada (salen en la spec 019) |
+| OpenFreeMap | — (sin clave ni límite) | el mapa del conductor y la vista previa del punto, con MapLibre (spec 019) |
 | OpenRouteService | `NEXT_PUBLIC_ORS_KEY` (pública, gratis y sin tarjeta) | matriz de distancias por calle con que se ordena la ruta (500 consultas al día; un día son 2) |
 | Google Cloud Vision | `GOOGLE_VISION_KEY` o la misma `GOOGLE_MAPS_KEY` (servidor) | texto de las fotos de etiquetas y guía (el lector de Google Lens, spec 005) |
 | Google Geocoding | `GOOGLE_MAPS_KEY` (servidor) | último recurso para ubicar direcciones que Mapbox y OSM no numeran (spec 016) |

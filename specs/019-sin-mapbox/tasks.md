@@ -10,8 +10,8 @@
 - [x] T015 [US1] Navegación de Google dentro de la APK: `NavegacionActivity` + plugin `Navegacion` (Navigation SDK 7.9, AGP 8.13.2, desugar), `lib/nativo/navegacion.ts`, la de ARES se pausa mientras guía Google, prueba `nativo-navegacion`
 - [ ] T016 [US1] Clave de Google con Navigation SDK (dueño) y prueba en el teléfono: APK 1.4.0
 - [ ] T008 [US2] Calle cercana con OpenStreetMap (`lib/geo/acceso.ts`)
-- [ ] T009 [US3] Mapa con MapLibre + OpenFreeMap (`_mapa/*`)
-- [ ] T010 [US3] Vista previa del punto sin imagen de Mapbox (`components/direccion/mapa-punto.tsx`)
+- [x] T009 [US3] Mapa con MapLibre 6 + OpenFreeMap "Positron" con tonos Dashund (`_mapa/*`, `lib/geo/estilo-mapa.ts`); el worker se copia a `public/` antes de dev y build (`scripts/copiar-worker-mapa.mjs`); fuera `mapbox-gl`
+- [x] T010 [US3] Vista previa del punto: foto del mismo mapa, dibujada fuera de pantalla y destruida (`components/direccion/estampilla-mapa.ts`, `mapa-punto.tsx`)
 - [ ] T011 [US4] Sugerencias y ubicación sin Mapbox; IA de la 018 sin herramienta Mapbox (`lib/geo/geocoding/*`, `lib/geo/direccion-ia/*`)
 - [ ] T012 [US4] Google con tope diario (clave del dueño)
 - [ ] T013 [US5] Mapbox fuera: dependencia, token, A10, PRIVACIDAD, README, `.env.example`, Vercel

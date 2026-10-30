@@ -3,7 +3,7 @@
 // La cámara del mapa en modo navegación (sale de ruta-mapa.tsx, spec 002 T038).
 
 import { useEffect, type RefObject } from "react";
-import type mapboxgl from "mapbox-gl";
+import type * as maplibregl from "maplibre-gl";
 import { aLngLat } from "@/lib/geo/coordenada";
 import {
   GRADOS_MINIMOS_PARA_GIRAR,
@@ -25,7 +25,7 @@ export function useCamaraNavegacion({
   siguiendo,
   refs: { entroModoNavegacionRef, claveOrientadaRef, usuarioMovioRef, gestoRef, zoomManualRef },
 }: {
-  mapaRef: RefObject<mapboxgl.Map | null>;
+  mapaRef: RefObject<maplibregl.Map | null>;
   mapaListo: boolean;
   miUbicacion?: Ubicacion | null;
   rumbo?: number | null;
@@ -72,7 +72,7 @@ export function useCamaraNavegacion({
     //   · al ENTRAR a modo navegación;
     //   · en cuanto aparece el rumbo del camino. Al abrir la app, la entrada
     //     corre con la primera lectura de GPS —cuando el tramo todavía no llegó
-    //     de Mapbox—, así que no hay hacia dónde mirar; y detenido en el galpón
+    //     de la API—, así que no hay hacia dónde mirar; y detenido en el galpón
     //     el iPhone no entrega rumbo, nunca, así que sin esto la vista se
     //     quedaría torcida hasta empezar a andar;
     //   · al cambiar de parada, que es un camino nuevo.

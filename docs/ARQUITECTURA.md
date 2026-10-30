@@ -13,7 +13,8 @@ flowchart LR
     SW["sw.js · caché de /conductor"]
   end
   subgraph EXT["Proveedores"]
-    MAPBOX["Mapbox (mapa, direcciones; sale en la spec 019)"]
+    MAPBOX["Mapbox (direcciones; sale en la spec 019)"]
+    OFM["OpenFreeMap (el mapa, sin clave)"]
     ORS["OpenRouteService (orden, trazado, navegación)"]
     OSM["OSM / Nominatim"]
     GOOGLE["Google Geocoding"]
@@ -172,20 +173,20 @@ multiplicaría las consultas de trazado y le haría elegir al conductor entre op
 src/
 ├── proxy.ts                      sesión Supabase por request (lib/supabase/sesion-proxy)
 ├── app/(app)/                    panel: encomiendas (dia/_componentes) · conductores (_componentes) · configuracion · @modal
-├── app/(conductor)/conductor/    PWA y APK: encomiendas (pantalla, que solo une · _componentes: parada activa, carril, hoja, ventanas · _hooks: navegación, acciones de la parada, propuesta, botón atrás · _mapa: ruta-mapa, estilo, cámara, marcadores, capa-paradas: las paradas dibujadas por el mapa —WebGL—, no como elementos de la página) · diagnostico (APK)
+├── app/(conductor)/conductor/    PWA y APK: encomiendas (pantalla, que solo une · _componentes: parada activa, carril, hoja, ventanas · _hooks: navegación, acciones de la parada, propuesta, botón atrás · _mapa: ruta-mapa (MapLibre + OpenFreeMap, spec 019), estilo, cámara, marcadores, capa-paradas: las paradas dibujadas por el mapa —WebGL—, no como elementos de la página) · diagnostico (APK)
 ├── app/(conductor)/tema-dashund  el tema de la app del conductor (diseño "Plano" con el naranja de Dashund, Manrope + IBM Plex Mono); solo lo carga el layout del conductor
 ├── components/marca/logo-dashund  el logo de Dashund (cara de perro salchicha): inicio de sesión, menú, pantalla de carga; public/dashund.svg es el mismo dibujo y de ahí salen los íconos (scripts/generar-iconos.mjs)
 ├── components/ui/campo           la caja de texto del conductor: la etiqueta va adentro (52 px, 44 la compacta) y el estado en un renglón debajo; DireccionInput la usa cuando recibe `etiqueta`
 ├── app/api/                      whatsapp (send · status · webhook) · lectura (IA, spec 005) · geocodificar (Google, spec 016) · texto (Cloud Vision, spec 005)
-├── components/                   ui (primitivas) · direccion (campo y vista previa) · panel (marco del panel)
+├── components/                   ui (primitivas) · direccion (campo y vista previa: estampilla-mapa saca la foto del mapa y lo destruye, spec 019) · panel (marco del panel)
 ├── lib/                          una carpeta por dominio, sin archivos sueltos
 │   ├── auth/                     sesion · roles · acciones (login/logout) · api-conductor · conductor-de-usuario
 │   ├── supabase/                 server · client · admin · sesion-proxy
 │   ├── comun/                    fechas · format · forms · utils · uuid · deslizar · telefono · periodo · periodo-servidor
 │   ├── encomiendas/              catalogos · estados · pago · periodos · config · paquete · contrato-whatsapp · lectura/ (guía, etiqueta, código de barras)
 │   │   └── local/                idb · almacen/ (lecturas, pedidos, ruta, terreno…) · generar-ruta/ (partida, ubicar-pedidos, estrategias, horarios) · planificar · replanificar · sumar-a-ruta · corregir-direcciones · enviar · sincronizar-whatsapp
-│   ├── geo/                      coordenada · trazado · recorrido (paso en curso, lo que falta) · plus-code · openrouteservice (MCP) · matriz (distancias por calle con ORS, por bloques, en memoria) · ors/ (cliente · direcciones: trazado del día sin reversa en calles estrechas · navegacion: pasos, cartel y voz · vuelta: tipo de calle) · geocoding/ (consulta · calles · calles-arica generado · mapbox · nominatim · codigo · google · completar-numero · ubicar) · direccion-ia/ (contrato · servidor · cliente: corregir con IA, spec 018)
-│   │   └── mapbox/               token · acceso (Tilequery) · mapa-estatico (salen en la spec 019)
+│   ├── geo/                      coordenada · trazado · recorrido (paso en curso, lo que falta) · plus-code · openrouteservice (MCP) · estilo-mapa (OpenFreeMap con los tonos Dashund y el worker de MapLibre, que copia scripts/copiar-worker-mapa.mjs a public/) · matriz (distancias por calle con ORS, por bloques, en memoria) · ors/ (cliente · direcciones: trazado del día sin reversa en calles estrechas · navegacion: pasos, cartel y voz · vuelta: tipo de calle) · geocoding/ (consulta · calles · calles-arica generado · mapbox · nominatim · codigo · google · completar-numero · ubicar) · direccion-ia/ (contrato · servidor · cliente: corregir con IA, spec 018)
+│   │   └── mapbox/               token · acceso (Tilequery) (salen en la spec 019)
 │   ├── rutas/orden-paradas/      exacto · construccion · mejora · perturbacion · con-horarios · sin-congelar
 │   ├── whatsapp/                 meta · correlacion
 │   ├── conductores/              vencimientos

@@ -1,15 +1,16 @@
 "use client";
 
-// Mapa de navegación del conductor, con Mapbox GL JS: easeTo() desplaza, gira e
+// Mapa de navegación del conductor, con MapLibre GL JS (spec 019; antes Mapbox GL
+// JS, que cobra pasado lo gratis) y el mapa de OpenFreeMap: easeTo() desplaza, gira e
 // inclina en UNA sola animación sobre la placa de video, y las etiquetas de calle
 // se quedan derechas (con Leaflet el giro era un complemento que peleaba con el
 // arrastre y el zoom).
 
 import { useEffect, useRef, useState } from "react";
-import mapboxgl from "mapbox-gl";
-import "mapbox-gl/dist/mapbox-gl.css";
+import { AttributionControl, LngLatBounds, Map as MapaGL, Popup, setWorkerUrl, type GeoJSONSource, type Marker } from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
 import { CENTRO_ARICA, aLngLat, type Trazado } from "@/lib/geo/coordenada";
-import { ESTILO, FUENTE_DIA, FUENTE_NAV, FUENTE_PREVIA, TOKEN, agregarLineas, apagarVerdeDelTrafico, linea, soportaWebGL } from "./estilo";
+import { ESTILO, FUENTE_DIA, FUENTE_NAV, FUENTE_PREVIA, URL_WORKER, agregarLineas, linea, soportaWebGL, tonoDashund } from "./estilo";
 import { agruparPorLugar, contenidoGlobo, type LugarMapa } from "./marcadores-dom";
 import { agregarParadas, datosParadas, fuentesDelTema, lugarTocado, ponerParadas } from "./capa-paradas";
 import type { PreviaRuta, PuntoMapa, Ubicacion } from "./tipos";
@@ -74,16 +75,12 @@ export function RutaMapa({
   onArrastre: () => void;
 }) {
   const contenedorRef = useRef<HTMLDivElement>(null);
-  const mapaRef = useRef<mapboxgl.Map | null>(null);
+  const mapaRef = useRef<MapaGL | null>(null);
   // El estilo se carga de forma ASÍNCRONA y hasta que termine no se pueden
   // agregar fuentes ni capas. Sin avisar por estado, los efectos que dibujan
   // encima corrían una sola vez, encontraban el mapa sin estilo, se iban sin
   // hacer nada y nunca volvían: el mapa quedaba vacío para siempre.
   const [mapaListo, setMapaListo] = useState(false);
-  // Solo se escribe desde el manejador asíncrono de errores de Mapbox (token
-  // rechazado, estilo que no carga). Los otros dos casos —sin token, sin
-  // WebGL— se saben antes de dibujar y no necesitan estado.
-  const [errorMapa, setErrorMapa] = useState<string | null>(null);
   const [soportaMapa] = useState(soportaWebGL);
 
   const entroModoNavegacionRef = useRef(false);
@@ -100,7 +97,7 @@ export function RutaMapa({
   // El conductor tiene el dedo en el mapa: el código no toca la vista hasta que
   // suelte, o el movimiento por GPS pelea con el gesto.
   const gestoRef = useRef(false);
-  const marcadorUbicacionRef = useRef<mapboxgl.Marker | null>(null);
+  const marcadorUbicacionRef = useRef<Marker | null>(null);
   /** El cuadro de animación del punto en curso (ver deslizarMarcador). */
   const cuadroMarcadorRef = useRef<number | null>(null);
   /** El conductor eligió el zoom con dos dedos: el zoom por velocidad se calla
@@ -122,10 +119,12 @@ export function RutaMapa({
   useEffect(() => {
     const contenedor = contenedorRef.current;
     const cuadro = cuadroMarcadorRef;
-    if (!contenedor || mapaRef.current || !TOKEN || !soportaMapa) return;
+    if (!contenedor || mapaRef.current || !soportaMapa) return;
 
-    mapboxgl.accessToken = TOKEN;
-    const mapa = new mapboxgl.Map({
+    // MapLibre busca su worker al lado de su archivo, que al empaquetar deja de
+    // existir: se sirve desde public/ (scripts/copiar-worker-mapa.mjs).
+    setWorkerUrl(URL_WORKER);
+    const mapa = new MapaGL({
       container: contenedor,
       style: ESTILO,
       // Respaldo hasta que haya paradas o GPS.
@@ -140,10 +139,10 @@ export function RutaMapa({
 
     // La atribución es obligatoria por licencia, pero compacta: abajo a la
     // derecha ocupa lo mínimo y no tapa el botón de centrar.
-    mapa.addControl(new mapboxgl.AttributionControl({ compact: true }), "bottom-right");
+    mapa.addControl(new AttributionControl({ compact: true }), "bottom-right");
 
     mapa.on("load", () => {
-      apagarVerdeDelTrafico(mapa);
+      tonoDashund(mapa);
 
       agregarLineas(mapa);
       agregarParadas(mapa);
@@ -161,19 +160,10 @@ export function RutaMapa({
       const i = lugarTocado(mapa, e.point);
       const lugar = i != null ? lugaresRef.current[i] : null;
       if (!lugar) return;
-      new mapboxgl.Popup({ offset: 36, closeButton: false, maxWidth: "260px" })
+      new Popup({ offset: 36, closeButton: false, maxWidth: "260px" })
         .setLngLat([lugar.lng, lugar.lat])
         .setDOMContent(contenidoGlobo(lugar))
         .addTo(mapa);
-    });
-
-    mapa.on("error", (e) => {
-      // Un estilo que no carga o un token rechazado dejan el mapa gris sin
-      // decir nada: sin este mensaje no hay forma de saber qué pasó.
-      const mensaje = e.error?.message ?? "";
-      if (/access token|Unauthorized|401|403/i.test(mensaje)) {
-        setErrorMapa("El token de Mapbox fue rechazado. Avisa al administrador.");
-      }
     });
 
     // "dragstart" solo lo dispara un arrastre real del usuario, así que sirve
@@ -249,13 +239,13 @@ export function RutaMapa({
   useEffect(() => {
     const mapa = mapaRef.current;
     if (!mapa || !mapaListo) return;
-    (mapa.getSource(FUENTE_DIA) as mapboxgl.GeoJSONSource | undefined)?.setData(linea(trazado));
+    (mapa.getSource(FUENTE_DIA) as GeoJSONSource | undefined)?.setData(linea(trazado));
   }, [trazado, mapaListo]);
 
   useEffect(() => {
     const mapa = mapaRef.current;
     if (!mapa || !mapaListo) return;
-    (mapa.getSource(FUENTE_NAV) as mapboxgl.GeoJSONSource | undefined)?.setData(
+    (mapa.getSource(FUENTE_NAV) as GeoJSONSource | undefined)?.setData(
       linea(geometriaNavegacion),
     );
   }, [geometriaNavegacion, mapaListo]);
@@ -263,7 +253,7 @@ export function RutaMapa({
   useEffect(() => {
     const mapa = mapaRef.current;
     if (!mapa || !mapaListo) return;
-    (mapa.getSource(FUENTE_PREVIA) as mapboxgl.GeoJSONSource | undefined)?.setData(
+    (mapa.getSource(FUENTE_PREVIA) as GeoJSONSource | undefined)?.setData(
       linea(previa?.trazado),
     );
   }, [previa, mapaListo]);
@@ -281,7 +271,7 @@ export function RutaMapa({
     const mapa = mapaRef.current;
     if (!mapa || !mapaListo || !previa) return;
 
-    const limites = new mapboxgl.LngLatBounds();
+    const limites = new LngLatBounds();
     for (const c of previa.trazado ?? []) limites.extend(c);
     for (const p of previa.puntos) limites.extend([p.lng, p.lat]);
     if (limites.isEmpty()) return;
@@ -315,7 +305,7 @@ export function RutaMapa({
     }
     encuadreInicialRef.current = true;
 
-    const limites = new mapboxgl.LngLatBounds();
+    const limites = new LngLatBounds();
     for (const p of puntos) limites.extend([p.lng, p.lat]);
     mapa.fitBounds(limites, { padding: 40, duration: 0 });
   }, [puntos, mapaListo]);
@@ -361,16 +351,10 @@ export function RutaMapa({
     cuadroMarcadorRef,
   });
 
-  const mensajeError = !TOKEN
-    ? "Falta configurar el token de Mapbox. Avisa al administrador."
-    : !soportaMapa
-      ? "Este teléfono no puede mostrar el mapa (no soporta WebGL)."
-      : errorMapa;
-
-  if (mensajeError) {
+  if (!soportaMapa) {
     return (
       <div className="flex h-full w-full items-center justify-center bg-background p-6">
-        <p className="max-w-xs text-center text-sm text-muted">{mensajeError}</p>
+        <p className="max-w-xs text-center text-sm text-muted">Este teléfono no puede mostrar el mapa (no soporta WebGL).</p>
       </div>
     );
   }

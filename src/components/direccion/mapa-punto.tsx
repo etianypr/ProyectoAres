@@ -8,40 +8,38 @@
 // por lo mismo: leer "Los Aromos 120, Arica" no distingue la casa del valle de
 // Azapa; verla en el mapa, sí.
 //
-// Es una imagen, no un mapa (el por qué está en lib/geo/mapbox/mapa-estatico.ts).
+// Es una IMAGEN, no un mapa:
+//   · un segundo mapa vivo es otro contexto WebGL y otras decenas de teselas, en
+//     un teléfono barato que ya está corriendo el de navegación;
+//   · dentro de la hoja deslizable, un mapa que se arrastra y hace zoom le roba
+//     los gestos al formulario que lo contiene;
+//   · un preview no se explora: se mira y se sigue.
+// Desde la spec 019 la imagen es una foto del mismo mapa del conductor
+// (OpenFreeMap con los tonos Dashund), dibujada una vez y destruida: ver
+// estampilla-mapa.ts. Antes era una imagen de Mapbox, que se cobra.
 //
 // Los tres estados se dibujan DENTRO de la misma caja de alto fijo, para que la
 // vista previa no empuje el botón de guardar cuando termina de cargar:
 //
 //   cargando  el hueco reservado, con el pin latiendo.
-//   listo     la imagen.
-//   falla     sin señal o Mapbox caído. Se dice, no se deja el hueco vacío: si
+//   listo     la foto, con el pin en el centro.
+//   falla     sin señal para el mapa. Se dice, no se deja el hueco vacío: si
 //             no, el conductor espera una vista previa que no va a llegar.
 
 import { useEffect, useState } from "react";
 // "Map" se renombra: suelto, tapa el Map de JavaScript dentro de este archivo.
 import { ImageOff, Map as IconoMapa, MapPin, MapPinOff } from "lucide-react";
 import { cn } from "@/lib/comun/utils";
-import { urlMapaEstatico } from "@/lib/geo/mapbox/mapa-estatico";
+import { claveEstampilla, fotoDelMapa } from "./estampilla-mapa";
 
-/** Alto por defecto de la tira.
- *
- *  Eran 128 y quedaban pocos: de esos 128 la atribución de Mapbox —que viene
- *  DIBUJADA en la imagen y por contrato no se puede sacar— se come unos veinte,
- *  así que de mapa quedaba una franja. Con 176 la cuadra se reconoce y abajo
- *  todavía entran las notas y el botón de guardar sin hacer scroll. */
+/** Alto por defecto de la tira: con 176 la cuadra se reconoce y abajo todavía
+ *  entran las notas y el botón de guardar sin hacer scroll. */
 const ALTO = 176;
 
-/** Ancho que se le pide a Mapbox mientras no se haya podido medir la caja. Es un
- *  valor de arranque para el primer dibujado, no el que manda. */
-const ANCHO_INICIAL = 360;
-
-/** El ancho medido se redondea a múltiplos de esto antes de pedir la imagen.
- *
- *  No es maña: la URL es la clave de la caché del navegador y de la factura de
- *  Mapbox (ver lib/geo/mapbox/mapa-estatico.ts). Sin redondear, un teléfono que gira, una
- *  barra de scroll que aparece o un renglón que ensancha el campo dos píxeles
- *  serían una URL nueva y una petición nueva por la MISMA esquina. */
+/** El ancho medido se redondea a múltiplos de esto antes de dibujar: un teléfono
+ *  que gira, una barra de scroll que aparece o un renglón que ensancha el campo
+ *  dos píxeles no tienen que dibujar otra foto de la MISMA esquina (las fotos se
+ *  guardan por esquina y tamaño, ver estampilla-mapa.ts). */
 const PASO_ANCHO = 32;
 
 /** Debajo de este alto el aviso de falla no cabe: queda solo el icono. Es el
@@ -64,9 +62,8 @@ export function MapaPunto({
   /** Para el texto alternativo: la dirección que representa este punto. */
   etiqueta,
   alto = ALTO,
-  /** Ancho a pedirle a Mapbox. Sin esto se mide la caja y se pide lo que de
-   *  verdad mide en pantalla, que es lo que evita el recorte: pidiendo 480 fijo
-   *  para una caja de 340, object-cover se comía un 15% por lado. */
+  /** Ancho de la foto. Sin esto se mide la caja y se dibuja lo que de verdad
+   *  mide en pantalla, que es lo que evita el recorte. */
   ancho,
   zoom,
   /** Renglón chico debajo de la imagen. Sirve para decir qué se está mirando
@@ -85,9 +82,7 @@ export function MapaPunto({
   className?: string;
 }) {
   // Cuánto mide la caja de verdad. Se mide en vez de suponerse porque el mismo
-  // componente vive en el teléfono (unos 340 px) y en el panel de escritorio, y
-  // pedir un ancho que no es el de la caja termina en un recorte o en datos
-  // móviles tirados.
+  // componente vive en el teléfono (unos 340 px) y en el panel de escritorio.
   //
   // La caja se guarda en el ESTADO y no en una ref: así, si el punto deja de ser
   // dibujable y vuelve —unas coordenadas que se limpian y se vuelven a poner—, el
@@ -109,62 +104,55 @@ export function MapaPunto({
   }, [caja]);
 
   // Con un ancho pedido a mano (las miniaturas de la lista de dudas) no se mide
-  // nada. Sin él se espera la medición antes de pedir la imagen: dibujarla con
-  // el ancho de arranque y cambiarla después serían DOS peticiones por la misma
-  // esquina, y las peticiones se pagan.
+  // nada. Sin él se espera la medición antes de dibujar: con el ancho de
+  // arranque serían DOS fotos de la misma esquina.
   const anchoPedido = ancho ?? anchoMedido;
+  const clave = anchoPedido == null ? null : claveEstampilla({ lat, lng, ancho: anchoPedido, alto, zoom });
 
-  // Retina siempre: esto se mira en un teléfono, y una estampilla borrosa no
-  // sirve para reconocer una esquina. No cuesta peticiones, solo datos.
-  const url =
-    anchoPedido == null
-      ? null
-      : urlMapaEstatico({ lat, lng, ancho: anchoPedido, alto, zoom, retina: true });
-
-  // El estado se guarda junto A LA URL que lo produjo —el mismo recurso que
-  // usan las sugerencias de OpenStreetMap en direccion-input.tsx— y se DERIVA de
-  // ahí. Sin eso hacía falta un efecto que lo limpiara al cambiar de dirección,
-  // y hasta que corriera, la caja mostraba el "sin señal" de la anterior.
-  const [carga, setCarga] = useState<{ url: string | null; estado: Estado }>({
-    url,
+  // El estado se guarda junto A LA CLAVE que lo produjo y se DERIVA de ahí: sin
+  // eso hacía falta un efecto que lo limpiara al cambiar de dirección, y hasta
+  // que corriera, la caja mostraba el "sin señal" de la anterior.
+  const [carga, setCarga] = useState<{ clave: string | null; estado: Estado; foto?: string }>({
+    clave: null,
     estado: "cargando",
   });
-  const estado: Estado = carga.url === url ? carga.estado : "cargando";
+  const estado: Estado = carga.clave === clave ? carga.estado : "cargando";
 
-  // ¿Hay algo que dibujar? Se prueba con el ancho de arranque, que no depende de
-  // la medición: la caja tiene que EXISTIR para poder medirla, así que no se
-  // puede esperar la URL definitiva para decidir si se dibuja la caja.
-  //
-  // Sin token de Mapbox no hay vista previa y no se dice nada acá: el que tiene
-  // que enterarse es el administrador, y el mapa de navegación ya se lo dice con
-  // todas las letras. Un cartel de configuración debajo del campo solo le
-  // ocuparía pantalla al conductor, que no puede hacer nada al respecto.
-  const sePuede = urlMapaEstatico({ lat, lng, ancho: ANCHO_INICIAL, alto, zoom, retina: true });
-  if (!sePuede) return null;
+  useEffect(() => {
+    if (clave == null || anchoPedido == null) return;
+    let vigente = true;
+    fotoDelMapa({ lat, lng, ancho: anchoPedido, alto, zoom })
+      .then((foto) => vigente && setCarga({ clave, estado: "listo", foto }))
+      .catch(() => vigente && setCarga({ clave, estado: "falla" }));
+    return () => {
+      vigente = false;
+    };
+  }, [clave, lat, lng, anchoPedido, alto, zoom]);
 
   const conTexto = alto >= ALTO_MINIMO_PARA_TEXTO;
 
   return (
     <figure className={cn("min-w-0", className)}>
       <div ref={setCaja} className={CAJA} style={{ height: alto }}>
-        {url && estado !== "falla" ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={url}
-            alt={
-              etiqueta
-                ? `Mapa con el punto de ${etiqueta}`
-                : "Mapa con el punto de la dirección"
-            }
-            loading="lazy"
-            decoding="async"
-            onLoad={() => setCarga({ url, estado: "listo" })}
-            onError={() => setCarga({ url, estado: "falla" })}
-            className={cn(
-              "h-full w-full object-cover transition-opacity duration-200",
-              estado === "listo" ? "opacity-100" : "opacity-0",
-            )}
-          />
+        {estado === "listo" && carga.foto ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element -- foto dibujada en el teléfono */}
+            <img
+              src={carga.foto}
+              alt={etiqueta ? `Mapa con el punto de ${etiqueta}` : "Mapa con el punto de la dirección"}
+              className="animate-fade-in h-full w-full object-cover"
+            />
+            {/* El punto está en el centro de la foto: la punta del pin cae ahí. */}
+            <MapPin
+              aria-hidden
+              className="pointer-events-none absolute left-1/2 top-1/2 h-7 w-7 -translate-x-1/2 -translate-y-full fill-brand text-card drop-shadow"
+              strokeWidth={1.75}
+            />
+            {/* La atribución es obligatoria por licencia (OpenFreeMap y OpenStreetMap). */}
+            <span className="pointer-events-none absolute bottom-0 right-0 rounded-tl-md bg-card/80 px-1 text-[9px] leading-tight text-muted">
+              © OpenStreetMap · OpenFreeMap
+            </span>
+          </>
         ) : null}
 
         {estado === "cargando" ? (

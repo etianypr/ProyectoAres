@@ -8,8 +8,8 @@ Teléfono ─┬─ ordenar la ruta ───── Mapbox Matrix      →  ORS 
           ├─ línea del día ─────── Mapbox Directions  →  ORS Directions      lib/geo/ors/direcciones.ts
           ├─ navegar (cartel/voz)─ Mapbox Directions  →  ORS Directions      lib/geo/ors/navegacion.ts
           ├─ calle cercana ─────── Mapbox Tilequery   →  OSM (Overpass)      lib/geo/acceso.ts
-          ├─ dibujar el mapa ───── Mapbox GL + estilo →  MapLibre + OpenFreeMap  _mapa/*
-          ├─ vista del punto ───── imagen de Mapbox   →  mapa chico MapLibre components/direccion/mapa-punto.tsx
+          ├─ dibujar el mapa ───── Mapbox GL + estilo →  MapLibre + OpenFreeMap  _mapa/* · lib/geo/estilo-mapa.ts
+          ├─ vista del punto ───── imagen de Mapbox   →  foto de MapLibre    components/direccion/estampilla-mapa.ts
           └─ buscar dirección ──── Mapbox + OSM       →  OSM + ORS (+ Google con tope, servidor)  lib/geo/geocoding/*
 ```
 

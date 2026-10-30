@@ -48,6 +48,7 @@ const PROVEEDORES = {
   "graph.facebook.com": "Meta WhatsApp",
   "api.openrouteservice.org": "OpenRouteService",
   "www.google.com": "Google Maps (app)",
+  "tiles.openfreemap.org": "OpenFreeMap",
 };
 /** A10: hosts que aparecen en el código pero no se contactan. */
 const HOSTS_NO_CONTACTADOS = ["www.w3.org"];

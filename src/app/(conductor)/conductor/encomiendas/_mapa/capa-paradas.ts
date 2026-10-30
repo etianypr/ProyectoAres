@@ -12,7 +12,7 @@
 // más bonitas"): cada pastilla se dibuja UNA vez en un lienzo, igual que la
 // pintaba el CSS, y el mapa la usa como imagen. Lo único que sigue en el DOM es
 // el punto del conductor (use-marcador-conductor).
-import type mapboxgl from "mapbox-gl";
+import type * as maplibregl from "maplibre-gl";
 import type { Coordenada } from "@/lib/geo/coordenada";
 import type { LugarMapa } from "./marcadores-dom";
 
@@ -169,7 +169,7 @@ function dibujarPin(estado: Estado, cifra: string, escala: number): ImageData {
 }
 
 /** Agrega las pastillas que falten (una por cifra y estado: se dibujan una vez). */
-function asegurarImagenes(mapa: mapboxgl.Map, datos: DatosParadas): void {
+function asegurarImagenes(mapa: maplibregl.Map, datos: DatosParadas): void {
   const escala = Math.min(3, Math.max(1, typeof window !== "undefined" ? window.devicePixelRatio : 1));
   for (const f of datos.features) {
     const id = f.properties.imagen;
@@ -180,7 +180,7 @@ function asegurarImagenes(mapa: mapboxgl.Map, datos: DatosParadas): void {
 }
 
 /** La capa de las pastillas. Va encima de las líneas. */
-export function agregarParadas(mapa: mapboxgl.Map): void {
+export function agregarParadas(mapa: maplibregl.Map): void {
   mapa.addSource(FUENTE_PARADAS, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
   mapa.addLayer({
     id: CAPA_PINES,
@@ -204,9 +204,9 @@ export function agregarParadas(mapa: mapboxgl.Map): void {
 
 /** Pone los puntos. Con `entrar` (aparece una ruta propuesta) entran con un
  *  fundido: una sola transición del mapa, no una animación por punto. */
-export function ponerParadas(mapa: mapboxgl.Map, datos: DatosParadas, entrar: boolean): void {
+export function ponerParadas(mapa: maplibregl.Map, datos: DatosParadas, entrar: boolean): void {
   asegurarImagenes(mapa, datos);
-  (mapa.getSource(FUENTE_PARADAS) as mapboxgl.GeoJSONSource | undefined)?.setData(datos as never);
+  (mapa.getSource(FUENTE_PARADAS) as maplibregl.GeoJSONSource | undefined)?.setData(datos as never);
   if (!entrar) return;
   mapa.setPaintProperty(CAPA_PINES, "icon-opacity-transition", { duration: 0, delay: 0 });
   mapa.setPaintProperty(CAPA_PINES, "icon-opacity", 0);
@@ -217,8 +217,8 @@ export function ponerParadas(mapa: mapboxgl.Map, datos: DatosParadas, entrar: bo
 }
 
 /** El lugar que tocó el dedo (índice en la lista de lugares), o null. */
-export function lugarTocado(mapa: mapboxgl.Map, punto: mapboxgl.Point): number | null {
-  const caja: [mapboxgl.PointLike, mapboxgl.PointLike] = [
+export function lugarTocado(mapa: maplibregl.Map, punto: maplibregl.Point): number | null {
+  const caja: [maplibregl.PointLike, maplibregl.PointLike] = [
     [punto.x - MARGEN_TOQUE_PX, punto.y - MARGEN_TOQUE_PX],
     [punto.x + MARGEN_TOQUE_PX, punto.y + MARGEN_TOQUE_PX],
   ];

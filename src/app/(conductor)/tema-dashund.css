@@ -64,14 +64,14 @@
 }
 
 /* El globo del mapa, en la letra y los colores de la app. */
-.mapboxgl-popup-content {
+.maplibregl-popup-content {
   border-radius: 14px !important;
   padding: 10px 12px !important;
   background: var(--card) !important;
   box-shadow: 0 8px 24px rgba(34, 26, 21, 0.18) !important;
   font-family: var(--font-texto), ui-sans-serif, system-ui, sans-serif;
 }
-.mapboxgl-popup-tip {
+.maplibregl-popup-tip {
   border-top-color: var(--card) !important;
 }
 

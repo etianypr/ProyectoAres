@@ -44,3 +44,6 @@ next-env.d.ts
 # Claves de firma de la APK (spec 015): nunca al repositorio
 *.keystore
 *.jks
+
+# Worker de MapLibre: lo copia scripts/copiar-worker-mapa.mjs antes de dev y build (spec 019).
+/public/maplibre-gl-worker.mjs
