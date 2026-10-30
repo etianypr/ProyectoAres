@@ -14,6 +14,7 @@ import { useVozNavegacion } from "./use-voz";
 import { usePantallaEncendida } from "./use-pantalla-encendida";
 import { usePuntoEnRuta } from "./use-punto-en-ruta";
 import { useSimularRecorrido } from "@/lib/encomiendas/local/gps-simulado";
+import { useNavegandoConGoogle } from "./use-navegando-con-google";
 
 /** Con la última lectura más vieja que esto, el punto que se ve ya no es dónde
  *  está el conductor. */
@@ -53,11 +54,15 @@ export function useGuiaNavegacion({
   // Recibe la posición CRUDA, no la pegada al camino: es la que decide si el
   // conductor se salió de la ruta, y un punto pegado está sobre la ruta por
   // definición — alimentarlo con eso haría que un desvío no se detecte nunca.
-  const navegacion = useNavegacion(!!destinoActivo, miUbicacion, destinoActivo);
+  //
+  // Mientras guía Google (spec 019) la de ARES se pausa: no gasta consultas ni
+  // habla encima. Al volver, retoma sola.
+  const conGoogle = useNavegandoConGoogle();
+  const navegacion = useNavegacion(!!destinoActivo && !conGoogle, miUbicacion, destinoActivo);
 
   // Con una propuesta a la vista la voz se calla: el conductor está parado
   // decidiendo si la usa, y lo que sonaría son indicaciones de la ruta anterior.
-  const voz = useVozNavegacion(!propuestaALaVista, navegacion);
+  const voz = useVozNavegacion(!propuestaALaVista && !conGoogle, navegacion);
 
   // La pantalla apagada suspende el GPS: sin esto el punto se congela a los
   // treinta segundos de no tocar nada, que es lo que pasa manejando.

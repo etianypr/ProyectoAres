@@ -13,7 +13,7 @@ pruebas que pedían su matriz sin el tope de la app dejaron una cuenta de US$66.
 | Hoy | Debe |
 |---|---|
 | Cartel de maniobra, voz y "Da la vuelta" salen de las direcciones de Mapbox | Lo mismo, con el mismo diseño, desde OpenRouteService (ORS). La voz la arma ARES con las instrucciones en español de ORS |
-| "Seguir en Google Maps" es el respaldo | Sigue igual |
+| "Seguir en Google Maps" abre otra app | Los km de la parada abren la **navegación de Google dentro de ARES** (kit de navegación de Google en la APK, colores Dashund, franja con la OF y "Volver a ARES"); al llegar vuelve sola. Elegido por el dueño **sin tope** (~US$15–19 al mes: 1.000 destinos gratis y US$25 cada 1.000). Si Google no puede, sigue la de ARES con ORS |
 
 ## US2 (P1) · La ruta por calles sin Mapbox
 

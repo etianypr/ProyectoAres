@@ -35,6 +35,10 @@ deploy de Vercel le llega solo. Reinstalar hace falta solo si cambia `android/`;
   firma sale `ares-<versión>.apk` firmada en el Release; sin ellos, una de depuración. Clave y
   secretos: `specs/015-app-android/quickstart.md`. La clave (`*.keystore`) no va al repositorio
   y hay que respaldarla: firmada con otra, la APK nueva no se instala encima.
+- **Navegación de Google** (spec 019): la clave entra al compilar con la variable `MAPS_API_KEY`
+  (en GitHub, el secreto del mismo nombre). Sin ella la APK compila igual y navega con
+  OpenRouteService. La clave se restringe a la app Android `cl.pucarani.ares` con la huella
+  SHA-1 de la firma (la de depuración y la de release son distintas).
 - **Instalar**: pasar el archivo al teléfono, abrirlo y permitir "instalar apps desconocidas".
 - **Build local** (Windows, JDK 21 + Android SDK 36, `android/local.properties` con
   `sdk.dir=C:/…/Android/Sdk`), contra el servidor local:

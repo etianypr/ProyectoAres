@@ -24,6 +24,20 @@
 
         </activity>
 
+        <!-- Navegación de Google dentro de ARES (spec 019). Vertical, como el resto de
+             la app del conductor. -->
+        <activity
+            android:name=".NavegacionActivity"
+            android:theme="@style/AppTheme.NoActionBar"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|screenLayout|uiMode|density"
+            android:exported="false" />
+
+        <!-- La clave del kit de navegación de Google entra al compilar (MAPS_API_KEY);
+             vacía, la app navega con OpenRouteService. -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="${MAPS_API_KEY}" />
+
         <!-- Escáner de Google (ML Kit) con su propia pantalla: sin permiso de cámara
              (spec 015, US3). -->
         <meta-data

@@ -29,8 +29,8 @@ export function TarjetaParada({
   faltan: { metros: number; segundos: number | null; llegada: number | null } | null;
   /** El renglón de lo que contestó el receptor (lo arma la pantalla). */
   estado: ReactNode;
-  /** Seguir en Google Maps (nativo/mapas.ts): los km de la parada son el botón,
-   *  y sin datos de navegación aparece igual, que es cuando más hace falta. */
+  /** Navegar con Google (nativo/navegacion.ts, spec 019): los km de la parada son
+   *  el botón, y sin datos de navegación aparece igual. */
   onAbrirMapas?: () => void;
 }) {
   const referencia = textoReferencia(pedido.referencia);
@@ -93,11 +93,11 @@ export function TarjetaParada({
               type="button"
               disabled={!onAbrirMapas}
               onClick={onAbrirMapas}
-              aria-label="Seguir en Google Maps"
+              aria-label="Navegar con Google"
               className="flex items-center gap-1 rounded-full bg-brand-soft px-2.5 py-1 text-xs font-semibold tabular-nums text-brand active:scale-[0.97] disabled:active:scale-100"
             >
               {onAbrirMapas ? <Navigation className="h-3 w-3 shrink-0" /> : null}
-              {faltan && faltan.metros > 0 ? formatDistancia(faltan.metros) : "Maps"}
+              {faltan && faltan.metros > 0 ? formatDistancia(faltan.metros) : "Navegar"}
             </button>
             {faltan?.segundos != null && faltan.segundos > 0 ? (
               <span className="mt-0.5 text-[11px] tabular-nums text-muted">

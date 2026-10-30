@@ -20,6 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       TIENE_FIRMA: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+      # Navegación de Google (spec 019). Sin el secreto, la APK navega con ORS.
+      MAPS_API_KEY: ${{ secrets.MAPS_API_KEY }}
     steps:
       - uses: actions/checkout@v4
 

@@ -9,7 +9,7 @@ Fuente canónica de límites, datos y carpetas (constitución VI). Tipos y módu
 flowchart LR
   subgraph TEL["Teléfono · APK Android o navegador · /conductor"]
     UI["pantalla.tsx + hooks"] --> LOCAL["lib/encomiendas/local"] --> IDB[("IndexedDB<br/>pedidos · rutas · cola · dias · fotos")]
-    UI --> NAT["lib/nativo"] --> PLUG["android/ · plugin Telefono<br/>llamar · registro de llamadas · pantalla<br/>texto de fotos (ML Kit) · voz de manejo · escáner de Google"]
+    UI --> NAT["lib/nativo"] --> PLUG["android/ · plugin Telefono<br/>llamar · registro de llamadas · pantalla<br/>texto de fotos (ML Kit) · voz de manejo · escáner de Google<br/>plugin Navegacion: navegación de Google (spec 019)"]
     SW["sw.js · caché de /conductor"]
   end
   subgraph EXT["Proveedores"]
@@ -189,7 +189,7 @@ src/
 │   ├── rutas/orden-paradas/      exacto · construccion · mejora · perturbacion · con-horarios · sin-congelar
 │   ├── whatsapp/                 meta · correlacion
 │   ├── conductores/              vencimientos
-│   └── nativo/                   entorno · telefono · llamada · escaner · version (APK)
+│   └── nativo/                   entorno · telefono · llamada · escaner · version (APK) · mapas · navegacion (Google dentro de la APK, spec 019)
 └── types/db.ts                   tablas + `Database` para supabase-js (valida pruebas/esquema.mjs)
 public/sw.js                      caché de /conductor para abrir sin señal
 capacitor.config.ts · capacitor/www/   APK: URL que abre · página sin señal

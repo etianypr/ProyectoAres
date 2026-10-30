@@ -16,6 +16,7 @@ comportamiento actual.
 | `escanearCodigo(): Promise<string \| null>` | ML Kit `scan()` (Code 128, ITF); instala el módulo de Google si falta | `null` (la 005 ofrece escribirlo o suma un lector web) |
 | `hablarNativo(texto, urgente): Promise<boolean>` · `callarNativo()` · `hayVozNativa()` | `Telefono.hablar` / `callar` (TextToSpeech de Android; spec 017) | `false`: la pantalla usa `speechSynthesis` |
 | `resultadoDeLlamada(entradas, desdeMs)` | pura: ver data-model (el plugin ya filtró por número) | pura |
+| `navegarConGoogle(destino, { titulo, detalle, simular }): Promise<"llego" \| "volvio" \| "error" \| "no_disponible">` (spec 019) | `Navegacion.navegar`: navegación de Google dentro de ARES; mientras guía, `navegandoConGoogle()` es `true` y la de ARES se pausa. Sin el plugin (APK vieja) o sin clave → abre Google Maps | abre Google Maps (`mapas.ts`) |
 
 ## Plugin `Telefono` (Java, `android/`)
 
@@ -28,6 +29,20 @@ comportamiento actual.
 | `hablar` | `{ texto: string, urgente: boolean }` | `{}`; `urgente` corta lo que suena, si no se encola; baja la música mientras habla. Error `"sin_voz"` sin motor de voz en español | — |
 | `callar` | — | `{}` | — |
 | `checkPermissions` | — | `{ llamadas, registro, ubicacion }` (`granted` · `denied` · `prompt`); `ubicacion` = `ACCESS_FINE_LOCATION`, solo para el diagnóstico (el WebView no trae `navigator.permissions`) | — |
+
+## Plugin `Navegacion` (Java, `android/`, spec 019)
+
+| Método | Entrada | Salida |
+|---|---|---|
+| `navegar` | `{ lat, lng, titulo, detalle, simular }` | `{ resultado: "llego" \| "volvio" \| "error" \| "no_disponible", motivo: string \| null }` |
+
+- Abre `NavegacionActivity`: el kit de navegación de Google (Navigation SDK 7.9) con los colores
+  Dashund y una franja abajo con `titulo` y `detalle` (la OF, a quién y dónde, que se quedan en el
+  teléfono: el Waypoint lleva solo el punto) y "Volver a ARES". Se cierra sola al llegar.
+- `no_disponible`: la APK se compiló sin `MAPS_API_KEY`. `error` y `motivo`: `clave`,
+  `condiciones` (no aceptó las de Google), `red`, `ubicacion`, o el `RouteStatus` de Google
+  (`NO_ROUTE_FOUND`, `QUOTA_CHECK_FAILED`…). En todos, ARES sigue con su navegación (ORS).
+- `simular` (modo prueba): el auto avanza solo por la ruta a ×5 (simulador del kit).
 
 - El plugin filtra por número en el teléfono y **no devuelve otros números** del registro.
 - Errores: `"permiso_denegado"` · `"sin_soporte"`; la web los trata como "sin APK".

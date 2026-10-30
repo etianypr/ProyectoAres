@@ -40,7 +40,7 @@ const SECCIONES: { titulo: string; pasos: string[] }[] = [
       "Llamar → Contestó / No contestó → «Pedido finalizado».",
       "«No se pudo»: Dejar como pendiente (se reintenta más tarde) o No entregado (se tacha por hoy).",
       "«Deshacer» aparece arriba unos segundos.",
-      "Si la navegación no carga: toca los km de la parada y sigue en Google Maps.",
+      "Navegar con Google: toca los km de la parada. Al llegar vuelve sola a ARES; «Volver a ARES» la cierra antes.",
     ],
   },
   {

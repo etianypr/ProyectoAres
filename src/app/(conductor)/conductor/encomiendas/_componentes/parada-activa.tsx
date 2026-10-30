@@ -11,7 +11,9 @@ import type { Navegacion } from "../_hooks/use-navegacion";
 import type { Parada } from "../_hooks/use-dia-trabajo";
 import { SALIDAS, type Fase, type Salida } from "../_hooks/fase-parada";
 import { TarjetaParada } from "./tarjeta-parada";
-import { abrirEnMapas } from "@/lib/nativo/mapas";
+import { navegarConGoogle } from "@/lib/nativo/navegacion";
+import { gpsSimulado } from "@/lib/encomiendas/local/gps-simulado";
+import { formatoOf } from "@/lib/encomiendas/paquete";
 
 // Botones de la hoja: a ancho completo y de 48 px. Es lo que el conductor aprieta
 // manejando, con el pulgar y sin mirar mucho.
@@ -72,7 +74,17 @@ export function ParadaActiva({
         pedido={activa.pedido}
         onAbrirMapas={
           activa.pedido.lat != null && activa.pedido.lng != null
-            ? () => abrirEnMapas({ lat: activa.pedido.lat!, lng: activa.pedido.lng! })
+            ? () =>
+                // La franja de abajo de la navegación de Google: qué paquete y a quién.
+                // Se queda en el teléfono; a Google va solo el punto.
+                void navegarConGoogle(
+                  { lat: activa.pedido.lat!, lng: activa.pedido.lng! },
+                  {
+                    titulo: activa.pedido.of ? `OF ${formatoOf(activa.pedido.of)}` : `Parada ${activa.secuencia}`,
+                    detalle: [activa.pedido.nombre, activa.pedido.direccion].filter(Boolean).join(" · "),
+                    simular: gpsSimulado(),
+                  },
+                )
             : undefined
         }
         faltan={

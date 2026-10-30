@@ -7,6 +7,8 @@
 - [x] T005 [US1] Navegación con ORS: pasos, cartel, voz armada y "Da la vuelta" (`lib/geo/ors/navegacion.ts`)
 - [x] T006 [US1] `recorrido.ts` a `lib/geo/` y pantallas apuntando a `lib/geo/ors/`
 - [x] T007 [US1/US2] Pruebas (`pruebas/2-rutas.test.mjs`, `pruebas/7-navegacion.test.mjs`) y prueba con la API real (puntos inventados)
+- [x] T015 [US1] Navegación de Google dentro de la APK: `NavegacionActivity` + plugin `Navegacion` (Navigation SDK 7.9, AGP 8.13.2, desugar), `lib/nativo/navegacion.ts`, la de ARES se pausa mientras guía Google, prueba `nativo-navegacion`
+- [ ] T016 [US1] Clave de Google con Navigation SDK (dueño) y prueba en el teléfono: APK 1.4.0
 - [ ] T008 [US2] Calle cercana con OpenStreetMap (`lib/geo/acceso.ts`)
 - [ ] T009 [US3] Mapa con MapLibre + OpenFreeMap (`_mapa/*`)
 - [ ] T010 [US3] Vista previa del punto sin imagen de Mapbox (`components/direccion/mapa-punto.tsx`)
