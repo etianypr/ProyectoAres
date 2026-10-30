@@ -1,8 +1,8 @@
 // Por dónde va el conductor dentro del tramo hacia la parada (spec 017, N2, N4 y
 // N11). Puro: useNavegacion lo llama con cada lectura de GPS, sin consultar nada.
-import type { Coordenada } from "../coordenada";
-import { distanciaAPolilinea, metrosRestantes } from "../trazado";
-import type { PasoNavegacion } from "./navegacion";
+import type { Coordenada } from "./coordenada";
+import { distanciaAPolilinea, metrosRestantes } from "./trazado";
+import type { PasoNavegacion } from "./ors/navegacion";
 
 /** La maniobra se da por hecha recién a esta distancia de la esquina (o ya
  *  pasada). Antes eran 25 m y el cartel cambiaba a la maniobra SIGUIENTE antes
@@ -65,7 +65,7 @@ export type Restante = {
   metrosAManiobra: number;
   /** Metros hasta la parada, por calle. */
   metrosAParada: number;
-  /** Segundos hasta la parada, según los tiempos que dio Mapbox para cada paso. */
+  /** Segundos hasta la parada, según los tiempos que dio la API para cada paso. */
   segundosAParada: number;
 };
 

@@ -207,8 +207,8 @@ Una parada lejos de todas (más de 2 km de la más cercana y más de 4 km de des
 propuesta con lo que suma (`paradasLejanas`, `generar-ruta/lejanas.ts`): en terreno, un punto en la mitad
 de una calle de 5 km sumaba 15,8 km a una ruta de 56.
 
-En pasajes y calles residenciales no se da la vuelta (terreno 2026-10-29, `geo/mapbox/vuelta.ts`): la
-ruta por calles los pasa de frente y devuelve, por punto, la clase de la calle, su dirección y lo que
+En pasajes y calles residenciales no se da la vuelta (terreno 2026-10-29, `geo/ors/vuelta.ts`): la
+ruta por calles los pasa de frente (ORS: ese pedazo se vuelve a pedir con `continue_straight`, spec 019) y devuelve, por punto, la clase de la calle, su dirección y lo que
 costó (`CalleDelPunto`). Con eso `ordenarConSentido` (`generar-ruta/sentido.ts`) vuelve a ordenar "la
 más corta" cobrando entrar y salir por el mismo extremo (`Penalizacion` en `orden-paradas/costo.ts`,
 simétrica; las jugadas la calculan solo donde cambian vecinos) y se queda con la que mide menos por
@@ -259,7 +259,7 @@ flowchart LR
     replan["replanificar · sumar-a-ruta<br/>ruta en curso"]
     enviar["enviar"]
     wsl["sincronizar-whatsapp"]
-    rutas["geo: trazado · geocoding · mapbox · plus-code<br/>rutas/orden-paradas"]
+    rutas["geo: trazado · geocoding · ors · mapbox · plus-code<br/>rutas/orden-paradas"]
   end
   subgraph Nativo["APK · lib/nativo"]
     nat["entorno · telefono · escaner"]
@@ -272,7 +272,7 @@ flowchart LR
     pg[("Postgres · RLS · triggers")]
   end
   subgraph Externos["Externos"]
-    mapbox["Mapbox · OSM"]
+    mapbox["ORS · Mapbox · OSM"]
     meta["Meta WhatsApp"]
   end
   panel --> pago
@@ -345,7 +345,7 @@ lo usa.
 | Orden de paradas (exacto hasta 14 puntos; si no, construcción + mejora + sacudidas; la propuesta busca a fondo —hasta 300 sacudidas seguidas sin mejora— con la pantalla `BuscandoRuta` encima, y reusa el orden de un grupo repetido entre estrategias) · con horarios (`optimizarConHorarios`, por partes en `optimizarSinCongelar`) | `rutas/orden-paradas/` (`con-horarios.ts`, `sin-congelar.ts`) |
 | Matriz de calles por bloques, en memoria, con OpenRouteService (`matrizCalles`, `planificarConsultas`) | `geo/matriz.ts` |
 | Corregir con IA una dirección sin ubicar (spec 018): conversación y validación (`conversacionValida`), una ida con Claude (`pasoDireccionIA`, `server-only`), el bucle en el teléfono (`corregirConIA`, `interpretar`); los del día, a confirmar por el conductor (`corregirSinUbicar`, `esSegura` —la calle entera, sin el número, nunca es segura—, `aplicarCorreccion`) | `geo/direccion-ia/{contrato,servidor,cliente}.ts`, `src/app/api/direccion-ia/route.ts`, `encomiendas/local/corregir-direcciones.ts` |
-| Trazado en el teléfono: pegar al camino, rumbo, metros restantes · Mapbox: token, direcciones, navegación (`PasoNavegacion` con `duracionS` y `salida` de rotonda; al salir hacia una parada pide también la ruta sin rumbo; `elegirSalida` la usa si ahorra 200 m desde el mismo punto (casa atrás o parada en esquina) y marca "Da la vuelta" solo si arranca hacia atrás; dar la vuelta solo en calles anchas (`vuelta.ts`: clase de Mapbox trunk/primary/secondary/tertiary), y la ruta del día se vuelve a pedir con el rumbo fijo donde se devolvía en un pasaje o residencial; antes de armar la ruta, una parada pegada a una troncal que no es su calle se corre a la calle local (`acceso.ts`, Tilequery; `corregirAccesos`)) · recorrido del tramo: `pasoEnCurso` (el cartel cambia al doblar la esquina, o al aparecer sobre un paso posterior) y `restanteDelTramo` (metros a la maniobra, metros y segundos a la parada) | `geo/trazado.ts` · `geo/mapbox/` (`recorrido.ts`) |
+| Trazado en el teléfono: pegar al camino, rumbo, metros restantes · OpenRouteService (spec 019; antes Mapbox): direcciones, navegación (`PasoNavegacion` con `duracionS` y `salida` de rotonda; los pasos de ORS se traducen con `pasosDeOrs` y la voz se arma ahí: 500 m, 200 m y encima del giro; al salir hacia una parada pide también la ruta sin rumbo; `elegirSalida` la usa si ahorra 200 m desde el mismo punto (casa atrás o parada en esquina) y marca "Da la vuelta" solo si arranca hacia atrás; dar la vuelta solo en calles anchas (`vuelta.ts`: tipo de ORS 1 carretera y 2 principal), y en la ruta del día, donde se devolvía en un pasaje o residencial, ese pedazo se vuelve a pedir de frente; antes de armar la ruta, una parada pegada a una troncal que no es su calle se corre a la calle local (`acceso.ts`, Tilequery; `corregirAccesos`)) · recorrido del tramo: `pasoEnCurso` (el cartel cambia al doblar la esquina, o al aparecer sobre un paso posterior) y `restanteDelTramo` (metros a la maniobra, metros y segundos a la parada) | `geo/trazado.ts` · `geo/recorrido.ts` · `geo/ors/` · `geo/mapbox/acceso.ts` |
 | Ubicar una dirección (`ubicarDireccion`): limpiar la consulta, `coincidenciaCalle` (tipeo acotado), catálogo de calles de Arica (`callesParecidas`, `largoDeCalle`) | `geo/geocoding/`: `ubicar.ts`, `consulta.ts`, `calles.ts` + `calles-arica.ts` (generado), `completar-numero.ts`, `mapbox.ts`, `nominatim.ts`, `codigo.ts`; `index.ts` es el barril |
 
 ## 5. Pendiente

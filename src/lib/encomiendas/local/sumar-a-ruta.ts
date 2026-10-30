@@ -10,7 +10,7 @@
 
 import { resultadoCerrado } from "@/lib/encomiendas/estados";
 import { deLngLat, type Coordenada } from "@/lib/geo/coordenada";
-import { obtenerRutaCalles } from "@/lib/geo/mapbox/direcciones";
+import { obtenerRutaCalles } from "@/lib/geo/ors/direcciones";
 import { metrosEnMemoria } from "@/lib/geo/matriz";
 import { fijarTrazado, leerPedidos, leerRuta, ordenarRuta, pedidosEnOrden, type Pedido } from "./almacen";
 import { lugarMasBarato, lugarParaReintentar, metrosEstimados, vueltaEstimada, type MetrosEntre, type PuntoDeRuta, type VueltaDesde } from "./planificar";

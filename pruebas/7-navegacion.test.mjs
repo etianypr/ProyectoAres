@@ -16,7 +16,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { ajustarATrazado, distanciaAPolilinea, metrosRestantes } from "@/lib/geo/trazado";
 import { distanciaMetros } from "@/lib/geo/coordenada";
-import { pasoEnCurso, restanteDelTramo } from "@/lib/geo/mapbox/recorrido";
+import { pasoEnCurso, restanteDelTramo } from "@/lib/geo/recorrido";
 
 const tramo = JSON.parse(
   readFileSync(new URL("./fixtures/tramo-arica.json", import.meta.url), "utf8"),

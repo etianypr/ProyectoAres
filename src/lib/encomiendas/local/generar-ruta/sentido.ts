@@ -2,19 +2,19 @@
 // a la calle y salir en reversa en calles estrechas no se puede").
 //
 // El plan ordena con distancias que suponen que en cada parada se puede dar la
-// vuelta gratis. Al dibujar la ruta, Mapbox dice de cada parada qué calle es
+// vuelta gratis. Al dibujar la ruta, ORS dice de cada parada qué calle es
 // (vuelta.ts) y en qué dirección corre; en una prueba de 66 paradas, 28 eran de
 // pasaje o residencial y hubo que pasarlas de frente: 3,9 km más.
 //
 // Con eso se vuelve a buscar el orden cobrando, en cada parada de calle estrecha,
 // entrar y salir por el MISMO extremo: si la parada anterior y la siguiente
 // quedan del mismo lado a lo largo de la calle, hay que devolverse, y eso cuesta
-// lo que midió Mapbox para esa parada (o lo típico del día). Si quedan a lados
+// lo que midió ORS para esa parada (o lo típico del día). Si quedan a lados
 // distintos, se pasa de frente sin costo. Es una estimación, así que la nueva se
 // vuelve a dibujar por calles y se queda la que de verdad mide menos.
 import { distanciaMetros, type Coordenada } from "@/lib/geo/coordenada";
-import { obtenerRutaCalles, type CalleDelPunto, type RutaCalles } from "@/lib/geo/mapbox/direcciones";
-import { permiteDarLaVuelta } from "@/lib/geo/mapbox/vuelta";
+import { obtenerRutaCalles, type CalleDelPunto, type RutaCalles } from "@/lib/geo/ors/direcciones";
+import { permiteDarLaVuelta } from "@/lib/geo/ors/vuelta";
 import { ordenarParadas } from "@/lib/rutas/orden-paradas";
 import { FIN, type Penalizacion } from "@/lib/rutas/orden-paradas/costo";
 import type { PedidoUbicado } from "./tipos";

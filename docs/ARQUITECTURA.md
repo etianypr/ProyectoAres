@@ -13,7 +13,8 @@ flowchart LR
     SW["sw.js · caché de /conductor"]
   end
   subgraph EXT["Proveedores"]
-    MAPBOX["Mapbox"] 
+    MAPBOX["Mapbox (mapa, direcciones; sale en la spec 019)"]
+    ORS["OpenRouteService (orden, trazado, navegación)"]
     OSM["OSM / Nominatim"]
     GOOGLE["Google Geocoding"]
     VISION["Google Cloud Vision"]
@@ -34,6 +35,7 @@ flowchart LR
     CRON["pg_cron · 00:30 cierra días · cada hora limpia correlaciones"]
   end
   LOCAL -- "dirección" --> MAPBOX
+  LOCAL -- "coordenadas de paradas" --> ORS
   LOCAL -- "dirección" --> OSM
   LOCAL -- "dirección que los otros no ubicaron (tránsito)" --> GEO --> GOOGLE
   LOCAL -- "foto de etiqueta o guía (tránsito)" --> TXT --> VISION
@@ -162,7 +164,7 @@ sequenceDiagram
 **Propuestas de ruta:** una por defecto; alternativas ("La más corta", "Respeta horarios",
 "Confirmados primero") solo si cambian de verdad el tiempo, la distancia, lo que se alcanza a
 entregar o el cumplimiento de los bloques, con un máximo de tres. Generar siempre tres
-multiplicaría las consultas a Mapbox y le haría elegir al conductor entre opciones iguales.
+multiplicaría las consultas de trazado y le haría elegir al conductor entre opciones iguales.
 
 ## 4. Carpetas (actuales)
 
@@ -182,8 +184,8 @@ src/
 │   ├── comun/                    fechas · format · forms · utils · uuid · deslizar · telefono · periodo · periodo-servidor
 │   ├── encomiendas/              catalogos · estados · pago · periodos · config · paquete · contrato-whatsapp · lectura/ (guía, etiqueta, código de barras)
 │   │   └── local/                idb · almacen/ (lecturas, pedidos, ruta, terreno…) · generar-ruta/ (partida, ubicar-pedidos, estrategias, horarios) · planificar · replanificar · sumar-a-ruta · corregir-direcciones · enviar · sincronizar-whatsapp
-│   ├── geo/                      coordenada · trazado · plus-code · openrouteservice · matriz (distancias por calle con ORS, por bloques, en memoria) · geocoding/ (consulta · calles · calles-arica generado · mapbox · nominatim · codigo · google · completar-numero · ubicar) · direccion-ia/ (contrato · servidor · cliente: corregir con IA, spec 018)
-│   │   └── mapbox/               token · direcciones · navegacion · recorrido (paso en curso, lo que falta) · mapa-estatico
+│   ├── geo/                      coordenada · trazado · recorrido (paso en curso, lo que falta) · plus-code · openrouteservice (MCP) · matriz (distancias por calle con ORS, por bloques, en memoria) · ors/ (cliente · direcciones: trazado del día sin reversa en calles estrechas · navegacion: pasos, cartel y voz · vuelta: tipo de calle) · geocoding/ (consulta · calles · calles-arica generado · mapbox · nominatim · codigo · google · completar-numero · ubicar) · direccion-ia/ (contrato · servidor · cliente: corregir con IA, spec 018)
+│   │   └── mapbox/               token · acceso (Tilequery) · mapa-estatico (salen en la spec 019)
 │   ├── rutas/orden-paradas/      exacto · construccion · mejora · perturbacion · con-horarios · sin-congelar
 │   ├── whatsapp/                 meta · correlacion
 │   ├── conductores/              vencimientos

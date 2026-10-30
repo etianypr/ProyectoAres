@@ -1,7 +1,7 @@
 // Prueba intensiva del armado de ruta y la geometría: los módulos reales de
-// lib/geo/trazado, lib/geo/mapbox/{direcciones,navegacion} y lib/rutas/orden-paradas.
-// Las llamadas a Mapbox se interceptan con un doble de fetch.
-process.env.NEXT_PUBLIC_MAPBOX_TOKEN = "pk.token-de-prueba";
+// lib/geo/trazado, lib/geo/ors/{direcciones,navegacion} y lib/rutas/orden-paradas.
+// Las llamadas a OpenRouteService se interceptan con un doble de fetch.
+process.env.NEXT_PUBLIC_ORS_KEY = "ors.clave-de-prueba";
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -14,8 +14,8 @@ import {
   recortarTrazado,
 } from "@/lib/geo/trazado";
 import { ordenarParadas } from "@/lib/rutas/orden-paradas";
-import { obtenerRutaCalles } from "@/lib/geo/mapbox/direcciones";
-import { obtenerNavegacion, elegirSalida } from "@/lib/geo/mapbox/navegacion";
+import { obtenerRutaCalles, enRachas } from "@/lib/geo/ors/direcciones";
+import { obtenerNavegacion, elegirSalida } from "@/lib/geo/ors/navegacion";
 
 // Arica, coordenadas reales de la zona de reparto.
 const EMPRESA = { lat: -18.471152, lng: -70.289929 };
@@ -316,298 +316,284 @@ test("ordenarParadas es rápido con un día grande (no traba el teléfono)", () 
 // La matriz de calles por bloques: pruebas/rutas-017.test.mjs (spec 017, R1).
 
 // ----------------------------------------------------- obtenerRutaCalles
-function fetchRutaFalsa(registro) {
-  return async (url) => {
-    const coords = String(url).split("/").pop().split("?")[0].split(";");
-    registro.push(coords.length);
-    // Un punto de geometría por coordenada pedida, para poder verificar el pegado.
-    const coordenadas = coords.map((c) => c.split(",").map(Number));
-    return {
-      ok: true,
-      json: async () => ({
-        routes: [
-          {
-            geometry: { coordinates: coordenadas },
-            distance: 1000 * (coords.length - 1),
-            duration: 60 * (coords.length - 1),
+// Doble de la API de direcciones de ORS: un punto de geometría por coordenada
+// pedida, 1 km y 60 s por tramo, y todo de calle principal (se puede dar la
+// vuelta: no hay pasadas de frente).
+function respuestaRutaOrs(coords, { metrosPorTramo = 1000, tipo = 2, metros } = {}) {
+  const tramos = coords.length - 1;
+  const porTramo = metros != null ? metros / tramos : metrosPorTramo;
+  return {
+    ok: true,
+    status: 200,
+    json: async () => ({
+      features: [
+        {
+          geometry: { coordinates: coords },
+          properties: {
+            summary: { distance: porTramo * tramos },
+            way_points: coords.map((_, i) => i),
+            segments: Array.from({ length: tramos }, () => ({ distance: porTramo, duration: 60 })),
+            extras: { waytype: { values: [[0, coords.length - 1, tipo]] } },
           },
-        ],
-      }),
-    };
+        },
+      ],
+    }),
   };
 }
 
-test("obtenerRutaCalles: una sola consulta cuando entra (<= 25 puntos)", async () => {
+function fetchRutaFalsa(registro, opciones) {
+  return async (url, init) => {
+    assert.match(String(url), /api\.openrouteservice\.org\/v2\/directions\/driving-car\/geojson/);
+    const cuerpo = JSON.parse(init.body);
+    registro.push(cuerpo.coordinates.length);
+    return respuestaRutaOrs(cuerpo.coordinates, opciones);
+  };
+}
+
+async function conFetch(doble, fn) {
   const original = globalThis.fetch;
-  const registro = [];
-  globalThis.fetch = fetchRutaFalsa(registro);
+  globalThis.fetch = doble;
   try {
-    const puntos = [EMPRESA, ...alAzar(9, 21)];
-    const r = await obtenerRutaCalles(puntos);
-    assert.deepEqual(registro, [10]);
-    assert.equal(r.trazado.length, 10);
-    assert.equal(r.distanciaM, 9000);
-    assert.equal(r.duracionS, 540);
+    return await fn();
   } finally {
     globalThis.fetch = original;
   }
+}
+
+test("obtenerRutaCalles: una sola consulta cuando entra (<= 70 puntos)", async () => {
+  const registro = [];
+  const r = await conFetch(fetchRutaFalsa(registro), () => obtenerRutaCalles([EMPRESA, ...alAzar(66, 21)]));
+  assert.deepEqual(registro, [67], "un día de 66 paradas y la base es UNA consulta");
+  assert.equal(r.trazado.length, 67);
+  assert.equal(r.distanciaM, 66_000);
+  assert.equal(r.duracionS, 66 * 60);
 });
 
 test("obtenerRutaCalles: parte en tramos y pega el trazado sin duplicar ni perder puntos", async () => {
-  const original = globalThis.fetch;
   const registro = [];
-  globalThis.fetch = fetchRutaFalsa(registro);
-  try {
-    // 31 puntos = día de 30 paradas + la base.
-    const puntos = [EMPRESA, ...alAzar(30, 31)];
-    const r = await obtenerRutaCalles(puntos);
-    assert.deepEqual(registro, [25, 7], "no partió en tramos de 25 con el punto de unión repetido");
-    // 25 + 7 - 1 repetido = 31: todos los puntos, ninguno dos veces.
-    assert.equal(r.trazado.length, 31);
-    const vistos = new Set(r.trazado.map((c) => c.join(",")));
-    assert.equal(vistos.size, 31, "el punto de unión quedó duplicado");
-    assert.equal(r.distanciaM, 24000 + 6000);
-    // El trazado empieza en la base y termina en la última parada.
-    assert.deepEqual(r.trazado[0], [EMPRESA.lng, EMPRESA.lat]);
-  } finally {
-    globalThis.fetch = original;
-  }
+  const puntos = [EMPRESA, ...alAzar(99, 31)];
+  const r = await conFetch(fetchRutaFalsa(registro), () => obtenerRutaCalles(puntos));
+  assert.deepEqual(registro, [70, 31], "no partió en tramos de 70 con el punto de unión repetido");
+  // 70 + 31 - 1 repetido = 100: todos los puntos, ninguno dos veces.
+  assert.equal(r.trazado.length, 100);
+  assert.equal(new Set(r.trazado.map((c) => c.join(","))).size, 100, "el punto de unión quedó duplicado");
+  assert.equal(r.distanciaM, 99_000);
+  assert.deepEqual(r.trazado[0], [EMPRESA.lng, EMPRESA.lat]);
 });
 
 test("obtenerRutaCalles: cubre TODOS los tramos para tamaños de día variados", async () => {
-  const original = globalThis.fetch;
-  try {
-    for (const n of [2, 24, 25, 26, 27, 49, 50, 51, 74]) {
-      const registro = [];
-      globalThis.fetch = fetchRutaFalsa(registro);
-      const puntos = [EMPRESA, ...alAzar(n - 1, n)];
-      const r = await obtenerRutaCalles(puntos);
-      assert.equal(r.trazado.length, n, `con ${n} puntos el trazado quedó de ${r.trazado.length}`);
-      assert.ok(registro.every((t) => t <= 25), `un tramo pidió ${Math.max(...registro)} puntos`);
-    }
-  } finally {
-    globalThis.fetch = original;
+  for (const n of [2, 69, 70, 71, 72, 139, 140, 141]) {
+    const registro = [];
+    const r = await conFetch(fetchRutaFalsa(registro), () => obtenerRutaCalles([EMPRESA, ...alAzar(n - 1, n)]));
+    assert.equal(r.trazado.length, n, `con ${n} puntos el trazado quedó de ${r.trazado.length}`);
+    assert.ok(registro.every((t) => t <= 70), `un tramo pidió ${Math.max(...registro)} puntos`);
   }
 });
 
 test("obtenerRutaCalles: null (no un trazado a medias) si un tramo falla", async () => {
-  const original = globalThis.fetch;
   let n = 0;
-  globalThis.fetch = async (url) => {
-    n++;
-    if (n === 2) return { ok: false, json: async () => ({}) };
-    return fetchRutaFalsa([])(url);
-  };
-  try {
-    const r = await obtenerRutaCalles([EMPRESA, ...alAzar(30, 5)]);
-    assert.equal(r, null, "devolvió media ruta: el conductor vería una línea cortada");
-  } finally {
-    globalThis.fetch = original;
-  }
+  const r = await conFetch(
+    async (url, init) => {
+      n++;
+      if (n === 2) return { ok: false, status: 503, json: async () => ({}) };
+      return fetchRutaFalsa([])(url, init);
+    },
+    () => obtenerRutaCalles([EMPRESA, ...alAzar(99, 5)]),
+  );
+  assert.equal(r, null, "devolvió media ruta: el conductor vería una línea cortada");
 });
 
-test("obtenerRutaCalles: sin token avisa fuerte (no degrada en silencio)", async () => {
-  const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-  delete process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+test("obtenerRutaCalles: sin clave avisa fuerte (no degrada en silencio)", async () => {
+  const clave = process.env.NEXT_PUBLIC_ORS_KEY;
+  delete process.env.NEXT_PUBLIC_ORS_KEY;
   try {
-    await assert.rejects(() => obtenerRutaCalles([EMPRESA, CENTRO]), /NEXT_PUBLIC_MAPBOX_TOKEN/);
+    await assert.rejects(() => obtenerRutaCalles([EMPRESA, CENTRO]), /NEXT_PUBLIC_ORS_KEY/);
   } finally {
-    process.env.NEXT_PUBLIC_MAPBOX_TOKEN = token;
+    process.env.NEXT_PUBLIC_ORS_KEY = clave;
   }
 });
 
 test("obtenerRutaCalles: menos de 2 puntos no consulta nada", async () => {
-  const original = globalThis.fetch;
-  globalThis.fetch = async () => {
-    throw new Error("no debería consultarse");
-  };
-  try {
-    assert.equal(await obtenerRutaCalles([EMPRESA]), null);
-    assert.equal(await obtenerRutaCalles([]), null);
-  } finally {
-    globalThis.fetch = original;
-  }
+  await conFetch(
+    async () => {
+      throw new Error("no debería consultarse");
+    },
+    async () => {
+      assert.equal(await obtenerRutaCalles([EMPRESA]), null);
+      assert.equal(await obtenerRutaCalles([]), null);
+    },
+  );
+});
+
+test("obtenerRutaCalles: pide sin radio (una parada lejos de la calle no bota la consulta) y libre en las paradas", async () => {
+  const cuerpos = [];
+  await conFetch(
+    async (url, init) => {
+      const c = JSON.parse(init.body);
+      cuerpos.push(c);
+      return respuestaRutaOrs(c.coordinates);
+    },
+    () => obtenerRutaCalles([EMPRESA, CENTRO, ...alAzar(3, 2)]),
+  );
+  assert.deepEqual(cuerpos[0].radiuses, [-1, -1, -1, -1, -1]);
+  assert.equal(cuerpos[0].continue_straight, false, "el bug de las vueltas a la manzana");
+  assert.deepEqual(cuerpos[0].extra_info, ["waytype"]);
 });
 
 // ----------------------------------------------------- obtenerNavegacion
-function respuestaNavegacion() {
+// Doble de ORS: el auto sale hacia el oeste por Chacabuco (650 m), dobla a la
+// derecha a Maipú (240 m) y llega.
+const NAV_COORDS = [[-70.29, -18.47], [-70.295, -18.475], [-70.3, -18.48]];
+const NAV_PASOS = [
+  { type: 11, instruction: "Camina hacia el oeste en Chacabuco", name: "Chacabuco", distance: 650, duration: 60, way_points: [0, 1] },
+  { type: 1, instruction: "Gire a la derecha a Maipú", name: "Maipú", distance: 240, duration: 30, way_points: [1, 2] },
+  { type: 10, instruction: "Llegar a Maipú, a la izquierda", name: "-", distance: 0, duration: 0, way_points: [2, 2] },
+];
+
+function respuestaNav({ coords = NAV_COORDS, pasos = NAV_PASOS, metros = 890, tipo = 2 } = {}) {
   return {
     ok: true,
+    status: 200,
     json: async () => ({
-      routes: [
+      features: [
         {
-          geometry: { coordinates: [[-70.29, -18.47], [-70.3, -18.48]] },
-          legs: [
-            {
-              steps: [
-                {
-                  maneuver: { type: "depart", modifier: "left", instruction: "Salga a la izquierda" },
-                  distance: 0,
-                  geometry: { coordinates: [[-70.29, -18.47]] },
-                  bannerInstructions: [{ primary: { text: "Chacabuco" } }],
-                  voiceInstructions: [
-                    { announcement: "cerca", distanceAlongGeometry: 50 },
-                    { announcement: "lejos", distanceAlongGeometry: 300 },
-                  ],
-                },
-                {
-                  maneuver: { type: "turn", modifier: "right", instruction: "Gire a la derecha" },
-                  distance: 240,
-                  geometry: { coordinates: [[-70.295, -18.475], [-70.3, -18.48]] },
-                },
-              ],
-            },
-          ],
+          geometry: { coordinates: coords },
+          properties: {
+            summary: { distance: metros },
+            segments: [{ steps: pasos }],
+            extras: { waytype: { values: [[0, coords.length - 1, tipo]] } },
+          },
         },
       ],
     }),
   };
 }
 
-test("obtenerNavegacion: normaliza el rumbo para que Mapbox no rechace la consulta", async () => {
-  const original = globalThis.fetch;
-  const urls = [];
-  globalThis.fetch = async (url) => {
-    urls.push(String(url));
-    return respuestaNavegacion();
-  };
-  try {
-    for (const rumbo of [0, 359.6, -45, 720, 400.4, NaN, null, undefined]) {
-      urls.length = 0;
-      await obtenerNavegacion(EMPRESA, CENTRO, rumbo);
-      const bearings = urls
-        .map((u) => new URL(u).searchParams.get("bearings"))
-        .filter(Boolean);
-      for (const b of bearings) {
-        const grados = Number(b.split(",")[0]);
-        assert.ok(
-          Number.isInteger(grados) && grados >= 0 && grados < 360,
-          `bearings inválido para rumbo ${rumbo}: ${b}`,
-        );
-      }
-    }
-  } finally {
-    globalThis.fetch = original;
+test("obtenerNavegacion: normaliza el rumbo (0 a 359, entero)", async () => {
+  const cuerpos = [];
+  await conFetch(
+    async (url, init) => {
+      cuerpos.push(JSON.parse(init.body));
+      return respuestaNav();
+    },
+    async () => {
+      for (const rumbo of [0, 359.6, -45, 720, 400.4, NaN, null, undefined]) await obtenerNavegacion(EMPRESA, CENTRO, rumbo);
+    },
+  );
+  for (const c of cuerpos.filter((c) => c.bearings)) {
+    const [grados, tolerancia] = c.bearings[0];
+    assert.ok(Number.isInteger(grados) && grados >= 0 && grados < 360, `rumbo inválido: ${grados}`);
+    assert.equal(tolerancia, 90);
+    assert.equal(c.bearings.length, 1, "solo el origen lleva rumbo");
   }
 });
 
 test("obtenerNavegacion: si el rumbo deja la consulta sin camino, reintenta sin rumbo", async () => {
-  const original = globalThis.fetch;
-  const urls = [];
-  globalThis.fetch = async (url) => {
-    urls.push(String(url));
-    if (urls.length === 1) return { ok: false, json: async () => ({}) };
-    return respuestaNavegacion();
-  };
-  try {
-    const r = await obtenerNavegacion(EMPRESA, CENTRO, 90);
-    assert.equal(urls.length, 2);
-    assert.ok(urls[0].includes("bearings"));
-    assert.ok(!urls[1].includes("bearings"), "el reintento debe ir sin rumbo");
-    assert.equal(r.pasos.length, 2);
-  } finally {
-    globalThis.fetch = original;
-  }
+  const cuerpos = [];
+  const r = await conFetch(
+    async (url, init) => {
+      cuerpos.push(JSON.parse(init.body));
+      if (cuerpos.length === 1) return { ok: false, status: 404, json: async () => ({}) };
+      return respuestaNav();
+    },
+    () => obtenerNavegacion(EMPRESA, CENTRO, 90),
+  );
+  assert.equal(cuerpos.length, 2);
+  assert.ok(cuerpos[0].bearings);
+  assert.equal(cuerpos[1].bearings, undefined, "el reintento debe ir sin rumbo");
+  assert.equal(r.pasos.length, 3);
 });
 
-test("obtenerNavegacion: avisos de voz del más lejano al más cercano", async () => {
-  const original = globalThis.fetch;
-  globalThis.fetch = async () => respuestaNavegacion();
-  try {
-    const r = await obtenerNavegacion(EMPRESA, CENTRO, 90);
-    assert.deepEqual(
-      r.pasos[0].avisos.map((a) => a.aMetros),
-      [300, 50],
-    );
-    assert.equal(r.pasos[0].banner, "Chacabuco");
-    assert.equal(r.pasos[1].banner, null);
-    assert.equal(r.pasos[1].distanciaM, 240);
-  } finally {
-    globalThis.fetch = original;
-  }
+test("obtenerNavegacion: pasos de ORS con cartel, flecha y voz armada", async () => {
+  const r = await conFetch(async () => respuestaNav(), () => obtenerNavegacion(EMPRESA, CENTRO, 90));
+  const [salida, giro, llegada] = r.pasos;
+  // ORS dice "Camina" al salir, aun en auto.
+  assert.equal(salida.instruccion, "Siga hacia el oeste en Chacabuco");
+  assert.equal(salida.tipo, "depart");
+  assert.equal(salida.banner, "Maipú", "el cartel nombra la calle de la maniobra que viene");
+  assert.deepEqual(salida.trazado, NAV_COORDS.slice(0, 2));
+  // Del más lejano al más cercano: la salida, 500 m, 200 m y encima del giro.
+  assert.deepEqual(
+    salida.avisos.map((a) => [a.aMetros, a.texto]),
+    [
+      [650, "Siga hacia el oeste en Chacabuco"],
+      [500, "En 500 metros, gire a la derecha a Maipú"],
+      [200, "En 200 metros, gire a la derecha a Maipú"],
+      [40, "Gire a la derecha a Maipú"],
+    ],
+  );
+  assert.deepEqual([giro.tipo, giro.modificador, giro.distanciaM], ["turn", "right", 240]);
+  // 240 m no alcanzan para "en 200 metros" sin pisarse con el giro anterior.
+  assert.deepEqual(giro.avisos.map((a) => a.texto), ["Su destino está en Maipú, a la izquierda"]);
+  assert.equal(giro.banner, "Llegar a Maipú, a la izquierda", "sin nombre de calle, la frase");
+  assert.equal(llegada.tipo, "arrive");
+  assert.equal(llegada.banner, null);
+  assert.deepEqual(llegada.avisos, []);
+});
+
+test("obtenerNavegacion: rotonda con su salida", async () => {
+  const pasos = [
+    { type: 11, instruction: "Camina hacia el sur en Azola", name: "Azola", distance: 300, duration: 30, way_points: [0, 1] },
+    { type: 7, instruction: "Entre en la rotonda y tome la 2.ª salida a Tucapel", name: "Tucapel", exit_number: 2, distance: 200, duration: 20, way_points: [1, 2] },
+    { type: 10, instruction: "Llegar a Tucapel", name: "-", distance: 0, duration: 0, way_points: [2, 2] },
+  ];
+  const r = await conFetch(async () => respuestaNav({ pasos }), () => obtenerNavegacion(EMPRESA, CENTRO, null));
+  assert.deepEqual([r.pasos[1].tipo, r.pasos[1].salida], ["roundabout", 2]);
 });
 
 test("obtenerNavegacion: se traga cualquier fallo (corre en bucle mientras el conductor maneja)", async () => {
-  const original = globalThis.fetch;
   for (const respuesta of [
-    () => { throw new Error("sin señal"); },
-    () => ({ ok: false, json: async () => ({}) }),
-    () => ({ ok: true, json: async () => ({}) }),
-    () => ({ ok: true, json: async () => ({ routes: [{}] }) }),
-    () => ({ ok: true, json: async () => ({ routes: [{ legs: [{}] }] }) }),
+    () => {
+      throw new Error("sin señal");
+    },
+    () => ({ ok: false, status: 500, json: async () => ({}) }),
+    () => ({ ok: false, status: 429, json: async () => ({}) }),
+    () => ({ ok: true, status: 200, json: async () => ({}) }),
+    () => ({ ok: true, status: 200, json: async () => ({ features: [{}] }) }),
+    () => ({ ok: true, status: 200, json: async () => ({ features: [{ geometry: { coordinates: NAV_COORDS }, properties: { segments: [{}] } }] }) }),
   ]) {
-    globalThis.fetch = async () => respuesta();
-    try {
-      assert.equal(await obtenerNavegacion(EMPRESA, CENTRO, 90), null);
-    } finally {
-      globalThis.fetch = original;
-    }
+    assert.equal(await conFetch(async () => respuesta(), () => obtenerNavegacion(EMPRESA, CENTRO, 90)), null);
   }
 });
 
-test("obtenerNavegacion sin token no revienta la pantalla del conductor", async () => {
-  const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-  delete process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+test("obtenerNavegacion sin clave no revienta la pantalla del conductor", async () => {
+  const clave = process.env.NEXT_PUBLIC_ORS_KEY;
+  delete process.env.NEXT_PUBLIC_ORS_KEY;
   try {
     assert.equal(await obtenerNavegacion(EMPRESA, CENTRO, 90), null);
   } finally {
-    process.env.NEXT_PUBLIC_MAPBOX_TOKEN = token;
+    process.env.NEXT_PUBLIC_ORS_KEY = clave;
   }
 });
 
-test("las consultas de ruta van con continue_straight=false (el bug de las vueltas a la manzana)", async () => {
-  const original = globalThis.fetch;
-  const urls = [];
-  globalThis.fetch = async (url) => {
-    urls.push(String(url));
-    return respuestaNavegacion();
-  };
-  try {
-    await obtenerNavegacion(EMPRESA, CENTRO, null);
-    assert.equal(new URL(urls[0]).searchParams.get("continue_straight"), "false");
-    assert.equal(new URL(urls[0]).searchParams.get("language"), "es");
-  } finally {
-    globalThis.fetch = original;
-  }
+test("obtenerNavegacion: pide en español, con instrucciones y el tipo de calle", async () => {
+  const cuerpos = [];
+  await conFetch(
+    async (url, init) => {
+      cuerpos.push(JSON.parse(init.body));
+      return respuestaNav();
+    },
+    () => obtenerNavegacion(EMPRESA, CENTRO, null),
+  );
+  assert.equal(cuerpos[0].language, "es");
+  assert.equal(cuerpos[0].instructions, true);
+  assert.deepEqual(cuerpos[0].extra_info, ["waytype"]);
 });
 
 // ------------------------------------------------- dar la vuelta (terreno 2026-10-28)
 // El auto mira al este y la casa queda 120 m al oeste, en la misma calle. De
-// frente, Mapbox da la vuelta a la manzana; sin rumbo, la ruta arranca hacia atrás.
+// frente, la ruta da la vuelta a la manzana; sin rumbo, arranca hacia atrás.
 const AUTO = [-70.2899, -18.4711];
 const CASA = [-70.291, -18.4711];
+const TIPO = { principal: 2, calle: 3 };
 
-function respuestaRuta({ metros, coords, salida = coords[0], clase = "tertiary" }) {
-  return {
-    ok: true,
-    json: async () => ({
-      routes: [
-        {
-          distance: metros,
-          geometry: { coordinates: coords },
-          legs: [
-            {
-              steps: [
-                {
-                  maneuver: { type: "depart", instruction: "Dirígete por la calle" },
-                  intersections: [{ mapbox_streets_v8: { class: clase } }],
-                  distance: metros,
-                  geometry: { coordinates: coords },
-                  voiceInstructions: [{ announcement: "Dirígete por la calle.", distanceAlongGeometry: metros }],
-                },
-                {
-                  maneuver: { type: "arrive", instruction: "Has llegado" },
-                  distance: 0,
-                  geometry: { coordinates: [coords[coords.length - 1]] },
-                },
-              ],
-            },
-          ],
-        },
-      ],
-      waypoints: [{ location: salida }, { location: coords[coords.length - 1] }],
-    }),
-  };
+/** Una ruta de navegación de ORS. Su primer punto es donde enganchó al auto. */
+function respuestaRuta({ metros, coords, clase = "principal" }) {
+  const pasos = [
+    { type: 11, instruction: "Camina por la calle", name: "Calle", distance: metros, duration: metros / 8, way_points: [0, coords.length - 1] },
+    { type: 10, instruction: "Llegar a Calle", name: "-", distance: 0, duration: 0, way_points: [coords.length - 1, coords.length - 1] },
+  ];
+  return respuestaNav({ coords, pasos, metros, tipo: TIPO[clase] });
 }
 
 const DE_FRENTE = { metros: 985, coords: [AUTO, [-70.288, -18.4711], [-70.288, -18.4725], [-70.291, -18.4725], CASA] };
@@ -615,24 +601,25 @@ const HACIA_ATRAS = { metros: 119, coords: [AUTO, [-70.2905, -18.4711], CASA] };
 
 function conDoble(respuestas) {
   const original = globalThis.fetch;
-  const urls = [];
-  globalThis.fetch = async (url) => {
-    urls.push(String(url));
-    return new URL(String(url)).searchParams.has("bearings") ? respuestas.deFrente() : respuestas.sinRumbo();
+  const cuerpos = [];
+  globalThis.fetch = async (url, init) => {
+    const c = JSON.parse(init.body);
+    cuerpos.push(c);
+    return c.bearings ? respuestas.deFrente() : respuestas.sinRumbo();
   };
-  return { urls, restaurar: () => (globalThis.fetch = original) };
+  return { cuerpos, restaurar: () => (globalThis.fetch = original) };
 }
 
 test("elegirSalida: sin rumbo si ahorra 200 m desde el mismo punto; 'Da la vuelta' solo si arranca hacia atrás", () => {
   const p = (lng, lat) => ({ lng, lat });
-  const deFrente = { metros: 985, salida: p(-70.2899, -18.4711), arranque: 90, calle: "tertiary" };
-  const atras = { metros: 119, salida: p(-70.2899, -18.4711), arranque: 270, calle: "tertiary" };
+  const deFrente = { metros: 985, salida: p(-70.2899, -18.4711), arranque: 90, calle: "principal" };
+  const atras = { metros: 119, salida: p(-70.2899, -18.4711), arranque: 270, calle: "principal" };
   const SI_VUELTA = { sinRumbo: true, daLaVuelta: true };
   const NO = { sinRumbo: false, daLaVuelta: false };
   assert.deepEqual(elegirSalida(deFrente, atras, 90), SI_VUELTA);
   assert.deepEqual(elegirSalida(deFrente, { ...atras, metros: 850 }, 90), NO, "ahorrar 135 m no vale la maniobra");
   // En la esquina: la salida corta dobla a la calle de al lado. Se usa, pero no
-  // es "dar la vuelta": eso ya lo dice la instrucción de Mapbox.
+  // es "dar la vuelta": eso ya lo dice la instrucción.
   assert.deepEqual(elegirSalida(deFrente, { ...atras, arranque: 0 }, 90), { sinRumbo: true, daLaVuelta: false });
   assert.deepEqual(
     elegirSalida(deFrente, { ...atras, salida: p(-70.2899, -18.47125) }, 90),
@@ -646,16 +633,16 @@ test("elegirSalida: sin rumbo si ahorra 200 m desde el mismo punto; 'Da la vuelt
   assert.deepEqual(elegirSalida(deFrente, { ...atras, arranque: 190 }, 10), SI_VUELTA);
   // En un pasaje o una residencial angosta no se da la vuelta: sería salir en
   // reversa (terreno 2026-10-29). Doblar en la esquina sí.
-  const pasaje = { ...atras, calle: "street" };
-  assert.deepEqual(elegirSalida({ ...deFrente, calle: "street" }, pasaje, 90), NO);
+  const pasaje = { ...atras, calle: "calle" };
+  assert.deepEqual(elegirSalida({ ...deFrente, calle: "calle" }, pasaje, 90), NO);
   assert.deepEqual(elegirSalida({ ...deFrente, calle: null }, { ...atras, calle: null }, 90), NO, "sin dato de la calle, no");
-  assert.deepEqual(elegirSalida({ ...deFrente, calle: "street" }, { ...pasaje, arranque: 0 }, 90), { sinRumbo: true, daLaVuelta: false });
+  assert.deepEqual(elegirSalida({ ...deFrente, calle: "calle" }, { ...pasaje, arranque: 0 }, 90), { sinRumbo: true, daLaVuelta: false });
 });
 
 test("obtenerNavegacion: con la casa atrás en un pasaje, sigue de frente", async () => {
   const doble = conDoble({
-    deFrente: () => respuestaRuta({ ...DE_FRENTE, clase: "street" }),
-    sinRumbo: () => respuestaRuta({ ...HACIA_ATRAS, clase: "street" }),
+    deFrente: () => respuestaRuta({ ...DE_FRENTE, clase: "calle" }),
+    sinRumbo: () => respuestaRuta({ ...HACIA_ATRAS, clase: "calle" }),
   });
   try {
     const r = await obtenerNavegacion({ lng: AUTO[0], lat: AUTO[1] }, { lng: CASA[0], lat: CASA[1] }, 90, { permitirVuelta: true });
@@ -684,10 +671,10 @@ test("obtenerNavegacion: saliendo hacia la parada con la casa atrás, da la vuel
   const doble = conDoble({ deFrente: () => respuestaRuta(DE_FRENTE), sinRumbo: () => respuestaRuta(HACIA_ATRAS) });
   try {
     const r = await obtenerNavegacion({ lng: AUTO[0], lat: AUTO[1] }, { lng: CASA[0], lat: CASA[1] }, 90, { permitirVuelta: true });
-    assert.equal(doble.urls.length, 2, "pide las dos rutas");
+    assert.equal(doble.cuerpos.length, 2, "pide las dos rutas");
     assert.equal(r.daLaVuelta, true);
     assert.equal(r.trazado.length, HACIA_ATRAS.coords.length, "usa la ruta corta");
-    assert.match(r.pasos[0].avisos[0].texto, /^Da la vuelta\. /);
+    assert.match(r.pasos[0].avisos[0].texto, /^Da la vuelta\./);
   } finally {
     doble.restaurar();
   }
@@ -697,7 +684,7 @@ test("obtenerNavegacion: sin permiso para la vuelta (se salió del camino) pide 
   const doble = conDoble({ deFrente: () => respuestaRuta(DE_FRENTE), sinRumbo: () => respuestaRuta(HACIA_ATRAS) });
   try {
     const r = await obtenerNavegacion({ lng: AUTO[0], lat: AUTO[1] }, { lng: CASA[0], lat: CASA[1] }, 90);
-    assert.equal(doble.urls.length, 1);
+    assert.equal(doble.cuerpos.length, 1);
     assert.equal(r.daLaVuelta, false);
     assert.equal(r.trazado.length, DE_FRENTE.coords.length);
   } finally {
@@ -706,10 +693,9 @@ test("obtenerNavegacion: sin permiso para la vuelta (se salió del camino) pide 
 });
 
 test("obtenerNavegacion: en la calzada de enfrente (bandejón) no da la vuelta", async () => {
-  const doble = conDoble({
-    deFrente: () => respuestaRuta(DE_FRENTE),
-    sinRumbo: () => respuestaRuta({ ...HACIA_ATRAS, salida: [-70.2899, -18.47125] }),
-  });
+  // La ruta sin rumbo enganchó el auto 15 m al lado: su primer punto.
+  const ENFRENTE = { metros: 119, coords: [[-70.2899, -18.47125], [-70.2905, -18.47125], CASA] };
+  const doble = conDoble({ deFrente: () => respuestaRuta(DE_FRENTE), sinRumbo: () => respuestaRuta(ENFRENTE) });
   try {
     const r = await obtenerNavegacion({ lng: AUTO[0], lat: AUTO[1] }, { lng: CASA[0], lat: CASA[1] }, 90, { permitirVuelta: true });
     assert.equal(r.daLaVuelta, false);
@@ -721,7 +707,7 @@ test("obtenerNavegacion: en la calzada de enfrente (bandejón) no da la vuelta",
 });
 
 test("obtenerNavegacion: si la de frente falla, sirve la sin rumbo aunque no convenga la vuelta", async () => {
-  const doble = conDoble({ deFrente: () => ({ ok: false, json: async () => ({}) }), sinRumbo: () => respuestaRuta(HACIA_ATRAS) });
+  const doble = conDoble({ deFrente: () => ({ ok: false, status: 404, json: async () => ({}) }), sinRumbo: () => respuestaRuta(HACIA_ATRAS) });
   try {
     const r = await obtenerNavegacion({ lng: AUTO[0], lat: AUTO[1] }, { lng: CASA[0], lat: CASA[1] }, 90, { permitirVuelta: true });
     assert.equal(r.daLaVuelta, false);
@@ -734,62 +720,49 @@ test("obtenerNavegacion: si la de frente falla, sirve la sin rumbo aunque no con
 // ------------------------------- la ruta del día no sale en reversa de un pasaje
 // El auto llega a la parada hacia el este y la ruta libre sigue hacia el oeste:
 // da la vuelta en la parada. En un pasaje eso es salir en reversa (terreno 2026-10-29).
-function respuestaConTramos(clase, distancia) {
-  return {
-    ok: true,
-    json: async () => ({
-      routes: [
-        {
-          distance: distancia,
-          duration: distancia / 8,
-          geometry: { coordinates: [[-70.3, -18.47], [-70.299, -18.47], [-70.2995, -18.47]] },
-          legs: [
-            { steps: [{ geometry: { coordinates: [[-70.3, -18.47], [-70.299, -18.47]] }, intersections: [{ mapbox_streets_v8: { class: clase } }] }] },
-            { steps: [{ geometry: { coordinates: [[-70.299, -18.47], [-70.2995, -18.47]] }, intersections: [{ mapbox_streets_v8: { class: clase } }] }] },
-          ],
-        },
-      ],
-    }),
-  };
-}
 const TRES = [
   { lat: -18.47, lng: -70.3 },
   { lat: -18.47, lng: -70.299 },
   { lat: -18.47, lng: -70.2995 },
 ];
+const TRES_COORDS = TRES.map((p) => [p.lng, p.lat]);
 
-test("obtenerRutaCalles: en un pasaje, la parada se pasa de frente (rumbo fijo)", async () => {
-  const original = globalThis.fetch;
-  const urls = [];
-  globalThis.fetch = async (url) => {
-    urls.push(new URL(String(url)));
-    return respuestaConTramos("street", urls.length === 1 ? 160 : 900);
-  };
-  try {
-    const r = await obtenerRutaCalles(TRES);
-    assert.equal(urls.length, 2, "vuelve a pedir con el rumbo fijo");
-    assert.equal(urls[0].searchParams.get("bearings"), null);
-    assert.equal(urls[1].searchParams.get("bearings"), ";90,45;", "solo la parada, con el rumbo de llegada");
-    assert.equal(r.distanciaM, 900, "los km son los de pasar de frente");
-  } finally {
-    globalThis.fetch = original;
-  }
+test("obtenerRutaCalles: en un pasaje, la parada se pasa de frente (ese pedazo con continue_straight)", async () => {
+  const cuerpos = [];
+  const r = await conFetch(
+    async (url, init) => {
+      const c = JSON.parse(init.body);
+      cuerpos.push(c);
+      return respuestaRutaOrs(TRES_COORDS, { tipo: 3, metros: c.continue_straight ? 900 : 160 });
+    },
+    () => obtenerRutaCalles(TRES),
+  );
+  assert.equal(cuerpos.length, 2, "vuelve a pedir ese pedazo de frente");
+  assert.equal(cuerpos[0].continue_straight, false);
+  assert.equal(cuerpos[1].continue_straight, true);
+  assert.equal(cuerpos[1].coordinates.length, 3, "la anterior, la parada y la siguiente");
+  assert.equal(r.distanciaM, 900, "los km son los de pasar de frente");
+  assert.equal(r.puntos[1].clase, "calle");
+  assert.equal(r.puntos[1].extraM, 740);
 });
 
-test("obtenerRutaCalles: en una avenida se puede dar la vuelta (una sola consulta)", async () => {
-  const original = globalThis.fetch;
+test("obtenerRutaCalles: en una calle principal se puede dar la vuelta (una sola consulta)", async () => {
   let consultas = 0;
-  globalThis.fetch = async () => {
-    consultas++;
-    return respuestaConTramos("tertiary", 160);
-  };
-  try {
-    const r = await obtenerRutaCalles(TRES);
-    assert.equal(consultas, 1);
-    assert.equal(r.distanciaM, 160);
-  } finally {
-    globalThis.fetch = original;
-  }
+  const r = await conFetch(
+    async () => {
+      consultas++;
+      return respuestaRutaOrs(TRES_COORDS, { tipo: 2, metros: 160 });
+    },
+    () => obtenerRutaCalles(TRES),
+  );
+  assert.equal(consultas, 1);
+  assert.equal(r.distanciaM, 160);
+  assert.equal(r.puntos[1].extraM, null);
+});
+
+test("enRachas: paradas seguidas de frente se piden juntas", () => {
+  assert.deepEqual(enRachas([9, 3, 4, 4]), [[3, 4], [9, 9]]);
+  assert.deepEqual(enRachas([]), []);
 });
 
 // ------------------------------------- el plan sabe dónde no se da la vuelta
@@ -805,7 +778,7 @@ test("penalizacionPorSentido: en calle estrecha cobra entrar y salir por el mism
     { lat: -18.47, lng: -70.295 }, // al este
     { lat: -18.465, lng: -70.3 }, // al norte: de costado
   ];
-  const estrecha = { clase: "street", eje: 90, extraM: 600 };
+  const estrecha = { clase: "calle", eje: 90, extraM: 600 };
   const pen = penalizacionPorSentido(puntos, [null, estrecha, null, null, null]);
   assert.equal(pen(2, 1, 0), 600, "llega del oeste y vuelve al oeste: se devuelve");
   assert.equal(pen(2, 1, FIN), 600, "volver a la base (al oeste) cuenta igual");
@@ -813,7 +786,7 @@ test("penalizacionPorSentido: en calle estrecha cobra entrar y salir por el mism
   assert.equal(pen(3, 1, 2), 0, "y al revés tampoco");
   assert.equal(pen(4, 1, 2), 0, "una de costado no se cobra");
   assert.equal(pen(2, 3, 2), 0, "las paradas de calle ancha o sin dato no pagan");
-  assert.equal(penalizacionPorSentido(puntos, [null, { ...estrecha, clase: "tertiary" }, null, null, null]), null);
+  assert.equal(penalizacionPorSentido(puntos, [null, { ...estrecha, clase: "principal" }, null, null, null]), null);
 });
 
 // ------------------------------------------- paradas pegadas a una carretera

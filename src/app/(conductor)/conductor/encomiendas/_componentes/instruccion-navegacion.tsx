@@ -10,13 +10,13 @@ import {
 } from "lucide-react";
 import { formatDistancia } from "@/lib/comun/format";
 import { cn } from "@/lib/comun/utils";
-import type { PasoNavegacion } from "@/lib/geo/mapbox/navegacion";
+import type { PasoNavegacion } from "@/lib/geo/ors/navegacion";
 
 // Antes acá vivía la traducción a mano del vocabulario de maniobras: treinta
 // líneas armando "Gira a la izquierda en tal calle" a partir del tipo y el
-// modificador que devolvía OSRM. Ya no hace falta — Mapbox entrega la frase
-// escrita en español (paso.instruccion), con los nombres de calle acentuados
-// como corresponde. Lo único que queda es elegir la flecha.
+// modificador que devolvía OSRM. Ya no hace falta — ORS entrega la frase
+// escrita en español (paso.instruccion; ver lib/geo/ors/navegacion.ts). Lo
+// único que queda es elegir la flecha.
 //
 // Devuelve el elemento ya armado y no el componente: asignar un componente a
 // una variable dentro del render hace que React lo trate como uno nuevo en cada
@@ -99,7 +99,7 @@ export function InstruccionNavegacion({
       <div className="min-w-0 flex-1">
         {/* Manejando se lee primero CUÁNTO falta y después hacia dónde: la
             distancia va grande arriba y la calle debajo (spec 017, N12). El
-            banner de Mapbox es el texto corto (la calle a la que se entra) y
+            banner es el texto corto (la calle a la que se entra) y
             la instrucción es la frase completa. */}
         {daLaVuelta ? (
           <p className="text-[22px] font-extrabold leading-tight tracking-tight">Da la vuelta</p>

@@ -1,13 +1,13 @@
 // La ruta en curso se reordena sola con las respuestas de WhatsApp (spec 010).
 //
 // Corre el almacén real sobre IndexedDB (fake-indexeddb) y replanificarRuta()
-// real. El trazado de Mapbox responde un doble: lo que se prueba es el orden y
+// real. El trazado de ORS responde un doble: lo que se prueba es el orden y
 // los avisos, no el camino por calles.
 import "fake-indexeddb/auto";
 import test from "node:test";
 import assert from "node:assert/strict";
 
-process.env.NEXT_PUBLIC_MAPBOX_TOKEN = "pk.prueba";
+process.env.NEXT_PUBLIC_ORS_KEY = "ors.prueba";
 
 const almacen = await import("@/lib/encomiendas/local/almacen");
 const { guardarPedido, guardarRuta, leerRuta, leerPedidos, leerCola, marcarResultado, registrarDisponibilidad } =
@@ -34,11 +34,20 @@ test.beforeEach(async () => {
     });
   }
   // Trazado: el doble devuelve una línea recta por los puntos pedidos.
-  globalThis.fetch = async (url) => {
-    const puntos = decodeURIComponent(new URL(url).pathname.split("/").pop())
-      .split(";")
-      .map((par) => par.split(",").map(Number));
-    return Response.json({ routes: [{ geometry: { coordinates: puntos }, distance: 1000, duration: 600 }] });
+  globalThis.fetch = async (url, init) => {
+    const coords = JSON.parse(init.body).coordinates;
+    return Response.json({
+      features: [
+        {
+          geometry: { coordinates: coords },
+          properties: {
+            way_points: coords.map((_, i) => i),
+            segments: coords.slice(1).map(() => ({ distance: 250, duration: 150 })),
+            extras: { waytype: { values: [[0, coords.length - 1, 2]] } },
+          },
+        },
+      ],
+    });
   };
 });
 

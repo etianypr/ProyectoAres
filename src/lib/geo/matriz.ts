@@ -23,9 +23,9 @@
 // ORS (nunca por el servidor), con una clave pública como el token de Mapbox.
 
 import { distanciaMetros, type Coordenada } from "./coordenada";
-import { tope } from "@/lib/comun/tope";
+import { claveOrs, postOrs } from "./ors/cliente";
 
-const MATRIX = "https://api.openrouteservice.org/v2/matrix/driving-car";
+const MATRIX = "/v2/matrix/driving-car";
 
 /** Pares (orígenes × destinos) por consulta que acepta ORS. */
 const MAX_PARES = 3_500;
@@ -38,12 +38,6 @@ const FACTOR_CALLES = 1.3;
  *  da un costo grande pero FINITO. Con Infinity todo orden valía lo mismo
  *  —infinito— y la mejora local se apagaba para el día entero (spec 017, R3). */
 const METROS_SIN_CAMINO = 20_000;
-
-/** Clave pública de OpenRouteService: la única lectura de NEXT_PUBLIC_ORS_KEY.
- *  Se lee al llamar para que las pruebas puedan ponerla y quitarla. */
-export function claveOrs(): string | null {
-  return process.env.NEXT_PUBLIC_ORS_KEY || null;
-}
 
 export type MatrizCalles = {
   /** metros[i][j] por calle; el 0 es la partida. Los pares que no llegaron
@@ -142,40 +136,35 @@ export function elementos(c: Consulta): number {
 type Resultado = "llego" | "cupo" | "fallo";
 
 /** Hace una consulta y guarda sus pares. */
-async function consultar(puntos: Coordenada[], c: Consulta, clave: string): Promise<Resultado> {
+async function consultar(puntos: Coordenada[], c: Consulta): Promise<Resultado> {
   // Las coordenadas de la consulta: la unión de orígenes y destinos, sin repetir.
   const indices = [...new Set([...c.origenes, ...c.destinos])];
   const posicion = new Map(indices.map((i, k) => [i, k] as const));
-  try {
-    const res = await fetch(MATRIX, {
-      method: "POST",
-      headers: { Authorization: clave, "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({
-        locations: indices.map((i) => [puntos[i].lng, puntos[i].lat]),
-        sources: c.origenes.map((i) => posicion.get(i)),
-        destinations: c.destinos.map((j) => posicion.get(j)),
-        metrics: ["distance"],
-        units: "m",
-      }),
-      signal: tope(15_000),
-    });
-    if (res.status === 429) return "cupo";
-    if (!res.ok) return "fallo";
-    const datos = (await res.json()) as { distances?: (number | null)[][] };
-    if (!Array.isArray(datos.distances)) return "fallo";
-    c.origenes.forEach((i, a) =>
-      c.destinos.forEach((j, b) => {
-        const d = datos.distances?.[a]?.[b];
-        conocidos.set(
-          `${clavePunto(puntos[i])}>${clavePunto(puntos[j])}`,
-          d == null ? distanciaMetros(puntos[i], puntos[j]) * FACTOR_CALLES + METROS_SIN_CAMINO : d,
-        );
-      }),
-    );
-    return "llego";
-  } catch {
-    return "fallo";
-  }
+  const r = await postOrs<{ distances?: (number | null)[][] }>(
+    MATRIX,
+    {
+      locations: indices.map((i) => [puntos[i].lng, puntos[i].lat]),
+      sources: c.origenes.map((i) => posicion.get(i)),
+      destinations: c.destinos.map((j) => posicion.get(j)),
+      metrics: ["distance"],
+      units: "m",
+    },
+    15_000,
+  );
+  if (!r) return "fallo";
+  if ("cupo" in r) return "cupo";
+  const distancias = r.datos.distances;
+  if (!Array.isArray(distancias)) return "fallo";
+  c.origenes.forEach((i, a) =>
+    c.destinos.forEach((j, b) => {
+      const d = distancias[a]?.[b];
+      conocidos.set(
+        `${clavePunto(puntos[i])}>${clavePunto(puntos[j])}`,
+        d == null ? distanciaMetros(puntos[i], puntos[j]) * FACTOR_CALLES + METROS_SIN_CAMINO : d,
+      );
+    }),
+  );
+  return "llego";
 }
 
 /**
@@ -200,14 +189,13 @@ export async function matrizCalles(puntos: Coordenada[]): Promise<MatrizCalles |
   let completa = true;
   let pedidos = 0;
   if (faltan.size > 0) {
-    const clave = claveOrs();
-    if (!clave) return { metros: null, motivo: "sin_token" };
+    if (!claveOrs()) return { metros: null, motivo: "sin_token" };
     const consultas = planificarConsultas(n, faltan);
     let sinCupo = false;
 
     for (let k = 0; k < consultas.length; k += EN_PARALELO) {
       const tanda = consultas.slice(k, k + EN_PARALELO);
-      const resultados = await Promise.all(tanda.map((c) => consultar(puntos, c, clave)));
+      const resultados = await Promise.all(tanda.map((c) => consultar(puntos, c)));
       tanda.forEach((c, x) => {
         if (resultados[x] === "llego") pedidos += elementos(c);
         else completa = false;

@@ -53,7 +53,7 @@ async function limpiar() {
 }
 
 // ---------------------------------------------------------------------------
-// Doble de Mapbox
+// Doble de ORS (matriz y trazado)
 // ---------------------------------------------------------------------------
 
 const fetchOriginal = globalThis.fetch;
@@ -72,25 +72,12 @@ function metros(a, b) {
   return Math.round(Math.hypot(dLat, dLng));
 }
 
-/** Saca los pares "lng,lat" de una URL de Mapbox. */
-function puntosDeUrl(url) {
-  const ruta = new URL(url).pathname;
-  const ultimo = ruta.split("/").pop();
-  return decodeURIComponent(ultimo)
-    .split(";")
-    .map((par) => {
-      const [lng, lat] = par.split(",").map(Number);
-      return { lat, lng };
-    })
-    .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng));
-}
-
 function instalar() {
   globalThis.fetch = async (entrada, init) => {
     const url = typeof entrada === "string" ? entrada : entrada.url;
     consultas.push(url);
 
-    if (url.includes("openrouteservice")) {
+    if (url.includes("openrouteservice") && url.includes("/v2/matrix")) {
       if (!respondeMatriz) return new Response("no", { status: 503 });
       // Como la API real de ORS: POST con [lng, lat]; filas = sources,
       // columnas = destinations (la matriz del día se pide por bloques, spec 017).
@@ -103,18 +90,26 @@ function instalar() {
       return Response.json({ distances });
     }
 
-    if (url.includes("directions/v5")) {
+    if (url.includes("openrouteservice") && url.includes("/v2/directions")) {
       if (!respondeTrazado) return new Response("no", { status: 503 });
-      const puntos = puntosDeUrl(url);
-      let distanciaM = 0;
-      for (let i = 1; i < puntos.length; i++) distanciaM += metros(puntos[i - 1], puntos[i]);
+      // Como la API real de ORS: un tramo por par de puntos seguidos. Todo de
+      // calle principal: se puede dar la vuelta, no hay pasadas de frente.
+      const coords = JSON.parse(init.body).coordinates;
+      const puntos = coords.map(([lng, lat]) => ({ lat, lng }));
+      const segments = puntos.slice(1).map((p, i) => {
+        const distance = metros(puntos[i], p);
+        // 25 km/h, la misma referencia urbana que usa la app.
+        return { distance, duration: Math.round((distance / 1000 / 25) * 3600) };
+      });
       return Response.json({
-        routes: [
+        features: [
           {
-            geometry: { coordinates: puntos.map((p) => [p.lng, p.lat]) },
-            distance: distanciaM,
-            // 25 km/h, la misma referencia urbana que usa la app.
-            duration: Math.round((distanciaM / 1000 / 25) * 3600),
+            geometry: { coordinates: coords },
+            properties: {
+              way_points: coords.map((_, i) => i),
+              segments,
+              extras: { waytype: { values: [[0, coords.length - 1, 2]] } },
+            },
           },
         ],
       });
@@ -126,8 +121,8 @@ function instalar() {
   };
 }
 
-const consultasDeMatriz = () => consultas.filter((u) => u.includes("openrouteservice")).length;
-const consultasDeTrazado = () => consultas.filter((u) => u.includes("directions/v5")).length;
+const consultasDeMatriz = () => consultas.filter((u) => u.includes("/v2/matrix")).length;
+const consultasDeTrazado = () => consultas.filter((u) => u.includes("/v2/directions")).length;
 
 test.before(() => {
   process.env.NEXT_PUBLIC_MAPBOX_TOKEN = "pk.prueba";

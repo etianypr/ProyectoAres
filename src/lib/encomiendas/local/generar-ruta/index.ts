@@ -31,7 +31,7 @@
 //   index.ts            calcular, elegir y confirmar la propuesta
 
 import { distanciaMetros, type Coordenada } from "@/lib/geo/coordenada";
-import { obtenerRutaCalles } from "@/lib/geo/mapbox/direcciones";
+import { obtenerRutaCalles } from "@/lib/geo/ors/direcciones";
 import { matrizCalles } from "@/lib/geo/matriz";
 import { nombreVisible } from "@/lib/encomiendas/paquete";
 import { resultadoCerrado } from "@/lib/encomiendas/estados";

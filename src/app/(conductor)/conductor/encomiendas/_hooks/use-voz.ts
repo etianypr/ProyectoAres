@@ -1,17 +1,16 @@
 "use client";
 
-// Lee en voz alta las indicaciones de manejo. Es la mejora más importante de
-// todo el cambio a Mapbox: hasta ahora el conductor tenía que LEER el cartel
-// mientras manejaba.
+// Lee en voz alta las indicaciones de manejo: sin esto el conductor tenía que
+// LEER el cartel mientras manejaba.
 //
-// Los textos no los armamos nosotros: vienen escritos en español desde la API
-// de Mapbox, con la distancia ya calculada ("En 300 metros, gire a la derecha
-// hacia Vicuña Mackenna"). Acá solo se decide CUÁNDO decir cada uno.
+// Los textos se arman con las instrucciones en español de OpenRouteService, a
+// 500 m, a 200 m y encima del giro ("En 200 metros, gire a la derecha a
+// Chacabuco"; ver pasosDeOrs en lib/geo/ors/navegacion.ts). Acá solo se decide
+// CUÁNDO decir cada uno.
 //
-// Verificado contra la API real: de 9 pasos, 8 traen avisos, en español y con
-// dos o tres anticipaciones cada uno. Así que cuando la voz no suena, el
-// problema NO es que falten los textos — es el sintetizador del teléfono. Los
-// tres motivos por los que se queda callado están tratados abajo.
+// Cada maniobra trae sus avisos, así que cuando la voz no suena el problema NO
+// es que falten los textos — es el sintetizador del teléfono. Los tres motivos
+// por los que se queda callado están tratados abajo.
 //
 // En la APK habla Android (spec 017, N1): el WebView no trae una síntesis de voz
 // que suene, y la de Android además baja la música en vez de pisarla.
@@ -132,8 +131,8 @@ const MS_SIN_REPETIR_AL_RECALCULAR = 20_000;
 /** Un aviso a menos de esto de la maniobra es el del giro (ver hablar). */
 const METROS_AVISO_DEL_GIRO = 200;
 
-// Dice el aviso que corresponda según lo que falta para la maniobra. Mapbox
-// entrega varios por maniobra (por ejemplo a 2 km, a 300 m y justo al llegar) y
+// Dice el aviso que corresponda según lo que falta para la maniobra. Hay
+// varios por maniobra (a 500 m, a 200 m y justo al llegar) y
 // acá se elige el más cercano de los que ya se alcanzaron, marcando los más
 // lejanos como dichos para no decir "en 300 metros" cuando ya faltan 50.
 export function useVozNavegacion(

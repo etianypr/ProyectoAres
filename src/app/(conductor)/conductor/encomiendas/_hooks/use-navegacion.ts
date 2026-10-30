@@ -2,11 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { distanciaAPolilinea } from "@/lib/geo/trazado";
-import { obtenerNavegacion, type PasoNavegacion } from "@/lib/geo/mapbox/navegacion";
-import { pasoEnCurso, restanteDelTramo } from "@/lib/geo/mapbox/recorrido";
+import { obtenerNavegacion, type PasoNavegacion } from "@/lib/geo/ors/navegacion";
+import { pasoEnCurso, restanteDelTramo } from "@/lib/geo/recorrido";
 import { distanciaMetros, type Coordenada, type Trazado } from "@/lib/geo/coordenada";
 
-// Un tramo pedido a Mapbox NO trae una instrucción: trae TODAS las maniobras
+// Un tramo pedido a la API NO trae una instrucción: trae TODAS las maniobras
 // hasta la parada, cada una con su trazado y sus avisos de voz. Recorrerlo es
 // cosa del teléfono — de qué maniobra estamos y cuántos metros faltan se
 // calcula con cada lectura de GPS, sin consultar nada.
@@ -38,7 +38,7 @@ const LECTURAS_FUERA_PARA_RECALCULAR = 2;
  *  cambia la parada — eso tiene que verse al toque. */
 const MS_MINIMO_ENTRE_CONSULTAS = 10_000;
 
-/** Tras una consulta que no trajo camino (sin señal, o Mapbox no respondió) se
+/** Tras una consulta que no trajo camino (sin señal, o la API no respondió) se
  *  espera esto antes de reintentar. Sin la espera, el reintento saldría con la
  *  siguiente lectura de GPS —una o dos por segundo— y un tramo sin cobertura se
  *  comería la cuota del mes en un rato. */
@@ -53,7 +53,7 @@ const METROS_SIN_RECALCULO = 100;
  *  es haber doblado mal (spec 017, N10). */
 const VELOCIDAD_MINIMA_RECALCULO_MS = 2;
 
-/** El rumbo se le pasa a Mapbox solo si es de hace menos que esto (spec 017,
+/** El rumbo se le pasa a la API solo si es de hace menos que esto (spec 017,
  *  N9). Uno más viejo es de antes de detenerse —o de caminar a la puerta— y
  *  puede enganchar la salida en la calzada contraria. */
 const MS_RUMBO_VIGENTE = 25_000;
@@ -64,7 +64,7 @@ const METROS_VUELTA_HECHA = 30;
 
 /** Lo que el hook necesita de la lectura de GPS. */
 export type OrigenNavegacion = Coordenada & {
-  /** Rumbo, que se le pasa a Mapbox para que enganche el arranque de la ruta
+  /** Rumbo, que se le pasa a la API para que enganche el arranque de la ruta
    *  en la calzada correcta. */
   heading?: number | null;
   /** Cuándo se midió ese rumbo por última vez (ms). */
@@ -86,7 +86,7 @@ type Tramo = {
   destino: Coordenada;
   pasos: PasoNavegacion[];
   trazado: Trazado;
-  /** Si la consulta que lo trajo llevaba el rumbo del auto. Sin rumbo, Mapbox
+  /** Si la consulta que lo trajo llevaba el rumbo del auto. Sin rumbo, la API
    *  puede haber enganchado la salida en la calzada contraria. */
   conRumbo: boolean;
   /** La ruta arranca dando la vuelta: la casa quedaba atrás. */
@@ -111,7 +111,7 @@ export type Navegacion = {
   tramoId: number | null;
   indicePaso: number;
   /** Lo que falta hasta la parada por calle, y la hora estimada de llegada
-   *  (ms), con los tiempos de Mapbox (spec 017, N4). */
+   *  (ms), con los tiempos de la API (spec 017, N4). */
   metrosAParada: number | null;
   segundosAParada: number | null;
   llegada: number | null;
@@ -207,7 +207,7 @@ export function useNavegacion(
     const cambioDestino = !sirve;
     // Arrancando el viaje el conductor está DETENIDO, y detenido el GPS no entrega
     // rumbo: la primera consulta —justo la de salir a la calle— sale a ciegas y
-    // Mapbox engancha la posición a la calzada que le quede más cerca. En una
+    // La API engancha la posición a la calzada que le quede más cerca. En una
     // avenida dividida, con las dos calzadas a doce metros, eso es cara o
     // sello; si sale cruz, la ruta arranca dando toda la vuelta a la manzana.
     // En cuanto aparece el rumbo —a los primeros metros de andar— se vuelve a
