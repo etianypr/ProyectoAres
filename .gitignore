@@ -47,3 +47,6 @@ next-env.d.ts
 
 # Worker de MapLibre: lo copia scripts/copiar-worker-mapa.mjs antes de dev y build (spec 019).
 /public/maplibre-gl-worker.mjs
+
+# Memoria del agente: una sola para todas las ramas (AGENTS.md, "Memoria").
+/MEMORY.md

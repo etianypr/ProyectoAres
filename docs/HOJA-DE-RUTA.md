@@ -3,6 +3,9 @@
 Qué se construye y en qué orden. Detalle de cada feature en `specs/` (índice:
 `specs/README.md`).
 
+**Prioridad (2026-11-05, dueño):** primero terminar la app del conductor (020, lo que queda de la
+019, 015, 016, 017, 018, 005, 003). El panel y los pagos (006, facturación) van después.
+
 ## Contexto del negocio
 
 - 1 conductor, 1 mandante (Starken / Mercado Libre), Arica, ~60 pedidos/día.

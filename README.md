@@ -1,112 +1,20 @@
-# ARES — reparto de encomiendas
+# ARES — reparto de encomiendas (Dashund)
 
-App del conductor (APK Android o PWA en el teléfono) + panel de oficina. Next.js 16.4 (App Router) +
-Supabase. Producto: `docs/DOCUMENTO-PRINCIPAL.md` · arquitectura: `docs/ARQUITECTURA.md` ·
-tipos: `docs/CLASES.md` · plan de trabajo: `docs/HOJA-DE-RUTA.md` y `specs/`.
-
-## Correr
+App del conductor (APK Android o PWA) + panel del jefe. Next.js 16.4 + Supabase, en Vercel.
 
 ```bash
 npm install
-cp .env.example .env.local   # completar con el proyecto Supabase
+cp .env.example .env.local   # completar con el proyecto de Supabase y las claves
 npm run dev
 ```
 
-En el teléfono hace falta HTTPS (GPS y voz): `npx ngrok http 3000` (`*.ngrok-free.app` ya
-permitido en `next.config.ts`).
-
-| Comando | |
-|---|---|
-| `npm run dev` / `build` / `lint` | desarrollo, build, eslint |
-| `npm test` | 664 pruebas sin red ni base (~40 s) |
-| `npm run test:base` | esquema de encomiendas contra la base real (solo lectura) |
-| `npm run test:esquema` | esquema completo contra `src/types/db.ts` |
-| `npm run sondear` | mide proveedores de direcciones con direcciones reales de Arica |
-| `npm run calles` | regenera el catálogo de calles de Arica desde OpenStreetMap (spec 016) |
-| `npm run mcp` | servidor MCP de datos geoespaciales (`mcp/`) |
-
-## App Android (APK)
-
-La APK (Capacitor, `android/`) abre `https://proyecto-ares-five.vercel.app/conductor`: cada
-deploy de Vercel le llega solo. Reinstalar hace falta solo si cambia `android/`; entonces se sube
-`APK_VERSION_MINIMA` en Vercel y la app avisa con el enlace de `APK_URL`.
-
-- **Build en GitHub**: tag `apk-v1.2.3` (o Actions → APK → Run workflow). Con los 4 secretos de
-  firma sale `ares-<versión>.apk` firmada en el Release; sin ellos, una de depuración. Clave y
-  secretos: `specs/015-app-android/quickstart.md`. La clave (`*.keystore`) no va al repositorio
-  y hay que respaldarla: firmada con otra, la APK nueva no se instala encima.
-- **Navegación de Google** (spec 019): la clave entra al compilar con la variable `MAPS_API_KEY`
-  (en GitHub, el secreto del mismo nombre). Sin ella la APK compila igual y navega con
-  OpenRouteService. La clave se restringe a la app Android `cl.dashund.ares` con la huella
-  SHA-1 de la firma (la de depuración y la de release son distintas).
-- **Instalar**: pasar el archivo al teléfono, abrirlo y permitir "instalar apps desconocidas".
-- **Build local** (Windows, JDK 21 + Android SDK 36, `android/local.properties` con
-  `sdk.dir=C:/…/Android/Sdk`), contra el servidor local:
-
-  ```powershell
-  npm run build; npx next start -p 3000      # dejarlo corriendo
-  $env:CAP_SERVER_URL="http://localhost:3000/conductor"; npx cap sync android
-  $env:JAVA_HOME="<JDK 21>"; cd android
-  & "$env:JAVA_HOME\bin\java.exe" "-Dorg.gradle.appname=gradlew" -jar gradle\wrapper\gradle-wrapper.jar assembleDebug
-  adb reverse tcp:3000 tcp:3000; adb install -r app\build\outputs\apk\debug\app-debug.apk
-  ```
-
-  Sin `CAP_SERVER_URL` apunta a producción. `gradlew.bat` falla con Java 17 en esta PC; el jar
-  del wrapper hace lo mismo. Depurar: `chrome://inspect` con el teléfono por USB; en la app,
-  Menú → Diagnóstico muestra los permisos y prueba el escáner.
-
-## Decisiones que no se ven en el código
-
-- **Datos del destinatario solo en el teléfono** (IndexedDB, `src/lib/encomiendas/local/`).
-  Al servidor sube solo el hecho: `encomienda_actividad`. Ver `docs/PRIVACIDAD.md`.
-- **Plus Code primero**: Arica no tiene numeración confiable (Mapbox acierta la puerta en
-  2 de 23 direcciones medidas). Un Plus Code se resuelve sin red (`src/lib/geo/plus-code.ts`);
-  se guarda siempre el código completo.
-- **El pago se calcula en Postgres** (`private.encomienda_congelar_dia()`); `pago.ts` es
-  una copia solo para la vista previa. **Tocar ambas juntas** (`pruebas/base.mjs` lo
-  verifica).
-- **Un día se valora al cerrar el día**; `pg_cron` cierra a las 00:30 las olvidadas.
-  Cada día guarda su tarifa (`regla_*` en `encomienda_pagos`); cambiar la regla no mueve
-  días anteriores.
-- **Los proveedores cambian sin avisar**: si las direcciones fallan, correr
-  `npm run sondear` primero (historia en `pruebas/README.md`).
-
-## Base de datos
-
-Migraciones en orden en el SQL Editor de Supabase; todas re-ejecutables y terminan con un
-`select` de verificación (todo `true`). Requieren `pg_cron` y `btree_gist`.
-
-1. `0001_base.sql` — empresa, perfiles/roles, conductores, storage
-2. `0002_encomiendas.sql` — encomiendas y cálculo del pago
-3. `0003_asistencia_ruta.sql` — motivo de no entrega (heredado, spec 012), bloques horarios, correlaciones WhatsApp
-4. `0004_aviso_manana.sql` — botón "Mañana" del aviso (spec 010)
-5. `0005_pago_solo_jefe.sql` — recalcular o valorar un día solo con rol de jefe; anon sin acceso
-6. `0006_conductor.sql` — "chofer" pasa a "conductor" en tablas, columnas, funciones y políticas (spec 002)
-7. `0007_indicadores.sql` — asignados y contactados por día de trabajo, meta del bono (spec 006)
-
-En el proyecto de Supabase están aplicadas las siete (2026-10-25).
-
-Roles: `admin` (todo), `operador` (todo menos crear cuentas), `conductor` (su ruta y sus
-cifras). El primer usuario registrado es admin.
-
-## Proveedores
-
-| Proveedor | Variable | Uso |
-|---|---|---|
-| Mapbox | `NEXT_PUBLIC_MAPBOX_TOKEN` (pública; restringir por URL) | búsqueda de direcciones y calle cercana a la parada (salen en la spec 019) |
-| OpenFreeMap | — (sin clave ni límite) | el mapa del conductor y la vista previa del punto, con MapLibre (spec 019) |
-| OpenRouteService | `NEXT_PUBLIC_ORS_KEY` (pública, gratis y sin tarjeta) | matriz de distancias por calle con que se ordena la ruta (500 consultas al día; un día son 2) |
-| Google Cloud Vision | `GOOGLE_VISION_KEY` o la misma `GOOGLE_MAPS_KEY` (servidor) | texto de las fotos de etiquetas y guía (el lector de Google Lens, spec 005) |
-| Google Geocoding | `GOOGLE_MAPS_KEY` (servidor) | último recurso para ubicar direcciones que Mapbox y OSM no numeran (spec 016) |
-| OpenStreetMap / Nominatim | — | segunda opinión de direcciones; catálogo de calles (Overpass, solo al regenerarlo) |
-| WhatsApp (Meta Cloud API) | ver `.env.example` | webhook listo; envío pendiente de verificación de negocio y token permanente |
-| Anthropic (Claude) | `ANTHROPIC_API_KEY` (servidor) · `ANTHROPIC_WORKSPACE_ID` · `LECTURA_MODELO` · `LECTURA_MODELO_GUIA` · `DIRECCION_MODELO` | leer la guía (Opus, varias fotos en una consulta) y las etiquetas que el teléfono no pudo (spec 005); corregir las direcciones sin ubicar, que el conductor confirma (spec 018); sin clave, texto pegado |
-| OpenRouteService | `ORS_API_KEY` (servidor) | solo servidor MCP |
-
-## Notas
-
-- `npm audit`: 5 altas aceptadas (`braces` ≤ 3.0.3 vía `eslint-config-next`; solo lint, sin
-  versión corregida). **No** correr `npm audit fix --force` (baja a Next 14).
-- Migración desde el sistema anterior ya hecha; scripts y respaldo de flota en el historial:
-  `git show 001a468:scripts/migrar-datos.mjs`, `git show 001a468:respaldo/vehiculos-encomiendas.json`.
-- Un conductor sin cuenta se invita desde Conductores → "Invitar".
+- Cómo trabajar en el repo (stack, comandos, convenciones, reglas, verificación): `AGENTS.md`.
+- Estado del proyecto y decisiones recientes: `MEMORY.md` (local; no se versiona).
+- Ramas: `main` es producción; cada feature va en su rama (ver `AGENTS.md`).
+- Sistema, datos, acceso y flujo del día: `docs/ARQUITECTURA.md` · tipos y módulos:
+  `docs/CLASES.md` · prioridades: `docs/HOJA-DE-RUTA.md` · privacidad: `docs/PRIVACIDAD.md` ·
+  WhatsApp: `docs/WHATSAPP.md` · specs: `specs/README.md`.
+- APK: se instala pasando el archivo al teléfono y permitiendo "instalar apps desconocidas". Firma
+  y secretos de GitHub: `specs/015-app-android/quickstart.md`.
+- Base: las migraciones de `supabase/migrations/` se corren en orden (detalle en
+  `docs/ARQUITECTURA.md` §2).

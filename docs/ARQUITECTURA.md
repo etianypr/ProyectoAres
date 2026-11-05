@@ -1,7 +1,7 @@
 # Arquitectura
 
-Fuente canónica de límites, datos y carpetas (constitución VI). Tipos y módulos en detalle:
-`docs/CLASES.md`. Estado: código al 2026-10-24 (specs 008 a 013; APK de la 015 en curso).
+Fuente canónica de límites, datos, acceso, flujo del día y carpetas (constitución VI). Tipos y
+módulos en detalle: `docs/CLASES.md`; producto y reglas: `AGENTS.md`. Estado: código al 2026-10-24 (specs 008 a 013; APK de la 015 en curso).
 
 ## 1. Sistema
 
@@ -114,6 +114,23 @@ vista esencial: `docs/CLASES.md` §1. Todas llevan `empresa_id` (trigger
 `src/lib/encomiendas/pago.ts` copia la aritmética solo para la vista previa
 (`pruebas/base.mjs` verifica que coincidan).
 
+Migraciones: 0001 base (empresa, perfiles y roles, conductores, storage) · 0002 encomiendas y
+cálculo del pago · 0003 bloques horarios y correlaciones de WhatsApp (y el `motivo` heredado) ·
+0004 botón "Mañana" · 0005 recalcular o valorar un día solo con rol de jefe · 0006 "chofer" →
+"conductor" · 0007 indicadores. Se corren en orden (SQL Editor o MCP de Supabase), son
+re-ejecutables, terminan en un `select` de verificación (todo `true`) y requieren `pg_cron` y
+`btree_gist`.
+
+**Acceso.** Roles: `admin` (todo; el primer usuario registrado), `operador` (todo menos crear
+cuentas) y `conductor` (su ruta y sus cifras; se invita desde Conductores → "Invitar"). El panel
+es solo para `admin`/`operador` y la app solo para `conductor`; RLS repite la regla.
+
+| Dato | Conductor | Jefe / operador |
+|---|---|---|
+| Nombre, teléfono, dirección, orden de ruta | solo los suyos, en su teléfono, durante el día | no existen en el servidor |
+| Conteos de entregadas y no entregadas | los suyos | de todos |
+| Reglas de pago, bonos y bloques horarios | los lee | los configura |
+
 ### Teléfono (IndexedDB `dashund-encomiendas` v5)
 
 | Store | Clave | Contenido | Relación |
@@ -139,6 +156,18 @@ del día nuevo. Cerrar sesión borra todo (con aviso), y también una cuenta sin
 pero solo cuando el servidor lo confirmó: un error de red nunca borra. La `cola` no se toca.
 
 ## 3. Flujos
+
+**El día del conductor.**
+1. Carga la guía (foto) → pedidos con OF y destino.
+2. Ubica las direcciones (Plus Code, buscadores, corregir con IA): confirma o corrige; nada
+   dudoso entra callado a la ruta.
+3. Genera la ruta: una propuesta, o hasta tres si difieren de verdad.
+4. Escanea cada etiqueta → "PARADA n de N" y la descripción del paquete. Se completan OF,
+   destinatario, teléfono y por pagar.
+5. Avisa a los receptores (WhatsApp, en pausa) y recorre la ruta: navega Google Maps con la burbuja
+   de ARES (spec 020); al acercarse a un pendiente, llama con un toque y la APK registra si contestó.
+6. Registra cada resultado, con la OF a la vista.
+7. Cierra el día: lista de no entregados → borrado → el jefe ve entregados y no entregados.
 
 ```mermaid
 sequenceDiagram
@@ -194,10 +223,9 @@ src/
 └── types/db.ts                   tablas + `Database` para supabase-js (valida pruebas/esquema.mjs)
 public/sw.js                      caché de /conductor para abrir sin señal
 capacitor.config.ts · capacitor/www/   APK: URL que abre · página sin señal
-android/ · .github/workflows/apk.yml   proyecto Android y su build (README)
+android/ · .github/workflows/apk.yml   proyecto Android y su build (AGENTS.md, "Comandos")
 mcp/ · pruebas/ (622) · supabase/migrations/ (0001–0007) · specs/
 ```
 
 Reglas de capas (A1–A10): `pruebas/arquitectura.test.mjs`. Estructura objetivo y lo que falta:
-`specs/002-reestructuracion-codigo/plan.md`. Acceso por rol:
-`docs/DOCUMENTO-PRINCIPAL.md` §8.
+`specs/002-reestructuracion-codigo/plan.md`. Acceso por rol: §2, "Acceso".
