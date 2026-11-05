@@ -9,7 +9,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         // Los plugins propios se registran antes de crear el puente (spec 015).
         registerPlugin(TelefonoPlugin.class);
-        registerPlugin(NavegacionPlugin.class);
+        registerPlugin(BurbujaPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

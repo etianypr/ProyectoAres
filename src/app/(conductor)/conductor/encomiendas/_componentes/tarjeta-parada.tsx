@@ -19,19 +19,19 @@ export function TarjetaParada({
   pedido,
   faltan,
   estado,
-  onAbrirMapas,
+  onNavegar,
 }: {
   secuencia: number;
   pedido: Pedido;
-  /** Lo que falta hasta ESTA parada por calle (spec 017, N4). Antes acá iban
-   *  los metros a la próxima maniobra, que ya están en el cartel de arriba y
-   *  no dicen cuánto queda para entregar. */
+  /** Lo que falta hasta ESTA parada (spec 017, N4): por el tramo de la línea del
+   *  día, o en línea recta si el auto no va por él (spec 020; entonces sin
+   *  segundos). */
   faltan: { metros: number; segundos: number | null; llegada: number | null } | null;
   /** El renglón de lo que contestó el receptor (lo arma la pantalla). */
   estado: ReactNode;
-  /** Navegar con Google (nativo/navegacion.ts, spec 019): los km de la parada son
-   *  el botón, y sin datos de navegación aparece igual. */
-  onAbrirMapas?: () => void;
+  /** Navegar con Google Maps y la burbuja de ARES (spec 020): los km de la parada
+   *  son el botón, y sin distancia aparece igual. */
+  onNavegar?: () => void;
 }) {
   const referencia = textoReferencia(pedido.referencia);
   const conPaquete = pedido.of != null || referencia != null;
@@ -87,16 +87,16 @@ export function TarjetaParada({
         {estado}
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1.5">
-        {(faltan && faltan.metros > 0) || onAbrirMapas ? (
+        {(faltan && faltan.metros > 0) || onNavegar ? (
           <div className="flex flex-col items-end">
             <button
               type="button"
-              disabled={!onAbrirMapas}
-              onClick={onAbrirMapas}
-              aria-label="Navegar con Google"
+              disabled={!onNavegar}
+              onClick={onNavegar}
+              aria-label="Navegar con Google Maps"
               className="flex items-center gap-1 rounded-full bg-brand-soft px-2.5 py-1 text-xs font-semibold tabular-nums text-brand active:scale-[0.97] disabled:active:scale-100"
             >
-              {onAbrirMapas ? <Navigation className="h-3 w-3 shrink-0" /> : null}
+              {onNavegar ? <Navigation className="h-3 w-3 shrink-0" /> : null}
               {faltan && faltan.metros > 0 ? formatDistancia(faltan.metros) : "Navegar"}
             </button>
             {faltan?.segundos != null && faltan.segundos > 0 ? (

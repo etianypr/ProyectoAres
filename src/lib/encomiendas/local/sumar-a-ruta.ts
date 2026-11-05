@@ -12,7 +12,7 @@ import { resultadoCerrado } from "@/lib/encomiendas/estados";
 import { deLngLat, type Coordenada } from "@/lib/geo/coordenada";
 import { obtenerRutaCalles } from "@/lib/geo/ors/direcciones";
 import { metrosEnMemoria } from "@/lib/geo/matriz";
-import { fijarTrazado, leerPedidos, leerRuta, ordenarRuta, pedidosEnOrden, type Pedido } from "./almacen";
+import { fijarTrazado, leerPedidos, leerRuta, ordenarRuta, pedidosEnOrden, tramosConPedidos, type Pedido } from "./almacen";
 import { lugarMasBarato, lugarParaReintentar, metrosEstimados, vueltaEstimada, type MetrosEntre, type PuntoDeRuta, type VueltaDesde } from "./planificar";
 
 type Ubicado = Pedido & PuntoDeRuta;
@@ -88,9 +88,11 @@ export async function sumarALaRuta(fecha: string): Promise<number> {
   // anterior y la línea azul hasta la parada activa se recalcula sola.
   if (guardada) {
     try {
-      const puntos = pedidosEnOrden(guardada, pedidos).filter(ubicado).map(coord);
-      const calles = await obtenerRutaCalles([inicio, ...puntos, ...(ruta.partida ? [ruta.partida] : [])]);
-      if (calles) await fijarTrazado(fecha, calles);
+      const ubicados = pedidosEnOrden(guardada, pedidos).filter(ubicado);
+      const calles = await obtenerRutaCalles([inicio, ...ubicados.map(coord), ...(ruta.partida ? [ruta.partida] : [])]);
+      // A qué pedido llega cada tramo (spec 020): la partida y la vuelta no son pedidos.
+      const tramos = calles ? tramosConPedidos(calles.tramos, [null, ...ubicados.map((p) => p.id), null]) : null;
+      if (calles) await fijarTrazado(fecha, { ...calles, tramos });
     } catch {
       // Queda el trazado anterior.
     }

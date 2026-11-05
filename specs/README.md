@@ -7,6 +7,8 @@ Orden de trabajo: `docs/HOJA-DE-RUTA.md`. Comandos en Claude Code: `/speckit-spe
 
 | Spec | Qué | Estado | Tareas | Abierto |
 |---|---|---|---|---|
+| [020](020-burbuja-google-maps/spec.md) Google Maps y la burbuja de ARES | ARES muestra la ruta y no guía; navega Google Maps (US$0) con la burbuja de la parada encima mientras haya un pedido abierto; fuera el kit y la navegación propia | plan listo | — | tareas (`/speckit-tasks`) |
+| [019](019-sin-mapbox/spec.md) sin Mapbox | ORS, MapLibre + OpenFreeMap, Google Geocoding con tope; su US1 (navegación) pasa a la 020 | en curso | 10/16 | direcciones sin Mapbox (T011–T013) y día real |
 | [015](015-app-android/spec.md) app Android (APK) | llamar con un toque y resultado automático, abrir sin señal, pantalla encendida, escáner | en curso | 27/30 | probar llamadas con chip (T019) |
 | [018](018-corregir-direcciones-ia/spec.md) corregir direcciones con IA | las "Sin ubicar" se corrigen con Mapbox, OSM, Google y el catálogo de calles | hecha (falta día real) | 9/10 | probar con una guía real |
 | [017](017-listo-para-terreno/spec.md) listo para terreno | errores del flujo, navegación fluida, rutas por calle y con horarios | en curso | 25/27 | prueba en terreno (T051) |
@@ -22,7 +24,7 @@ Orden de trabajo: `docs/HOJA-DE-RUTA.md`. Comandos en Claude Code: `/speckit-spe
 **Hechas**: 001 (asistencia de ruta) y 008 a 013. Lo que decidieron está en `docs/`: resumen
 por spec en `docs/HOJA-DE-RUTA.md`, modelo en `docs/CLASES.md`, WhatsApp en `docs/WHATSAPP.md`.
 Sus carpetas se borraron el 2026-10-24 y siguen en el historial de git. La próxima spec nueva es
-la 018.
+la 021.
 
 ## Reglas compartidas entre specs
 

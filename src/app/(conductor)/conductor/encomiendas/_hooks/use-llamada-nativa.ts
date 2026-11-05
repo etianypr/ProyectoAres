@@ -12,7 +12,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { alIrAlFondo, alVolverAPrimerPlano, esApp } from "@/lib/nativo/entorno";
-import { llamadasDesde, llamar as llamarNumero } from "@/lib/nativo/telefono";
+import { alRegistrarLlamada, llamadasDesde, llamar as llamarNumero } from "@/lib/nativo/telefono";
 import { MS_TOLERANCIA, resultadoDeLlamada, type ResultadoDetectado } from "@/lib/nativo/llamada";
 
 // Android escribe la llamada en el registro al colgar, y a veces tarda un poco.
@@ -72,36 +72,56 @@ export function useLlamadaNativa({ marcar, alNoSaber }: Opciones) {
     });
   }, []);
 
+  // Colgó: se busca la llamada en el registro. Dos señales, la que llegue primero
+  // (y la otra no repite la búsqueda): volver a primer plano, si se llamó desde
+  // ARES; o que Android escriba la llamada en el registro, si se llamó desde la
+  // burbuja sobre Google Maps y al colgar Android vuelve a Google Maps (spec 020).
+  const buscando = useRef(false);
   useEffect(() => {
     if (!esApp()) return;
-    return alVolverAPrimerPlano(() => {
+    const buscar = () => {
       const llamada = enCurso.current;
-      if (!llamada) return;
+      if (!llamada || buscando.current) return;
       const estaVuelta = vuelta.current;
       if (Date.now() - llamada.desdeMs > MS_VIGENCIA) {
         enCurso.current = null;
         return;
       }
+      buscando.current = true;
       void (async () => {
-        for (let intento = 0; intento < INTENTOS; intento++) {
-          if (vuelta.current !== estaVuelta) return;
-          const entradas = await llamadasDesde(llamada.numero, llamada.desdeMs - MS_TOLERANCIA);
-          const resultado = resultadoDeLlamada(entradas, llamada.desdeMs);
-          if (resultado) {
-            enCurso.current = null;
-            await opciones.current.marcar(llamada.pedidoId, resultado);
-            setDetectada((previa) => ({ pedidoId: llamada.pedidoId, resultado, n: (previa?.n ?? 0) + 1 }));
-            return;
-          }
-          // Sin permiso no va a aparecer nada: no vale la pena esperar.
-          if (entradas === null) break;
-          await new Promise((listo) => setTimeout(listo, MS_ENTRE_INTENTOS));
+        try {
+          await buscarEnRegistro(llamada, estaVuelta);
+        } finally {
+          buscando.current = false;
         }
-        if (vuelta.current !== estaVuelta) return;
-        enCurso.current = null;
-        opciones.current.alNoSaber(llamada.pedidoId);
       })();
-    });
+    };
+    const dejarDeVolver = alVolverAPrimerPlano(buscar);
+    const dejarDeRegistrar = alRegistrarLlamada(buscar);
+    return () => {
+      dejarDeVolver();
+      dejarDeRegistrar();
+    };
+
+    async function buscarEnRegistro(llamada: LlamadaEnCurso, estaVuelta: number) {
+      for (let intento = 0; intento < INTENTOS; intento++) {
+        if (vuelta.current !== estaVuelta) return;
+        const entradas = await llamadasDesde(llamada.numero, llamada.desdeMs - MS_TOLERANCIA);
+        const resultado = resultadoDeLlamada(entradas, llamada.desdeMs);
+        if (resultado) {
+          enCurso.current = null;
+          await opciones.current.marcar(llamada.pedidoId, resultado);
+          setDetectada((previa) => ({ pedidoId: llamada.pedidoId, resultado, n: (previa?.n ?? 0) + 1 }));
+          return;
+        }
+        // Sin permiso no va a aparecer nada: no vale la pena esperar.
+        if (entradas === null) break;
+        await new Promise((listo) => setTimeout(listo, MS_ENTRE_INTENTOS));
+      }
+      if (vuelta.current !== estaVuelta) return;
+      enCurso.current = null;
+      opciones.current.alNoSaber(llamada.pedidoId);
+    }
   }, []);
 
   const olvidarDetectada = useCallback(() => setDetectada(null), []);

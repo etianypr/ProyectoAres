@@ -36,7 +36,7 @@ import { matrizCalles } from "@/lib/geo/matriz";
 import { nombreVisible } from "@/lib/encomiendas/paquete";
 import { resultadoCerrado } from "@/lib/encomiendas/estados";
 import { minutoDelDia } from "../planificar";
-import { guardarRuta, leerPedidos, leerRuta, pedidosEnOrden } from "../almacen";
+import { guardarRuta, leerPedidos, leerRuta, pedidosEnOrden, tramosConPedidos } from "../almacen";
 import { resolverInicio } from "./partida";
 import { corregirAccesos, reintentarUbicar, tieneCoordenadas } from "./ubicar-pedidos";
 import { coord, elegirUtiles, medir, metrosPorMatriz, ordenPorEstrategia, TITULOS, vueltaPorMatriz } from "./estrategias";
@@ -238,9 +238,8 @@ export async function calcularRutaLocal(
   // puede costar tres veces más. Cuando el conductor elige otra, se le pide el
   // trazado de esa en ese momento (ver elegirAlternativa).
   //
-  // El límite de 25 puntos por consulta de Mapbox (un día de 30 paradas no
-  // entra) lo resuelve obtenerRutaCalles partiendo el pedido en tramos y
-  // pegando los trazados.
+  // Un día que no entra en una consulta (ORS acepta 70 puntos) lo parte en tramos
+  // y lo pega obtenerRutaCalles.
   // Con la vuelta: la línea del mapa, los km y el reloj cuentan el regreso.
   let calles = await obtenerRutaCalles([base, ...paradas.map(coord), llegada]);
 
@@ -280,6 +279,7 @@ export async function calcularRutaLocal(
     llegada,
     paradas,
     trazado: calles?.trazado ?? null,
+    tramos: tramosConPedidos(calles?.tramos, [null, ...paradas.map((p) => p.id), null]),
     distanciaM: calles?.distanciaM ?? null,
     duracionS: calles?.duracionS ?? null,
     sinUbicar,
@@ -332,6 +332,7 @@ export async function elegirAlternativa(
     paradas: alternativa.paradas,
     elegida: estrategia,
     trazado: calles?.trazado ?? null,
+    tramos: tramosConPedidos(calles?.tramos, [null, ...alternativa.paradas.map((p) => p.id), null]),
     distanciaM: calles?.distanciaM ?? null,
     duracionS: calles?.duracionS ?? null,
     sinTrazado: calles == null,
@@ -371,6 +372,7 @@ export async function retrazar(propuesta: PropuestaRuta): Promise<PropuestaRuta>
   return {
     ...propuesta,
     trazado: calles?.trazado ?? null,
+    tramos: tramosConPedidos(calles?.tramos, [null, ...propuesta.paradas.map((p) => p.id), null]),
     distanciaM: calles?.distanciaM ?? null,
     duracionS: calles?.duracionS ?? null,
     sinTrazado: calles == null && propuesta.paradas.length > 0,
@@ -385,6 +387,7 @@ export async function confirmarRutaLocal(propuesta: PropuestaRuta): Promise<Resu
     fecha: propuesta.fecha,
     pedidoIdsEnOrden: propuesta.paradas.map((p) => p.id),
     trazado: propuesta.trazado,
+    tramos: propuesta.tramos,
     distanciaM: propuesta.distanciaM,
     duracionS: propuesta.duracionS,
     advertencias: propuesta.advertencias,

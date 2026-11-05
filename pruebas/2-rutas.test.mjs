@@ -1,5 +1,5 @@
 // Prueba intensiva del armado de ruta y la geometría: los módulos reales de
-// lib/geo/trazado, lib/geo/ors/{direcciones,navegacion} y lib/rutas/orden-paradas.
+// lib/geo/trazado, lib/geo/ors/direcciones y lib/rutas/orden-paradas.
 // Las llamadas a OpenRouteService se interceptan con un doble de fetch.
 process.env.NEXT_PUBLIC_ORS_KEY = "ors.clave-de-prueba";
 
@@ -15,7 +15,6 @@ import {
 } from "@/lib/geo/trazado";
 import { ordenarParadas } from "@/lib/rutas/orden-paradas";
 import { obtenerRutaCalles, enRachas } from "@/lib/geo/ors/direcciones";
-import { obtenerNavegacion, elegirSalida } from "@/lib/geo/ors/navegacion";
 
 // Arica, coordenadas reales de la zona de reparto.
 const EMPRESA = { lat: -18.471152, lng: -70.289929 };
@@ -440,281 +439,25 @@ test("obtenerRutaCalles: pide sin radio (una parada lejos de la calle no bota la
   assert.deepEqual(cuerpos[0].extra_info, ["waytype"]);
 });
 
-// ----------------------------------------------------- obtenerNavegacion
-// Doble de ORS: el auto sale hacia el oeste por Chacabuco (650 m), dobla a la
-// derecha a Maipú (240 m) y llega.
-const NAV_COORDS = [[-70.29, -18.47], [-70.295, -18.475], [-70.3, -18.48]];
-const NAV_PASOS = [
-  { type: 11, instruction: "Camina hacia el oeste en Chacabuco", name: "Chacabuco", distance: 650, duration: 60, way_points: [0, 1] },
-  { type: 1, instruction: "Gire a la derecha a Maipú", name: "Maipú", distance: 240, duration: 30, way_points: [1, 2] },
-  { type: 10, instruction: "Llegar a Maipú, a la izquierda", name: "-", distance: 0, duration: 0, way_points: [2, 2] },
-];
-
-function respuestaNav({ coords = NAV_COORDS, pasos = NAV_PASOS, metros = 890, tipo = 2 } = {}) {
-  return {
-    ok: true,
-    status: 200,
-    json: async () => ({
-      features: [
-        {
-          geometry: { coordinates: coords },
-          properties: {
-            summary: { distance: metros },
-            segments: [{ steps: pasos }],
-            extras: { waytype: { values: [[0, coords.length - 1, tipo]] } },
-          },
-        },
-      ],
-    }),
-  };
-}
-
-test("obtenerNavegacion: normaliza el rumbo (0 a 359, entero)", async () => {
-  const cuerpos = [];
-  await conFetch(
-    async (url, init) => {
-      cuerpos.push(JSON.parse(init.body));
-      return respuestaNav();
-    },
-    async () => {
-      for (const rumbo of [0, 359.6, -45, 720, 400.4, NaN, null, undefined]) await obtenerNavegacion(EMPRESA, CENTRO, rumbo);
-    },
-  );
-  for (const c of cuerpos.filter((c) => c.bearings)) {
-    const [grados, tolerancia] = c.bearings[0];
-    assert.ok(Number.isInteger(grados) && grados >= 0 && grados < 360, `rumbo inválido: ${grados}`);
-    assert.equal(tolerancia, 90);
-    assert.equal(c.bearings.length, 1, "solo el origen lleva rumbo");
-  }
-});
-
-test("obtenerNavegacion: si el rumbo deja la consulta sin camino, reintenta sin rumbo", async () => {
-  const cuerpos = [];
-  const r = await conFetch(
-    async (url, init) => {
-      cuerpos.push(JSON.parse(init.body));
-      if (cuerpos.length === 1) return { ok: false, status: 404, json: async () => ({}) };
-      return respuestaNav();
-    },
-    () => obtenerNavegacion(EMPRESA, CENTRO, 90),
-  );
-  assert.equal(cuerpos.length, 2);
-  assert.ok(cuerpos[0].bearings);
-  assert.equal(cuerpos[1].bearings, undefined, "el reintento debe ir sin rumbo");
-  assert.equal(r.pasos.length, 3);
-});
-
-test("obtenerNavegacion: pasos de ORS con cartel, flecha y voz armada", async () => {
-  const r = await conFetch(async () => respuestaNav(), () => obtenerNavegacion(EMPRESA, CENTRO, 90));
-  const [salida, giro, llegada] = r.pasos;
-  // ORS dice "Camina" al salir, aun en auto.
-  assert.equal(salida.instruccion, "Siga hacia el oeste en Chacabuco");
-  assert.equal(salida.tipo, "depart");
-  assert.equal(salida.banner, "Maipú", "el cartel nombra la calle de la maniobra que viene");
-  assert.deepEqual(salida.trazado, NAV_COORDS.slice(0, 2));
-  // Del más lejano al más cercano: la salida, 500 m, 200 m y encima del giro.
-  assert.deepEqual(
-    salida.avisos.map((a) => [a.aMetros, a.texto]),
-    [
-      [650, "Siga hacia el oeste en Chacabuco"],
-      [500, "En 500 metros, gire a la derecha a Maipú"],
-      [200, "En 200 metros, gire a la derecha a Maipú"],
-      [40, "Gire a la derecha a Maipú"],
-    ],
-  );
-  assert.deepEqual([giro.tipo, giro.modificador, giro.distanciaM], ["turn", "right", 240]);
-  // 240 m no alcanzan para "en 200 metros" sin pisarse con el giro anterior.
-  assert.deepEqual(giro.avisos.map((a) => a.texto), ["Su destino está en Maipú, a la izquierda"]);
-  assert.equal(giro.banner, "Llegar a Maipú, a la izquierda", "sin nombre de calle, la frase");
-  assert.equal(llegada.tipo, "arrive");
-  assert.equal(llegada.banner, null);
-  assert.deepEqual(llegada.avisos, []);
-});
-
-test("obtenerNavegacion: rotonda con su salida", async () => {
-  const pasos = [
-    { type: 11, instruction: "Camina hacia el sur en Azola", name: "Azola", distance: 300, duration: 30, way_points: [0, 1] },
-    { type: 7, instruction: "Entre en la rotonda y tome la 2.ª salida a Tucapel", name: "Tucapel", exit_number: 2, distance: 200, duration: 20, way_points: [1, 2] },
-    { type: 10, instruction: "Llegar a Tucapel", name: "-", distance: 0, duration: 0, way_points: [2, 2] },
-  ];
-  const r = await conFetch(async () => respuestaNav({ pasos }), () => obtenerNavegacion(EMPRESA, CENTRO, null));
-  assert.deepEqual([r.pasos[1].tipo, r.pasos[1].salida], ["roundabout", 2]);
-});
-
-test("obtenerNavegacion: se traga cualquier fallo (corre en bucle mientras el conductor maneja)", async () => {
-  for (const respuesta of [
-    () => {
-      throw new Error("sin señal");
-    },
-    () => ({ ok: false, status: 500, json: async () => ({}) }),
-    () => ({ ok: false, status: 429, json: async () => ({}) }),
-    () => ({ ok: true, status: 200, json: async () => ({}) }),
-    () => ({ ok: true, status: 200, json: async () => ({ features: [{}] }) }),
-    () => ({ ok: true, status: 200, json: async () => ({ features: [{ geometry: { coordinates: NAV_COORDS }, properties: { segments: [{}] } }] }) }),
-  ]) {
-    assert.equal(await conFetch(async () => respuesta(), () => obtenerNavegacion(EMPRESA, CENTRO, 90)), null);
-  }
-});
-
-test("obtenerNavegacion sin clave no revienta la pantalla del conductor", async () => {
-  const clave = process.env.NEXT_PUBLIC_ORS_KEY;
-  delete process.env.NEXT_PUBLIC_ORS_KEY;
-  try {
-    assert.equal(await obtenerNavegacion(EMPRESA, CENTRO, 90), null);
-  } finally {
-    process.env.NEXT_PUBLIC_ORS_KEY = clave;
-  }
-});
-
-test("obtenerNavegacion: pide en español, con instrucciones y el tipo de calle", async () => {
-  const cuerpos = [];
-  await conFetch(
-    async (url, init) => {
-      cuerpos.push(JSON.parse(init.body));
-      return respuestaNav();
-    },
-    () => obtenerNavegacion(EMPRESA, CENTRO, null),
-  );
-  assert.equal(cuerpos[0].language, "es");
-  assert.equal(cuerpos[0].instructions, true);
-  assert.deepEqual(cuerpos[0].extra_info, ["waytype"]);
-});
-
-// ------------------------------------------------- dar la vuelta (terreno 2026-10-28)
-// El auto mira al este y la casa queda 120 m al oeste, en la misma calle. De
-// frente, la ruta da la vuelta a la manzana; sin rumbo, arranca hacia atrás.
-const AUTO = [-70.2899, -18.4711];
-const CASA = [-70.291, -18.4711];
-const TIPO = { principal: 2, calle: 3 };
-
-/** Una ruta de navegación de ORS. Su primer punto es donde enganchó al auto. */
-function respuestaRuta({ metros, coords, clase = "principal" }) {
-  const pasos = [
-    { type: 11, instruction: "Camina por la calle", name: "Calle", distance: metros, duration: metros / 8, way_points: [0, coords.length - 1] },
-    { type: 10, instruction: "Llegar a Calle", name: "-", distance: 0, duration: 0, way_points: [coords.length - 1, coords.length - 1] },
-  ];
-  return respuestaNav({ coords, pasos, metros, tipo: TIPO[clase] });
-}
-
-const DE_FRENTE = { metros: 985, coords: [AUTO, [-70.288, -18.4711], [-70.288, -18.4725], [-70.291, -18.4725], CASA] };
-const HACIA_ATRAS = { metros: 119, coords: [AUTO, [-70.2905, -18.4711], CASA] };
-
-function conDoble(respuestas) {
-  const original = globalThis.fetch;
-  const cuerpos = [];
-  globalThis.fetch = async (url, init) => {
-    const c = JSON.parse(init.body);
-    cuerpos.push(c);
-    return c.bearings ? respuestas.deFrente() : respuestas.sinRumbo();
-  };
-  return { cuerpos, restaurar: () => (globalThis.fetch = original) };
-}
-
-test("elegirSalida: sin rumbo si ahorra 200 m desde el mismo punto; 'Da la vuelta' solo si arranca hacia atrás", () => {
-  const p = (lng, lat) => ({ lng, lat });
-  const deFrente = { metros: 985, salida: p(-70.2899, -18.4711), arranque: 90, calle: "principal" };
-  const atras = { metros: 119, salida: p(-70.2899, -18.4711), arranque: 270, calle: "principal" };
-  const SI_VUELTA = { sinRumbo: true, daLaVuelta: true };
-  const NO = { sinRumbo: false, daLaVuelta: false };
-  assert.deepEqual(elegirSalida(deFrente, atras, 90), SI_VUELTA);
-  assert.deepEqual(elegirSalida(deFrente, { ...atras, metros: 850 }, 90), NO, "ahorrar 135 m no vale la maniobra");
-  // En la esquina: la salida corta dobla a la calle de al lado. Se usa, pero no
-  // es "dar la vuelta": eso ya lo dice la instrucción.
-  assert.deepEqual(elegirSalida(deFrente, { ...atras, arranque: 0 }, 90), { sinRumbo: true, daLaVuelta: false });
-  assert.deepEqual(
-    elegirSalida(deFrente, { ...atras, salida: p(-70.2899, -18.47125) }, 90),
-    NO,
-    "15 m al lado es la calzada de enfrente",
-  );
-  assert.deepEqual(elegirSalida(deFrente, { ...atras, salida: null }, 90), NO);
-  assert.deepEqual(elegirSalida(deFrente, { ...atras, arranque: null }, 90), { sinRumbo: true, daLaVuelta: false });
-  // El ángulo da la vuelta por el norte: 350° y 20° son casi lo mismo.
-  assert.deepEqual(elegirSalida(deFrente, { ...atras, arranque: 20 }, 350), { sinRumbo: true, daLaVuelta: false });
-  assert.deepEqual(elegirSalida(deFrente, { ...atras, arranque: 190 }, 10), SI_VUELTA);
-  // En un pasaje o una residencial angosta no se da la vuelta: sería salir en
-  // reversa (terreno 2026-10-29). Doblar en la esquina sí.
-  const pasaje = { ...atras, calle: "calle" };
-  assert.deepEqual(elegirSalida({ ...deFrente, calle: "calle" }, pasaje, 90), NO);
-  assert.deepEqual(elegirSalida({ ...deFrente, calle: null }, { ...atras, calle: null }, 90), NO, "sin dato de la calle, no");
-  assert.deepEqual(elegirSalida({ ...deFrente, calle: "calle" }, { ...pasaje, arranque: 0 }, 90), { sinRumbo: true, daLaVuelta: false });
-});
-
-test("obtenerNavegacion: con la casa atrás en un pasaje, sigue de frente", async () => {
-  const doble = conDoble({
-    deFrente: () => respuestaRuta({ ...DE_FRENTE, clase: "calle" }),
-    sinRumbo: () => respuestaRuta({ ...HACIA_ATRAS, clase: "calle" }),
+// ------------------------------------------- los tramos de la línea del día
+// Con ellos la app mide cuánto falta hasta la parada sin pedir otra ruta (spec 020).
+test("obtenerRutaCalles: un tramo por parada, pegados y con sus índices en el trazado", async () => {
+  const puntos = [EMPRESA, ...alAzar(90, 7), EMPRESA];
+  const registro = [];
+  const r = await conFetch(fetchRutaFalsa(registro), () => obtenerRutaCalles(puntos));
+  assert.ok(registro.length >= 2, "este día se pide en más de una consulta");
+  assert.equal(r.tramos.length, puntos.length - 1);
+  assert.equal(r.tramos[0].desde, 0);
+  assert.equal(r.tramos.at(-1).hasta, r.trazado.length - 1);
+  r.tramos.forEach((t, k) => {
+    if (k > 0) assert.equal(t.desde, r.tramos[k - 1].hasta, "cada tramo arranca donde terminó el anterior");
+    const [lng, lat] = r.trazado[t.hasta];
+    assert.deepEqual({ lat, lng }, puntos[k + 1], "el tramo k llega al punto k+1");
   });
-  try {
-    const r = await obtenerNavegacion({ lng: AUTO[0], lat: AUTO[1] }, { lng: CASA[0], lat: CASA[1] }, 90, { permitirVuelta: true });
-    assert.equal(r.daLaVuelta, false);
-    assert.equal(r.trazado.length, DE_FRENTE.coords.length, "no sale en reversa del pasaje");
-  } finally {
-    doble.restaurar();
-  }
-});
-
-test("obtenerNavegacion: parada en la esquina, sale doblando sin decir 'Da la vuelta'", async () => {
-  // La salida corta va al norte por la calle de al lado: el auto mira al este.
-  const ESQUINA = { metros: 140, coords: [AUTO, [-70.2899, -18.4705], [-70.291, -18.4705], CASA] };
-  const doble = conDoble({ deFrente: () => respuestaRuta(DE_FRENTE), sinRumbo: () => respuestaRuta(ESQUINA) });
-  try {
-    const r = await obtenerNavegacion({ lng: AUTO[0], lat: AUTO[1] }, { lng: CASA[0], lat: CASA[1] }, 90, { permitirVuelta: true });
-    assert.equal(r.trazado.length, ESQUINA.coords.length, "usa la salida corta");
-    assert.equal(r.daLaVuelta, false);
-    assert.doesNotMatch(r.pasos[0].avisos[0].texto, /Da la vuelta/);
-  } finally {
-    doble.restaurar();
-  }
-});
-
-test("obtenerNavegacion: saliendo hacia la parada con la casa atrás, da la vuelta y lo dice", async () => {
-  const doble = conDoble({ deFrente: () => respuestaRuta(DE_FRENTE), sinRumbo: () => respuestaRuta(HACIA_ATRAS) });
-  try {
-    const r = await obtenerNavegacion({ lng: AUTO[0], lat: AUTO[1] }, { lng: CASA[0], lat: CASA[1] }, 90, { permitirVuelta: true });
-    assert.equal(doble.cuerpos.length, 2, "pide las dos rutas");
-    assert.equal(r.daLaVuelta, true);
-    assert.equal(r.trazado.length, HACIA_ATRAS.coords.length, "usa la ruta corta");
-    assert.match(r.pasos[0].avisos[0].texto, /^Da la vuelta\./);
-  } finally {
-    doble.restaurar();
-  }
-});
-
-test("obtenerNavegacion: sin permiso para la vuelta (se salió del camino) pide solo la de frente", async () => {
-  const doble = conDoble({ deFrente: () => respuestaRuta(DE_FRENTE), sinRumbo: () => respuestaRuta(HACIA_ATRAS) });
-  try {
-    const r = await obtenerNavegacion({ lng: AUTO[0], lat: AUTO[1] }, { lng: CASA[0], lat: CASA[1] }, 90);
-    assert.equal(doble.cuerpos.length, 1);
-    assert.equal(r.daLaVuelta, false);
-    assert.equal(r.trazado.length, DE_FRENTE.coords.length);
-  } finally {
-    doble.restaurar();
-  }
-});
-
-test("obtenerNavegacion: en la calzada de enfrente (bandejón) no da la vuelta", async () => {
-  // La ruta sin rumbo enganchó el auto 15 m al lado: su primer punto.
-  const ENFRENTE = { metros: 119, coords: [[-70.2899, -18.47125], [-70.2905, -18.47125], CASA] };
-  const doble = conDoble({ deFrente: () => respuestaRuta(DE_FRENTE), sinRumbo: () => respuestaRuta(ENFRENTE) });
-  try {
-    const r = await obtenerNavegacion({ lng: AUTO[0], lat: AUTO[1] }, { lng: CASA[0], lat: CASA[1] }, 90, { permitirVuelta: true });
-    assert.equal(r.daLaVuelta, false);
-    assert.equal(r.trazado.length, DE_FRENTE.coords.length);
-    assert.doesNotMatch(r.pasos[0].avisos[0].texto, /Da la vuelta/);
-  } finally {
-    doble.restaurar();
-  }
-});
-
-test("obtenerNavegacion: si la de frente falla, sirve la sin rumbo aunque no convenga la vuelta", async () => {
-  const doble = conDoble({ deFrente: () => ({ ok: false, status: 404, json: async () => ({}) }), sinRumbo: () => respuestaRuta(HACIA_ATRAS) });
-  try {
-    const r = await obtenerNavegacion({ lng: AUTO[0], lat: AUTO[1] }, { lng: CASA[0], lat: CASA[1] }, 90, { permitirVuelta: true });
-    assert.equal(r.daLaVuelta, false);
-    assert.equal(r.trazado.length, HACIA_ATRAS.coords.length);
-  } finally {
-    doble.restaurar();
-  }
+  assert.equal(
+    r.tramos.reduce((s, t) => s + t.metros, 0),
+    r.distanciaM,
+  );
 });
 
 // ------------------------------- la ruta del día no sale en reversa de un pasaje

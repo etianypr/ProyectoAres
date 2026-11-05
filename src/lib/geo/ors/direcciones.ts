@@ -37,7 +37,13 @@ export type RutaCalles = {
   duracionS: number;
   /** Uno por punto pedido (null en el primero y donde no hubo dato). */
   puntos?: (CalleDelPunto | null)[];
+  /** Uno por punto pedido menos el primero: el tramo k llega al punto k+1.
+   *  `desde`/`hasta` son índices en `trazado`. Con esto la app mide cuánto falta
+   *  hasta la parada sin pedir otra ruta (spec 020). */
+  tramos?: TramoDeRuta[];
 };
+
+export type TramoDeRuta = { desde: number; hasta: number; metros: number; segundos: number };
 
 // Parte una lista de puntos en tramos de como máximo "max", repitiendo el
 // último punto de cada tramo como primero del siguiente para que los trazados
@@ -232,6 +238,7 @@ export async function obtenerRutaCalles(puntosOrdenados: Coordenada[]): Promise<
   let distanciaM = 0;
   let duracionS = 0;
   const puntos: (CalleDelPunto | null)[] = puntosOrdenados.map(() => null);
+  const tramos: TramoDeRuta[] = [];
   let desde = 0;
 
   for (const grupo of enTramos(puntosOrdenados, MAX_PUNTOS_POR_CONSULTA)) {
@@ -245,11 +252,13 @@ export async function obtenerRutaCalles(puntosOrdenados: Coordenada[]): Promise<
     desde += grupo.length - 1;
     for (const t of pedido.tramos) {
       // El primer punto de cada tramo es el último del anterior.
+      const inicio = Math.max(0, trazado.length - 1);
       trazado.push(...(trazado.length === 0 ? t.linea : t.linea.slice(1)));
+      tramos.push({ desde: inicio, hasta: trazado.length - 1, metros: Math.round(t.metros), segundos: Math.round(t.segundos) });
       distanciaM += t.metros;
       duracionS += t.segundos;
     }
   }
 
-  return { trazado, distanciaM: Math.round(distanciaM), duracionS: Math.round(duracionS), puntos };
+  return { trazado, distanciaM: Math.round(distanciaM), duracionS: Math.round(duracionS), puntos, tramos };
 }

@@ -24,19 +24,18 @@
 
         </activity>
 
-        <!-- Navegación de Google dentro de ARES (spec 019). Vertical, como el resto de
-             la app del conductor. -->
-        <activity
-            android:name=".NavegacionActivity"
-            android:theme="@style/AppTheme.NoActionBar"
-            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|screenLayout|uiMode|density"
-            android:exported="false" />
-
-        <!-- La clave del kit de navegación de Google entra al compilar (MAPS_API_KEY);
-             vacía, la app navega con OpenRouteService. -->
-        <meta-data
-            android:name="com.google.android.geo.API_KEY"
-            android:value="${MAPS_API_KEY}" />
+        <!-- La burbuja de ARES sobre Google Maps (spec 020): un servicio en primer
+             plano sostiene la ventana mientras ARES está atrás. "specialUse" y no
+             "location": ARES no usa el GPS con la app atrás (la constitución deja
+             fuera el GPS permanente); guía Google Maps. -->
+        <service
+            android:name=".BurbujaServicio"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Muestra la parada de reparto activa sobre la app de navegacion, con sus botones." />
+        </service>
 
         <!-- Escáner de Google (ML Kit) con su propia pantalla: sin permiso de cámara
              (spec 015, US3). -->
@@ -67,4 +66,10 @@
     <uses-permission android:name="android.permission.CALL_PHONE" />
     <uses-permission android:name="android.permission.READ_CALL_LOG" />
     <uses-feature android:name="android.hardware.telephony" android:required="false" />
+    <!-- La burbuja de ARES sobre Google Maps (spec 020): "Mostrar sobre otras
+         apps" lo da el conductor una vez; el servicio en primer plano evita que
+         Android cierre ARES mientras está atrás. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 </manifest>
