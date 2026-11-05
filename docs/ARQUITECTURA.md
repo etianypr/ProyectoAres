@@ -1,6 +1,6 @@
 # Arquitectura
 
-Fuente canónica de límites, datos, acceso, flujo del día y carpetas (constitución VI). Tipos y
+Fuente canónica de límites, datos, acceso y carpetas (constitución VI). Tipos y
 módulos en detalle: `docs/CLASES.md`; producto y reglas: `AGENTS.md`. Estado: código al 2026-10-24 (specs 008 a 013; APK de la 015 en curso).
 
 ## 1. Sistema
@@ -157,17 +157,8 @@ pero solo cuando el servidor lo confirmó: un error de red nunca borra. La `cola
 
 ## 3. Flujos
 
-**El día del conductor.**
-1. Carga la guía (foto) → pedidos con OF y destino.
-2. Ubica las direcciones (Plus Code, buscadores, corregir con IA): confirma o corrige; nada
-   dudoso entra callado a la ruta.
-3. Genera la ruta: una propuesta, o hasta tres si difieren de verdad.
-4. Escanea cada etiqueta → "PARADA n de N" y la descripción del paquete. Se completan OF,
-   destinatario, teléfono y por pagar.
-5. Avisa a los receptores (WhatsApp, en pausa) y recorre la ruta: navega Google Maps con la burbuja
-   de ARES (spec 020); al acercarse a un pendiente, llama con un toque y la APK registra si contestó.
-6. Registra cada resultado, con la OF a la vista.
-7. Cierra el día: lista de no entregados → borrado → el jefe ve entregados y no entregados.
+El día del conductor, paso a paso: `AGENTS.md`, "El flujo del conductor". Abajo, cómo viajan los
+datos en dos de esos pasos.
 
 ```mermaid
 sequenceDiagram

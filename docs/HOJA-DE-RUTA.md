@@ -5,6 +5,14 @@ Qué se construye y en qué orden. Detalle de cada feature en `specs/` (índice:
 
 **Prioridad (2026-11-05, dueño):** primero terminar la app del conductor (020, lo que queda de la
 019, 015, 016, 017, 018, 005, 003). El panel y los pagos (006, facturación) van después.
+La ruta pasa a evaluarse por km, tiempo, éxito por parada y ganancia (antes, solo km), y los ⚠ de
+la guía se resuelven antes de armarla (`AGENTS.md`, "El flujo del conductor").
+Anotadas el 2026-11-05, sin orden decidido todavía:
+- 021, lector de etiquetas: definida. La foto de la etiqueta se lee solo en el teléfono, sin IA ni
+  Cloud Vision. Ahorra unos US$5–9 al mes, y los datos de los destinatarios dejan de salir del
+  teléfono.
+- 022 a 025, en borrador: pedidos con ⚠, paradas cercanas, criterios de ruta y referencias en
+  direcciones.
 
 ## Contexto del negocio
 

@@ -50,3 +50,8 @@ next-env.d.ts
 
 # Memoria del agente: una sola para todas las ramas (AGENTS.md, "Memoria").
 /MEMORY.md
+
+# Skills: el original está en .agents/skills/ y .claude/skills/ tiene enlaces (junctions) que git
+# subiría como copias. Los recrea scripts/enlazar-skills.mjs. Las de Spec Kit sí van aquí.
+/.claude/skills/*
+!/.claude/skills/speckit-*/

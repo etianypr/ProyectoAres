@@ -3,6 +3,27 @@ App que suple al pioneta: ayuda a un conductor de Arica a ubicar direcciones, ar
 contactar al receptor y registrar cada entrega, y le deja al jefe los conteos para calcular el pago.
 La prioridad es entregar más en menos tiempo, con pocos toques.
 
+## El flujo del conductor
+Es lo más importante del proyecto: todo cambio en la app del conductor se mide contra este flujo.
+
+1. **Cargar la guía.** El conductor saca 3 o 4 fotos de su guía de despacho, según cuántos
+   paquetes traiga. Con eso la app sabe la OF y la dirección de cada pedido, y los ubica.
+2. **Intentar resolver los ⚠ de la guía.** Una OF que no se puede identificar o una dirección en
+   duda (sin ubicar, o una calle que existe en dos o más lugares) se intenta resolver **antes** de
+   armar la ruta: el conductor elige el lugar o llama al receptor (el teléfono se consulta en
+   Infologistic). Si no se resuelve, por ejemplo porque no contesta, la ruta se arma igual y el
+   pedido sigue con ⚠ (ver "Pedidos con problemas").
+3. **Armar la ruta,** con los criterios de "Rutas" (km, tiempo, éxito por parada y ganancia).
+4. **Cargar el auto.** Para ordenar los paquetes en el auto según la ruta, el conductor pasa por
+   todas las etiquetas, así que ahí se escanea cada paquete. El código de barras dice en qué parada
+   va («PARADA n de N»), y la etiqueta completa el nombre, el teléfono y el POR PAGAR. Los ⚠ del
+   escaneo se resuelven ahí mismo. La ruta es la misma con la que se carga el auto.
+5. **Recorrer.** Con el auto cargado, cada pedido tiene todos sus datos para subir el éxito por
+   parada. Google Maps guía con la burbuja de ARES encima; al acercarse a un pendiente, se llama
+   con un toque, y cada parada se cierra como entregada o no entregada.
+6. **Cerrar el día.** Se muestra la lista de no entregados, se borran los datos del día y al jefe
+   le llegan los conteos.
+
 ## Stack y estructura
 Next.js 16.4 (App Router) + Supabase, publicado en Vercel. Node.js 24. Dos experiencias que no
 comparten layout: el panel del jefe (escritorio) y la app del conductor (APK Android o PWA).
@@ -23,8 +44,10 @@ comparten layout: el panel del jefe (escritorio) y la app del conductor (APK And
   están en `.env.example`.
 - Pruebas con `node:test`, sin framework (`pruebas/`). Servidor MCP de datos geo en `mcp/`
   (registrado en `.mcp.json`).
-- Spec Kit: la constitución está en `.specify/memory/constitution.md` (v1.4.0) y el índice en
-  `specs/README.md`. Prioridad: la app del conductor; el panel y los pagos van después.
+- **Todo lo que falta desarrollar** está en `specs/`, una carpeta por feature. El
+  índice, el próximo número y cómo se trabaja por ramas están en su `README.md`. Spec Kit: la
+  constitución está en `.specify/memory/constitution.md` (v1.4.0). Prioridad: la app del conductor;
+  el panel y los pagos van después.
 
 ```text
 src/
@@ -45,9 +68,26 @@ supabase/migrations/            # SQL re-ejecutable; cada una termina en un sele
 pruebas/ · mcp/ · scripts/ · specs/ · docs/
 ```
 
-El detalle está en `docs/`: `ARQUITECTURA.md` (sistema, datos, acceso, flujo del día y carpetas),
-`CLASES.md` (glosario, tipos, estados y dónde está cada cosa), `HOJA-DE-RUTA.md` (prioridades y lo
-que se midió), `PRIVACIDAD.md` y `WHATSAPP.md`. El estado del proyecto está en `MEMORY.md`.
+## Documentos: cuándo leer cada uno
+Este archivo alcanza para la mayoría de las tareas. Los demás no se leen siempre: solo cuando la
+tarea toca lo que cubren, y solo la parte que hace falta. La excepción es `MEMORY.md`, que se lee al
+empezar.
+
+| Documento | Leerlo cuando la tarea… |
+|---|---|
+| `MEMORY.md` | empieza (estado del proyecto y decisiones recientes) |
+| `docs/ARQUITECTURA.md` | cambia un límite del sistema, una tabla, un store, una ruta de API, un proveedor o una carpeta; o necesita saber cómo viaja un dato (teléfono ↔ servidor ↔ proveedores) o quién accede a qué |
+| `docs/CLASES.md` | crea o cambia un tipo, un estado, un módulo o un nombre del dominio; necesita el glosario (§0), los estados (§2), el armado de rutas (§2) o en qué archivo está algo (§4) |
+| `docs/HOJA-DE-RUTA.md` | decide qué hacer después, empieza una spec nueva o propone cambiar el algoritmo de rutas (ahí está lo que ya se midió y se descartó) |
+| `docs/PRIVACIDAD.md` | agrega o cambia un proveedor, manda datos de destinatarios fuera del teléfono o toca el borrado (el proveedor se registra ahí; A10 lo verifica) |
+| `docs/WHATSAPP.md` | toca los avisos, la plantilla de Meta o `api/whatsapp`, o va a activar WhatsApp |
+| `specs/README.md` y la carpeta de la feature | trabaja en una feature o anota una nueva: su `spec.md`, `plan.md` y `tasks.md`, y `quickstart.md` para verificar a mano |
+| `.specify/memory/constitution.md` | crea o revisa una spec o un plan (los comandos `/speckit-*` la leen solos) |
+| `pruebas/README.md` | escribe o arregla pruebas, o una prueba pasa y el comportamiento real falla (fixtures viejos) |
+| `mcp/README.md` | toca el servidor MCP |
+| `node_modules/next/dist/docs/` | escribe código de Next.js: solo la guía de lo que se toca (rutas, server actions, Proxy, caché) |
+
+`README.md` es para quien llega al repo en GitHub; el agente no lo necesita.
 
 ## Comandos
 PowerShell, desde la raíz.
@@ -68,26 +108,49 @@ npm run sondear          # mide los proveedores de direcciones con direcciones r
 Para probar en el teléfono hace falta HTTPS: `npx ngrok http 3000`.
 
 APK en GitHub: tag `apk-v1.2.3` (o Actions → APK → Run workflow); la firma y sus secretos están en
-`specs/015-app-android/quickstart.md`. Build local contra el servidor
-local, con JDK 21 (está en `%LOCALAPPDATA%\Java\`; el JDK 17 de Program Files falla) y adb en
-`%LOCALAPPDATA%\Android\Sdk\platform-tools\`:
+`specs/015-app-android/quickstart.md`. El build local contra el PC (JDK 21, adb, `CAP_SERVER_URL`)
+y la depuración están en la skill `apk-local`. Sin `CAP_SERVER_URL`, la APK apunta a producción.
 
-```powershell
-npm run build; npx next start -p 3000      # dejarlo corriendo
-$env:CAP_SERVER_URL="http://localhost:3000/conductor"; npx cap sync android
-$env:JAVA_HOME="<JDK 21>"; cd android
-& "$env:JAVA_HOME\bin\java.exe" "-Dorg.gradle.appname=gradlew" -jar gradle\wrapper\gradle-wrapper.jar assembleDebug
-adb reverse tcp:3000 tcp:3000; adb install -r app\build\outputs\apk\debug\app-debug.apk
-```
+## Skills y hooks
+Las skills viven en `.agents/skills/` (las usan Cursor, Copilot y OpenCode) y están enlazadas en
+`.claude/skills/`. Claude Code carga cada una sola cuando la tarea lo pide. Git no guarda los
+enlaces: en un clon nuevo, `node scripts/enlazar-skills.mjs` los crea.
 
-Sin `CAP_SERVER_URL`, la APK apunta a producción. Para depurar: `chrome://inspect` con el teléfono
-por USB, o Menú → Diagnóstico en la app.
+- Propias, una por tema; cada una trae el porqué de sus reglas, los archivos, las pruebas, lo
+  pendiente y los docs que no calzan con el código:
+  - `rutas-ares`: armar la ruta y ordenar las paradas.
+  - `direcciones-arica`: ubicar las direcciones (Plus Code, buscadores, IA, calles repetidas).
+  - `lectura-starken`: la guía de despacho y la etiqueta (código de barras, OF, POR PAGAR).
+  - `base-local-idb`: la base del teléfono (stores, versiones, cola, borrado del día).
+  - `privacidad-destinatarios`: qué dato va a dónde, y checklists por tipo de cambio.
+  - `recorrer-conductor`: verificar una pantalla como el conductor.
+  - `apk-local`: compilar e instalar la APK contra el PC.
+- De terceros (`skills-lock.json`): `debugging-capacitor`, `capacitor-best-practices`,
+  `capacitor-security`, `capacitor-plugin-development`, `safe-area-handling`,
+  `property-based-testing`, `verification-before-completion`, `web-design-guidelines`,
+  `systematic-debugging`, `grill-me` y `find-skills`. Si una contradice este archivo, manda este
+  archivo. Lo que recomiendan y en ARES **no** se hace sin preguntar:
+  - Quitar `server.url` de la APK, pasar los datos del día de IndexedDB a SQLite, un CSP estricto
+    de `index.html` (ARES es Next.js) o `CapacitorHttp` global (cambia el `fetch` de toda la app).
+  - Correr `npx @capgo/...@latest`, instalar plugins `@capgo/*` o usar Capgo Live Updates: es
+    código y dependencia de terceros.
+  - Agregar `fast-check` u otra dependencia de pruebas: las pruebas son `node:test` sin framework.
+  - De `capacitor-plugin-development`, solo sirve la parte de Android: los plugins viven en
+    `android/app/src/main/java/cl/dashund/ares/`, el respaldo web en `src/lib/nativo/`, no hay iOS
+    ni paquete npm (nunca `npm publish`), y los datos de una llamada no se escriben en el log.
+  - Borrar código de `MainActivity` o tocar `capacitor.config.ts`/`android/` por las barras del
+    sistema (`safe-area-handling`): primero medir en el teléfono.
+- Hook `.claude/hooks/revisar-commit.mjs` (en `.claude/settings.json`): antes de cada `git commit`
+  busca teléfonos, RUT, correos, `.env`, claves y fotos, y pide confirmación si encuentra algo. Las
+  direcciones no las detecta: hay que mirarlas en el diff.
 
 ## Ramas y publicación
 - `main` es producción: Vercel publica cada push (proyecto `proyecto-ares`) y la APK lo carga.
   Solo entra lo terminado y verificado.
-- Cada feature se desarrolla en su propia rama, creada desde `main` y con el nombre de su spec
-  (`020-burbuja-google-maps`). Vuelve a `main` cuando pasa la verificación y el dueño lo aprueba.
+- Cada feature se desarrolla en su propia rama, creada desde `main` y con el nombre de su carpeta
+  en `specs/` (`021-lector-etiquetas`). Vuelve a `main` cuando pasa la verificación
+  y el dueño lo aprueba. La feature se anota en `main` antes de empezar, y el índice se edita solo
+  ahí. Los pasos están en `specs/README.md`.
 - Cada rama genera un preview en Vercel (detrás del login de Vercel), para probar antes de pasar a
   `main`.
 - `respaldo-mapbox` guarda la última versión con Mapbox. En ella no se trabaja.
@@ -135,7 +198,7 @@ y un agente no debe "corregir".
 - **Contexto.** La empresa es **Dashund**: 1 conductor y 1 mandante (Starken, con envíos de Mercado
   Libre), en Arica, con unos 100 destinos al día. Los pedidos llegan en la guía de despacho de
   Infologistic, que no tiene API (no volver a preguntarlo). El nombre, el teléfono y el POR PAGAR
-  solo vienen en la etiqueta.
+  vienen en la etiqueta; el teléfono también se puede consultar a mano en Infologistic.
 - **Datos de destinatarios.** Nombre, teléfono, dirección, OF y fotos viven solo en el teléfono y
   se borran al cerrar el día. Al servidor sube solo el hecho (`encomienda_actividad`).
   - Nunca van al servidor, a los logs ni al repo (comentarios, commits, docs o pruebas). Las
@@ -153,12 +216,57 @@ y un agente no debe "corregir".
   - "Dejar como pendiente" manda la parada al final de la ruta.
   - La disponibilidad (lo que dice el receptor) y el resultado son dimensiones separadas.
 - **OF.** Se acepta cualquiera que tenga dígitos. La que no tiene 9 lleva ⚠ y nunca bloquea. Se
-  quitan los ceros a la izquierda: el código de barras de 26 dígitos trae la OF en los dígitos
-  15 a 23. En el paquete no se escribe nada; la parada muestra la OF y su descripción.
+  quitan los ceros a la izquierda, para que la del código de barras (9 posiciones, con ceros) calce
+  con la de la guía. En el paquete no se escribe nada; la parada muestra la OF y su descripción.
+- **Pedidos con problemas (⚠).** Se marcan con ⚠ desde el momento en que aparecen, y se resuelven
+  en ese mismo paso del flujo:
+  - **Al leer la guía, antes de armar la ruta:** una OF que no se puede identificar (ilegible, o
+    distinta de 9 dígitos), y una dirección sin ubicar o con una calle que existe en dos o más
+    lugares (ver "Direcciones en Arica"). Si no se resuelve, el pedido entra igual a la ruta, con
+    la primera dirección que encontró la búsqueda y con ⚠. La app avisa **dos paradas antes** de
+    llegar a él, para confirmar antes de gastar combustible y tiempo en ir.
+  - **Al armar la ruta:** una parada muy lejos de las demás, o que no alcanza su horario.
+  - **Al escanear:** una dirección de la etiqueta distinta de la de la guía; un paquete que no
+    está en la guía (se agrega como pedido); y bultos o paquetes de la guía sin escanear (si no
+    vienen en el auto, quedan en «No entregados» al cerrar el día y vuelven a Starken).
+  - *Pendiente:* hoy el ⚠ solo marca la OF distinta; los demás problemas se avisan en la pantalla
+    donde aparecen, no en el pedido. Un pedido sin resolver queda fuera de la ruta (con
+    advertencia) en vez de entrar con la primera dirección y ⚠, y falta el aviso dos paradas antes
+    (spec 022).
+- **Escaneo de la etiqueta de Starken (spec 005).** Tiene dos partes que no se mezclan: el código
+  de barras dice *qué paquete es* y la foto de la etiqueta dice *a quién va*. Se escanea al cargar
+  el auto y también desde la parada, cuando le falta el teléfono.
+  - **Código de barras.** En la APK lo lee el escáner de Google, que se abre solo al entrar; fuera
+    de la APK se escribe la OF. Es un Code 128 de 26 dígitos que empieza con 92: los dígitos 15 a
+    23 son la OF y los 24 a 26, el bulto. Cualquier otro número se toma como una OF escrita a mano.
+  - La OF sale solo del código o de lo que escribe el conductor, nunca del texto ni de la IA: es la
+    llave que une la etiqueta, el pedido y la parada, y un dígito mal leído enlazaría otro paquete.
+  - Si la OF está en el día, se muestra «PARADA n de N» (o «SIN RUTA TODAVÍA») y la descripción
+    del paquete en lo más grande, y se suma el bulto («Bultos: 1 de 2»). Funciona sin señal.
+    Escanear dos veces el mismo bulto no lo duplica.
+  - Si la OF no está en el día: «Este paquete no está en los pedidos de hoy» y el botón «Agregarlo
+    como pedido».
+  - Al cargar el auto, un contador muestra los escaneados sobre el total. Los de la guía que quedan
+    sin escanear son los que faltan, y hay que avisarle a Starken.
+  - **Foto de la etiqueta.** Completa el destinatario, el teléfono (+569), el POR PAGAR con su monto
+    (nunca se supone $0) y la descripción del paquete. La lee un lector de texto y, con la IA
+    encendida, también la IA, que es la única que describe el paquete. Si no se puede leer, se pega
+    el texto o se eligen tipo, tamaño y color con tres toques.
+    *Pendiente (spec 021, definida):* la foto se va a leer solo en el teléfono (ML Kit + un lector
+    especializado en los formatos de Starken), sin IA ni Cloud Vision, y la descripción va a ser con
+    tres toques. Sale US$0 y los datos de los destinatarios no salen del teléfono.
+  - Si la foto trae una OF distinta de la del código, no se usa: es la etiqueta de otro paquete. Lo
+    ya cargado no se pisa, salvo con una foto cuya OF coincide con la del código.
+  - Si la dirección de la etiqueta no coincide con la de la guía, no se cambia sola: se avisa y el
+    conductor elige cuál vale.
+  - No se extrae RUT, remitente, correo ni cuenta corriente. La foto queda como foto del paquete,
+    solo en el teléfono.
 - **Pago.** Se calcula en Postgres (`private.encomienda_congelar_dia()`), y `lib/encomiendas/pago.ts`
   es una copia para la vista previa. Las dos se tocan juntas y se corre `npm run test:base`. Cada
   día guarda su tarifa, así que cambiar la regla no mueve los días anteriores.
-- **Rutas.** El objetivo son los km.
+- **Rutas.** Se evalúan por cuatro criterios: km, tiempo, porcentaje de éxito por parada y
+  ganancia. *Pendiente (spec 024):* hoy el optimizador ordena por km (con zonas y horarios); falta
+  definir cómo pesan los otros tres.
   - La ruta es cerrada: vuelve a la central.
   - Cada zona se recorre una sola vez (`generar-ruta/zonas.ts`, zonas de 900 m).
   - No se da la vuelta en pasajes ni en calles residenciales.
@@ -166,7 +274,8 @@ y un agente no debe "corregir".
     ya está en el óptimo práctico: no proponer ALNS, Tabu ni colonias de hormigas. Lo que mejora la
     ruta es ubicar bien las direcciones.
   - Se muestra una propuesta por defecto, y hasta tres solo si difieren de verdad.
-- **Navegación (spec 020).** ARES muestra la ruta, es importante que en cada parada tambien te muestre que paradas tienes cerca (esto por si tenemos un pedido pendiente o agendamos una entrega que la aplicacion no sabe) y maneja las paradas, pero **no guía**. Guía la
+  - Antes de tocar la ruta: skill `rutas-ares` (qué se midió, dónde está cada cosa, cómo medir).
+- **Navegación (spec 020).** ARES muestra la ruta, es importante que en cada parada tambien te muestre que paradas tienes cerca (esto por si tenemos un pedido pendiente o agendamos una entrega que la aplicacion no sabe; *pendiente*, spec 023) y maneja las paradas, pero **no guía**. Guía la
   app Google Maps, con la burbuja de ARES encima, ligada al pedido abierto y siempre con el botón
   "Navegar". El Navigation SDK y la navegación propia de ARES (cartel y voz) se fueron.
 - **Plata.** El dueño no puede pagar sorpresas.
@@ -179,14 +288,29 @@ y un agente no debe "corregir".
   (`WHATSAPP_EN_PAUSA`). Sin las variables, la app funciona sin avisos (spec 013); no se empuja
   trabajo de WhatsApp. En Meta, el orden de los botones (Sí, estaré · Mañana · Otro horario) es el
   del payload y no se cambia.
-- **Plus Code primero.** En Arica las casas no tienen numeración confiable. Un Plus Code se resuelve
-  sin red y se guarda completo. Ojo: una misma dirección puede existir en Arica y en Azapa.
+- **Direcciones en Arica.** Muchas casas no tienen numeración confiable, y hay calles que se llaman
+  igual en distintos sectores de la ciudad.
+  - **Plus Code primero.** Es la "dirección" que Google Maps saca de las coordenadas
+    (`XXXX+XX Arica`, un cuadrado de ~14 m). Se resuelve sin red ni proveedor
+    (`lib/geo/plus-code.ts`), y se guarda el código completo, que no depende de la ciudad.
+  - Una dirección que calza en más de un lugar se marca con ⚠ y se intenta resolver antes de armar
+    la ruta. Si no se resuelve, entra con la primera dirección encontrada, sin perder el ⚠ (ver
+    "Pedidos con problemas").
+  - **Referencias.** Muchos pedidos traen, además de la dirección, una referencia para encontrar la
+    casa: «calle X con calle Y», «frente a…», «al lado de…». La dirección real es la que lleva la
+    numeración; lo demás es referencia. Para ubicar el pedido se usa solo la calle con su número
+    (los buscadores y también la IA de la spec 018), y la referencia queda en el pedido para el
+    conductor. *Pendiente:* la limpieza de la consulta (`geocoding/consulta.ts`) no quita las
+    referencias con «con», y a la IA no se le dice esta regla (spec 025).
 - **Proveedores de direcciones.** Cambian sin avisar, y un fixture viejo pasa en verde igual. Si las
   direcciones fallan, primero se mide con `npm run sondear` (avisando lo que gasta) y después se
   toca código.
 - **APK.** Solo hace falta reinstalarla si cambia `android/`; en ese caso se sube
   `APK_VERSION_MINIMA` en Vercel. La clave de firma (`*.keystore`) no va al repo: una APK firmada
   con otra clave no se instala encima.
+  - El `server.url` de producción en `capacitor.config.ts` y el service worker son a propósito: la
+    app es Next.js con servidor y no se puede empaquetar. Las skills de Capacitor los marcan como
+    error; no se quitan.
 - **Base.** No se cambian nombres de tablas o columnas, ni se borran columnas, sin aprobación: el
   teléfono puede estar corriendo código anterior. El nombre de la base IndexedDB tampoco se
   cambia, porque dejaría huérfanos los datos.
@@ -204,8 +328,9 @@ y un agente no debe "corregir".
 - Se implementa el gesto real del conductor en terreno (cámara en mano, de a una foto), no un atajo
   equivalente. Antes de cerrar, recorrerlo como él: qué botón, en qué orden, con la cámara o con la
   galería.
-- Spec Kit: no se generan checklists. Una spec terminada se borra de `specs/` y su resumen pasa a
-  `docs/HOJA-DE-RUTA.md`. La próxima spec nueva es la 021.
+- Spec Kit: no se generan checklists. Una feature terminada se borra de `specs/` y
+  su resumen pasa a `docs/HOJA-DE-RUTA.md`. El próximo número está en
+  `specs/README.md`.
 
 ## Límites
 - ✅ Siempre: correr la verificación que corresponde.
@@ -220,6 +345,8 @@ y un agente no debe "corregir".
 - ⚠ Pregunta antes: migraciones contra Supabase. Hay un solo proyecto: es producción.
 - ⚠ Pregunta antes: cambios en `android/`, porque obligan a recompilar y reinstalar la APK.
 - ⚠ Pregunta antes: borrar archivos.
+- ⚠ Pregunta antes: instalar skills de terceros. Se leen enteras antes, y se descartan si
+  contradicen este archivo (`route-optimization` proponía las metaheurísticas que «Rutas» descarta).
 - 🚫 Nunca: datos reales de destinatarios en el repo, ni secretos en el código o en el chat.
 - 🚫 Nunca: tocar otro proyecto de la cuenta de Vercel que no sea `proyecto-ares`.
 - 🚫 Nunca: crear cuentas, claves o cuotas de Google, ni cargar secretos en Vercel. Eso lo hace el
@@ -243,7 +370,8 @@ Según lo que cambió:
 - **Pantalla del conductor:** no hay pruebas de componentes de React. Se recorre a mano en el
   teléfono o a 360 px, con los escenarios del `quickstart.md` de la spec, en modo prueba (nada va a
   la base ni por WhatsApp; hay GPS simulado). En la APK: `chrome://inspect` y Menú → Diagnóstico.
-- **`android/`:** build local de la APK e instalación con adb.
+  El paso a paso está en la skill `recorrer-conductor`.
+- **`android/`:** build local de la APK e instalación con adb (skill `apk-local`).
 - **MCP:** `pruebas/16-mcp.test.mjs`, que ya corre en `npm test`.
 
 ## Memoria
