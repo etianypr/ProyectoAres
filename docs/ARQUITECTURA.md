@@ -9,13 +9,14 @@ módulos en detalle: `docs/CLASES.md`; producto y reglas: `AGENTS.md`. Estado: c
 flowchart LR
   subgraph TEL["Teléfono · APK Android o navegador · /conductor"]
     UI["pantalla.tsx + hooks"] --> LOCAL["lib/encomiendas/local"] --> IDB[("IndexedDB<br/>pedidos · rutas · cola · dias · fotos")]
-    UI --> NAT["lib/nativo"] --> PLUG["android/ · plugin Telefono<br/>llamar · registro de llamadas · pantalla<br/>texto de fotos (ML Kit) · voz de manejo · escáner de Google<br/>plugin Navegacion: navegación de Google (spec 019)"]
+    UI --> NAT["lib/nativo"] --> PLUG["android/ · plugin Telefono<br/>llamar · pantalla<br/>texto de fotos (ML Kit) · escáner de Google<br/>plugin Burbuja: la parada sobre Google Maps (spec 020)"]
+    PLUG -- "intent: solo el punto" --> GMAPS["app Google Maps (guía)"]
     SW["sw.js · caché de /conductor"]
   end
   subgraph EXT["Proveedores"]
     MAPBOX["Mapbox (direcciones; sale en la spec 019)"]
     OFM["OpenFreeMap (el mapa, sin clave)"]
-    ORS["OpenRouteService (orden, trazado, navegación)"]
+    ORS["OpenRouteService (orden y línea del día)"]
     OSM["OSM / Nominatim"]
     GOOGLE["Google Geocoding"]
     VISION["Google Cloud Vision"]
@@ -61,10 +62,16 @@ de OpenStreetMap con `npm run calles`; Overpass solo recibe el recuadro). Flujo:
 
 **APK (spec 015).** Capacitor abre la web publicada (`capacitor.config.ts`, `server.url` =
 `…vercel.app/conductor`): cada deploy le llega solo. Lo nativo está en `android/` (plugin propio
-`Telefono` en Java y el escáner de Google, ML Kit) y la web lo usa solo a través de
-`src/lib/nativo/`, que fuera de la APK cae a lo de la web (`tel:`, preguntar "¿Contestó?",
-Screen Wake Lock, `speechSynthesis`). La voz de las indicaciones en la APK es la de Android
-(TextToSpeech, baja la música mientras habla): el WebView no trae una síntesis que suene (spec 017).
+`Telefono` y `Burbuja` en Java, y el escáner de Google, ML Kit) y la web lo usa solo a través de
+`src/lib/nativo/`, que fuera de la APK cae a lo de la web (`tel:`,
+Screen Wake Lock, Google Maps por enlace). ARES no guía (spec 020): los km de la parada abren la
+app Google Maps y encima queda la burbuja (`BurbujaServicio`, servicio en primer plano
+`specialUse` con una ventana sobre otras apps), que dibuja la vista que manda la web y le devuelve
+cada toque. Navegando va achicada y se abre sola al llegar a la parada: escucha la ubicación pasiva
+que ya pide Google Maps (`BurbujaLlegada`, tipo `location`, solo mientras está en curso). Con la
+burbuja en curso, `WebViewAres` impide que la WebView congele la página atrás (la 156 la congela al
+minuto y los toques no se guardaban); la web lo atiende con las mismas funciones de la tarjeta (`botones-parada.ts`).
+Contrato: `specs/020-burbuja-google-maps/contracts/burbuja.md`.
 `public/sw.js` guarda páginas y estáticos de `/conductor` (red primero, caché
 sin señal) para abrir la ruta en modo avión; sin nada guardado se ve
 `capacitor/www/sin-senal.html`. Reinstalar hace falta solo si cambia `android/`; entonces
@@ -136,7 +143,7 @@ es solo para `admin`/`operador` y la app solo para `conductor`; RLS repite la re
 | Store | Clave | Contenido | Relación |
 |---|---|---|---|
 | `pedidos` | `id` | `Pedido`: destinatario, OF y referencia del paquete, llamada, resultado de la visita y su `aviso` de WhatsApp; `fecha` = su día | `aviso.codigo` ↔ `encomienda_whatsapp_correlaciones` |
-| `rutas` | `fecha` | `Ruta`: `orden` de visita + trazado (cerrado: vuelve a `partida`) | `orden[]` → pedidos |
+| `rutas` | `fecha` | `Ruta`: `orden` de visita + trazado (cerrado: vuelve a `partida`) + `tramos` (dónde empieza y termina cada parada en el trazado; opcional, spec 020) | `orden[]` → pedidos |
 | `cola` | `id` | `ActividadPorEnviar` | `id` = `encomienda_actividad.id` (sin duplicados) |
 | `fotos` | `id` (índice `por_fecha`) | `Foto` del paquete, JPEG ≤ 1280 px (spec 003) | `Pedido.fotoId`; se borra al cerrarse el pedido y con el día |
 | `dias` | `fecha` | `ResumenDia`: solo cifras de un día ya borrado (spec 007): entregas, cobros sumados y pedidos por origen de carga (005), sin datos de destinatarios | inicio y cierre → `encomienda_jornadas` si la ruta ya no está |
@@ -193,7 +200,7 @@ multiplicaría las consultas de trazado y le haría elegir al conductor entre op
 src/
 ├── proxy.ts                      sesión Supabase por request (lib/supabase/sesion-proxy)
 ├── app/(app)/                    panel: encomiendas (dia/_componentes) · conductores (_componentes) · configuracion · @modal
-├── app/(conductor)/conductor/    PWA y APK: encomiendas (pantalla, que solo une · _componentes: parada activa, carril, hoja, ventanas · _hooks: navegación, acciones de la parada, propuesta, botón atrás · _mapa: ruta-mapa (MapLibre + OpenFreeMap, spec 019), estilo, cámara, marcadores, capa-paradas: las paradas dibujadas por el mapa —WebGL—, no como elementos de la página) · diagnostico (APK)
+├── app/(conductor)/conductor/    PWA y APK: encomiendas (pantalla, que solo une · _componentes: parada activa, carril, hoja, ventanas · _hooks: hacia la parada (km y aviso de 300 m por el tramo de la línea del día), botones de la parada (los de la tarjeta y la burbuja), burbuja, acciones de la parada, propuesta, botón atrás · _mapa: ruta-mapa (MapLibre + OpenFreeMap, spec 019), estilo, cámara, marcadores, capa-paradas: las paradas dibujadas por el mapa —WebGL—, no como elementos de la página) · diagnostico (APK)
 ├── app/(conductor)/tema-dashund  el tema de la app del conductor (diseño "Plano" con el naranja de Dashund, Manrope + IBM Plex Mono); solo lo carga el layout del conductor
 ├── components/marca/logo-dashund  el logo de Dashund (cara de perro salchicha): inicio de sesión, menú, pantalla de carga; public/dashund.svg es el mismo dibujo y de ahí salen los íconos (scripts/generar-iconos.mjs)
 ├── components/ui/campo           la caja de texto del conductor: la etiqueta va adentro (52 px, 44 la compacta) y el estado en un renglón debajo; DireccionInput la usa cuando recibe `etiqueta`
@@ -205,17 +212,17 @@ src/
 │   ├── comun/                    fechas · format · forms · utils · uuid · deslizar · telefono · periodo · periodo-servidor
 │   ├── encomiendas/              catalogos · estados · pago · periodos · config · paquete · contrato-whatsapp · lectura/ (guía, etiqueta, código de barras)
 │   │   └── local/                idb · almacen/ (lecturas, pedidos, ruta, terreno…) · generar-ruta/ (partida, ubicar-pedidos, estrategias, horarios) · planificar · replanificar · sumar-a-ruta · corregir-direcciones · enviar · sincronizar-whatsapp
-│   ├── geo/                      coordenada · trazado · recorrido (paso en curso, lo que falta) · plus-code · openrouteservice (MCP) · estilo-mapa (OpenFreeMap con los tonos Dashund y el worker de MapLibre, que copia scripts/copiar-worker-mapa.mjs a public/) · matriz (distancias por calle con ORS, por bloques, en memoria) · ors/ (cliente · direcciones: trazado del día sin reversa en calles estrechas · navegacion: pasos, cartel y voz · vuelta: tipo de calle) · geocoding/ (consulta · calles · calles-arica generado · mapbox · nominatim · codigo · google · completar-numero · ubicar) · direccion-ia/ (contrato · servidor · cliente: corregir con IA, spec 018)
+│   ├── geo/                      coordenada · trazado · hacia-parada (km a la parada activa por su tramo, spec 020) · plus-code · openrouteservice (MCP) · estilo-mapa (OpenFreeMap con los tonos Dashund y el worker de MapLibre, que copia scripts/copiar-worker-mapa.mjs a public/) · matriz (distancias por calle con ORS, por bloques, en memoria) · ors/ (cliente · direcciones: línea del día y sus tramos por parada, sin reversa en calles estrechas · vuelta: tipo de calle) · geocoding/ (consulta · calles · calles-arica generado · mapbox · nominatim · codigo · google · completar-numero · ubicar) · direccion-ia/ (contrato · servidor · cliente: corregir con IA, spec 018)
 │   │   └── mapbox/               token · acceso (Tilequery) (salen en la spec 019)
 │   ├── rutas/orden-paradas/      exacto · construccion · mejora · perturbacion · con-horarios · sin-congelar
 │   ├── whatsapp/                 meta · correlacion
 │   ├── conductores/              vencimientos
-│   └── nativo/                   entorno · telefono · llamada · escaner · version (APK) · mapas · navegacion (Google dentro de la APK, spec 019)
+│   └── nativo/                   entorno · telefono · llamada · escaner · version (APK) · mapas · burbuja (la parada sobre Google Maps, spec 020)
 └── types/db.ts                   tablas + `Database` para supabase-js (valida pruebas/esquema.mjs)
 public/sw.js                      caché de /conductor para abrir sin señal
 capacitor.config.ts · capacitor/www/   APK: URL que abre · página sin señal
 android/ · .github/workflows/apk.yml   proyecto Android y su build (AGENTS.md, "Comandos")
-mcp/ · pruebas/ (622) · supabase/migrations/ (0001–0007) · specs/
+mcp/ · pruebas/ (658) · supabase/migrations/ (0001–0007) · specs/
 ```
 
 Reglas de capas (A1–A10): `pruebas/arquitectura.test.mjs`. Estructura objetivo y lo que falta:

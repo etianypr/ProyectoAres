@@ -25,25 +25,23 @@ el "un solo lugar" de FR-006.
 | Campo | Tipo | Nota |
 |---|---|---|
 | `id` | `IdBoton` | qué hace al tocarlo (abajo) |
-| `texto` | `string` | el de la tarjeta de hoy ("Llamar", "Pedido finalizado", …) |
+| `texto` | `string` | el de la tarjeta ("Pedido entregado", "Llamar", "No se entrega", …) |
 | `detalle` | `string?` | la consecuencia, en las salidas ("Se tacha por hoy") |
 | `tono` | `"marca" \| "ok" \| "peligro" \| "borde-marca" \| "borde-ok" \| "borde-peligro" \| "neutro"` | el color de hoy; la tarjeta lo pasa a clases, la burbuja a colores Dashund |
-| `soloIcono` | `boolean?` | el "volver a llamar" redondo del medio |
+| `soloIcono` | `boolean?` | el redondo del medio: llamar, o escanear si no hay teléfono |
 | `abreAres` | `boolean` | `escanear`, `telefono` |
 
-`IdBoton` = `"llamar" | "escanear" | "telefono" | "entregado" | "no_se_pudo" | "contesto" |
-"no_contesto" | "finalizado" | "pendiente" | "no_entregado" | "volver"` (botones del paso) y
+`IdBoton` = `"llamar" | "escanear" | "telefono" | "entregado" | "no_se_pudo" | "pendiente" |
+"no_entregado" | "volver"` (botones del paso) y
 `"deshacer" | "navegar" | "ares"` (fijos de la burbuja).
 
-`botonesDeParada(activa, fase): BotonParada[][]` — por fase (hoy en el JSX de
-`parada-activa.tsx`):
+`botonesDeParada(activa, fase): BotonParada[][]` — por fase (`Fase` = `en_parada` | `salidas`
+desde el 2026-11-06; antes había tres pasos alrededor de "¿contestó?"):
 
 | Fase | Filas |
 |---|---|
-| `antes_llamar` con teléfono | `[llamar]` |
-| `antes_llamar` sin teléfono | `[escanear]` · `[telefono, entregado, no_se_pudo]` |
-| `esperando_resultado` | `[contesto, llamar(soloIcono), no_contesto]` |
-| `confirmado` / `esperando_entrega` | `[finalizado]` · `[llamar, no_se_pudo]` |
+| `en_parada` con teléfono | `[entregado (ok), llamar (soloIcono), no_se_pudo "No se entrega" (peligro)]` |
+| `en_parada` sin teléfono | `[entregado, escanear (soloIcono), no_se_pudo]` · `[telefono "Teléfono a mano"]` |
 | `salidas` | `[pendiente]` · `[no_entregado]` · `[volver]` |
 
 `estadoDeParada(activa, whatsapp): { texto, tono } | null` — el renglón "Pidió …", "Estará en
@@ -60,7 +58,7 @@ su domicilio", "Sin respuesta todavía" (hoy también en el JSX), compartido igu
 | `destino` | `{ lat, lng } \| null` | el punto de la parada; `null` = sin punto ("Navegar" abre ARES). Queda en el teléfono: a Google Maps va solo al navegar |
 | `filas` | `BotonParada[][]` | `botonesDeParada` |
 | `aviso` | `{ texto: string, deshacer: boolean } \| null` | `deshacer` / `confirmacion` de `use-acciones-parada` |
-| `nueva` | `boolean` | cambió la parada desde la última vista: la burbuja se abre |
+| `nueva` | `boolean` | cambió la parada desde la última vista: la burbuja queda achicada (se abre sola solo con un `aviso` con `deshacer`, y se achica cuando se va) |
 
 Validación: `titulo` no vacío; `filas` puede ser vacía (parada en ARES sin paso); el nativo
 ignora un `id` que no conoce.
@@ -71,12 +69,11 @@ ignora un `id` que no conoce.
 
 | `id` | Función (hoy en `pantalla.tsx`) |
 |---|---|
-| `llamar` | `onLlamar(activa)` |
+| `llamar` | `onLlamar(activa)`: llama y `registrarLlamada` (hora de la primera, sin resultado) |
 | `escanear` | `setEscaneando(true)` (ARES ya adelante) |
 | `telefono` | `setFormPedido(activa.pedido)` |
-| `entregado`, `finalizado` | `onPedidoFinalizado()` |
+| `entregado` | `onPedidoFinalizado()` |
 | `no_se_pudo` | `setDandoResultadoDe(id)` |
-| `contesto` / `no_contesto` | `onContesto()` / `onNoContesto()` |
 | `pendiente` / `no_entregado` | `onSalida(SALIDAS[…])` |
 | `volver` | `setDandoResultadoDe(null)` |
 | `deshacer` | `onDeshacer()` |

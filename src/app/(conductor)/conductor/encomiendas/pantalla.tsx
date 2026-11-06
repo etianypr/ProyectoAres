@@ -98,14 +98,11 @@ export function PantallaEncomiendas({
     alBorrar: dia.recargar,
   });
 
-  // Llamar, contestó o no, las salidas, entregar, y deshacer (ver
-  // _hooks/use-acciones-parada.ts).
+  // Llamar, las salidas, entregar y deshacer (ver _hooks/use-acciones-parada.ts).
   const {
     error,
     setError,
     guardando,
-    esperandoResultadoDe,
-    setEsperandoResultadoDe,
     dandoResultadoDe,
     setDandoResultadoDe,
     deshacer,
@@ -113,17 +110,13 @@ export function PantallaEncomiendas({
     confirmacion,
     avisar,
     correr,
-    llamadaDetectada,
-    onContesto,
-    onNoContesto,
     onLlamar,
-    onCorregirLlamada,
     onSalida,
     onPedidoFinalizado,
     onEliminarPedido,
     onDeshacerEliminado,
     onDeshacer,
-  } = useAccionesParada({ dia, activa, paradas });
+  } = useAccionesParada({ dia, activa });
 
   // La vista de formulario abierta dentro de la hoja: "nuevo" o el pedido que se
   // está corrigiendo. null = cerrada.
@@ -168,7 +161,7 @@ export function PantallaEncomiendas({
 
   const hayRuta = paradas.length > 0;
 
-  const fase: Fase = faseDeParada(activa, { dandoResultadoDe, esperandoResultadoDe });
+  const fase: Fase = faseDeParada(activa, { dandoResultadoDe });
 
   // El camino a la parada activa (_hooks/use-hacia-parada.ts). ARES no guía (spec 020).
   const { destinoActivo, faltan, seAproximaSinContacto, rumbo, ubicacionMostrada, trazadoPorDelante, señalDebil } =
@@ -181,13 +174,11 @@ export function PantallaEncomiendas({
     editar: () => activa && setFormPedido(activa.pedido),
     finalizar: () => void onPedidoFinalizado(),
     noSePudo: () => activa && setDandoResultadoDe(activa.pedido.id),
-    contesto: () => void onContesto(),
-    noContesto: () => void onNoContesto(),
     salida: (salida) => void onSalida(salida),
     volver: () => setDandoResultadoDe(null),
     deshacer: () => void onDeshacer(),
   };
-  const enAres = ventanas.escaneando || ventanas.cargandoGuia || formPedido != null;
+  const enAres = ventanas.cargandoGuia;
   const burbuja = useBurbuja({ fecha, activa, fase, whatsapp, deshacer, confirmacion, enAres, acciones });
 
   const ayer = useResumenAyer(fecha);
@@ -200,7 +191,6 @@ export function PantallaEncomiendas({
       [formPedido != null, () => setFormPedido(null)],
       [propuesta != null, () => setPropuesta(null)],
       [dandoResultadoDe != null, () => setDandoResultadoDe(null)],
-      [esperandoResultadoDe != null, () => setEsperandoResultadoDe(null)],
     ],
     sinParadas: paradas.length === 0,
   });
@@ -225,8 +215,6 @@ export function PantallaEncomiendas({
     onCerrarError: () => setError(null),
     apkVieja,
     apkUrl,
-    llamadaDetectada,
-    onCorregirLlamada: (llamada) => void onCorregirLlamada(llamada),
     errorWhatsapp: hayRuta ? dia.errorWhatsapp : null,
     cambiosRuta: dia.cambiosRuta,
     onVistoCambioRuta: dia.vistoCambioRuta,

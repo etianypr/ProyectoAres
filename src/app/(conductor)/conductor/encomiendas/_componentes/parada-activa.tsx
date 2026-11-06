@@ -45,9 +45,7 @@ const ICONO: Partial<Record<IdBoton, LucideIcon>> = {
   escanear: ScanLine,
   telefono: Pencil,
   entregado: PackageCheck,
-  finalizado: PackageCheck,
-  contesto: Check,
-  no_contesto: X,
+  no_se_pudo: X,
   pendiente: RotateCw,
   no_entregado: X,
 };
@@ -107,9 +105,7 @@ export function ParadaActiva({
       {seAproximaSinContacto ? (
         <p className="flex items-start gap-2 rounded-xl bg-warn-bg px-3 py-2 text-sm font-medium text-warn">
           <Phone className="mt-0.5 h-4 w-4 shrink-0" />
-          <span className="min-w-0 flex-1">
-            No contestó: llámalo antes de bajar.
-          </span>
+          <span className="min-w-0 flex-1">Llámalo antes de bajar.</span>
         </p>
       ) : null}
 
@@ -140,8 +136,11 @@ function Fila({ fila, guardando, onBoton }: { fila: BotonParada[]; guardando: bo
   if (fila.length === 1 && unico.detalle) return <BotonSalida boton={unico} guardando={guardando} onBoton={onBoton} />;
   if (fila.length === 1) {
     const Icono = ICONO[unico.id];
+    // Sola en su fila es la acción principal solo si su tono lo dice: "Teléfono a
+    // mano" va debajo de la fila principal, sin competir con ella.
+    const clase = unico.tono === "marca" ? BOTON_PRINCIPAL : cn(BOTON_RESULTADO, CLASE_TONO[unico.tono], "w-full");
     return (
-      <button disabled={unico.escribe && guardando} onClick={() => onBoton(unico.id)} className={BOTON_PRINCIPAL}>
+      <button disabled={unico.escribe && guardando} onClick={() => onBoton(unico.id)} className={clase}>
         {Icono ? <Icono className="h-4 w-4" /> : null}
         {unico.texto}
       </button>

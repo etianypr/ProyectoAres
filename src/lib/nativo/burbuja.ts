@@ -34,7 +34,8 @@ export type VistaBurbuja = {
   destino: { lat: number; lng: number } | null;
   filas: BotonBurbuja[][];
   aviso: { texto: string; deshacer: boolean } | null;
-  /** Cambió la parada desde la vista anterior: la burbuja se abre. */
+  /** Cambió la parada desde la vista anterior. La burbuja va achicada al
+   *  navegar; se abre sola solo con un "Deshacer" nuevo (BurbujaServicio). */
   nueva: boolean;
 };
 

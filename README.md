@@ -15,6 +15,8 @@ npm run dev
   `docs/CLASES.md` · prioridades: `docs/HOJA-DE-RUTA.md` · privacidad: `docs/PRIVACIDAD.md` ·
   WhatsApp: `docs/WHATSAPP.md` · features pendientes: `specs/README.md`.
 - APK: se instala pasando el archivo al teléfono y permitiendo "instalar apps desconocidas". Firma
-  y secretos de GitHub: `specs/015-app-android/quickstart.md`.
+  y secretos de GitHub: `specs/015-app-android/quickstart.md`. Desde la 1.5.0 (spec 020), la
+  burbuja sobre Google Maps necesita «Mostrar sobre otras apps» y, en un vivo, permitir a ARES el
+  «Consumo alto en segundo plano».
 - Base: las migraciones de `supabase/migrations/` se corren en orden (detalle en
   `docs/ARQUITECTURA.md` §2).

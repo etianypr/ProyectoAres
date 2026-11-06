@@ -14,5 +14,11 @@ export function abrirEnMapas(destino: { lat: number; lng: number }): void {
     window.location.href = `google.navigation:q=${lat},${lng}&mode=d`;
     return;
   }
-  window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`, "_blank", "noopener");
+  // dir_action=navigate: Google Maps empieza a navegar sin que haya que tocar
+  // "Iniciar" (spec 020; sin él abre la vista previa de la ruta).
+  window.open(
+    `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving&dir_action=navigate`,
+    "_blank",
+    "noopener",
+  );
 }

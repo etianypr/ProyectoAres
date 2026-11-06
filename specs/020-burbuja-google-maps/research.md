@@ -24,8 +24,8 @@ Cada decisión: qué se eligió, por qué y qué se descartó.
   `onTaskRemoved` (cerrar ARES desde recientes) apaga el servicio y quita la burbuja.
   `START_NOT_STICKY`: sin la web no hay qué mostrar.
 - **Por qué**: sin servicio en primer plano el vivo cierra la app atrás en minutos, y con la app
-  muere el WebView que decide los botones. `specialUse` porque no hay otro tipo que calce:
-  `location` exige usar el GPS atrás (prohibido, FR-016), `dataSync` tiene tope de 6 h al día en
+  muere el WebView que decide los botones. `specialUse` porque no hay otro tipo que calce
+  (`location` se suma solo para abrirse al llegar, R14), `dataSync` tiene tope de 6 h al día en
   Android 15 y `shortService`, de 3 minutos. La APK no va a la tienda, así que la justificación
   de `specialUse` es solo el comentario del manifiesto.
 - **Descartado**: confiar en que una ventana superpuesta visible sube la prioridad del proceso
@@ -46,6 +46,13 @@ Cada decisión: qué se eligió, por qué y qué se descartó.
 - **Cuidado**: con la página oculta Chromium junta los temporizadores a 1 por segundo; el
   "Deshacer" (8 s) y los reintentos de la llamada (800 ms) quedan en ~1 s. Nada depende de
   `requestAnimationFrame`.
+- **Corrección (el vivo, 2026-11-06)**: la WebView 156 **congela** una página oculta ~60 s después
+  de quedar atrás (evento `freeze`): temporizadores e IndexedDB detenidos. Un toque de la burbuja
+  no se guardaba hasta volver a ARES. No lo evitan un Web Lock, WebRTC ni `WebView.onResume` /
+  `resumeTimers` (medido). Solución: `WebViewAres.java` (reemplaza la WebView de Capacitor con
+  `res/layout/capacitor_bridge_layout_main.xml`) le dice a Chromium que su ventana sigue visible
+  **solo mientras la burbuja está en curso**; sin burbuja se congela atrás como siempre. Medido:
+  100 s atrás de Google Maps sin congelarse, y "Pedido entregado" guardado en 0,2 s.
 
 ## R4. Volver a ARES desde la burbuja
 
@@ -69,6 +76,10 @@ Cada decisión: qué se eligió, por qué y qué se descartó.
 
 ## R6. Saber si contestó cuando se llamó desde la burbuja
 
+> **Salió el 2026-11-06** (FR-007): el dueño sacó la pregunta y la detección; ya no se lee el
+> registro de llamadas (`READ_CALL_LOG` fuera del manifiesto). Al llamar desde la burbuja, Google
+> Maps vuelve adelante con la llamada de fondo (`GoogleMaps.alFrenteTrasLlamar`). Queda como registro.
+
 - **Decisión**: mientras haya una llamada en curso, lo nativo observa el registro de llamadas
   (`ContentObserver` sobre `CallLog.Calls.CONTENT_URI`, mismo permiso `READ_CALL_LOG`) y avisa a
   la web con el evento `registroCambio`. `use-llamada-nativa.ts` lo toma como otra señal de
@@ -83,17 +94,25 @@ Cada decisión: qué se eligió, por qué y qué se descartó.
 ## R7. Ocultar la burbuja con ARES adelante
 
 - **Decisión**: el plugin avisa al servicio en `handleOnResume` (ocultar) y `handleOnStop`
-  (mostrar). Excepción: mientras ARES abre una pantalla suya (escáner de la etiqueta, cámara del
-  paquete), la web la marca `enAres: true` y la burbuja no aparece encima.
+  (mostrar). Excepción: mientras está abierto el escáner de Google (`lib/nativo/escaner.ts`) o la
+  cámara de la guía, la burbuja no aparece encima (`enAres: true`). Solo mientras están abiertos:
+  la pantalla de escaneo y el formulario del pedido son de ARES y pueden quedar abiertos al volver
+  a Google Maps, y ahí la burbuja tiene que verse (el vivo, 2026-11-05 y 2026-11-06).
 - **Por qué**: con ARES adelante la burbuja repite la tarjeta; sobre el escáner molesta. Encima
   de la pantalla de llamada sí puede aparecer: al colgar se vuelve a ARES y se oculta.
 
-## R8. Abierta, achicada y arrastrable
+## R8. Abierta y achicada
 
 - **Decisión**: abierta = tarjeta a lo ancho, pegada abajo, máximo un tercio del alto (SC-007);
-  achicada = círculo naranja de 56 dp con el número de parada, arrastrable, que recuerda dónde
-  quedó mientras viva el servicio. Aparece abierta al empezar y con cada parada nueva (FR-010).
-  No hay gesto para quitarla (FR-002).
+  achicada = círculo naranja de 56 dp (el tamaño de los botones de Google Maps) con «Parada» y el
+  número, siempre justo encima de la velocidad de Google Maps, abajo a la izquierda. Navegando va
+  achicada; se abre al tocarla y, sola, mientras dura un "Deshacer" (FR-010). No hay gesto para
+  quitarla (FR-002).
+- **Cambio (el vivo, 2026-11-05)**: el círculo se arrastraba y aparecía a la derecha, encima de la
+  brújula de Google Maps. El dueño lo quiere siempre sobre la velocidad, donde no tapa el giro, los
+  botones ni la llegada; por eso ya no se arrastra. Antes aparecía abierta con cada parada nueva:
+  tapaba la navegación, y abierta sirve al llegar. Abrirse sola al llegar está pendiente: con ARES
+  atrás no hay GPS (FR-016).
 
 ## R9. Cuándo empieza y termina la burbuja
 
@@ -166,9 +185,16 @@ día), `señalDebil`, `usePantallaEncendida`.
 ## R14. ARES sin GPS atrás (FR-016)
 
 - **Decisión**: `use-ubicacion-actual.ts` corta su `watchPosition` al ir al fondo y lo retoma al
-  volver (`alIrAlFondo` / `alVolverAPrimerPlano`). Android ya lo impide (el servicio es
-  `specialUse`, no `location`, y no hay permiso de ubicación en segundo plano), pero así no
-  quedan pedidos colgados ni errores.
+  volver (`alIrAlFondo` / `alVolverAPrimerPlano`). La web no usa el GPS con ARES atrás.
+- **Excepción (el dueño, 2026-11-05)**: navegando, la burbuja va achicada y abierta sirve al llegar.
+  Para abrirse sola al llegar, `BurbujaLlegada.java` escucha el proveedor **pasivo** de Android
+  mientras la burbuja está en curso: recibe las lecturas que ya pide Google Maps, sin prender el
+  GPS (sin batería extra), y abre la tarjeta una vez por parada a ≤ 50 m del punto (descarta
+  lecturas con más de 100 m de error). El servicio suma el tipo `location`
+  (`FOREGROUND_SERVICE_LOCATION`), que Android permite con el permiso "mientras se usa" porque el
+  servicio arranca con ARES adelante: no se pide permiso de ubicación en segundo plano.
+- **Descartado**: abrirla a 300 m si hay que llamar (el dueño: solo al llegar); por tiempo estimado
+  del tramo (con tráfico se abre antes o después).
 
 ## R15. Orden de despliegue
 

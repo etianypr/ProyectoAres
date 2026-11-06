@@ -1,33 +1,23 @@
-// Teléfono del conductor: llamar, leer el registro de llamadas y saber cuándo se
-// colgó, mantener la pantalla encendida (spec 015, 020) y leer el texto de una
-// foto (spec 005). La voz de manejo se fue con la navegación de ARES (spec 020).
+// Teléfono del conductor: llamar, mantener la pantalla encendida (spec 015) y leer
+// el texto de una foto (spec 005). Ya no se lee el registro de llamadas: saber si
+// contestó no ayuda a repartir (el dueño, 2026-11-06, spec 020).
 // Dentro de la APK usa el plugin propio `Telefono`
 // (android/…/TelefonoPlugin.java); fuera de ella, lo que ya hacía la web.
 // Contrato: specs/015-app-android/contracts/nativo.md.
 import { registerPlugin } from "@capacitor/core";
 import { esApp } from "./entorno";
 
-/** Una llamada del registro del teléfono, solo del número consultado. No lleva el
- *  número: el plugin ya filtró por él y nada de esto sale del teléfono. */
-export type EntradaRegistro = {
-  duracionS: number;
-  tipo: "saliente" | "entrante" | "perdida" | "otra";
-  fechaMs: number;
-};
-
 type EstadoPermiso = "granted" | "denied" | "prompt" | "prompt-with-rationale";
 
 /** Permisos de la APK; `ubicacion` = ubicación precisa (el WebView no trae
  *  `navigator.permissions`). */
-export type PermisosApp = { llamadas: EstadoPermiso; registro: EstadoPermiso; ubicacion: EstadoPermiso };
+export type PermisosApp = { llamadas: EstadoPermiso; ubicacion: EstadoPermiso };
 
 type PluginTelefono = {
   checkPermissions(): Promise<PermisosApp>;
   llamar(opciones: { numero: string }): Promise<void>;
-  llamadasDesde(opciones: { numero: string; desdeMs: number }): Promise<{ llamadas: EntradaRegistro[] }>;
   pantallaEncendida(opciones: { encendida: boolean }): Promise<void>;
   leerTexto(opciones: { imagen: string }): Promise<{ texto: string }>;
-  addListener(evento: "llamadaRegistrada", cb: () => void): Promise<{ remove: () => Promise<void> }>;
 };
 
 const Telefono = registerPlugin<PluginTelefono>("Telefono");
@@ -51,17 +41,6 @@ export async function llamar(numero: string): Promise<"directa" | "marcador"> {
   }
   window.location.href = `tel:${limpio}`;
   return "marcador";
-}
-
-/** Llamadas a ese número desde `desdeMs`, más recientes primero. null = no se
- *  puede saber (navegador, o sin permiso de registro de llamadas). */
-export async function llamadasDesde(numero: string, desdeMs: number): Promise<EntradaRegistro[] | null> {
-  if (!esApp()) return null;
-  try {
-    return (await Telefono.llamadasDesde({ numero: limpiar(numero), desdeMs })).llamadas;
-  } catch {
-    return null;
-  }
 }
 
 /** Estado de los permisos de la APK (para el diagnóstico); null fuera de ella. */
@@ -96,16 +75,6 @@ export async function textoDeFoto(foto: Blob): Promise<string | null> {
   } catch {
     return null;
   }
-}
-
-/** Llama a `cb` cuando Android escribe en el registro la llamada que se hizo
- *  con `llamar` (o sea, al colgar). Con ARES atrás —llamando desde la burbuja,
- *  spec 020— es la única señal de que se colgó: Android vuelve a Google Maps, no
- *  a ARES. Fuera de la APK nunca llama. */
-export function alRegistrarLlamada(cb: () => void): () => void {
-  if (!esApp()) return () => {};
-  const escucha = Telefono.addListener("llamadaRegistrada", cb).catch(() => null);
-  return () => void escucha.then((e) => e?.remove());
 }
 
 function enBase64(foto: Blob): Promise<string> {

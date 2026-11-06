@@ -21,7 +21,7 @@ import type { ActividadPorEnviar, Pedido, Ruta } from "./tipos";
  *  diario). Después del primero ya no hace falta: cualquier evento del día
  *  prueba lo mismo. */
 function esPrimeraAccion(enRuta: Pedido[]): boolean {
-  return enRuta.every((p) => p.llamada === "pendiente" && p.resultado === "pendiente");
+  return enRuta.every((p) => p.llamada === "pendiente" && !p.horaLlamada && p.resultado === "pendiente");
 }
 
 /** Qué pedido se marca: lo usan las operaciones de terreno. */
@@ -55,6 +55,24 @@ export function marcarLlamada(
 
     await escribir([STORES.pedidos, STORES.cola], ({ guardar }) => {
       guardar(STORES.pedidos, actualizado);
+      if (primera) guardar(STORES.cola, nuevoEvento(conductorId, fecha, "llamada", hora));
+    });
+  });
+}
+
+/** El conductor llamó al destinatario. Desde la spec 020 no se anota si contestó
+ *  (el dueño, 2026-11-06: no ayuda a repartir): se guarda la hora de la primera
+ *  llamada —"ya se lo llamó"— y, si es lo primero del día en terreno, el evento
+ *  que prueba que el conductor salió (ver esPrimeraAccion). Volver a llamar no
+ *  escribe nada. */
+export function registrarLlamada({ fecha, pedidoId, conductorId }: MarcaPedido): Promise<void> {
+  return enFila(async () => {
+    const { ruta, pedido } = await rutaConPedido(fecha, pedidoId);
+    if (pedido.horaLlamada) return;
+    const primera = esPrimeraAccion(pedidosEnOrden(ruta, await leerPedidos(fecha)));
+    const hora = new Date().toISOString();
+    await escribir([STORES.pedidos, STORES.cola], ({ guardar }) => {
+      guardar(STORES.pedidos, { ...pedido, horaLlamada: hora });
       if (primera) guardar(STORES.cola, nuevoEvento(conductorId, fecha, "llamada", hora));
     });
   });

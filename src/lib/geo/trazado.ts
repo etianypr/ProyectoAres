@@ -127,7 +127,7 @@ function proyectarEnTrazado(p: Coordenada, trazado: Trazado): Proyeccion | null 
 // Mapbox pone dos vértices a cuadras de distancia, así que ir justo por el medio
 // de esa recta daba "200 m de desvío" y habría hecho recalcular la ruta sin
 // motivo. Es lo que decide si el conductor sigue el camino o se salió (ver
-// use-navegacion).
+// hacia-parada.ts).
 export function distanciaAPolilinea(p: Coordenada, trazado: Trazado): number {
   return proyectarEnTrazado(p, trazado)?.metros ?? Infinity;
 }
@@ -155,7 +155,7 @@ export function distanciaAPolilinea(p: Coordenada, trazado: Trazado): number {
 //
 // Y ojo con qué se hace con el resultado: esto es PRESENTACIÓN. La decisión de
 // si el conductor se salió del camino se toma con la posición CRUDA (ver
-// use-navegacion), porque un punto pegado está sobre la ruta por definición y
+// hacia-parada.ts), porque un punto pegado está sobre la ruta por definición y
 // nunca acusaría un desvío.
 const TOLERANCIA_PEGADO_M = 90;
 
@@ -292,16 +292,15 @@ export function recortarTrazado(
 
 // Metros que faltan hasta el final de un trazado, SIGUIENDO el camino y no en
 // línea recta. Se calcula en el teléfono en cada lectura de GPS: es lo que
-// permite que el cartel y la voz sepan la distancia exacta a la próxima
-// maniobra sin volver a consultar la API.
+// permite saber los km a la parada y cuándo avisar a 300 m (hacia-parada.ts) sin
+// volver a consultar la API.
 //
 // Se mide desde la PROYECCIÓN sobre el segmento que se está recorriendo. Antes
 // se sumaba la distancia al vértice anterior MÁS ese segmento entero, o sea que
 // el tramo en curso se contaba dos veces: yendo por una avenida de 500 m con un
 // vértice en cada punta, avanzar 100 m hacía que el cartel dijera que faltaban
 // 100 m MÁS que antes de arrancar, y recién al pasar la mitad pegaba un salto
-// hacia abajo. Con los avisos de voz atados a esta distancia, además, sonaban
-// tarde.
+// hacia abajo. Con los avisos atados a esta distancia, además, llegaban tarde.
 export function metrosRestantes(posicion: Coordenada, trazado: Trazado): number {
   if (trazado.length === 0) return 0;
   const puntos = trazado.map(deLngLat);

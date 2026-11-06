@@ -10,6 +10,10 @@ pruebas que pedían su matriz sin el tope de la app dejaron una cuenta de US$66.
 
 ## US1 (P1) · Navegar sin Mapbox
 
+> **Reemplazada por la spec 020** (`020-burbuja-google-maps`): ARES ya no guía. Guía la app
+> Google Maps con la burbuja de ARES encima; salen el kit de Google, el cartel y la voz. Queda
+> como registro de lo que se decidió en su momento.
+
 | Hoy | Debe |
 |---|---|
 | Cartel de maniobra, voz y "Da la vuelta" salen de las direcciones de Mapbox | Lo mismo, con el mismo diseño, desde OpenRouteService (ORS). La voz la arma ARES con las instrucciones en español de ORS |
@@ -55,7 +59,7 @@ anula el token en su cuenta.
 
 ## Criterios
 
-- **SC-001**: armar un día de 67 paradas gasta ≤ 50 consultas de ORS (matriz 2, trazado 1 y los pedazos de frente, con tope de tiempo); navegarlo, ≤ 300. La cuota diaria (2.000) alcanza para unos 30 armados.
+- **SC-001**: armar un día de 67 paradas gasta ≤ 50 consultas de ORS (matriz 2, trazado 1 y los pedazos de frente, con tope de tiempo) (desde la spec 020, navegar no consulta ORS). La cuota diaria (2.000) alcanza para unos 30 armados.
 - **SC-002**: después de US5, ninguna consulta a `api.mapbox.com` (prueba A10 sin ese host).
 - **SC-003**: costo mensual de mapas y rutas: US$0.
 - **SC-004**: en un día real el cartel y la voz anuncian cada maniobra.

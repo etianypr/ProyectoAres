@@ -16,8 +16,8 @@ fuera de la APK cae al comportamiento de hoy.
 | `alTocarBurbuja(cb: (id: IdBoton) => void): () => void` | evento `toque` | nunca llama |
 | `navegarA(destino): Promise<"maps" \| "navegador">` | `Burbuja.navegar`: Google Maps navegando; sin Google Maps, el enlace en el navegador | `mapas.ts` (enlace en otra pestaña) |
 
-`lib/nativo/telefono.ts` suma `alRegistrarLlamada(cb): () => void` (evento `llamadaRegistrada`
-del plugin `Telefono`, ver abajo). Fuera de la APK nunca llama.
+`alRegistrarLlamada` y el evento `llamadaRegistrada` del plugin `Telefono` salieron el
+2026-11-06: ya no se lee el registro de llamadas (FR-007).
 
 ## Plugin `Burbuja` (Java, `android/`)
 
@@ -45,15 +45,6 @@ del plugin `Telefono`, ver abajo). Fuera de la APK nunca llama.
   ARES al tocarlo; `onTaskRemoved` → se apaga; `START_NOT_STICKY`.
 - Permisos del manifiesto: `SYSTEM_ALERT_WINDOW`, `FOREGROUND_SERVICE`,
   `FOREGROUND_SERVICE_SPECIAL_USE`.
-
-## Plugin `Telefono`: evento nuevo
-
-| Evento | Datos | Cuándo |
-|---|---|---|
-| `llamadaRegistrada` | `{}` | después de un `llamar` directo, la primera vez que cambia el registro de llamadas (Android escribe la llamada al colgar). Se deja de observar ahí o a los 30 minutos |
-
-`llamadasDesde` no cambia: la web la consulta al recibir el evento, igual que al volver a primer
-plano.
 
 ## Sale
 

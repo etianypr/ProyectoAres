@@ -10,7 +10,7 @@
 // crecer con ella.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { borrarPedido, cerrarDia, purgarFotosCerradas, deshacerResultado, leerPedidos, leerRuta, marcarResultado, marcarLlamada, pedidosEnOrden, restaurarPedido, rutaTerminada, type PedidoEliminado, type Pedido, type Ruta } from "@/lib/encomiendas/local/almacen";
+import { borrarPedido, cerrarDia, purgarFotosCerradas, deshacerResultado, leerPedidos, leerRuta, marcarResultado, registrarLlamada, pedidosEnOrden, restaurarPedido, rutaTerminada, type PedidoEliminado, type Pedido, type Ruta } from "@/lib/encomiendas/local/almacen";
 import { estaConfirmado, type ResultadoMarcable } from "@/lib/encomiendas/estados";
 
 import { dejarParaMasTarde, sumarALaRuta } from "@/lib/encomiendas/local/sumar-a-ruta";
@@ -136,9 +136,9 @@ export function useDiaTrabajo({
   }, [leerTodo, fecha]);
 
   const onLlamada = useCallback(
-    async (pedidoId: string, resultado: "contesto" | "no_contesto") => {
+    async (pedidoId: string) => {
       await unaSolaVez(`llamada:${pedidoId}`, async () => {
-        await marcarLlamada({ fecha, pedidoId, conductorId }, resultado);
+        await registrarLlamada({ fecha, pedidoId, conductorId });
         await recargar();
         intentar();
       });
@@ -280,10 +280,12 @@ export function useDiaTrabajo({
         pedido,
         // Hay que contactarlo si no dijo que va a estar Y todavía no se lo
         // llamó. Un confirmado no se llama —para eso se le avisó—, y a uno que
-        // ya se llamó tampoco: se lo llamó.
+        // ya se llamó tampoco. "Se lo llamó" es la hora de la primera llamada
+        // (spec 020; `llamada` queda en los pedidos guardados antes).
         hayQueContactar:
           pedido.resultado === "pendiente" &&
           pedido.llamada === "pendiente" &&
+          !pedido.horaLlamada &&
           !estaConfirmado(pedido.disponibilidad),
       })),
     [ruta, pedidos],
@@ -329,7 +331,7 @@ export function useDiaTrabajo({
     errorWhatsapp,
     avisando,
     avisarPedidos,
-    marcarLlamada: onLlamada,
+    registrarLlamada: onLlamada,
     marcarResultado: onEntrega,
     cambiosRuta,
     vistoCambioRuta,

@@ -37,25 +37,27 @@ function parada({ telefono = "+56900000000", lat = -18.4783, lng = -70.3126, ...
 
 const ids = (filas) => filas.map((f) => f.map((b) => b.id));
 
-test("botonesDeParada: los botones de cada paso, en filas (los de la tarjeta de hoy)", () => {
-  assert.deepEqual(ids(botonesDeParada(parada(), "antes_llamar")), [["llamar"]]);
-  assert.deepEqual(ids(botonesDeParada(parada({ telefono: null }), "antes_llamar")), [
-    ["escanear"],
-    ["telefono", "entregado", "no_se_pudo"],
+test("botonesDeParada: en la parada, siempre entregado · llamar · no se entrega (el dueño, 2026-11-06)", () => {
+  assert.deepEqual(ids(botonesDeParada(parada(), "en_parada")), [["entregado", "llamar", "no_se_pudo"]]);
+  // Sin teléfono, el del medio escanea la etiqueta; abajo, escribirlo a mano.
+  assert.deepEqual(ids(botonesDeParada(parada({ telefono: null }), "en_parada")), [
+    ["entregado", "escanear", "no_se_pudo"],
+    ["telefono"],
   ]);
-  assert.deepEqual(ids(botonesDeParada(parada(), "esperando_resultado")), [["contesto", "llamar", "no_contesto"]]);
-  for (const fase of ["confirmado", "esperando_entrega"]) {
-    assert.deepEqual(ids(botonesDeParada(parada(), fase)), [["finalizado"], ["llamar", "no_se_pudo"]]);
-  }
   assert.deepEqual(ids(botonesDeParada(parada(), "salidas")), [["pendiente"], ["no_entregado"], ["volver"]]);
 });
 
-test("botonesDeParada: escanear y teléfono necesitan ARES; los que escriben se apagan al guardar", () => {
-  const sinTelefono = botonesDeParada(parada({ telefono: null }), "antes_llamar").flat();
+test("botonesDeParada: entregado en verde, no se entrega en rojo, el del medio redondo", () => {
+  const [entregado, llamar, noSeEntrega] = botonesDeParada(parada(), "en_parada")[0];
+  assert.deepEqual([entregado.texto, entregado.tono], ["Pedido entregado", "ok"]);
+  assert.deepEqual([noSeEntrega.texto, noSeEntrega.tono], ["No se entrega", "peligro"]);
+  assert.equal(llamar.soloIcono, true);
+  assert.deepEqual([entregado.escribe, llamar.escribe, noSeEntrega.escribe], [true, false, false]);
+});
+
+test("botonesDeParada: escanear y teléfono necesitan ARES; las salidas dicen su consecuencia", () => {
+  const sinTelefono = botonesDeParada(parada({ telefono: null }), "en_parada").flat();
   assert.deepEqual(sinTelefono.filter((b) => b.abreAres).map((b) => b.id), ["escanear", "telefono"]);
-  const resultado = botonesDeParada(parada(), "esperando_resultado")[0];
-  assert.deepEqual(resultado.map((b) => b.escribe), [true, false, true]);
-  assert.equal(resultado[1].soloIcono, true, "volver a llamar es el redondo del medio");
   const salidas = botonesDeParada(parada(), "salidas").flat();
   assert.ok(salidas.filter((b) => b.id !== "volver").every((b) => b.detalle), "la consecuencia va escrita");
 });
@@ -68,18 +70,17 @@ test("estadoDeParada: horario pedido, confirmado o sin respuesta (con ícono y t
   });
   assert.equal(estadoDeParada(parada(), true).texto, "Sin respuesta todavía");
   assert.equal(estadoDeParada(parada(), false), null, "sin WhatsApp no hay respuesta que esperar");
-  assert.equal(estadoDeParada(parada({ llamada: "no_contesto" }), true), null);
 });
 
 test("atenderBoton: cada botón llama a la misma función que en la tarjeta", () => {
   const llamadas = [];
   const acciones = Object.fromEntries(
-    ["llamar", "escanear", "editar", "finalizar", "noSePudo", "contesto", "noContesto", "volver", "deshacer"].map(
+    ["llamar", "escanear", "editar", "finalizar", "noSePudo", "volver", "deshacer"].map(
       (n) => [n, () => llamadas.push(n)],
     ),
   );
   acciones.salida = (s) => llamadas.push(`salida:${s.clave}`);
-  for (const id of ["llamar", "escanear", "telefono", "entregado", "finalizado", "no_se_pudo", "contesto", "no_contesto", "pendiente", "no_entregado", "volver", "deshacer", "navegar", "ares"]) {
+  for (const id of ["llamar", "escanear", "telefono", "entregado", "no_se_pudo", "pendiente", "no_entregado", "volver", "deshacer", "navegar", "ares"]) {
     atenderBoton(id, acciones);
   }
   assert.deepEqual(llamadas, [
@@ -87,10 +88,7 @@ test("atenderBoton: cada botón llama a la misma función que en la tarjeta", ()
     "escanear",
     "editar",
     "finalizar",
-    "finalizar",
     "noSePudo",
-    "contesto",
-    "noContesto",
     "salida:pendiente",
     "salida:no_entregado",
     "volver",
@@ -99,7 +97,7 @@ test("atenderBoton: cada botón llama a la misma función que en la tarjeta", ()
 });
 
 test("vistaDeBurbuja: la parada, su punto, sus botones y el aviso con Deshacer", () => {
-  const v = vistaDeBurbuja(parada(), "confirmado", {
+  const v = vistaDeBurbuja(parada(), "en_parada", {
     whatsapp: true,
     aviso: { texto: "Entrega registrada", deshacer: true },
     nueva: true,
@@ -108,16 +106,41 @@ test("vistaDeBurbuja: la parada, su punto, sus botones y el aviso con Deshacer",
   assert.match(v.titulo, /^OF /);
   assert.equal(v.detalle, "Cliente Prueba · Calle Inventada 123");
   assert.deepEqual(v.destino, { lat: -18.4783, lng: -70.3126 });
-  assert.deepEqual(ids(v.filas), [["finalizado"], ["llamar", "no_se_pudo"]]);
+  assert.deepEqual(ids(v.filas), [["entregado", "llamar", "no_se_pudo"]]);
   assert.deepEqual(v.aviso, { texto: "Entrega registrada", deshacer: true });
 
-  const sinOf = vistaDeBurbuja(parada({ of: null, lat: null, lng: null }), "antes_llamar", {
+  const sinOf = vistaDeBurbuja(parada({ of: null, lat: null, lng: null }), "en_parada", {
     whatsapp: false,
     aviso: null,
     nueva: false,
   });
   assert.equal(sinOf.titulo, "Parada 4");
   assert.equal(sinOf.destino, null, "sin punto: Navegar abre ARES para ubicarla");
+});
+
+test("paridad: en cada caso la burbuja muestra los botones de la tarjeta y cada uno hace lo mismo", () => {
+  const casos = [
+    ["con teléfono", parada(), "en_parada"],
+    ["sin teléfono", parada({ telefono: null }), "en_parada"],
+    ["sin punto", parada({ lat: null, lng: null }), "en_parada"],
+    ["confirmado por WhatsApp", parada({ disponibilidad: "confirmado" }), "en_parada"],
+    ["eligiendo salida", parada(), "salidas"],
+  ];
+  for (const [nombre, p, fase] of casos) {
+    const tarjeta = botonesDeParada(p, fase);
+    const vista = vistaDeBurbuja(p, fase, { whatsapp: true, aviso: null, nueva: false });
+    // Lo que dibuja la burbuja es lo mismo que la tarjeta: ids, textos, tonos y si abre ARES.
+    assert.deepEqual(vista.filas, tarjeta, `${nombre}: la burbuja no muestra lo mismo que la tarjeta`);
+    const estado = estadoDeParada(p, true);
+    assert.deepEqual(vista.estado, estado ? { texto: estado.texto, tono: estado.tono } : null, `${nombre}: el estado del receptor difiere`);
+    // Cada botón de la parada termina en una acción de la tarjeta (ninguno queda sin cablear).
+    for (const boton of tarjeta.flat()) {
+      let llamadas = 0;
+      const acciones = new Proxy({}, { get: () => () => (llamadas += 1) });
+      atenderBoton(boton.id, acciones);
+      assert.equal(llamadas, 1, `${nombre}: "${boton.texto}" no llama a ninguna acción de la tarjeta`);
+    }
+  }
 });
 
 test("aDondeNavegar: Google Maps va a la parada nueva solo con la burbuja en curso y si tiene punto", () => {
@@ -131,7 +154,7 @@ test("aDondeNavegar: Google Maps va a la parada nueva solo con la burbuja en cur
 
 test("fuera de la APK: sin burbuja, y los km abren Google Maps con solo el punto", async () => {
   assert.equal(await permisoBurbuja(), "no_disponible");
-  await mostrarBurbuja(vistaDeBurbuja(parada(), "antes_llamar", { whatsapp: true, aviso: null, nueva: true }));
+  await mostrarBurbuja(vistaDeBurbuja(parada(), "en_parada", { whatsapp: true, aviso: null, nueva: true }));
   const soltar = alTocarBurbuja(() => assert.fail("fuera de la APK la burbuja no existe"));
   soltar();
 

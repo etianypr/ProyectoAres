@@ -4,10 +4,9 @@
 // lugar (sale de pantalla.tsx, spec 002 T035). Puro: recibe el estado y las
 // acciones, y devuelve la lista en el orden en que se muestra.
 
-import { AlertTriangle, Check, Download, MessageCircleOff, PhoneCall, PhoneOff, Route, Trash2, Undo2 } from "lucide-react";
+import { AlertTriangle, Check, Download, MessageCircleOff, Route, Trash2, Undo2 } from "lucide-react";
 import { nombreVisible } from "@/lib/encomiendas/paquete";
 import type { PedidoEliminado } from "@/lib/encomiendas/local/almacen";
-import type { LlamadaDetectada } from "../_hooks/use-llamada-nativa";
 import type { Notificacion } from "./notificaciones";
 
 export type DatosNotificaciones = {
@@ -15,8 +14,6 @@ export type DatosNotificaciones = {
   onCerrarError: () => void;
   apkVieja: boolean;
   apkUrl: string | null;
-  llamadaDetectada: LlamadaDetectada | null;
-  onCorregirLlamada: (llamada: LlamadaDetectada) => void;
   /** Solo con ruta armada: sin ruta no hay respuestas que esperar. */
   errorWhatsapp: string | null;
   cambiosRuta: string[];
@@ -64,20 +61,6 @@ export function armarNotificaciones(d: DatosNotificaciones): Notificacion[] {
       icono: <Download className="h-4 w-4 text-white/70" />,
       texto: "Hay una versión nueva de la app para instalar.",
       ...(d.apkUrl ? { accion: { etiqueta: "Bajar", onClick: () => window.open(d.apkUrl!, "_blank") } } : {}),
-    });
-  }
-  const llamada = d.llamadaDetectada;
-  if (llamada) {
-    const contesto = llamada.resultado === "contesto";
-    notificaciones.push({
-      id: `llamada:${llamada.n}`,
-      icono: contesto ? (
-        <PhoneCall className="h-4 w-4 text-white/70" />
-      ) : (
-        <PhoneOff className="h-4 w-4 text-white/70" />
-      ),
-      texto: contesto ? "Contestó la llamada" : "No contestó la llamada",
-      accion: { etiqueta: "Corregir", onClick: () => d.onCorregirLlamada(llamada) },
     });
   }
   if (d.errorWhatsapp) {

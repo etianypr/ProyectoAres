@@ -18,7 +18,7 @@ de la base conservan sus nombres viejos hasta la spec 002 (equivalencias en
 |---|---|
 | Día de trabajo de un conductor | `DiaTrabajo` (en pantalla: "día") · resumen: `ResumenDia` |
 | Paquete a entregar ese día | `Pedido` |
-| Orden de visita y trazado del día | `Ruta` (`orden`, `trazado`, `inicio`, `cierre`, `partida`) |
+| Orden de visita y trazado del día | `Ruta` (`orden`, `trazado`, `tramos`, `inicio`, `cierre`, `partida`) · un tramo por parada: `TramoDelDia` |
 | Pedido dentro de la ruta, con su número | `Parada` (solo pantalla) |
 | Cómo terminó la visita · la llamada | `Pedido.resultado`: entregado o no entregado · `Pedido.llamada`: `ResultadoLlamada` |
 | Lo que dijo el receptor | `Pedido.disponibilidad` |
@@ -52,6 +52,7 @@ classDiagram
       fecha: clave del día
       orden: pedidoId[]
       trazado: Trazado
+      tramos?: TramoDelDia[]
       inicio · cierre
       partida: de dónde sale y adonde vuelve
     }
@@ -141,7 +142,7 @@ las tablas llevan `empresa_id` y RLS. Tipos de servidor: `src/types/db.ts`; del 
 | Inicio y cierre del día | Postgres | `DiaTrabajo` |
 | Pago del día (lo escribe un trigger) | Postgres | `PagoDelDia` + `TarifaDelDia` |
 | Regla de pago vigente | Postgres, una fila | `ReglaDePago` |
-| Llamadas hechas (número, duración) | Registro de llamadas de Android: la APK lo lee al volver de la llamada y no lo copia | `EntradaRegistro` (en memoria) → `ResultadoLlamada` |
+| Si se llamó (hora de la primera llamada; desde el 2026-11-06 no se anota si contestó ni se lee el registro de llamadas) | Teléfono · `pedidos` | `Pedido.horaLlamada` (`Pedido.llamada` queda en los guardados antes) |
 
 ## 2. Estados
 
@@ -262,9 +263,9 @@ flowchart LR
     rutas["geo: trazado · geocoding · ors · mapbox · plus-code<br/>rutas/orden-paradas"]
   end
   subgraph Nativo["APK · lib/nativo"]
-    nat["entorno · telefono · escaner"]
+    nat["entorno · telefono · escaner · burbuja"]
     llamada["llamada · version (puras)"]
-    plugin["android/: plugin Telefono · escáner Google"]
+    plugin["android/: plugin Telefono · plugin Burbuja · escáner Google"]
   end
   subgraph Servidor["Servidor"]
     api["api/whatsapp<br/>send · status · webhook"]
@@ -322,7 +323,7 @@ lo usa.
 | Llegada estimada y lugar de un pedido con horario; dónde menos alarga uno nuevo o uno que se reintenta (`lugarMasBarato`, `lugarParaReintentar`) | `encomiendas/local/planificar.ts` |
 | "Dejar como pendiente" y pedidos tardíos sin rehacer la ruta (`dejarParaMasTarde`, `sumarALaRuta`) | `encomiendas/local/sumar-a-ruta.ts` |
 | Modo prueba: nada a la base ni por WhatsApp; al salir se borra lo de la prueba (`enModoPrueba`, `entrarAlModoPrueba`, `salirDelModoPrueba`, `useModoPrueba`; `localStorage` `ares-modo-prueba`) | `encomiendas/local/modo-prueba.ts` |
-| GPS simulado del modo prueba: parte en la central y avanza solo por la línea de navegación hasta la parada activa, a ×1, ×5, ×10 o ×20 —sobre ×5 lee cuatro veces por segundo y no pasa por el filtro de velocidad imposible— (`fuenteUbicacion`, `useSimularRecorrido`, `puntoEnCamino`; `localStorage` `ares-gps-simulado`) | `encomiendas/local/gps-simulado.ts` |
+| GPS simulado del modo prueba: parte en la central y avanza solo por el tramo de la línea del día hasta la parada activa (en línea recta si no hay tramo; Google Maps no se simula), a ×1, ×5, ×10 o ×20 —sobre ×5 lee cuatro veces por segundo y no pasa por el filtro de velocidad imposible— (`fuenteUbicacion`, `useSimularRecorrido`, `puntoEnCamino`; `localStorage` `ares-gps-simulado`) | `encomiendas/local/gps-simulado.ts` |
 | La ruta en curso se reordena con las respuestas | `encomiendas/local/replanificar.ts` |
 | `Coordenada`, `PuntoLngLat`, `Trazado`, `distanciaMetros`, `CENTRO_ARICA`, `RECUADRO_ARICA` | `geo/coordenada.ts` |
 | Contrato teléfono ↔ `/api/whatsapp/*` | `encomiendas/contrato-whatsapp.ts` |
@@ -331,21 +332,23 @@ lo usa.
 | Esquema Postgres para supabase-js | `src/types/db.ts` (`Database`) |
 | Cifras del panel a partir de pagos congelados | `encomiendas/pago.ts` |
 | Indicadores del período y comparación con el anterior: `calcularIndicadores`, `periodoAnterior` (spec 006) | `encomiendas/indicadores.ts`, `(app)/encomiendas/_componentes/indicadores.tsx` |
-| APK con respaldo web: `esApp`, `alBotonAtras`, `llamar`, `llamadasDesde`, `pantallaEncendida`, `escanearCodigo` | `nativo/entorno.ts`, `nativo/telefono.ts`, `nativo/escaner.ts` |
-| Contestó o no según el registro (≥ 5 s); aviso de APK vieja | `nativo/llamada.ts`, `nativo/version.ts` |
+| APK con respaldo web: `esApp`, `alBotonAtras`, `llamar`, `pantallaEncendida`, `escanearCodigo` (sin registro de llamadas desde el 2026-11-06) | `nativo/entorno.ts`, `nativo/telefono.ts`, `nativo/escaner.ts` |
+| La burbuja sobre Google Maps (spec 020): `VistaBurbuja`, `permisoBurbuja`, `mostrarBurbuja`, `terminarBurbuja`, `burbujaEnAres`, `alTocarBurbuja`, `navegarA` | `nativo/burbuja.ts` |
+| Botones de la parada en un solo lugar, para la tarjeta y la burbuja (en la parada: «Pedido entregado» · llamar · «No se entrega», 2026-11-06): `BotonParada`, `IdBoton`, `botonesDeParada`, `estadoDeParada`, `atenderBoton` · la vista y cuándo navegar: `vistaDeBurbuja`, `aDondeNavegar` · en curso, permiso del día y toques: `useBurbuja` | `(conductor)/…/encomiendas/_hooks/botones-parada.ts`, `vista-burbuja.ts`, `use-burbuja.ts` |
+| Aviso de APK vieja | `nativo/version.ts` |
 | OF y referencia del paquete: `formatoOf`, `ofValida` (solo dígitos, sin regla de largo ni ceros a la izquierda), `ofDistinta` (la que no tiene 9: va con ⚠), `textoReferencia`, `buscarPorOf` · listas `TIPOS_PAQUETE`, `TAMANOS_PAQUETE`, `COLORES_PAQUETE` | `encomiendas/paquete.ts`, `encomiendas/catalogos.ts` |
 | Paquete y foto en el teléfono: `guardarPaquete`, `ofRepetida`, `guardarFoto`, `purgarFotosCerradas` | `encomiendas/local/almacen/paquete.ts` |
 | Carga del día (spec 005): leer la guía, la etiqueta y su código de barras (puros) | `encomiendas/lectura/{guia,etiqueta,codigo-barras}.ts` |
 | Pedidos desde la guía y escaneo → "PARADA n de N": `crearDesdeGuia`, `aplicarLecturaEtiqueta`, `sinEtiquetaEscaneada`; dirección de la etiqueta: `cambiarDireccion` (`pedidos.ts`) | `encomiendas/local/almacen/carga.ts` |
 | Lectura de una foto: primero el texto en el teléfono (`leerImagen`, `textoDeFoto` con ML Kit, `etiquetaCompleta`) y, si no alcanza, la IA: esquemas, contrato, llamada a Claude (`server-only`) | `encomiendas/lectura/{esquemas,contrato,servidor}.ts`, `encomiendas/local/lectura-cliente.ts`, `src/app/api/lectura/route.ts` |
 | Cierre del día: no entregados, resumen y borrado; cierre de sesión | `encomiendas/local/almacen/borrado.ts` (`STORES_DEL_DIA` en `idb.ts`) |
-| Plugin nativo `Telefono` (Java) | `android/app/src/main/java/cl/dashund/ares/TelefonoPlugin.java` |
+| Plugins nativos (Java): `Telefono`; `Burbuja` con su servicio, su vista, el aviso de llegada (ubicación pasiva, ≤ 50 m) y abrir Google Maps (spec 020) | `android/app/src/main/java/cl/dashund/ares/`: `TelefonoPlugin.java`, `BurbujaPlugin.java`, `BurbujaServicio.java`, `BurbujaVista.java`, `BurbujaLlegada.java`, `BurbujaAviso.java`, `GoogleMaps.java`; `WebViewAres.java` (con la burbuja en curso, la página no se congela atrás) |
 | Sesión y puertas (`exigirPanel`, `exigirConductor`); rol y destino por rol (`leerRol`, `inicioSegunRol`); ficha por usuario | `auth/sesion.ts`, `auth/roles.ts`, `auth/conductor-de-usuario.ts` |
 | Días "YYYY-MM-DD" en hora de Chile (`hoyChile`, `sumarDias`, `esFecha`), `MESES`; periodo del panel y su cookie | `comun/fechas.ts`, `comun/periodo.ts` (+ `periodo-servidor.ts`) |
 | Orden de paradas (exacto hasta 14 puntos; si no, construcción + mejora + sacudidas; la propuesta busca a fondo —hasta 300 sacudidas seguidas sin mejora— con la pantalla `BuscandoRuta` encima, y reusa el orden de un grupo repetido entre estrategias) · con horarios (`optimizarConHorarios`, por partes en `optimizarSinCongelar`) | `rutas/orden-paradas/` (`con-horarios.ts`, `sin-congelar.ts`) |
 | Matriz de calles por bloques, en memoria, con OpenRouteService (`matrizCalles`, `planificarConsultas`) | `geo/matriz.ts` |
 | Corregir con IA una dirección sin ubicar (spec 018): conversación y validación (`conversacionValida`), una ida con Claude (`pasoDireccionIA`, `server-only`), el bucle en el teléfono (`corregirConIA`, `interpretar`); los del día, a confirmar por el conductor (`corregirSinUbicar`, `esSegura` —la calle entera, sin el número, nunca es segura—, `aplicarCorreccion`) | `geo/direccion-ia/{contrato,servidor,cliente}.ts`, `src/app/api/direccion-ia/route.ts`, `encomiendas/local/corregir-direcciones.ts` |
-| Trazado en el teléfono: pegar al camino, rumbo, metros restantes · OpenRouteService (spec 019; antes Mapbox): direcciones, navegación (`PasoNavegacion` con `duracionS` y `salida` de rotonda; los pasos de ORS se traducen con `pasosDeOrs` y la voz se arma ahí: 500 m, 200 m y encima del giro; al salir hacia una parada pide también la ruta sin rumbo; `elegirSalida` la usa si ahorra 200 m desde el mismo punto (casa atrás o parada en esquina) y marca "Da la vuelta" solo si arranca hacia atrás; dar la vuelta solo en calles anchas (`vuelta.ts`: tipo de ORS 1 carretera y 2 principal), y en la ruta del día, donde se devolvía en un pasaje o residencial, ese pedazo se vuelve a pedir de frente; antes de armar la ruta, una parada pegada a una troncal que no es su calle se corre a la calle local (`acceso.ts`, Tilequery; `corregirAccesos`)) · recorrido del tramo: `pasoEnCurso` (el cartel cambia al doblar la esquina, o al aparecer sobre un paso posterior) y `restanteDelTramo` (metros a la maniobra, metros y segundos a la parada) | `geo/trazado.ts` · `geo/recorrido.ts` · `geo/ors/` · `geo/mapbox/acceso.ts` |
+| Trazado en el teléfono: pegar al camino, rumbo, metros restantes · OpenRouteService (spec 019; antes Mapbox): la línea del día y sus tramos por parada (`obtenerRutaCalles` → `RutaCalles.tramos`, `TramoDeRuta`); dar la vuelta solo en calles anchas (`vuelta.ts`: tipo de ORS 1 carretera y 2 principal), y en la ruta del día, donde se devolvía en un pasaje o residencial, ese pedazo se vuelve a pedir de frente; antes de armar la ruta, una parada pegada a una troncal que no es su calle se corre a la calle local (`acceso.ts`, Tilequery; `corregirAccesos`) · hacia la parada activa (spec 020; reemplaza la navegación tramo a tramo): `haciaParada` da metros, segundos, punto pegado, lo que falta y rumbo por el tramo de la línea del día (`tramoHacia`), o en línea recta fuera de él | `geo/trazado.ts` · `geo/hacia-parada.ts` · `geo/ors/` · `geo/mapbox/acceso.ts` |
 | Ubicar una dirección (`ubicarDireccion`): limpiar la consulta, `coincidenciaCalle` (tipeo acotado), catálogo de calles de Arica (`callesParecidas`, `largoDeCalle`) | `geo/geocoding/`: `ubicar.ts`, `consulta.ts`, `calles.ts` + `calles-arica.ts` (generado), `completar-numero.ts`, `mapbox.ts`, `nominatim.ts`, `codigo.ts`; `index.ts` es el barril |
 
 ## 5. Pendiente

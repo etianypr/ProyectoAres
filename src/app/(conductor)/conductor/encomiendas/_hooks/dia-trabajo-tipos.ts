@@ -44,7 +44,8 @@ export type DiaEnCurso = {
   /** Manda el aviso a los pedidos que entraron en la ruta y todavía no lo
    *  tienen. Se llama al confirmar una ruta (FR-007). */
   avisarPedidos: (pedidoIds: string[]) => Promise<void>;
-  marcarLlamada: (pedidoId: string, resultado: "contesto" | "no_contesto") => Promise<void>;
+  /** Se lo llamó: la hora de la primera llamada (no se anota si contestó, spec 020). */
+  registrarLlamada: (pedidoId: string) => Promise<void>;
   /** Cierra una parada con uno de los cuatro resultados y devuelve el
    *  identificador para deshacerla, o null si ya estaba cerrada (o si el toque
    *  llegó mientras el anterior estaba en vuelo).

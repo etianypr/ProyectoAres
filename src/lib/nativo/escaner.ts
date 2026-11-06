@@ -10,6 +10,7 @@ import {
   BarcodeScanner,
   GoogleBarcodeScannerModuleInstallState,
 } from "@capacitor-mlkit/barcode-scanning";
+import { burbujaEnAres } from "./burbuja";
 import { esApp } from "./entorno";
 
 // La primera vez hay que bajar el módulo de Google (unos MB); con señal tarda
@@ -44,6 +45,10 @@ async function moduloListo(): Promise<boolean> {
  *  ITF). null = fuera de la APK, cancelado o sin escáner disponible. */
 export async function escanearCodigo(): Promise<string | null> {
   if (!esApp()) return null;
+  // La burbuja no aparece encima del escáner de Google, y solo mientras está abierto:
+  // la pantalla de escaneo de ARES puede quedar abierta al volver a Google Maps, y
+  // ahí la burbuja tiene que verse (el vivo, 2026-11-06; spec 020).
+  await burbujaEnAres(true);
   try {
     if (!(await moduloListo())) return null;
     const { barcodes } = await BarcodeScanner.scan({
@@ -54,5 +59,7 @@ export async function escanearCodigo(): Promise<string | null> {
   } catch {
     // Cancelado por el conductor o sin soporte.
     return null;
+  } finally {
+    await burbujaEnAres(false);
   }
 }

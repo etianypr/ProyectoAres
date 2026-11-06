@@ -1,6 +1,6 @@
 # Implementation Plan: Navegar con Google Maps y la burbuja de ARES
 
-**Branch**: `019-sin-mapbox` (sin rama propia) | **Date**: 2026-11-01 | **Spec**: [spec.md](spec.md)
+**Branch**: `020-burbuja-google-maps` | **Date**: 2026-11-01 | **Spec**: [spec.md](spec.md)
 
 **Input**: `specs/020-burbuja-google-maps/spec.md`
 
@@ -49,7 +49,7 @@ y salir a la siguiente (SC-002).
 | IV. Proveedores falibles | Sin permiso → Google Maps sin burbuja; sin Google Maps → enlace en el navegador; ARES cerrado por Android → los km la reabren; sin tramo → línea recta | ✅ | ✅ |
 | V. Datos mínimos | A Google Maps solo el punto; la burbuja y su aviso fijo ("ARES · Parada N", sin nombre) en el teléfono; ORS deja de recibir la posición tramo a tramo; `PRIVACIDAD.md` al día | ✅ | ✅ |
 | VI. Arquitectura verificable | Diagrama y tabla de datos abajo; `ARQUITECTURA.md` y `CLASES.md` en el mismo cambio | ✅ | ✅ |
-| Restricción: sin GPS permanente | El servicio es `specialUse`, no `location`; el GPS se corta al ir al fondo (R14) | ✅ | ✅ |
+| Restricción: sin GPS permanente | La web corta el GPS al ir al fondo; lo nativo solo escucha la ubicación pasiva mientras la burbuja está en curso, para abrirla al llegar (excepción explícita de esta spec, FR-016, R14) | ✅ | ✅ |
 | Capas `app → components → lib` | Lo nativo solo en `lib/nativo/`; `hacia-parada.ts` en `lib/geo/`; botones y burbuja en `_hooks/` de la app | ✅ | ✅ |
 
 Sin violaciones: no hay tabla de complejidad.

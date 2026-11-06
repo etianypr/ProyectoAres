@@ -12,7 +12,7 @@
 //
 // Fuera de la APK no hay burbuja: los km abren Google Maps como siempre.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   alTocarBurbuja,
   burbujaEnAres,
@@ -67,17 +67,26 @@ export function useBurbuja({
   deshacer: { texto: string } | null;
   /** Una confirmación que ya no se deshace. */
   confirmacion: { texto: string } | null;
-  /** ARES tiene abierta una pantalla suya que puede abrir otra de Android
-   *  (escáner, cámara): la burbuja no aparece encima. */
+  /** ARES está cargando la guía con la cámara: con ARES atrás la burbuja quedaría
+   *  encima. El escáner de la etiqueta se avisa solo mientras está abierto
+   *  (lib/nativo/escaner.ts), y el formulario del pedido no cuenta: son pantallas de
+   *  ARES que pueden quedar abiertas al volver a Google Maps, y ahí la burbuja tiene
+   *  que verse (el vivo, 2026-11-05 y 2026-11-06). */
   enAres: boolean;
   acciones: AccionesParada;
 }) {
   const [enCurso, setEnCurso] = useState(false);
-  const aviso: AvisoBurbuja = deshacer
-    ? { texto: deshacer.texto, deshacer: true }
-    : confirmacion
-      ? { texto: confirmacion.texto, deshacer: false }
-      : null;
+  const textoDeshacer = deshacer?.texto ?? null;
+  const textoConfirmacion = confirmacion?.texto ?? null;
+  const aviso = useMemo<AvisoBurbuja>(
+    () =>
+      textoDeshacer != null
+        ? { texto: textoDeshacer, deshacer: true }
+        : textoConfirmacion != null
+          ? { texto: textoConfirmacion, deshacer: false }
+          : null,
+    [textoDeshacer, textoConfirmacion],
+  );
   /** El pedido al que se mandó Google Maps por última vez. */
   const navegada = useRef<string | null>(null);
   /** El pedido de la última vista: si cambia, la burbuja se abre. */
@@ -92,10 +101,19 @@ export function useBurbuja({
       marcarPedidoHoy(fecha);
       permiso = (await pedirPermisoBurbuja()) ? "dado" : "falta";
     }
-    if (permiso === "dado") setEnCurso(true);
+    // Se marca ANTES de esperar a la burbuja: si no, el efecto de "cambió la
+    // activa" ve la burbuja en curso sin parada navegada y manda Google Maps una
+    // segunda vez (visto en el vivo, 2026-11-05).
     navegada.current = activa.pedido.id;
+    if (permiso === "dado") {
+      setEnCurso(true);
+      // La primera vista va ANTES de abrir Google Maps: con ella arranca el servicio
+      // de la burbuja, y Android 15 solo lo deja arrancar con ARES adelante.
+      mostrada.current = activa.pedido.id;
+      await mostrarBurbuja(vistaDeBurbuja(activa, fase, { whatsapp, aviso, nueva: true }));
+    }
     await navegarA(destino);
-  }, [activa, fecha]);
+  }, [activa, fecha, fase, whatsapp, aviso]);
 
   // La vista de la burbuja, cada vez que cambia algo de la parada. El texto
   // resume la vista: se redibuja solo si cambió, no con cada lectura del GPS.

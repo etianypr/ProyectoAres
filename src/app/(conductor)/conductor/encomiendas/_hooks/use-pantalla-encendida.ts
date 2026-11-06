@@ -1,11 +1,12 @@
 "use client";
 
-// Mantiene la pantalla encendida mientras el conductor está navegando.
+// Mantiene la pantalla encendida mientras el conductor recorre la ruta con ARES
+// adelante (con Google Maps adelante, la pantalla la maneja Google Maps).
 //
 // No es comodidad: con la pantalla apagada el navegador SUSPENDE watchPosition,
-// así que el punto deja de moverse, las maniobras dejan de avanzar y la voz se
-// queda callada. El conductor levanta la vista a los treinta segundos y la app le
-// muestra dónde estaba media cuadra atrás.
+// así que el punto deja de moverse y los km a la parada se quedan quietos. El
+// conductor levanta la vista a los treinta segundos y la app le muestra dónde
+// estaba media cuadra atrás.
 //
 // El bloqueo se pierde solo cada vez que el teléfono manda la página a segundo
 // plano —una llamada entrante, cambiar de app para mirar una dirección— y NO

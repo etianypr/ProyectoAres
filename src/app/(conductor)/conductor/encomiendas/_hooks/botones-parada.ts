@@ -17,9 +17,6 @@ export type IdBoton =
   | "telefono"
   | "entregado"
   | "no_se_pudo"
-  | "contesto"
-  | "no_contesto"
-  | "finalizado"
   | "pendiente"
   | "no_entregado"
   | "volver"
@@ -53,48 +50,29 @@ const b = (id: IdBoton, texto: string, tono: Tono, extra: Partial<BotonParada> =
   ...extra,
 });
 
-/** Los botones del paso, en filas: cada fila se reparte el ancho. */
+/** Los botones del paso, en filas: cada fila se reparte el ancho.
+ *
+ *  En la parada, siempre la misma fila (el dueño, 2026-11-06): "Pedido entregado"
+ *  en verde, llamar redondo al medio y "No se entrega" en rojo. Ya no se pregunta
+ *  si contestó: hay quien no contesta y recibe igual, y llamar es solo para
+ *  coordinar. Sin teléfono, el del medio escanea la etiqueta para sacarlo, y abajo
+ *  queda escribirlo a mano si la etiqueta está dañada (spec 017, E3). */
 export function botonesDeParada(activa: Parada, fase: Fase): BotonParada[][] {
-  switch (fase) {
-    case "antes_llamar":
-      // Viene de la guía y su etiqueta no se escaneó: el teléfono está ahí. Si la
-      // etiqueta está dañada, la parada igual se tiene que poder cerrar o
-      // completar a mano (spec 017, E3): si no, traba todas las que siguen.
-      return activa.pedido.telefono
-        ? [[b("llamar", "Llamar", "marca")]]
-        : [
-            [b("escanear", "Escanear la etiqueta para llamar", "marca", { abreAres: true })],
-            [
-              b("telefono", "Teléfono", "borde-marca", { abreAres: true }),
-              b("entregado", "Entregado", "borde-ok", { escribe: true }),
-              b("no_se_pudo", "No se pudo", "borde-peligro", { escribe: true }),
-            ],
-          ];
-    case "esperando_resultado":
-      // Llamar queda en el medio para reintentar sin decidir todavía si contestó
-      // (suena ocupado, se cortó).
-      return [
-        [
-          b("contesto", "Contestó", "ok", { escribe: true }),
-          b("llamar", "Volver a llamar", "neutro", { soloIcono: true }),
-          b("no_contesto", "No contestó", "peligro", { escribe: true }),
-        ],
-      ];
-    case "esperando_entrega":
-    case "confirmado":
-      // Llamar sigue aunque haya confirmado: puede no abrir.
-      return [
-        [b("finalizado", "Pedido finalizado", "marca", { escribe: true })],
-        [b("llamar", "Llamar", "borde-marca"), b("no_se_pudo", "No se pudo", "borde-peligro", { escribe: true })],
-      ];
-    case "salidas":
-      return [
-        ...SALIDAS.map((s) => [
-          b(s.clave, s.etiqueta, "neutro", { detalle: s.detalle, escribe: true }),
-        ]),
-        [b("volver", "Volver", "neutro")],
-      ];
+  if (fase === "salidas") {
+    return [
+      ...SALIDAS.map((s) => [b(s.clave, s.etiqueta, "neutro", { detalle: s.detalle, escribe: true })]),
+      [b("volver", "Volver", "neutro")],
+    ];
   }
+  const entregado = b("entregado", "Pedido entregado", "ok", { escribe: true });
+  const noSeEntrega = b("no_se_pudo", "No se entrega", "peligro");
+  if (activa.pedido.telefono) {
+    return [[entregado, b("llamar", "Llamar", "neutro", { soloIcono: true }), noSeEntrega]];
+  }
+  return [
+    [entregado, b("escanear", "Escanear la etiqueta", "neutro", { soloIcono: true, abreAres: true }), noSeEntrega],
+    [b("telefono", "Teléfono a mano", "neutro", { abreAres: true })],
+  ];
 }
 
 export type EstadoParada = { texto: string; tono: "marca" | "ok" | "neutro"; icono: "reloj" | "check" | "telefono" };
@@ -108,7 +86,7 @@ export function estadoDeParada(activa: Parada, whatsapp: boolean): EstadoParada 
     return { texto: `Pidió ${bloquePorId(pedido.bloqueHorarioId)?.etiqueta ?? "un horario"}`, tono: "marca", icono: "reloj" };
   }
   if (pedido.disponibilidad === "confirmado") return { texto: "Estará en su domicilio", tono: "ok", icono: "check" };
-  if (!whatsapp || pedido.llamada === "no_contesto") return null;
+  if (!whatsapp) return null;
   return { texto: "Sin respuesta todavía", tono: "neutro", icono: "telefono" };
 }
 
@@ -119,8 +97,6 @@ export type AccionesParada = {
   editar: () => void;
   finalizar: () => void;
   noSePudo: () => void;
-  contesto: () => void;
-  noContesto: () => void;
   salida: (salida: Salida) => void;
   volver: () => void;
   deshacer: () => void;
@@ -136,14 +112,9 @@ export function atenderBoton(id: IdBoton, a: AccionesParada): void {
     case "telefono":
       return a.editar();
     case "entregado":
-    case "finalizado":
       return a.finalizar();
     case "no_se_pudo":
       return a.noSePudo();
-    case "contesto":
-      return a.contesto();
-    case "no_contesto":
-      return a.noContesto();
     case "pendiente":
     case "no_entregado": {
       const salida = SALIDAS.find((s) => s.clave === id);

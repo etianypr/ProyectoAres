@@ -18,6 +18,7 @@ const {
   guardarRuta,
   leerRuta,
   marcarLlamada,
+  registrarLlamada,
   marcarResultado,
   cerrarDia,
   leerDias,
@@ -338,6 +339,25 @@ test("la primera acción del día encola una 'llamada' (prueba del día trabajad
   await marcarLlamada({ fecha: HOY, pedidoId: ids[1], conductorId: CONDUCTOR }, "no_contesto");
   cola = await leerCola();
   assert.equal(cola.filter((e) => e.tipo === "llamada").length, 1, "encoló una segunda llamada de más");
+});
+
+test("registrarLlamada (spec 020): guarda la hora de la primera llamada, sin resultado, y una sola 'llamada' en la cola", async () => {
+  const ids = await cargar(2);
+  await guardarRuta({ fecha: HOY, pedidoIdsEnOrden: ids, trazado: null, distanciaM: null, duracionS: null });
+  const marca = { fecha: HOY, pedidoId: ids[0], conductorId: CONDUCTOR };
+
+  await registrarLlamada(marca);
+  const [p] = (await leerPedidos(HOY)).filter((x) => x.id === ids[0]);
+  assert.ok(p.horaLlamada, "no quedó la hora de la llamada");
+  assert.equal(p.llamada, "pendiente", "no se anota si contestó");
+  assert.equal(p.resultado, "pendiente", "llamar no cierra la parada");
+  const hora = p.horaLlamada;
+
+  // Volver a llamar, al mismo o a otro: ni pisa la hora ni encola otra prueba del día.
+  await registrarLlamada(marca);
+  await registrarLlamada({ ...marca, pedidoId: ids[1] });
+  assert.equal((await leerPedidos(HOY)).find((x) => x.id === ids[0]).horaLlamada, hora);
+  assert.equal((await leerCola()).filter((e) => e.tipo === "llamada").length, 1);
 });
 
 test("un día en que solo se llama igual queda registrado como trabajado", async () => {

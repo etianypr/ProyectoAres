@@ -42,7 +42,7 @@ para nunca quedar sin el paquete a la vista ni sin cómo llegar.
 **Why this priority**: es el cambio que deja la navegación en US$0; sin esto no hay burbuja.
 
 **Independent Test**: con 3 paradas inventadas, tocar los km de la primera: Google Maps abre
-navegando y la burbuja abierta muestra la parada. Salir de la navegación en Google Maps y abrir
+navegando y la burbuja achicada muestra la parada; tocarla la abre. Salir de la navegación en Google Maps y abrir
 otra app: la burbuja sigue; "Navegar" vuelve a Google Maps navegando a la misma parada. Achicarla
 y abrirla. Cerrar las 3 paradas: la burbuja se va.
 
@@ -51,7 +51,7 @@ y abrirla. Cerrar las 3 paradas: la burbuja se va.
 1. **Given** una parada activa con punto y el permiso dado, **When** el conductor toca sus km, **Then** Google Maps abre navegando hacia ese punto y encima aparece la burbuja **abierta** con la OF, a quién y dónde.
 2. **Given** la burbuja, **When** el conductor toca "Navegar", **Then** Google Maps abre navegando hacia la parada activa, esté como esté (guiando, llegado, cerrado u otra app adelante).
 3. **Given** la burbuja con la parada abierta, **When** el conductor sale de la navegación en Google Maps, llega, o cambia de app, **Then** la burbuja sigue ahí con "Navegar".
-4. **Given** la burbuja abierta, **When** la achica, **Then** queda un círculo con el número de parada que se puede arrastrar; tocarlo la abre. No hay forma de quitarla mientras quede un pedido abierto.
+4. **Given** la burbuja abierta, **When** la achica, **Then** queda un círculo con «Parada» y el número, fijo sobre la velocidad de Google Maps; tocarlo la abre. No hay forma de quitarla mientras quede un pedido abierto.
 5. **Given** la burbuja, **When** toca "Volver a ARES", **Then** ARES viene adelante en la misma parada y la burbuja se oculta; al salir de ARES vuelve a aparecer.
 6. **Given** la última parada del día, **When** se cierra, **Then** la burbuja se va y ARES queda adelante.
 7. **Given** que falta el permiso, **When** toca los km, **Then** ARES abre el ajuste de Android para darlo; al volver, Google Maps abre navegando igual (sin permiso, sin burbuja).
@@ -60,8 +60,8 @@ y abrirla. Cerrar las 3 paradas: la burbuja se va.
 
 ### User Story 2 - Los botones de la parada en la burbuja (Priority: P1)
 
-Como conductor, quiero llamar, marcar si contestó y cerrar la parada desde la burbuja, para no
-salir de Google Maps en cada puerta.
+Como conductor, quiero llamar y cerrar la parada desde la burbuja, para no salir de Google Maps
+en cada puerta. (Hasta el 2026-11-06 también se marcaba si contestó: el dueño lo sacó, ver FR-007.)
 
 **Why this priority**: es lo que el dueño eligió ("todos los botones") y lo que ahorra toques en
 las ~100 paradas del día.
@@ -73,18 +73,16 @@ mismo en ARES: queda igual.
 **Acceptance Scenarios**:
 
 1. **Given** una parada en cualquier paso, **When** la burbuja la muestra, **Then** tiene los mismos botones que la tarjeta de ARES en ese paso (tabla de abajo), con el mismo texto y color.
-2. **Given** una parada con teléfono, **When** toca "Llamar" en la burbuja, **Then** la llamada sale directo y, al colgar, la burbuja ya muestra el paso siguiente (contestó o no) sin volver a ARES; si no se pudo saber, pregunta "Contestó / No contestó".
-3. **Given** una parada lista para entregar, **When** toca "Pedido finalizado" (o "Entregado"), **Then** queda guardada igual que en ARES, la burbuja muestra el aviso con "Deshacer" y pasa a la siguiente parada, y Google Maps navega hacia ella sin otro toque.
+2. **Given** una parada con teléfono, **When** toca 📞 en la burbuja, **Then** la llamada sale directo y Google Maps vuelve adelante con la llamada de fondo; no se pregunta si contestó.
+3. **Given** una parada, **When** toca "Pedido entregado", **Then** queda guardada igual que en ARES, la burbuja muestra el aviso con "Deshacer" y pasa a la siguiente parada, y Google Maps navega hacia ella sin otro toque.
 4. **Given** el aviso con "Deshacer" en la burbuja, **When** lo toca, **Then** la parada vuelve como estaba, igual que en ARES, y Google Maps vuelve a navegar hacia ella.
 5. **Given** una parada sin teléfono, **When** toca "Escanear la etiqueta" o "Teléfono", **Then** ARES viene adelante y abre el escáner o el pedido; la burbuja vuelve al salir de ARES.
 
-| Paso de la parada | Botones en la burbuja (los de la tarjeta de ARES) |
+| Paso de la parada | Botones en la burbuja (los de la tarjeta de ARES; el dueño, 2026-11-06) |
 |---|---|
-| Hay que contactarlo, con teléfono | Llamar |
-| Hay que contactarlo, sin teléfono | Escanear la etiqueta (abre ARES) · Teléfono (abre ARES) · Entregado · No se pudo |
-| Se llamó: ¿contestó? | Contestó · volver a llamar · No contestó |
-| Contestó o confirmó por WhatsApp | Pedido finalizado · Llamar · No se pudo |
-| No se pudo | Dejar como pendiente · No entregado · Volver |
+| En la parada, con teléfono | Pedido entregado (verde) · 📞 llamar (redondo) · No se entrega (rojo) |
+| En la parada, sin teléfono | Pedido entregado · ⌗ escanear la etiqueta (redondo, abre ARES) · No se entrega · abajo, Teléfono a mano (abre ARES) |
+| No se entrega | Dejar como pendiente · No entregado · Volver |
 
 Siempre: OF, a quién y dónde; **Navegar**; "Volver a ARES"; achicar.
 
@@ -119,8 +117,8 @@ muestra cartel de maniobras.
   guía) y termina sola al llegar; ARES no la corta.
 - **Android cierra ARES en segundo plano** (el vivo es agresivo con la batería): la burbuja se va;
   al abrir ARES, el día sigue donde estaba (todo vive en el teléfono) y los km la vuelven a abrir.
-- **Llamada desde la burbuja**: al colgar, Android vuelve a Google Maps, no a ARES; igual se
-  detecta si contestó.
+- **Llamada desde la burbuja**: sale directo y Google Maps vuelve adelante; la llamada sigue de
+  fondo. No se lee el registro de llamadas.
 - **Aviso "llámalo antes de bajar"**: con ARES atrás no se da (no usa el GPS en segundo plano).
   Lo cubre la burbuja, que en ese paso muestra "Llamar".
 - **Cerrar la parada en ARES con la burbuja en curso** (después de escanear, por ejemplo):
@@ -143,16 +141,19 @@ muestra cartel de maniobras.
 - **FR-004**: La burbuja MUST NOT depender de lo que haga Google Maps: salir de su navegación, llegar o cambiar de app no la quita.
 - **FR-005**: La burbuja MUST mostrar la OF (o "Parada N"), a quién, dónde y los mismos botones que la tarjeta de ARES para el paso en que va; cada toque MUST tener el mismo efecto que en ARES (mismo guardado, mismo aviso, mismo "Deshacer").
 - **FR-006**: El paso de la parada y qué botones van MUST decidirse en un solo lugar para ARES y la burbuja; la burbuja no tiene reglas propias.
-- **FR-007**: "Llamar" en la burbuja MUST llamar directo y detectar solo si contestó al colgar, aunque ARES siga atrás; si no se puede saber, la burbuja pregunta.
+- **FR-007**: "Llamar" en la burbuja MUST llamar directo y dejar Google Maps adelante con la llamada de fondo. No se anota ni se pregunta si contestó (el dueño, 2026-11-06: hay quien no contesta y recibe igual; llamar es solo coordinar). Queda la hora de la primera llamada y el evento "llamada" del día.
 - **FR-008**: Con la burbuja en curso, al cerrar una parada (en la burbuja o en ARES) Google Maps MUST navegar a la siguiente sin otro toque; con "Deshacer", vuelve a la anterior. Al cerrar la última, la burbuja se va y ARES queda adelante.
 - **FR-009**: "Volver a ARES", "Escanear la etiqueta" y "Teléfono" MUST traer ARES adelante en la misma parada (y abrir lo pedido); con ARES adelante la burbuja se oculta y vuelve al salir de ARES.
-- **FR-010**: La burbuja MUST poder achicarse a un círculo con el número de parada y arrastrarse; aparece abierta con cada parada nueva.
+- **FR-010**: La burbuja MUST poder achicarse a un círculo con «Parada» y el número, siempre sobre la velocidad de Google Maps (el dueño, 2026-11-05: antes se arrastraba). Navegando va achicada: abierta tapa la navegación y sirve al llegar; se abre al tocarla y, sola, solo mientras hay un "Deshacer".
 - **FR-011**: Sin el permiso, ARES MUST llevar al ajuste de Android para darlo y abrir Google Maps igual; nunca deja al conductor sin navegar.
 - **FR-012**: ARES MUST NOT guiar: sin cartel de maniobras, sin voz de navegación y sin pedir rutas tramo a tramo. Muestra la línea del día, la posición, las paradas y los km a la activa medidos sobre el tramo de la línea del día que llega a ella (en línea recta si el auto no va por ese tramo).
 - **FR-013**: Si Google Maps no se puede abrir, ARES MUST abrir Google Maps en el navegador hacia la parada.
 - **FR-014**: A Google Maps MUST ir solo el punto de la parada; la OF, el nombre y la dirección se muestran en la burbuja, en el teléfono.
 - **FR-015**: La APK MUST quedar sin el kit de navegación de Google y sin su clave.
-- **FR-016**: ARES MUST NOT usar el GPS mientras está atrás (constitución: sin GPS permanente).
+- **FR-016**: ARES MUST NOT usar el GPS mientras está atrás (constitución: sin GPS permanente), con una
+  sola excepción, que esta spec autoriza de forma explícita (el dueño, 2026-11-05): mientras la burbuja
+  está en curso, lo nativo escucha la ubicación **pasiva** (la que ya pide Google Maps, sin prender el GPS)
+  solo para abrir la burbuja al llegar a la parada (≤ 50 m). No se guarda ni sale del teléfono.
 - **FR-017**: Cómo dar el permiso va en la Ayuda, corto; la burbuja muestra solo la parada y sus botones.
 
 ### Key Entities
@@ -175,7 +176,7 @@ muestra cartel de maniobras.
 - **SC-003**: Recorrer 3 paradas solo desde la burbuja deja **exactamente lo mismo** guardado que hacerlo en ARES.
 - **SC-004**: En un día real, **al menos 8 de cada 10** paradas se cierran sin volver a ARES.
 - **SC-005**: Mientras quede un pedido abierto, volver a navegar hacia la parada toma **1 toque** desde cualquier app (0 casos sin "Navegar"), salvo que Android cierre ARES.
-- **SC-006**: Las llamadas desde la burbuja quedan marcadas solas (contestó / no contestó) en al menos 9 de cada 10, como desde ARES (spec 015).
+- **SC-006**: ~~Las llamadas desde la burbuja quedan marcadas solas (contestó / no contestó)~~ Sale con FR-007 (2026-11-06).
 - **SC-007**: Abierta, la burbuja ocupa como mucho el tercio de abajo de la pantalla; achicada, un círculo de ~1,5 cm (la yema de un dedo).
 - **SC-008**: ARES no pide ninguna ruta tramo a tramo durante el día (solo la línea del día).
 - **SC-009**: Sin permiso, sin Google Maps o con ARES cerrado por Android, el conductor **siempre** tiene cómo navegar a la parada (0 casos sin salida).

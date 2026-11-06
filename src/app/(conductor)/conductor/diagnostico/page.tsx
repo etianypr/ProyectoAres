@@ -20,7 +20,6 @@ type Info = {
   app: boolean;
   version: string | null;
   llamadas: Estado;
-  registro: Estado;
   ubicacion: Estado;
 };
 
@@ -70,7 +69,6 @@ export default function DiagnosticoPage() {
         app: esApp(),
         version,
         llamadas: estadoDe(telefono?.llamadas),
-        registro: estadoDe(telefono?.registro),
         ubicacion: estadoDe(ubicacion),
       });
     })();
@@ -107,7 +105,6 @@ export default function DiagnosticoPage() {
         <ul className="divide-y divide-divider rounded-2xl bg-card shadow-soft">
           <Fila etiqueta="App instalada (APK)" estado={info.app ? "si" : "no"} detalle={info.version ?? undefined} />
           <Fila etiqueta="Llamar con un toque" estado={info.llamadas} />
-          <Fila etiqueta="Saber si contestó (registro de llamadas)" estado={info.registro} />
           <Fila etiqueta="Ubicación" estado={info.ubicacion} />
         </ul>
       ) : (
@@ -149,8 +146,10 @@ export default function DiagnosticoPage() {
             : "Nada se envía a la oficina ni por WhatsApp mientras esté encendido."}
         </p>
         {errorPrueba ? <p className="text-xs text-danger">{errorPrueba}</p> : null}
-        {/* El GPS simulado (gps-simulado.ts): parte en la central y avanza solo
-            por la ruta hasta la parada activa. */}
+        {/* El GPS simulado (gps-simulado.ts): parte en la central y avanza solo por
+            el tramo de la línea del día hasta la parada activa, o en línea recta si
+            no hay tramo (spec 020, R12). Mueve solo a ARES: Google Maps navega con
+            la ubicación real. */}
         {modoPrueba ? (
           <div className="space-y-2 rounded-xl bg-background p-3">
             <label className="flex items-center gap-2 text-sm font-medium">

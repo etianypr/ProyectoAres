@@ -64,6 +64,7 @@ export {
   deshacerResultado,
   marcarResultado,
   marcarLlamada,
+  registrarLlamada,
   moverAlFinal,
   type MarcaPedido,
 } from "./terreno";
