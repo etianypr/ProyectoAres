@@ -234,6 +234,25 @@ test("guardarRuta conserva lo cerrado y le pone detrás el orden nuevo", async (
   assert.equal(ruta.distanciaM, 100);
 });
 
+test("spec 027: salir a repartir se anota una vez y rehacer la ruta no lo borra", async () => {
+  const { marcarInicioReparto } = almacen;
+  assert.equal(await marcarInicioReparto(HOY), null, "sin ruta no hay nada que marcar");
+
+  const ids = await cargar(3);
+  const recien = await guardarRuta({ fecha: HOY, pedidoIdsEnOrden: ids, trazado: null, distanciaM: null, duracionS: null });
+  assert.equal(recien.inicioReparto, null, "recién armada, todavía está cargando el auto");
+
+  const salio = (await marcarInicioReparto(HOY)).inicioReparto;
+  assert.ok(salio);
+  await new Promise((r) => setTimeout(r, 5));
+  assert.equal((await marcarInicioReparto(HOY)).inicioReparto, salio, "marcarlo otra vez no mueve la hora");
+
+  const nuevo = await guardarPedido(P(4), HOY);
+  const rehecha = await guardarRuta({ fecha: HOY, pedidoIdsEnOrden: [nuevo.id, ...ids], trazado: null, distanciaM: null, duracionS: null });
+  assert.equal(rehecha.inicioReparto, salio, "un pedido que llega tarde no lo devuelve a cargar el auto");
+  assert.equal((await leerRuta(HOY)).inicioReparto, salio);
+});
+
 test("regenerar la ruta conserva la llamada ya hecha de un pedido pendiente", async () => {
   const ids = await cargar(3);
   await guardarRuta({ fecha: HOY, pedidoIdsEnOrden: ids, trazado: null, distanciaM: null, duracionS: null });

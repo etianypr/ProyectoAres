@@ -27,3 +27,11 @@ export function cifrasPantalla(paradas: Parada[], pedidos: Pedido[]): CifrasPant
     porcentaje: paradas.length > 0 ? Math.round((entregadas / paradas.length) * 100) : 0,
   };
 }
+
+/** Cómo terminó el día, para la cabecera de "Cerrar el día" (spec 027): todos
+ *  los pedidos del día y no solo los de la ruta, igual que la pantalla de cierre
+ *  (spec 007). Uno que nunca entró a la ruta tampoco se entregó: vuelve a Starken. */
+export function cierreDelDia(pedidos: Pedido[]): { entregadas: number; noEntregadas: number } {
+  const entregadas = pedidos.filter((p) => p.resultado === "entregado").length;
+  return { entregadas, noEntregadas: pedidos.length - entregadas };
+}

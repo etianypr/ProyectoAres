@@ -107,5 +107,9 @@ export function useCierreDia({
     if (pendiente?.esHoy) setHoyAplazado(true);
   }, [pendiente]);
 
-  return { pendiente, borrando, error, confirmar, aplazar };
+  /** Vuelve a mostrar el cierre de hoy después de aplazarlo (spec 027,
+   *  «Cerrar el día» en la cabecera). */
+  const reabrir = useCallback(() => setHoyAplazado(false), []);
+
+  return { pendiente, borrando, error, confirmar, aplazar, reabrir };
 }

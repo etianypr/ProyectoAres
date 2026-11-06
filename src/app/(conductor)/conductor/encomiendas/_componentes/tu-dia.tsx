@@ -1,14 +1,15 @@
 "use client";
 
-// "Tu día": por qué el día no se cerró, cómo terminó ayer y lo que falta enviar
-// (sale de pantalla.tsx, spec 002 T037).
+// "Tu día": por qué el día no se cerró y lo que falta enviar (sale de
+// pantalla.tsx, spec 002 T037). Cómo terminó ayer pasó a AyerHoja, con el día
+// vacío (spec 027). Sin nada que decir no se dibuja: un título solo, sin nada
+// debajo, hacía buscar qué faltaba.
 
 import { AlertTriangle, CloudOff } from "lucide-react";
 import { Seccion } from "./seccion";
 
 export function TuDia({
   motivoNoCerrar,
-  ayer,
   sinEnviar,
   errorEnvio,
   enviando,
@@ -17,13 +18,13 @@ export function TuDia({
 }: {
   /** FR-020: por qué el día no se cierra, solo con todas las paradas marcadas. */
   motivoNoCerrar: string | null;
-  ayer: { entregadas: number; noEntregadas: number } | null;
   sinEnviar: number;
   errorEnvio: string | null;
   enviando: boolean;
   onReintentar: () => void;
   rechazados: number;
 }) {
+  if (!motivoNoCerrar && sinEnviar === 0 && rechazados === 0) return null;
   return (
     <Seccion titulo="Tu día">
           <div className="space-y-2">
@@ -46,14 +47,7 @@ export function TuDia({
                 </div>
               </div>
             ) : null}
-    
-            {ayer ? (
-              <p className="px-1 text-xs text-muted">
-                Ayer: {ayer.entregadas} {ayer.entregadas === 1 ? "entrega" : "entregas"}
-                {ayer.noEntregadas > 0 ? ` y ${ayer.noEntregadas} sin entregar` : ""}.
-              </p>
-            ) : null}
-    
+
             {sinEnviar > 0 ? (
               <div className="flex items-start gap-2.5 rounded-2xl bg-warn-bg px-3.5 py-3 text-sm text-warn">
                 <CloudOff className="mt-0.5 h-4 w-4 shrink-0" />

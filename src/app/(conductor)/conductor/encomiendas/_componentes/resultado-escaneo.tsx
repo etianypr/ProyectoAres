@@ -50,6 +50,9 @@ export function Resultado({
   const [ofDistinta, setOfDistinta] = useState<string | null>(null);
   const [cambiandoDireccion, setCambiandoDireccion] = useState(false);
   const [avisoDireccion, setAvisoDireccion] = useState<string | null>(null);
+  // La OF escrita a mano contó la caja con un número provisorio (spec 027): si
+  // su etiqueta trae el número de verdad, lo reemplaza.
+  const [provisorio, setProvisorio] = useState(r.bultoAMano);
   const entradaFoto = useRef<HTMLInputElement>(null);
 
   const referencia = textoReferencia(p.referencia);
@@ -79,7 +82,9 @@ export function Resultado({
         of: codigo.of,
         ofConfirmada: etiqueta.ofImpresa === codigo.of,
         bulto: codigo.bulto ?? etiqueta.bulto,
+        reemplazaBulto: codigo.bulto == null ? provisorio : null,
       });
+      if (codigo.bulto == null && etiqueta.bulto != null) setProvisorio(null);
       if (nuevo) {
         if (!nuevo.pedido.fotoId) await guardarFoto(nuevo.pedido.id, await comprimirFoto(archivo));
         const refrescado = await aplicarLecturaEtiqueta(fecha, { of: codigo.of, bulto: null });
@@ -131,7 +136,9 @@ export function Resultado({
       of: codigo.of,
       ofConfirmada: leido.ofImpresa === codigo.of,
       bulto: codigo.bulto ?? leido.bulto,
+      reemplazaBulto: codigo.bulto == null ? provisorio : null,
     });
+    if (codigo.bulto == null && leido.bulto != null) setProvisorio(null);
     if (nuevo) onCambio(nuevo);
     setPegando(false);
     setTextoEtiqueta("");

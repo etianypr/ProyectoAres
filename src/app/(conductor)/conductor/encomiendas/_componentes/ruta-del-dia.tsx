@@ -4,10 +4,11 @@
 // 002 T037).
 
 import { memo } from "react";
-import { Check, Clock, Phone, X } from "lucide-react";
+import { AlertTriangle, Check, Clock, Phone, X } from "lucide-react";
 import { cn } from "@/lib/comun/utils";
 import { bloquePorId } from "@/lib/encomiendas/config";
 import { nombreVisible } from "@/lib/encomiendas/paquete";
+import { problemasDelPedido } from "@/lib/encomiendas/problemas";
 import type { Pedido } from "@/lib/encomiendas/local/almacen";
 import type { Parada } from "../_hooks/use-dia-trabajo";
 import { FilaDeslizable } from "./fila-deslizable";
@@ -26,6 +27,7 @@ export const RutaDelDia = memo(function RutaDelDia({
   entregadasDelDia,
   onEliminar,
   onEditar,
+  soloLista = false,
 }: {
   paradas: Parada[];
   activaId: string | null;
@@ -39,22 +41,10 @@ export const RutaDelDia = memo(function RutaDelDia({
   /** Tocar una parada pendiente abre su edición: con la ruta armada se corrige
    *  ahí la OF, el teléfono o la dirección (terreno 2026-10-29). */
   onEditar: (pedido: Pedido) => void;
+  /** Sin título ni barra: la ruta plegada de un día terminado (spec 027). */
+  soloLista?: boolean;
 }) {
-  return (
-    <Seccion titulo="Ruta del día">
-          <div className="mb-2.5 flex items-center gap-3">
-            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#ececef]">
-              <div
-                className="h-full rounded-full bg-ok transition-[width] duration-500"
-                style={{ width: `${porcentaje}%` }}
-              />
-            </div>
-            <span className="shrink-0 text-xs font-medium tabular-nums text-muted">
-              {entregadas} de {paradas.length}
-            </span>
-          </div>
-          <MetaBono meta={metaBono} entregadas={entregadasDelDia} />
-    
+  const lista = (
           <ol className="overflow-hidden rounded-2xl bg-card shadow-soft">
             {paradas.map((p, i) => {
               const esActiva = p.pedido.id === activaId;
@@ -101,6 +91,15 @@ export const RutaDelDia = memo(function RutaDelDia({
                       <span className="block truncate text-xs text-muted">
                         {p.pedido.direccion}
                       </span>
+                      {/* El ⚠ de la parada, en palabras (spec 027). */}
+                      {editable
+                        ? problemasDelPedido(p.pedido).map((x) => (
+                            <span key={x.tipo} className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-warn">
+                              <AlertTriangle className="h-3 w-3 shrink-0" />
+                              {x.texto}
+                            </span>
+                          ))
+                        : null}
                     </span>
                     {/* Lo que contestó el receptor, en la propia lista: es
                         lo que el conductor mira para decidir el orden real y a
@@ -131,6 +130,23 @@ export const RutaDelDia = memo(function RutaDelDia({
               );
             })}
           </ol>
+  );
+  if (soloLista) return lista;
+  return (
+    <Seccion titulo="Ruta del día">
+          <div className="mb-2.5 flex items-center gap-3">
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#ececef]">
+              <div
+                className="h-full rounded-full bg-ok transition-[width] duration-500"
+                style={{ width: `${porcentaje}%` }}
+              />
+            </div>
+            <span className="shrink-0 text-xs font-medium tabular-nums text-muted">
+              {entregadas} de {paradas.length}
+            </span>
+          </div>
+          <MetaBono meta={metaBono} entregadas={entregadasDelDia} />
+          {lista}
         </Seccion>
   );
 });

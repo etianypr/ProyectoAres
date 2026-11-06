@@ -1,22 +1,32 @@
 "use client";
 
-// Un pedido fuera de la ruta, en "Pedidos fuera de la ruta" (sale de pantalla.tsx,
-// spec 002 T037).
+// Un pedido que todavía no está en la ruta: en "Por resolver", en "Pedidos" o en
+// "Pedidos fuera de la ruta" (sale de pantalla.tsx, spec 002 T037).
 
-import { MapPin, MapPinOff } from "lucide-react";
+import { AlertTriangle, MapPinOff } from "lucide-react";
+import { cn } from "@/lib/comun/utils";
 import { nombreVisible } from "@/lib/encomiendas/paquete";
+import { problemasDelPedido, type TipoProblema } from "@/lib/encomiendas/problemas";
 import type { Pedido } from "@/lib/encomiendas/local/almacen";
 import { FilaDeslizable } from "./fila-deslizable";
 
-/** Fila de un pedido que todavía no entró en la ruta. Tocarla abre la edición:
- *  es la única forma de arreglar una dirección que no se pudo ubicar.
+/** Qué se hace con cada ⚠ al tocar la fila (siempre abre la edición). */
+const ACCION: Record<TipoProblema, string> = {
+  sin_ubicar: "Corregir",
+  of_distinta: "Revisar",
+  sin_of: "Escribir",
+};
+
+/** Tocarla abre la edición: es como se arregla un ⚠.
  *
- *  El estado de ubicación se dice DOS veces a propósito —con el icono tachado y
- *  con la palabra "Corregir"—. Un pedido sin ubicar no entra en ninguna ruta, así
- *  que si el conductor no se entera, ese paquete no sale de la camioneta; y una
- *  marca que solo se distingue por el color no la ve nadie de reojo, a pleno sol,
- *  con el teléfono en una mano (la constitución lo pide explícitamente: los
- *  estados no pueden depender solo del color). */
+ *  Un ⚠ se dice DOS veces a propósito —con el problema escrito y con la acción
+ *  al lado—. Un pedido sin ubicar no entra en ninguna ruta, así que si el
+ *  conductor no se entera, ese paquete no sale de la camioneta; y una marca que
+ *  solo se distingue por el color no la ve nadie de reojo, a pleno sol (la
+ *  constitución lo pide: los estados no pueden depender solo del color).
+ *
+ *  Sin ⚠ la fila no lleva marca (spec 027): "Ubicado" en cada fila no decía nada
+ *  cuando todos lo estaban. */
 export function FilaPedido({
   pedido,
   primera,
@@ -28,7 +38,7 @@ export function FilaPedido({
   onEditar: () => void;
   onEliminar: () => void;
 }) {
-  const sinUbicar = pedido.lat == null || pedido.lng == null;
+  const problemas = problemasDelPedido(pedido);
   return (
     <FilaDeslizable
       separador={!primera}
@@ -42,25 +52,25 @@ export function FilaPedido({
         className="flex w-full items-center gap-3 px-3.5 py-3 text-left text-sm transition-colors active:bg-background"
       >
         <div className="min-w-0 flex-1">
-          <p className="truncate font-medium leading-tight">{nombreVisible(pedido)}</p>
+          <p className={cn("truncate font-medium leading-tight", !pedido.nombre && "font-mono tabular-nums")}>
+            {nombreVisible(pedido)}
+          </p>
           <p className="truncate text-xs text-muted">{pedido.direccion}</p>
-          {sinUbicar ? (
-            <p className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-warn">
-              <MapPinOff className="h-3 w-3 shrink-0" />
-              Sin ubicar
-            </p>
-          ) : null}
+          {problemas.map((p) => {
+            const Icono = p.tipo === "sin_ubicar" ? MapPinOff : AlertTriangle;
+            return (
+              <p key={p.tipo} className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-warn">
+                <Icono className="h-3 w-3 shrink-0" />
+                {p.texto}
+              </p>
+            );
+          })}
         </div>
-        {sinUbicar ? (
-          <span className="shrink-0 rounded-full bg-warn-bg px-2 py-0.5 text-[11px] font-semibold text-warn">
-            Corregir
+        {problemas.length > 0 ? (
+          <span className="shrink-0 rounded-full bg-brand-soft px-2.5 py-1 text-[11px] font-semibold text-brand">
+            {ACCION[problemas[0].tipo]}
           </span>
-        ) : (
-          <span className="flex shrink-0 items-center gap-1 text-[11px] font-medium text-muted">
-            <MapPin className="h-3 w-3 shrink-0 text-ok" />
-            Ubicado
-          </span>
-        )}
+        ) : null}
       </button>
     </FilaDeslizable>
   );

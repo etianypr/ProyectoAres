@@ -67,7 +67,8 @@ No hay framework de pruebas: `node:test` viene con Node.
 | `rutas-017.test.mjs` | Spec 017, rutas: la matriz de calles por bloques (caché, cupo mensual, par sin camino) y el optimizador con horarios (cumple los bloques, determinista, por partes). |
 | `sumar-a-ruta.test.mjs` | Spec 017, R4: "Dejar como pendiente" donde menos alarga a partir de 30 min, y sumar pedidos tardíos sin mover la parada activa. |
 | `direccion-ia.test.mjs` | Spec 018: la conversación con la IA, que las coordenadas salgan de un buscador y nunca de la IA, y que nada se aplique sin que el conductor confirme. |
-| `pantalla-conductor.test.mjs` | Spec 002: lo puro de la pantalla del conductor (en qué paso está la parada, las cifras de la lista). |
+| `pantalla-conductor.test.mjs` | Spec 002: lo puro de la pantalla del conductor (en qué paso está la parada, las cifras de la lista). Spec 027: el paso del día que decide la cabecera de la hoja (guía, ⚠, ruta, cargar el auto, recorrer, cerrar) y cuándo terminó la carga del auto. |
+| `problemas.test.mjs` | Spec 027: los ⚠ que se deducen del pedido (sin ubicar, OF de N dígitos, sin OF solo si vino de la guía). |
 | `panel-resumen.test.mjs` | Spec 002: las cifras del panel de encomiendas (días con sus cifras congeladas, cortes, por conductor, serie del gráfico). |
 
 Los dobles de `dobles/`:

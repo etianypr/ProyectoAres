@@ -107,6 +107,13 @@ export type Ruta = {
    *  el servidor porque el cierre puede ocurrir sin señal, igual que todo lo
    *  demás en esta app. */
   cierre: string | null;
+  /** Cuándo salió a repartir: tocó «Salir a repartir» o escaneó el último paquete
+   *  de la guía (spec 027). Hasta entonces la cabecera de la hoja es «Cargar el
+   *  auto» y no la parada 1. Se guarda —y no queda en la pantalla— porque Android
+   *  recarga ARES al ir a Google Maps, y la cabecera no puede volver a «Cargar el
+   *  auto» a mitad de camino. Opcional: las rutas guardadas antes no lo tienen.
+   *  No sale del teléfono. */
+  inicioReparto?: string | null;
   /** Qué quedó fuera o dudoso al armar esta ruta: pedidos sin ubicar, sin
    *  trazado, con un bloque horario que no se pudo respetar. Se guarda con la
    *  ruta —y no solo se muestra en la previsualización— porque el conductor las

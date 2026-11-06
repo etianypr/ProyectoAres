@@ -17,20 +17,22 @@ const SECCIONES: { titulo: string; pasos: string[] }[] = [
     ],
   },
   {
-    titulo: "Direcciones sin ubicar",
+    titulo: "Pedidos con ⚠",
     pasos: [
-      "Toca el pedido para corregir la dirección.",
+      "«Resolver los ⚠» abre el primero; al guardarlo, pasa al siguiente. También se toca el pedido en la lista.",
       "«Corregir con IA»: confirma cada una mirando el mapa.",
+      "Si no se resuelve: «Armar la ruta igual». Después, «Resolver los ⚠» sigue adentro de la hoja.",
     ],
   },
   {
     titulo: "Armar la ruta",
     pasos: [
-      "«Generar ruta del día» → elige una alternativa → «Usar esta ruta».",
+      "«Armar la ruta» → elige una alternativa → «Usar esta ruta».",
       "Un pedido que no va: 🗑 en la lista de la ruta propuesta («Deshacer» lo devuelve).",
-      "Después «Escanear los paquetes»: cada etiqueta dice su parada.",
+      "Cargar el auto: «Escanear paquete» con cada etiqueta (dice su parada). «Salir a repartir» muestra la primera parada; lo no escaneado queda en «Faltan».",
+      "Código dañado: escribe la OF; cada vez que la escribes suma un bulto. La misma etiqueta escaneada dos veces no suma.",
       "Pedido que llega tarde: «Sumar a la ruta».",
-      "Repasar lo que falta desde donde estás: Rehacer la ruta → Desde: Mi ubicación → «Regenerar ruta». Termina en la central.",
+      "Repasar lo que falta desde donde estás: «Rehacer la ruta» (al pie de la hoja) → Desde: Mi ubicación → «Rehacer la ruta». Termina en la central.",
       "Toca un número del mapa para ver su dirección. El reloj es el tiempo manejando, sin las entregas.",
     ],
   },
@@ -65,7 +67,7 @@ const SECCIONES: { titulo: string; pasos: string[] }[] = [
   {
     titulo: "Cerrar el día y sin señal",
     pasos: [
-      "Al terminar, revisa los no entregados y confirma: se borran los datos de los clientes del teléfono.",
+      "Al terminar, revisa los no entregados y confirma: se borran los datos de los clientes del teléfono. Si lo dejaste para después, «Cerrar el día» lo vuelve a abrir.",
       "Sin señal todo queda guardado y se envía solo.",
       "Para probar sin enviar nada: Menú → Diagnóstico → Modo prueba (con GPS simulado en la central; Google Maps sigue con tu ubicación real).",
     ],

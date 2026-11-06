@@ -47,6 +47,7 @@ export {
   guardarRuta,
   leerDias,
   leerResumenDia,
+  marcarInicioReparto,
   ordenarRuta,
   resumirDia,
   rutaTerminada,

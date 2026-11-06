@@ -230,8 +230,9 @@ y un agente no debe "corregir".
   - **Al escanear:** una dirección de la etiqueta distinta de la de la guía; un paquete que no
     está en la guía (se agrega como pedido); y bultos o paquetes de la guía sin escanear (si no
     vienen en el auto, quedan en «No entregados» al cerrar el día y vuelven a Starken).
-  - *Pendiente:* hoy el ⚠ solo marca la OF distinta; los demás problemas se avisan en la pantalla
-    donde aparecen, no en el pedido. Un pedido sin resolver queda fuera de la ruta (con
+  - *Pendiente:* la hoja ya muestra con ⚠ lo que se deduce del pedido (sin ubicar, OF distinta, sin
+    OF; spec 027), pero el ⚠ no se guarda en el pedido y los demás problemas se avisan solo en la
+    pantalla donde aparecen. Un pedido sin resolver queda fuera de la ruta (con
     advertencia) en vez de entrar con la primera dirección y ⚠, y falta el aviso dos paradas antes
     (spec 022).
 - **Escaneo de la etiqueta de Starken (spec 005).** Tiene dos partes que no se mezclan: el código
@@ -244,7 +245,11 @@ y un agente no debe "corregir".
     llave que une la etiqueta, el pedido y la parada, y un dígito mal leído enlazaría otro paquete.
   - Si la OF está en el día, se muestra «PARADA n de N» (o «SIN RUTA TODAVÍA») y la descripción
     del paquete en lo más grande, y se suma el bulto («Bultos: 1 de 2»). Funciona sin señal.
-    Escanear dos veces el mismo bulto no lo duplica.
+    Escanear dos veces el mismo bulto no lo duplica: el código trae su número y es la misma caja.
+  - **La OF escrita a mano** (código dañado) suma un bulto cada vez que se escribe, con el primer
+    número libre, y cuenta para «Cargar el auto». Si después se lee la etiqueta de esa caja (foto o
+    texto) con su número, ese número reemplaza al provisorio. Más bultos escaneados que los que se
+    sabían suben el total del envío (dueño, spec 027).
   - Si la OF no está en el día: «Este paquete no está en los pedidos de hoy» y el botón «Agregarlo
     como pedido».
   - Al cargar el auto, un contador muestra los escaneados sobre el total. Los de la guía que quedan

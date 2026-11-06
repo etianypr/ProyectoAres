@@ -86,6 +86,53 @@ test("varios bultos: el mismo escaneado dos veces no cuenta dos", async () => {
   assert.deepEqual(r.pedido.bultosEscaneados, [1, 2]);
 });
 
+test("spec 027: la OF escrita a mano suma un bulto cada vez, con el primer número libre", async () => {
+  await diaDesdeGuia();
+  const aMano = { ...leerCodigoEtiqueta("200000002"), escaneo: true };
+  const primera = await almacen.aplicarLecturaEtiqueta(HOY, aMano);
+  assert.deepEqual([primera.pedido.bultosEscaneados, primera.bultoAMano], [[1], 1]);
+  assert.equal(primera.pedido.bultos, null, "con un solo bulto no se inventa el total");
+  assert.deepEqual(almacen.avanceCarga([primera.pedido]), { escaneados: 1, total: 1 }, "cuenta para cargar el auto");
+
+  const segunda = await almacen.aplicarLecturaEtiqueta(HOY, aMano);
+  assert.deepEqual([segunda.pedido.bultosEscaneados, segunda.bultoAMano], [[1, 2], 2]);
+  assert.equal(segunda.pedido.bultos, 2, "repetida: el envío tiene un bulto más");
+});
+
+test("spec 027: volver a leer el pedido (sin escaneo) no suma bultos", async () => {
+  await diaDesdeGuia();
+  const r = await almacen.aplicarLecturaEtiqueta(HOY, { of: "200000002", bulto: null });
+  assert.deepEqual([r.pedido.bultosEscaneados, r.bultoAMano], [[], null]);
+});
+
+test("spec 027: el código de un bulto ya contado no suma; uno nuevo sube el total", async () => {
+  await diaDesdeGuia();
+  const codigo = (n) => ({ ...leerCodigoEtiqueta(`9200002256000020000000200${n}`), escaneo: true });
+  await almacen.aplicarLecturaEtiqueta(HOY, codigo(1));
+  const repetido = await almacen.aplicarLecturaEtiqueta(HOY, codigo(1));
+  assert.deepEqual(repetido.pedido.bultosEscaneados, [1], "la misma etiqueta otra vez es la misma caja");
+  const otro = await almacen.aplicarLecturaEtiqueta(HOY, codigo(2));
+  assert.deepEqual([otro.pedido.bultosEscaneados, otro.pedido.bultos], [[1, 2], 2]);
+});
+
+test("spec 027: la etiqueta de la caja escrita a mano cambia el número provisorio por el suyo", async () => {
+  await diaDesdeGuia();
+  const r = await almacen.aplicarLecturaEtiqueta(HOY, { ...leerCodigoEtiqueta("200000002"), escaneo: true });
+  // La foto (o el texto) de esa etiqueta dice "Bulto N° 002/002".
+  const conEtiqueta = await almacen.aplicarLecturaEtiqueta(HOY, {
+    of: "200000002",
+    bulto: 2,
+    bultosTotal: 2,
+    reemplazaBulto: r.bultoAMano,
+  });
+  assert.deepEqual([conEtiqueta.pedido.bultosEscaneados, conEtiqueta.pedido.bultos], [[2], 2], "una caja, no dos");
+  const laOtra = await almacen.aplicarLecturaEtiqueta(HOY, {
+    ...leerCodigoEtiqueta("92000022560000200000002001"),
+    escaneo: true,
+  });
+  assert.deepEqual(laOtra.pedido.bultosEscaneados, [1, 2], "el código del bulto 1 sigue sumando");
+});
+
 test("una OF que no está en el día no enlaza nada", async () => {
   await diaDesdeGuia();
   assert.equal(await almacen.aplicarLecturaEtiqueta(HOY, leerCodigoEtiqueta("999999999")), null);

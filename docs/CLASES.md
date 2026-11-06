@@ -18,7 +18,9 @@ de la base conservan sus nombres viejos hasta la spec 002 (equivalencias en
 |---|---|
 | Día de trabajo de un conductor | `DiaTrabajo` (en pantalla: "día") · resumen: `ResumenDia` |
 | Paquete a entregar ese día | `Pedido` |
-| Orden de visita y trazado del día | `Ruta` (`orden`, `trazado`, `tramos`, `inicio`, `cierre`, `partida`) · un tramo por parada: `TramoDelDia` |
+| Orden de visita y trazado del día | `Ruta` (`orden`, `trazado`, `tramos`, `inicio`, `inicioReparto`, `cierre`, `partida`) · un tramo por parada: `TramoDelDia` |
+| Paso del día del conductor (cabecera de la hoja, spec 027) | `Paso`: `guia` · `resolver` · `ruta` · `carga` · `reparto` · `cierre` (solo pantalla) |
+| Lo que hace dudar de un pedido (⚠) | `ProblemaPedido` (`TipoProblema`: sin ubicar, OF distinta —menos o más de 9 dígitos—, sin OF; la 022 suma los guardados) |
 | Pedido dentro de la ruta, con su número | `Parada` (solo pantalla) |
 | Cómo terminó la visita · la llamada | `Pedido.resultado`: entregado o no entregado · `Pedido.llamada`: `ResultadoLlamada` |
 | Lo que dijo el receptor | `Pedido.disponibilidad` |
@@ -54,6 +56,7 @@ classDiagram
       trazado: Trazado
       tramos?: TramoDelDia[]
       inicio · cierre
+      inicioReparto?: salió a repartir (027)
       partida: de dónde sale y adonde vuelve
     }
     class ActividadPorEnviar {
@@ -334,12 +337,13 @@ lo usa.
 | Indicadores del período y comparación con el anterior: `calcularIndicadores`, `periodoAnterior` (spec 006) | `encomiendas/indicadores.ts`, `(app)/encomiendas/_componentes/indicadores.tsx` |
 | APK con respaldo web: `esApp`, `alBotonAtras`, `llamar`, `pantallaEncendida`, `escanearCodigo` (sin registro de llamadas desde el 2026-11-06) | `nativo/entorno.ts`, `nativo/telefono.ts`, `nativo/escaner.ts` |
 | La burbuja sobre Google Maps (spec 020): `VistaBurbuja`, `permisoBurbuja`, `mostrarBurbuja`, `terminarBurbuja`, `burbujaEnAres`, `alTocarBurbuja`, `navegarA` | `nativo/burbuja.ts` |
+| Paso del día y cabecera de la hoja (spec 027): `pasoDelDia`, `cargaTerminada`, `PASOS` · cargar el auto: `useCargaAuto` (`FaltaEscanear`, «Salir a repartir» → `marcarInicioReparto`) · «Resolver los ⚠» de a uno: `useResolverProblemas` · ⚠ deducidos del pedido: `problemasDelPedido` | `(conductor)/…/encomiendas/_hooks/paso-del-dia.ts`, `use-carga-auto.ts`, `use-resolver-problemas.ts` · `_componentes/cabecera-hoja.tsx` · `encomiendas/problemas.ts` |
 | Botones de la parada en un solo lugar, para la tarjeta y la burbuja (en la parada: «Pedido entregado» · llamar · «No se entrega», 2026-11-06): `BotonParada`, `IdBoton`, `botonesDeParada`, `estadoDeParada`, `atenderBoton` · la vista y cuándo navegar: `vistaDeBurbuja`, `aDondeNavegar` · en curso, permiso del día y toques: `useBurbuja` | `(conductor)/…/encomiendas/_hooks/botones-parada.ts`, `vista-burbuja.ts`, `use-burbuja.ts` |
 | Aviso de APK vieja | `nativo/version.ts` |
 | OF y referencia del paquete: `formatoOf`, `ofValida` (solo dígitos, sin regla de largo ni ceros a la izquierda), `ofDistinta` (la que no tiene 9: va con ⚠), `textoReferencia`, `buscarPorOf` · listas `TIPOS_PAQUETE`, `TAMANOS_PAQUETE`, `COLORES_PAQUETE` | `encomiendas/paquete.ts`, `encomiendas/catalogos.ts` |
 | Paquete y foto en el teléfono: `guardarPaquete`, `ofRepetida`, `guardarFoto`, `purgarFotosCerradas` | `encomiendas/local/almacen/paquete.ts` |
 | Carga del día (spec 005): leer la guía, la etiqueta y su código de barras (puros) | `encomiendas/lectura/{guia,etiqueta,codigo-barras}.ts` |
-| Pedidos desde la guía y escaneo → "PARADA n de N": `crearDesdeGuia`, `aplicarLecturaEtiqueta`, `sinEtiquetaEscaneada`; dirección de la etiqueta: `cambiarDireccion` (`pedidos.ts`) | `encomiendas/local/almacen/carga.ts` |
+| Pedidos desde la guía y escaneo → "PARADA n de N": `crearDesdeGuia`, `aplicarLecturaEtiqueta`, `sinEtiquetaEscaneada`; dirección de la etiqueta: `cambiarDireccion` (`pedidos.ts`) · bultos (spec 027): `LecturaParaAplicar.escaneo` (la OF escrita suma uno con el primer número libre; la misma etiqueta no) y `reemplazaBulto` (la etiqueta de esa caja trae su número), `ResultadoEscaneo.bultoAMano` | `encomiendas/local/almacen/carga.ts` |
 | Lectura de una foto: primero el texto en el teléfono (`leerImagen`, `textoDeFoto` con ML Kit, `etiquetaCompleta`) y, si no alcanza, la IA: esquemas, contrato, llamada a Claude (`server-only`) | `encomiendas/lectura/{esquemas,contrato,servidor}.ts`, `encomiendas/local/lectura-cliente.ts`, `src/app/api/lectura/route.ts` |
 | Cierre del día: no entregados, resumen y borrado; cierre de sesión | `encomiendas/local/almacen/borrado.ts` (`STORES_DEL_DIA` en `idb.ts`) |
 | Plugins nativos (Java): `Telefono`; `Burbuja` con su servicio, su vista, el aviso de llegada (ubicación pasiva, ≤ 50 m) y abrir Google Maps (spec 020) | `android/app/src/main/java/cl/dashund/ares/`: `TelefonoPlugin.java`, `BurbujaPlugin.java`, `BurbujaServicio.java`, `BurbujaVista.java`, `BurbujaLlegada.java`, `BurbujaAviso.java`, `GoogleMaps.java`; `WebViewAres.java` (con la burbuja en curso, la página no se congela atrás) |
