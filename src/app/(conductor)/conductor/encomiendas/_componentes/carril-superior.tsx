@@ -1,14 +1,15 @@
 "use client";
 
-// Lo de arriba del mapa: el menú, escanear, el cartel de navegación con el
-// resumen del día adentro y los avisos del GPS (sale de pantalla.tsx, spec 002
-// T037).
+// Lo de arriba del mapa: el menú, escanear, el resumen del día y los avisos del
+// GPS (sale de pantalla.tsx, spec 002 T037). El cartel de maniobras se fue con
+// la navegación de ARES: guía Google Maps (spec 020).
 
 import { Check, ScanLine, X } from "lucide-react";
 import { cn } from "@/lib/comun/utils";
-import type { Navegacion } from "../_hooks/use-navegacion";
 import { BotonMenu } from "./menu-lateral";
-import { CAJA_CARRIL, InstruccionNavegacion } from "./instruccion-navegacion";
+
+/** La caja del carril de arriba del mapa. */
+const CAJA_CARRIL = "flex items-center gap-2.5 rounded-2xl bg-card px-3.5 py-2 shadow-card";
 
 // Cómo va el día, para el carril de arriba del mapa: entregadas sobre el
 // total, y las que no se pudieron entregar solo si hay alguna. Lo que falta no
@@ -16,13 +17,7 @@ import { CAJA_CARRIL, InstruccionNavegacion } from "./instruccion-navegacion";
 // antes de leer la que importa.
 //
 // Vive arriba y no en la hoja porque es el único dato que el conductor quiere de
-// reojo, manejando, sin abrir nada. Y se dibuja SIEMPRE que haya ruta, con
-// maniobra o sin ella: la versión anterior se escondía justo cuando había
-// navegación, o sea justo cuando el conductor no puede abrir la hoja para
-// buscarlo.
-//
-// En columna y no en fila: así ocupa el alto que el cartel ya tiene y no le
-// roba ancho al nombre de la calle, que es lo único que se lee de un vistazo.
+// reojo, sin abrir nada. Se dibuja SIEMPRE que haya ruta.
 export function ResumenDelDia({
   entregadas,
   total,
@@ -52,7 +47,6 @@ export function CarrilSuperior({
   altoNotificaciones,
   onAbrirMenu,
   onEscanear,
-  navegacion,
   resumen,
   errorUbicacion,
   señalDebil,
@@ -62,16 +56,13 @@ export function CarrilSuperior({
   onAbrirMenu: () => void;
   /** null = no hay pedidos que escanear. */
   onEscanear: (() => void) | null;
-  /** null con una propuesta a la vista. */
-  navegacion: Navegacion | null;
   /** Cómo va el día (entregadas/total), o null sin ruta. */
   resumen: React.ReactNode;
   errorUbicacion: string | null;
   señalDebil: boolean;
 }) {
   // Se corre para abajo lo que ocupen los avisos, en vez de quedar tapado por
-  // ellos: el cartel de navegación es lo que el conductor está leyendo para saber
-  // dónde doblar.
+  // ellos.
   return (
     <div
       className="absolute inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] z-10 flex flex-col gap-2 transition-[margin-top] duration-200"
@@ -94,21 +85,7 @@ export function CarrilSuperior({
             <ScanLine className="h-4 w-4" />
           </button>
         ) : null}
-        {navegacion?.paso ? (
-          <InstruccionNavegacion
-            paso={navegacion.paso}
-            siguiente={navegacion.siguiente}
-            metros={navegacion.metrosAManiobra}
-            daLaVuelta={navegacion.daLaVuelta}
-            resumen={resumen}
-          />
-        ) : resumen ? (
-          // Sin maniobra queda el mismo cartel, en el mismo lugar, con el
-          // resumen solo. Pegado a la derecha (ml-auto) para que no se mueva
-          // de costado cuando la navegación aparece o se corta: el número
-          // termina siempre en el mismo borde.
-          <div className={cn(CAJA_CARRIL, "ml-auto")}>{resumen}</div>
-        ) : null}
+        {resumen ? <div className={cn(CAJA_CARRIL, "ml-auto")}>{resumen}</div> : null}
       </div>
     
       {errorUbicacion ? (

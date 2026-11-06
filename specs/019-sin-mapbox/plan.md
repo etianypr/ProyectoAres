@@ -1,5 +1,8 @@
 # Plan · Spec 019
 
+> La navegación (US1: `ors/navegacion.ts`, cartel, voz y el kit de Google) salió con la spec 020.
+> Lo de abajo queda como registro.
+
 ## Límites afectados
 
 ```

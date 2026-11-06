@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Solo en la APK de depuración: mover la ubicación del teléfono para probar la burbuja
+     sobre Google Maps sin manejar (spec 020, T017). La APK firmada no lo trae. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission
+        android:name="android.permission.ACCESS_MOCK_LOCATION"
+        tools:ignore="MockLocation,ProtectedPermissions" />
+
+    <application>
+        <!-- DUMP: solo adb (el shell) lo tiene; ninguna otra app del teléfono puede
+             mover la ubicación con este receptor. -->
+        <receiver
+            android:name=".MoverGps"
+            android:exported="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="cl.dashund.ares.MOVER_GPS" />
+                <action android:name="cl.dashund.ares.PARAR_GPS" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

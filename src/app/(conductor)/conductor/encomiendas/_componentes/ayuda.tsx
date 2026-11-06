@@ -37,15 +37,22 @@ const SECCIONES: { titulo: string; pasos: string[] }[] = [
   {
     titulo: "En cada parada",
     pasos: [
-      "Llamar → Contestó / No contestó → «Pedido finalizado».",
-      "«No se pudo»: Dejar como pendiente (se reintenta más tarde) o No entregado (se tacha por hoy).",
+      "«Pedido entregado» (verde) o «No se entrega» (rojo); el botón redondo del medio llama al cliente. Sin teléfono, el redondo escanea la etiqueta y «Teléfono a mano» lo deja escribir.",
+      "«No se entrega»: Dejar como pendiente (se reintenta más tarde) o No entregado (se tacha por hoy).",
       "«Deshacer» aparece arriba unos segundos.",
-      "Navegar con Google: toca los km de la parada. Al llegar vuelve sola a ARES; «Volver a ARES» la cierra antes.",
     ],
   },
   {
-    titulo: "Mapa y voz",
-    pasos: ["🔊 activa o silencia la voz. ⌖ vuelve a seguirte."],
+    titulo: "Navegar",
+    pasos: [
+      "Toca los km de la parada: guía Google Maps y encima queda la burbuja de ARES achicada. Tócala para ver los botones de la parada.",
+      "En la burbuja: «Navegar» vuelve a Google Maps, «Volver a ARES» trae ARES y «Achicar» la deja en un círculo sobre la velocidad de Google Maps; tócalo para abrirla.",
+      "La primera vez, permite a ARES «Mostrar sobre otras apps» (en vivo: «Ventanas flotantes»). Si la burbuja se va sola, en Batería permite a ARES el «Consumo alto en segundo plano».",
+    ],
+  },
+  {
+    titulo: "Mapa",
+    pasos: ["⌖ vuelve a seguirte."],
   },
   {
     titulo: "Lista",
@@ -60,7 +67,7 @@ const SECCIONES: { titulo: string; pasos: string[] }[] = [
     pasos: [
       "Al terminar, revisa los no entregados y confirma: se borran los datos de los clientes del teléfono.",
       "Sin señal todo queda guardado y se envía solo.",
-      "Para probar sin enviar nada: Menú → Diagnóstico → Modo prueba (con GPS simulado en la central).",
+      "Para probar sin enviar nada: Menú → Diagnóstico → Modo prueba (con GPS simulado en la central; Google Maps sigue con tu ubicación real).",
     ],
   },
 ];

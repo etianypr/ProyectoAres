@@ -2,18 +2,16 @@
 
 // La parada activa en la cabecera de la hoja: su tarjeta y los botones del paso
 // que toca (sale de pantalla.tsx, spec 002 T037). Es lo único que se mira
-// manejando.
+// manejando. Qué botones van y qué dice el estado sale de botones-parada.ts, lo
+// mismo que dibuja la burbuja sobre Google Maps (spec 020): acá solo se les pone
+// ícono y clases.
 
-import { Check, Clock, PackageCheck, Pencil, Phone, RotateCw, ScanLine, X } from "lucide-react";
+import { Check, Clock, PackageCheck, Pencil, Phone, RotateCw, ScanLine, X, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/comun/utils";
-import { bloquePorId } from "@/lib/encomiendas/config";
-import type { Navegacion } from "../_hooks/use-navegacion";
 import type { Parada } from "../_hooks/use-dia-trabajo";
-import { SALIDAS, type Fase, type Salida } from "../_hooks/fase-parada";
+import type { Fase } from "../_hooks/fase-parada";
+import { botonesDeParada, estadoDeParada, type BotonParada, type IdBoton, type Tono } from "../_hooks/botones-parada";
 import { TarjetaParada } from "./tarjeta-parada";
-import { navegarConGoogle } from "@/lib/nativo/navegacion";
-import { gpsSimulado } from "@/lib/encomiendas/local/gps-simulado";
-import { formatoOf } from "@/lib/encomiendas/paquete";
 
 // Botones de la hoja: a ancho completo y de 48 px. Es lo que el conductor aprieta
 // manejando, con el pulgar y sin mirar mucho.
@@ -31,22 +29,36 @@ export const BOTON_RESULTADO =
 /** El renglón de estado del receptor, debajo de la dirección. */
 const LINEA_ESTADO = "mt-0.5 flex items-center gap-1 text-xs font-medium";
 
+const BORDE = "border border-separator bg-card";
+const CLASE_TONO: Record<Tono, string> = {
+  marca: "bg-brand text-brand-foreground",
+  ok: "bg-ok text-white",
+  peligro: "bg-danger text-white",
+  "borde-marca": cn(BORDE, "text-brand"),
+  "borde-ok": cn(BORDE, "text-ok"),
+  "borde-peligro": cn(BORDE, "text-danger"),
+  neutro: cn(BORDE, "text-foreground"),
+};
+
+const ICONO: Partial<Record<IdBoton, LucideIcon>> = {
+  llamar: Phone,
+  escanear: ScanLine,
+  telefono: Pencil,
+  entregado: PackageCheck,
+  no_se_pudo: X,
+  pendiente: RotateCw,
+  no_entregado: X,
+};
+
 export function ParadaActiva({
   activa,
   fase,
   whatsapp,
   guardando,
   seAproximaSinContacto,
-  navegacion,
-  onLlamar,
-  onEscanear,
-  onEditar,
-  onPedidoFinalizado,
-  onNoSePudo,
-  onContesto,
-  onNoContesto,
-  onSalida,
-  onVolver,
+  faltan,
+  onNavegar,
+  onBoton,
 }: {
   activa: Parada;
   fase: Fase;
@@ -55,72 +67,35 @@ export function ParadaActiva({
   guardando: boolean;
   /** FR-017: llegando a una parada que todavía no se contactó. */
   seAproximaSinContacto: boolean;
-  navegacion: Pick<Navegacion, "metrosAParada" | "segundosAParada" | "llegada">;
-  onLlamar: () => void;
-  onEscanear: () => void;
-  /** Abrir el pedido (para escribir el teléfono). */
-  onEditar: () => void;
-  onPedidoFinalizado: () => void;
-  onNoSePudo: () => void;
-  onContesto: () => void;
-  onNoContesto: () => void;
-  onSalida: (salida: Salida) => void;
-  onVolver: () => void;
+  /** Lo que falta hasta la parada (use-hacia-parada.ts). */
+  faltan: { metros: number; segundos: number | null; llegada: number | null } | null;
+  /** Navegar con Google Maps y la burbuja (spec 020); sin punto, no hay. */
+  onNavegar?: () => void;
+  onBoton: (id: IdBoton) => void;
 }) {
+  const estado = estadoDeParada(activa, whatsapp);
+  const filas = botonesDeParada(activa, fase);
+  const EstadoIcono = estado ? { reloj: Clock, check: Check, telefono: Phone }[estado.icono] : null;
+
   return (
     <div className="space-y-3">
       <TarjetaParada
         secuencia={activa.secuencia}
         pedido={activa.pedido}
-        onAbrirMapas={
-          activa.pedido.lat != null && activa.pedido.lng != null
-            ? () =>
-                // La franja de abajo de la navegación de Google: qué paquete y a quién.
-                // Se queda en el teléfono; a Google va solo el punto.
-                void navegarConGoogle(
-                  { lat: activa.pedido.lat!, lng: activa.pedido.lng! },
-                  {
-                    titulo: activa.pedido.of ? `OF ${formatoOf(activa.pedido.of)}` : `Parada ${activa.secuencia}`,
-                    detalle: [activa.pedido.nombre, activa.pedido.direccion].filter(Boolean).join(" · "),
-                    simular: gpsSimulado(),
-                  },
-                )
-            : undefined
-        }
-        faltan={
-          navegacion.metrosAParada != null
-            ? {
-                metros: navegacion.metrosAParada,
-                segundos: navegacion.segundosAParada,
-                llegada: navegacion.llegada,
-              }
-            : null
-        }
+        onNavegar={onNavegar}
+        faltan={faltan}
         estado={
-          /* Qué contestó ESTE RECEPTOR. Es lo primero que el conductor necesita al
-              llegar: saber si lo están esperando cambia lo que hace en la puerta.
-              Cada estado lleva icono Y texto — a pleno sol, con el teléfono en
-              una mano, el color solo no se distingue.
-              Lo que NO va acá es lo que el conductor acabó de tocar. Había un "No
-              contestó la llamada" y era ruido en el único renglón que se lee
-              manejando: lo dijo él hace dos segundos, y los botones de abajo ya
-              están preguntando justamente por eso. */
-          activa.pedido.bloqueHorarioId ? (
-            <p className={cn(LINEA_ESTADO, "text-brand")}>
-              <Clock className="h-3 w-3 shrink-0" />
-              Pidió {bloquePorId(activa.pedido.bloqueHorarioId)?.etiqueta ?? "un horario"}
+          estado && EstadoIcono ? (
+            <p
+              className={cn(
+                LINEA_ESTADO,
+                estado.tono === "marca" ? "text-brand" : estado.tono === "ok" ? "text-ok" : "text-muted",
+              )}
+            >
+              <EstadoIcono className="h-3 w-3 shrink-0" />
+              {estado.texto}
             </p>
-          ) : activa.pedido.disponibilidad === "confirmado" ? (
-            <p className={cn(LINEA_ESTADO, "text-ok")}>
-              <Check className="h-3 w-3 shrink-0" />
-              Estará en su domicilio
-            </p>
-          ) : !whatsapp || activa.pedido.llamada === "no_contesto" ? null : (
-            <p className={cn(LINEA_ESTADO, "text-muted")}>
-              <Phone className="h-3 w-3 shrink-0" />
-              Sin respuesta todavía
-            </p>
-          )
+          ) : null
         }
       />
 
@@ -130,149 +105,96 @@ export function ParadaActiva({
       {seAproximaSinContacto ? (
         <p className="flex items-start gap-2 rounded-xl bg-warn-bg px-3 py-2 text-sm font-medium text-warn">
           <Phone className="mt-0.5 h-4 w-4 shrink-0" />
-          <span className="min-w-0 flex-1">
-            No contestó: llámalo antes de bajar.
-          </span>
+          <span className="min-w-0 flex-1">Llámalo antes de bajar.</span>
         </p>
       ) : null}
 
-      {fase === "antes_llamar" ? (
-        activa.pedido.telefono ? (
-          <button onClick={onLlamar} className={BOTON_PRINCIPAL}>
-            <Phone className="h-4 w-4" />
-            Llamar
-          </button>
-        ) : (
-          // Viene de la guía y su etiqueta no se escaneó: el teléfono está ahí.
-          // Si la etiqueta está dañada o no hay cómo leerla, la parada igual se
-          // tiene que poder cerrar o completar a mano (spec 017, E3): si no,
-          // traba todas las que siguen.
-          <div className="space-y-2">
-            <button onClick={onEscanear} className={BOTON_PRINCIPAL}>
-              <ScanLine className="h-4 w-4" />
-              Escanear la etiqueta para llamar
-            </button>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                onClick={onEditar}
-                className={cn(BOTON_RESULTADO, "border border-separator bg-card text-brand")}
-              >
-                <Pencil className="h-4 w-4 shrink-0" />
-                Teléfono
-              </button>
-              <button
-                disabled={guardando}
-                onClick={onPedidoFinalizado}
-                className={cn(BOTON_RESULTADO, "border border-separator bg-card text-ok")}
-              >
-                <PackageCheck className="h-4 w-4 shrink-0" />
-                Entregado
-              </button>
-              <button
-                disabled={guardando}
-                onClick={onNoSePudo}
-                className={cn(BOTON_RESULTADO, "border border-separator bg-card text-danger")}
-              >
-                No se pudo
-              </button>
-            </div>
-          </div>
-        )
-      ) : null}
+      <div className="space-y-2">
+        {/* Las salidas de la parada, en una sola pantalla. */}
+        {fase === "salidas" ? <p className="text-xs text-muted">¿Qué hacemos con esta parada?</p> : null}
+        {filas.map((fila, i) => (
+          <Fila key={i} fila={fila} guardando={guardando} onBoton={onBoton} />
+        ))}
+      </div>
+    </div>
+  );
+}
 
-      {fase === "esperando_resultado" ? (
-        // El botón de llamar queda en el medio para poder reintentar sin tener
-        // que decidir todavía si contestó o no (suena ocupado, se cortó).
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+function Fila({ fila, guardando, onBoton }: { fila: BotonParada[]; guardando: boolean; onBoton: (id: IdBoton) => void }) {
+  const [unico] = fila;
+  if (fila.length === 1 && unico.id === "volver") {
+    return (
+      <button
+        type="button"
+        onClick={() => onBoton("volver")}
+        className="w-full rounded-full py-2 text-sm text-muted active:bg-background"
+      >
+        {unico.texto}
+      </button>
+    );
+  }
+  if (fila.length === 1 && unico.detalle) return <BotonSalida boton={unico} guardando={guardando} onBoton={onBoton} />;
+  if (fila.length === 1) {
+    const Icono = ICONO[unico.id];
+    // Sola en su fila es la acción principal solo si su tono lo dice: "Teléfono a
+    // mano" va debajo de la fila principal, sin competir con ella.
+    const clase = unico.tono === "marca" ? BOTON_PRINCIPAL : cn(BOTON_RESULTADO, CLASE_TONO[unico.tono], "w-full");
+    return (
+      <button disabled={unico.escribe && guardando} onClick={() => onBoton(unico.id)} className={clase}>
+        {Icono ? <Icono className="h-4 w-4" /> : null}
+        {unico.texto}
+      </button>
+    );
+  }
+  return (
+    <div
+      className={cn(
+        "grid items-center gap-2",
+        fila.some((x) => x.soloIcono) ? "grid-cols-[1fr_auto_1fr]" : fila.length === 3 ? "grid-cols-3" : "grid-cols-2",
+      )}
+    >
+      {fila.map((boton) => {
+        const Icono = ICONO[boton.id];
+        return boton.soloIcono ? (
           <button
-            disabled={guardando}
-            onClick={onContesto}
-            className={cn(BOTON_RESULTADO, "bg-ok text-white")}
-          >
-            <Check className="h-4 w-4 shrink-0" />
-            Contestó
-          </button>
-          <button
-            onClick={onLlamar}
-            aria-label="Volver a llamar"
+            key={boton.id}
+            onClick={() => onBoton(boton.id)}
+            aria-label={boton.texto}
             className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-separator bg-card text-muted transition-transform active:scale-[0.97]"
           >
-            <Phone className="h-5 w-5" />
+            {Icono ? <Icono className="h-5 w-5" /> : null}
           </button>
+        ) : (
           <button
-            disabled={guardando}
-            onClick={onNoContesto}
-            className={cn(BOTON_RESULTADO, "bg-danger text-white")}
+            key={boton.id}
+            disabled={boton.escribe && guardando}
+            onClick={() => onBoton(boton.id)}
+            className={cn(BOTON_RESULTADO, CLASE_TONO[boton.tono])}
           >
-            <X className="h-4 w-4 shrink-0" />
-            No contestó
+            {Icono ? <Icono className="h-4 w-4 shrink-0" /> : null}
+            {boton.texto}
           </button>
-        </div>
-      ) : null}
-
-      {/* Ya confirmó por WhatsApp: no hay nada que preguntarle por teléfono. Es
-          el caso que hace que avisarle AHORRE trabajo y no solo agregue datos. */}
-      {fase === "esperando_entrega" || fase === "confirmado" ? (
-        <div className="space-y-2">
-          <button disabled={guardando} onClick={onPedidoFinalizado} className={BOTON_PRINCIPAL}>
-            <PackageCheck className="h-4 w-4" />
-            Pedido finalizado
-          </button>
-          <div className="grid grid-cols-2 gap-2">
-            {/* Llamar sigue disponible aunque haya confirmado: puede no abrir. */}
-            <button
-              onClick={onLlamar}
-              className={cn(BOTON_RESULTADO, "border border-separator bg-card text-brand")}
-            >
-              <Phone className="h-4 w-4 shrink-0" />
-              Llamar
-            </button>
-            <button
-              disabled={guardando}
-              onClick={onNoSePudo}
-              className={cn(BOTON_RESULTADO, "border border-separator bg-card text-danger")}
-            >
-              No se pudo
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {/* Las salidas de la parada, en una sola pantalla. */}
-      {fase === "salidas" ? (
-        <div className="space-y-2">
-          <p className="text-xs text-muted">¿Qué hacemos con esta parada?</p>
-          <div className="grid gap-2">
-            {SALIDAS.map((salida) => (
-              <button
-                key={salida.clave}
-                disabled={guardando}
-                onClick={() => onSalida(salida)}
-                className="flex h-12 items-center gap-2 rounded-full border border-separator bg-card px-4 text-left text-sm font-semibold text-foreground transition-transform active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50"
-              >
-                {salida.clave === "pendiente" ? (
-                  <RotateCw className="h-4 w-4 shrink-0 text-brand" />
-                ) : (
-                  <X className="h-4 w-4 shrink-0 text-danger" />
-                )}
-                <span className="min-w-0 flex-1">{salida.etiqueta}</span>
-                {/* La consecuencia, escrita: el conductor la tiene que ver
-                    ANTES de tocar. */}
-                <span className="shrink-0 text-[11px] font-medium text-muted">
-                  {salida.detalle}
-                </span>
-              </button>
-            ))}
-          </div>
-          <button
-            type="button"
-            onClick={onVolver}
-            className="w-full rounded-full py-2 text-sm text-muted active:bg-background"
-          >
-            Volver
-          </button>
-        </div>
-      ) : null}
+        );
+      })}
     </div>
+  );
+}
+
+/** Una salida de la parada: la consecuencia escrita al lado, antes de tocar. */
+function BotonSalida({ boton, guardando, onBoton }: { boton: BotonParada; guardando: boolean; onBoton: (id: IdBoton) => void }) {
+  return (
+    <button
+      disabled={guardando}
+      onClick={() => onBoton(boton.id)}
+      className="flex h-12 w-full items-center gap-2 rounded-full border border-separator bg-card px-4 text-left text-sm font-semibold text-foreground transition-transform active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50"
+    >
+      {boton.id === "pendiente" ? (
+        <RotateCw className="h-4 w-4 shrink-0 text-brand" />
+      ) : (
+        <X className="h-4 w-4 shrink-0 text-danger" />
+      )}
+      <span className="min-w-0 flex-1">{boton.texto}</span>
+      <span className="shrink-0 text-[11px] font-medium text-muted">{boton.detalle}</span>
+    </button>
   );
 }

@@ -36,8 +36,8 @@ comparten layout: el panel del jefe (escritorio) y la app del conductor (APK And
 - Teléfono: IndexedDB `dashund-encomiendas` v5 (la siguiente versión libre es la v6). Mapa:
   MapLibre + OpenFreeMap.
 - APK: Capacitor 8, paquete `cl.dashund.ares`. Abre `https://proyecto-ares-five.vercel.app/conductor`,
-  así que cada deploy le llega solo. Lo nativo está en `android/` (plugin `Telefono`, ML Kit) y la web
-  lo usa solo a través de `src/lib/nativo/`.
+  así que cada deploy le llega solo. Lo nativo está en `android/` (plugins `Telefono` y `Burbuja`,
+  ML Kit) y la web lo usa solo a través de `src/lib/nativo/`.
 - Proveedores: OpenRouteService (matriz y trazado), OSM/Nominatim y Google Geocoding (direcciones),
   ML Kit en el teléfono y Google Cloud Vision (texto de fotos), Anthropic (guía, etiquetas,
   direcciones sin ubicar) y Meta WhatsApp (en pausa). Mapbox va de salida (spec 019). Las variables

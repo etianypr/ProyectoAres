@@ -27,6 +27,7 @@ export type {
   ReferenciaPaquete,
   ResumenDia,
   Ruta,
+  TramoDelDia,
 } from "./tipos";
 export { leerDiaGuardado, leerPedidos, leerRuta, pedidosEnOrden } from "./lecturas";
 export {
@@ -50,6 +51,7 @@ export {
   resumirDia,
   rutaTerminada,
   sumarResumenes,
+  tramosConPedidos,
   type EntradaRuta,
 } from "./ruta";
 export {
@@ -62,6 +64,7 @@ export {
   deshacerResultado,
   marcarResultado,
   marcarLlamada,
+  registrarLlamada,
   moverAlFinal,
   type MarcaPedido,
 } from "./terreno";

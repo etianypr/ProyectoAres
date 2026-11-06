@@ -1,41 +1,29 @@
 "use client";
 
-// Lo que el conductor hace con la parada activa —llamar, contestó o no, las
-// salidas, entregar— y las ventanas para deshacer lo marcado o lo eliminado
+// Lo que el conductor hace con la parada activa —llamar, las salidas,
+// entregar— y las ventanas para deshacer lo marcado o lo eliminado
 // (sale de pantalla.tsx, spec 002 T036). Los estados de flujo que no se pueden
 // deducir de los datos viven acá.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { formatoOf } from "@/lib/encomiendas/paquete";
 import { retenerEvento, type PedidoEliminado } from "@/lib/encomiendas/local/almacen";
-import { esApp } from "@/lib/nativo/entorno";
 import { llamar } from "@/lib/nativo/telefono";
 import type { Salida } from "./fase-parada";
-import { useLlamadaNativa, type LlamadaDetectada } from "./use-llamada-nativa";
 import { MS_DESHACER, type DiaEnCurso, type Parada } from "./use-dia-trabajo";
 
-// Cuánto queda a la vista el aviso del resultado de una llamada detectada.
-const MS_AVISO_LLAMADA = 8000;
+/** Otro "Llamar" al mismo pedido dentro de este plazo es el mismo toque repetido
+ *  (o la pantalla que tarda en pasar a la llamada): no vuelve a llamar. */
+const MS_DOBLE_TOQUE = 5_000;
 
 /** Cuánto se queda a la vista la confirmación de "pedido agregado". Suficiente
  *  para leerla de reojo mientras ya se está escribiendo el siguiente nombre, y
  *  poco como para no quedar tapando el botón de guardar. */
 const MS_CONFIRMACION = 3_000;
 
-export function useAccionesParada({
-  dia,
-  activa,
-  paradas,
-}: {
-  dia: DiaEnCurso;
-  activa: Parada | null;
-  paradas: Parada[];
-}) {
+export function useAccionesParada({ dia, activa }: { dia: DiaEnCurso; activa: Parada | null }) {
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
-  // Ya se marcó el número y falta que el conductor diga si contestó. Es el único
-  // estado de flujo que no se puede deducir de los datos.
-  const [esperandoResultadoDe, setEsperandoResultadoDe] = useState<string | null>(null);
   // Pedido para el que se está eligiendo QUÉ HACER con la parada que no se pudo
   // entregar: dejarla para el final o tacharla por hoy.
   const [dandoResultadoDe, setDandoResultadoDe] = useState<string | null>(null);
@@ -152,71 +140,17 @@ export function useAccionesParada({
     }
   }, []);
 
-  // Dentro de la APK (spec 015) la llamada sale directo y, al colgar, la app lee
-  // el registro de llamadas y marca sola si contestó. "No contestó" lleva derecho
-  // a las salidas, igual que el botón. Si no se puede saber, se pregunta.
-  const llamadaNativa = useLlamadaNativa({
-    marcar: async (pedidoId, resultado) => {
-      await correr(() => dia.marcarLlamada(pedidoId, resultado));
-      setEsperandoResultadoDe((actual) => (actual === pedidoId ? null : actual));
-      if (resultado === "no_contesto") setDandoResultadoDe(pedidoId);
-    },
-    alNoSaber: (pedidoId) => setEsperandoResultadoDe(pedidoId),
-  });
-  const { detectada: llamadaDetectada, olvidarDetectada } = llamadaNativa;
-
-  // El aviso "Contestó · Corregir" queda unos segundos: lo que hay que hacer
-  // después (entregar o elegir una salida) ya está en pantalla.
-  useEffect(() => {
-    if (!llamadaDetectada) return;
-    const temporizador = window.setTimeout(olvidarDetectada, MS_AVISO_LLAMADA);
-    return () => clearTimeout(temporizador);
-  }, [llamadaDetectada, olvidarDetectada]);
-
-  async function onContesto() {
-    if (!activa) return;
-    const id = activa.pedido.id;
-    await correr(() => dia.marcarLlamada(id, "contesto"));
-    setEsperandoResultadoDe(null);
-  }
-
-  async function onNoContesto() {
-    if (!activa) return;
-    const id = activa.pedido.id;
-    // La llamada se registra igual: es un hecho, y de eso depende el fijo
-    // diario. Lo que falta decidir es qué se hace con la parada.
-    //
-    // Salvo que ya estuviera marcada. Ahora se vuelve a esta pregunta cada vez
-    // que el conductor sale de las salidas, y volver a escribirla pisaría la hora
-    // real de la llamada con la de ahora.
-    if (activa.pedido.llamada !== "no_contesto") {
-      await correr(() => dia.marcarLlamada(id, "no_contesto"));
-    }
-    setEsperandoResultadoDe(null);
-    // Derecho a las salidas, sin una pregunta intermedia.
-    setDandoResultadoDe(id);
-  }
-
+  // Llamar es solo para coordinar la entrega (el dueño, 2026-11-06): no se anota
+  // si contestó ni se pregunta. Dentro de la APK sale directo (spec 015); queda
+  // la hora de la primera llamada, que dice que ya se lo llamó.
+  const ultimaLlamada = useRef<{ pedidoId: string; ms: number } | null>(null);
   function onLlamar(parada: Parada) {
-    if (esApp()) {
-      void llamadaNativa.llamar(parada.pedido.id, parada.pedido.telefono).then((via) => {
-        // Sin permiso de llamadas se abrió el marcador: se pregunta como siempre.
-        if (via === "marcador") setEsperandoResultadoDe(parada.pedido.id);
-      });
-      return;
-    }
-    void llamar(parada.pedido.telefono);
-    setEsperandoResultadoDe(parada.pedido.id);
-  }
-
-  /** El resultado detectado estaba mal (un buzón de voz que "contestó", por
-   *  ejemplo): un toque lo da vuelta (spec 015, FR-006). */
-  async function onCorregirLlamada(llamada: LlamadaDetectada) {
-    olvidarDetectada();
-    const correcto = llamada.resultado === "contesto" ? "no_contesto" : "contesto";
-    await correr(() => dia.marcarLlamada(llamada.pedidoId, correcto));
-    if (correcto === "no_contesto") setDandoResultadoDe(llamada.pedidoId);
-    else setDandoResultadoDe((actual) => (actual === llamada.pedidoId ? null : actual));
+    const { id, telefono } = parada.pedido;
+    const previa = ultimaLlamada.current;
+    if (previa?.pedidoId === id && Date.now() - previa.ms < MS_DOBLE_TOQUE) return;
+    ultimaLlamada.current = { pedidoId: id, ms: Date.now() };
+    void llamar(telefono);
+    void correr(() => dia.registrarLlamada(id));
   }
 
   async function onSalida(salida: Salida) {
@@ -226,7 +160,6 @@ export function useAccionesParada({
     if (salida.clave === "pendiente") {
       const lugar = await correr(() => dia.dejarParaElFinal(id));
       setDandoResultadoDe(null);
-      setEsperandoResultadoDe(null);
       // Sin evento no hay deshacer, pero la parada desaparece de arriba de la
       // lista: sin un aviso, parece que se perdió. Se dice DÓNDE quedó.
       const texto =
@@ -237,36 +170,18 @@ export function useAccionesParada({
 
     const eventoId = await correr(() => dia.marcarResultado(id, salida.clave));
     setDandoResultadoDe(null);
-    setEsperandoResultadoDe(null);
     if (eventoId) setDeshacer({ pedidoId: id, eventoId, texto: salida.aviso });
   }
 
   async function onPedidoFinalizado() {
     if (!activa) return;
     const id = activa.pedido.id;
-    // Antes de escribir (lo que recalcula "activa") ubicamos a quién sigue, para
-    // poder marcar su número de una vez.
-    const siguiente = paradas.find(
-      (p) => p.secuencia > activa.secuencia && p.pedido.resultado === "pendiente",
-    );
-
     const eventoId = await correr(() => dia.marcarResultado(id, "entregado"));
     // La OF sigue a la vista mientras se puede deshacer: es el número que se
     // anota al entregar (spec 003).
     const of = activa.pedido.of;
     if (eventoId) {
       setDeshacer({ pedidoId: id, eventoId, texto: of ? `Entrega registrada · OF ${formatoOf(of)}` : "Entrega registrada" });
-    }
-
-    // En la APK la llamada saldría sin tocar nada, con el conductor quizás todavía
-    // en la puerta: ahí la parada siguiente queda con "Llamar" como botón
-    // principal (spec 015, FR-008). En el navegador se abre el marcador, que
-    // igual espera el toque de llamar.
-    if (siguiente && siguiente.pedido.telefono && !esApp()) {
-      void llamar(siguiente.pedido.telefono);
-      setEsperandoResultadoDe(siguiente.pedido.id);
-    } else {
-      setEsperandoResultadoDe(null);
     }
   }
 
@@ -296,17 +211,12 @@ export function useAccionesParada({
     setDeshacer(null);
     const deshecho = await correr(() => dia.deshacer(pedidoId, eventoId));
     if (deshecho === false) setError("Ya se había enviado: no se puede deshacer. Si fue un error, avisa a la oficina.");
-    // Volver a la parada reabierta como si no hubiera pasado nada: si venía de
-    // "contestó", el paso que corresponde es finalizar; si no, llamar.
-    setEsperandoResultadoDe(null);
   }
 
   return {
     error,
     setError,
     guardando,
-    esperandoResultadoDe,
-    setEsperandoResultadoDe,
     dandoResultadoDe,
     setDandoResultadoDe,
     deshacer,
@@ -314,11 +224,7 @@ export function useAccionesParada({
     confirmacion,
     avisar,
     correr,
-    llamadaDetectada,
-    onContesto,
-    onNoContesto,
     onLlamar,
-    onCorregirLlamada,
     onSalida,
     onPedidoFinalizado,
     onEliminarPedido,

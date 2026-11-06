@@ -2,7 +2,7 @@
 
 import type { Coordenada, Trazado } from "@/lib/geo/coordenada";
 import type { ParadaLejana } from "./lejanas";
-import type { Pedido, Ruta } from "../almacen";
+import type { Pedido, Ruta, TramoDelDia } from "../almacen";
 
 /** De dónde arranca la ruta. La dirección de la empresa la pasa la pantalla
  *  (es un dato de la empresa, no de un destinatario, así que sigue viviendo en
@@ -30,6 +30,8 @@ export type PropuestaRuta = {
   paradas: PedidoUbicado[];
   /** Trazado por calles de todo el recorrido, [lng, lat] por punto. */
   trazado: Trazado | null;
+  /** Sus tramos, con el pedido al que llega cada uno (ver Ruta.tramos). */
+  tramos: TramoDelDia[] | null;
   distanciaM: number | null;
   duracionS: number | null;
   /** Pendientes que quedaron FUERA porque su dirección no se pudo ubicar en el

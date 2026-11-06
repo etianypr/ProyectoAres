@@ -18,6 +18,7 @@ import {
   leerRuta,
   ordenarRuta,
   pedidosEnOrden,
+  tramosConPedidos,
   type Pedido,
   type Ruta,
 } from "./almacen";
@@ -91,12 +92,15 @@ export async function replanificarRuta(
       // Es un extra: el orden ya quedó guardado, y un error acá (sin token, sin
       // red) no puede impedir que el conductor vea el aviso del cambio.
       const inicio = ruta.trazado?.[0] ? deLngLat(ruta.trazado[0]) : null;
-      const puntos = pedidosEnOrden(guardada, pedidos).filter(ubicado).map(coord);
+      const ubicados = pedidosEnOrden(guardada, pedidos).filter(ubicado);
+      const puntos = ubicados.map(coord);
       try {
         // Con la vuelta a la base, si la ruta la tiene (ver Ruta.partida).
         const vuelta = ruta.partida ? [ruta.partida] : [];
         const calles = await obtenerRutaCalles(inicio ? [inicio, ...puntos, ...vuelta] : [...puntos, ...vuelta]);
-        if (calles) await fijarTrazado(fecha, calles);
+        // A qué pedido llega cada tramo (spec 020): los puntos, en el mismo orden.
+        const ids = [...(inicio ? [null] : []), ...ubicados.map((p) => p.id), ...vuelta.map(() => null)];
+        if (calles) await fijarTrazado(fecha, { ...calles, tramos: tramosConPedidos(calles.tramos, ids) });
       } catch {
         // Queda el trazado anterior.
       }

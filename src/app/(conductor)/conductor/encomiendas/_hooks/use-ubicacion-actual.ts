@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { distanciaMetros, rumboEntre } from "@/lib/geo/coordenada";
-import { alVolverAPrimerPlano } from "@/lib/nativo/entorno";
+import { alIrAlFondo, alVolverAPrimerPlano } from "@/lib/nativo/entorno";
 import { fuenteUbicacion, gpsSimulado, useGpsSimulado } from "@/lib/encomiendas/local/gps-simulado";
 import type { Ubicacion } from "../_mapa/ruta-mapa";
 
@@ -161,9 +161,23 @@ export function useUbicacionActual(activo: boolean): EstadoUbicacion {
   // En modo prueba con el GPS simulado, la ubicación sale del simulador
   // (gps-simulado.ts); al encenderlo o apagarlo se vuelve a armar.
   const simulado = useGpsSimulado();
+
+  // Con ARES atrás (Google Maps adelante, con la burbuja) no se usa el GPS: la
+  // constitución deja fuera el GPS permanente (spec 020, FR-016). Android tampoco
+  // lo entregaría, pero así no queda un pedido colgado.
+  const [atras, setAtras] = useState(false);
+  useEffect(() => {
+    const alFondo = alIrAlFondo(() => setAtras(true));
+    const alVolver = alVolverAPrimerPlano(() => setAtras(false));
+    return () => {
+      alFondo();
+      alVolver();
+    };
+  }, []);
+
   useEffect(() => {
     const fuente = fuenteUbicacion();
-    if (!activo || !fuente) return;
+    if (!activo || !fuente || atras) return;
 
     // maximumAge: 0 — sin esto el navegador puede entregar una posición
     // guardada de hasta 15 segundos antes, y al arrancar el día eso es la
@@ -176,7 +190,7 @@ export function useUbicacionActual(activo: boolean): EstadoUbicacion {
     );
 
     return () => fuente.clearWatch(watchId);
-  }, [activo, aplicar, armado, simulado]);
+  }, [activo, aplicar, armado, simulado, atras]);
 
   // Se arma de nuevo al volver a primer plano y cuando deja de llegar todo
   // (spec 017, N7). Armarlo de más no cuesta nada; quedarse sin GPS manejando,

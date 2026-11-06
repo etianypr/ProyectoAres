@@ -56,7 +56,7 @@ entregados al cerrar el día la construye la 007.
 | Feature | Teléfono (se borra al cerrar el día) | Servidor | Proveedores |
 |---|---|---|---|
 | 007 | store `dias` (solo conteos, sobrevive) | `empresa.modo_operacion`, registro de proveedores | — |
-| 015 | — (lee el registro de llamadas en el teléfono; caché del service worker) | Vercel: `APK_VERSION_MINIMA`, `APK_URL` | Google code scanner y lector de texto ML Kit (procesan en el teléfono) |
+| 015 | — (caché del service worker; el registro de llamadas ya no se lee desde la 020) | Vercel: `APK_VERSION_MINIMA`, `APK_URL` | Google code scanner y lector de texto ML Kit (procesan en el teléfono) |
 | 003 | `pedidos`: of (opcional a mano), referencia, fotoId · store `fotos` (v5) | — | — |
 | 016 | — | — | — (catálogo de calles de OSM en el código; Google si se aprueba) |
 | 005 | `pedidos`: of (desde el código de barras), bultos, bultosEscaneados, porPagar, montoPorPagar, folioGuia, origenCarga | — (fotos solo en tránsito) | IA de visión (Claude), solo si el teléfono no pudo leer la foto |
@@ -91,7 +91,8 @@ parte 2 —tablas y columnas de la base— va en la spec 002 (T049–T050).
 
 ## Spec 012 · entregado o no (hecha, 2026-10-21)
 
-En la puerta: "Pedido finalizado", o "No se pudo" → "Dejar como pendiente" · "No entregado".
+En la puerta: "Pedido entregado", llamar (redondo) o "No se entrega" → "Dejar como pendiente" ·
+"No entregado". Desde el 2026-11-06 no se pregunta ni se detecta si contestó (spec 020).
 Sin motivo (se fueron No morador, No hay respuesta y Rechazo): lo no entregado se tacha por hoy
 y, si vuelve a salir, se escanea de nuevo. "Mañana" lo deja no entregado. El panel muestra
 entregados y no entregados. La columna `motivo` de la base se borra en 002 T051.

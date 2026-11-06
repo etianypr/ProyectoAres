@@ -22,7 +22,7 @@ antes de las autorizaciones (el contrato con Starken aplica desde ya; la ley des
 | OF, destino, nombre, teléfono, por pagar, monto | teléfono | cierre del día |
 | Descripción y foto del paquete, ruta | teléfono | cierre del día |
 | Coordinación WhatsApp | teléfono · servidor (correlación sin datos personales) | cierre del día (servidor: máx. 72 h) |
-| Llamadas al destinatario (número, duración), APK | registro de llamadas de Android: la app lo lee al volver de la llamada y no lo copia ni lo envía | en el pedido queda solo "contestó / no contestó" |
+| Burbuja sobre Google Maps (OF, nombre, dirección de la parada activa), APK | memoria del teléfono; su aviso fijo dice solo «ARES · Parada N», porque se ve con el teléfono bloqueado. Para abrirse al llegar compara en el teléfono la ubicación del auto (la que ya pide Google Maps) con el punto de la parada; no la guarda ni la envía | mientras haya una parada activa (spec 020) |
 | Actividad (entrega/no entrega, hora) | servidor | sin datos del destinatario |
 
 Solo sobreviven conteos (asignados, entregados, no entregados).
@@ -32,11 +32,10 @@ Solo sobreviven conteos (asignados, entregados, no entregados).
 | Proveedor | Recibe | Desde | País | Retención | Autorización Starken |
 |---|---|---|---|---|---|
 | Mapbox (en uso; búsqueda de direcciones y el mapa; el trazado y la navegación pasan a OpenRouteService en la spec 019; también recibe el punto de cada parada para ver qué calles tiene alrededor —Tilequery, 2026-10-29—. La matriz de distancias ya no: desde 2026-10-30 va a OpenRouteService) | dirección, coordenadas | teléfono | EE.UU. | a verificar | pendiente |
-| OpenRouteService (HeiGIT, en uso desde 2026-10-30; la matriz de distancias por calle con que se ordena la ruta, el trazado del día y la navegación hasta cada parada (spec 019); lo que contesta queda en memoria del teléfono y se olvida al cerrar el día, spec 017) | coordenadas de las paradas y de la partida (sin nombre, teléfono ni dirección) | teléfono | Alemania (UE) | a verificar | pendiente |
+| OpenRouteService (HeiGIT, en uso desde 2026-10-30; la matriz de distancias por calle con que se ordena la ruta, y el trazado del día (spec 019). Desde la spec 020 ya no recibe la posición del auto tramo a tramo: los km a la parada se miden en el teléfono sobre la línea del día; lo que contesta queda en memoria del teléfono y se olvida al cerrar el día, spec 017) | coordenadas de las paradas y de la partida (sin nombre, teléfono ni dirección) | teléfono | Alemania (UE) | a verificar | pendiente |
 | OpenStreetMap/Nominatim (en uso) | dirección | teléfono | UK/UE | a verificar | pendiente |
 | Google Cloud Vision (en uso; spec 005; lee el texto de las fotos) | fotos de guía y etiquetas (OF, destino, destinatario, teléfono, dirección, pago) | servidor (tránsito, `/api/texto`) | EE.UU. | según términos de Google Cloud | pendiente |
-| Google Maps (app) (en uso desde 2026-10-29; solo cuando el conductor toca los km de la parada para seguir en Google Maps, si la navegación de la app no carga) | coordenadas de ESA parada (sin nombre, teléfono ni dirección) | teléfono (abre la app de Google Maps o su enlace en el navegador) | EE.UU. | según términos de Google Maps | pendiente |
-| Google Navigation SDK (en uso desde la spec 019; la navegación dentro de la APK cuando el conductor toca los km de la parada) | coordenadas de la parada activa y la ubicación del auto mientras guía (sin nombre, teléfono ni dirección: la OF y a quién se muestran en el teléfono) | teléfono (APK) | EE.UU. | según términos de Google Maps Platform | pendiente |
+| Google Maps (app) (en uso desde 2026-10-29; desde la spec 020 es la navegación: los km de la parada, «Navegar» en la burbuja de ARES y, con la burbuja en curso, cada parada nueva abren Google Maps navegando. La burbuja, con la OF y a quién, es una ventana de ARES en el teléfono: Google no la ve) | coordenadas de ESA parada (sin nombre, teléfono ni dirección) | teléfono (abre la app de Google Maps o su enlace en el navegador) | EE.UU. | según términos de Google Maps | pendiente |
 | Google Geocoding (en uso; spec 016; solo direcciones que Mapbox y OSM no ubicaron) | dirección (sin nombre ni teléfono) | servidor (tránsito, `/api/geocodificar`) | EE.UU. | según términos de Google Maps Platform | pendiente |
 | Meta WhatsApp Cloud API (inactivo) | teléfono, nombre, id correlación | servidor | EE.UU. | según Meta | pendiente |
 | Anthropic (en uso, piloto; spec 005: las fotos de la guía y, desde 2026-10-28, TODAS las de etiquetas, para describir el paquete; spec 018: las direcciones que no se ubicaron) | fotos de guía y etiquetas (OF, destino, destinatario, teléfono, dirección, pago); direcciones y lo que devolvieron los buscadores (sin nombre ni teléfono) | servidor (tránsito, `/api/lectura`, `/api/direccion-ia`) | EE.UU. | ≤30 días API; cero retención a solicitar | pendiente |
@@ -55,8 +54,9 @@ la autorización para dejarlo explícito.
 - Día cerrado → la app muestra "No entregados" y borra pedidos y ruta; un día anterior con datos
   se borra al abrir · cerrar sesión borra todo (con aviso) · cuenta sin ficha o desactivada → la
   app borra al abrir con señal (spec 007) · teléfono con bloqueo.
-- APK firmada con una clave que no entra al repositorio · permisos: llamar, registro de
-  llamadas y ubicación con la app abierta (sin segundo plano).
+- APK firmada con una clave que no entra al repositorio · permisos: llamar y ubicación con la app
+  abierta; sin registro de llamadas desde el 2026-11-06 (spec 020). La burbuja escucha la ubicación
+  pasiva solo mientras navega, para abrirse al llegar.
 
 ## 5. Incidentes y titulares
 

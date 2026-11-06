@@ -11,24 +11,15 @@ const parada = (pedido = {}, hayQueContactar = true) => ({
   pedido: { id: "p1", llamada: null, ...pedido },
   hayQueContactar,
 });
-const sin = { dandoResultadoDe: null, esperandoResultadoDe: null };
+const sin = { dandoResultadoDe: null };
 
-test("faseDeParada: sin parada activa, antes de llamar", () => {
-  assert.equal(faseDeParada(null, sin), "antes_llamar");
-});
-
-test("faseDeParada: lo que el conductor está haciendo en pantalla manda", () => {
-  assert.equal(faseDeParada(parada(), { ...sin, dandoResultadoDe: "p1" }), "salidas");
-  assert.equal(faseDeParada(parada(), { ...sin, esperandoResultadoDe: "p1" }), "esperando_resultado");
+test("faseDeParada: en la parada, salvo que se esté eligiendo una salida", () => {
+  assert.equal(faseDeParada(null, sin), "en_parada");
+  assert.equal(faseDeParada(parada(), sin), "en_parada");
+  assert.equal(faseDeParada(parada({ llamada: "no_contesto" }), sin), "en_parada", "ya no hay paso de \"¿contestó?\"");
+  assert.equal(faseDeParada(parada(), { dandoResultadoDe: "p1" }), "salidas");
   // De OTRA parada no cuenta.
-  assert.equal(faseDeParada(parada(), { ...sin, dandoResultadoDe: "p2" }), "antes_llamar");
-});
-
-test("faseDeParada: si no, lo guardado (cerrar y abrir la app vuelve al mismo paso)", () => {
-  assert.equal(faseDeParada(parada({ llamada: "contesto" }), sin), "confirmado");
-  assert.equal(faseDeParada(parada({ llamada: "no_contesto" }), sin), "esperando_resultado");
-  assert.equal(faseDeParada(parada({}, false), sin), "esperando_entrega", "confirmó por WhatsApp");
-  assert.equal(faseDeParada(parada({}, true), sin), "antes_llamar");
+  assert.equal(faseDeParada(parada(), { dandoResultadoDe: "p2" }), "en_parada");
 });
 
 test("SALIDAS: dejar como pendiente y no entregado, en ese orden", () => {

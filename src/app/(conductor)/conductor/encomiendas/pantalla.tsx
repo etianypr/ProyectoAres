@@ -20,7 +20,9 @@ import { PantallaCargando, PantallaError } from "./_componentes/estado-pantalla"
 import { useUbicacionActual } from "./_hooks/use-ubicacion-actual";
 import { useEvento } from "./_hooks/use-evento";
 import { armarNotificaciones } from "./_componentes/notificaciones-pantalla";
-import { useGuiaNavegacion } from "./_hooks/use-guia-navegacion";
+import { useHaciaParada } from "./_hooks/use-hacia-parada";
+import { useBurbuja } from "./_hooks/use-burbuja";
+import { atenderBoton, type AccionesParada } from "./_hooks/botones-parada";
 import { useBrujula } from "./_hooks/use-brujula";
 import { useCierreDia } from "./_hooks/use-cierre-dia";
 import { useFechaDelDia } from "./_hooks/use-fecha-del-dia";
@@ -96,14 +98,11 @@ export function PantallaEncomiendas({
     alBorrar: dia.recargar,
   });
 
-  // Llamar, contestó o no, las salidas, entregar, y deshacer (ver
-  // _hooks/use-acciones-parada.ts).
+  // Llamar, las salidas, entregar y deshacer (ver _hooks/use-acciones-parada.ts).
   const {
     error,
     setError,
     guardando,
-    esperandoResultadoDe,
-    setEsperandoResultadoDe,
     dandoResultadoDe,
     setDandoResultadoDe,
     deshacer,
@@ -111,17 +110,13 @@ export function PantallaEncomiendas({
     confirmacion,
     avisar,
     correr,
-    llamadaDetectada,
-    onContesto,
-    onNoContesto,
     onLlamar,
-    onCorregirLlamada,
     onSalida,
     onPedidoFinalizado,
     onEliminarPedido,
     onDeshacerEliminado,
     onDeshacer,
-  } = useAccionesParada({ dia, activa, paradas });
+  } = useAccionesParada({ dia, activa });
 
   // La vista de formulario abierta dentro de la hoja: "nuevo" o el pedido que se
   // está corrigiendo. null = cerrada.
@@ -166,20 +161,25 @@ export function PantallaEncomiendas({
 
   const hayRuta = paradas.length > 0;
 
-  const fase: Fase = faseDeParada(activa, { dandoResultadoDe, esperandoResultadoDe });
+  const fase: Fase = faseDeParada(activa, { dandoResultadoDe });
 
-  // Guiar hasta la parada activa: tramo, voz, punto pegado al camino, rumbo y
-  // señal (ver _hooks/use-guia-navegacion.ts).
-  const {
-    destinoActivo,
-    navegacion,
-    voz,
-    seAproximaSinContacto,
-    rumbo,
-    ubicacionMostrada,
-    trazadoPorDelante,
-    señalDebil,
-  } = useGuiaNavegacion({ activa, miUbicacion, propuestaALaVista: propuesta != null, hayRuta });
+  // El camino a la parada activa (_hooks/use-hacia-parada.ts). ARES no guía (spec 020).
+  const { destinoActivo, faltan, seAproximaSinContacto, rumbo, ubicacionMostrada, trazadoPorDelante, señalDebil } =
+    useHaciaParada({ activa, ruta: dia.ruta, miUbicacion, hayRuta });
+
+  // Cada botón de la parada, en la tarjeta y en la burbuja (_hooks/use-burbuja.ts).
+  const acciones: AccionesParada = {
+    llamar: () => activa && onLlamar(activa),
+    escanear: () => setEscaneando(true),
+    editar: () => activa && setFormPedido(activa.pedido),
+    finalizar: () => void onPedidoFinalizado(),
+    noSePudo: () => activa && setDandoResultadoDe(activa.pedido.id),
+    salida: (salida) => void onSalida(salida),
+    volver: () => setDandoResultadoDe(null),
+    deshacer: () => void onDeshacer(),
+  };
+  const enAres = ventanas.cargandoGuia;
+  const burbuja = useBurbuja({ fecha, activa, fase, whatsapp, deshacer, confirmacion, enAres, acciones });
 
   const ayer = useResumenAyer(fecha);
 
@@ -191,7 +191,6 @@ export function PantallaEncomiendas({
       [formPedido != null, () => setFormPedido(null)],
       [propuesta != null, () => setPropuesta(null)],
       [dandoResultadoDe != null, () => setDandoResultadoDe(null)],
-      [esperandoResultadoDe != null, () => setEsperandoResultadoDe(null)],
     ],
     sinParadas: paradas.length === 0,
   });
@@ -216,8 +215,6 @@ export function PantallaEncomiendas({
     onCerrarError: () => setError(null),
     apkVieja,
     apkUrl,
-    llamadaDetectada,
-    onCorregirLlamada: (llamada) => void onCorregirLlamada(llamada),
     errorWhatsapp: hayRuta ? dia.errorWhatsapp : null,
     cambiosRuta: dia.cambiosRuta,
     onVistoCambioRuta: dia.vistoCambioRuta,
@@ -255,16 +252,9 @@ export function PantallaEncomiendas({
       whatsapp={whatsapp}
       guardando={guardando}
       seAproximaSinContacto={seAproximaSinContacto}
-      navegacion={navegacion}
-      onLlamar={() => onLlamar(activa)}
-      onEscanear={() => setEscaneando(true)}
-      onEditar={() => setFormPedido(activa.pedido)}
-      onPedidoFinalizado={() => void onPedidoFinalizado()}
-      onNoSePudo={() => setDandoResultadoDe(activa.pedido.id)}
-      onContesto={() => void onContesto()}
-      onNoContesto={() => void onNoContesto()}
-      onSalida={(salida) => void onSalida(salida)}
-      onVolver={() => setDandoResultadoDe(null)}
+      faltan={faltan}
+      onNavegar={destinoActivo ? () => void burbuja.navegar() : undefined}
+      onBoton={(id) => atenderBoton(id, acciones)}
     />
   );
 
@@ -310,7 +300,6 @@ export function PantallaEncomiendas({
         altoNotificaciones={altoNotificaciones}
         onAbrirMenu={ventanas.abrirMenu}
         onEscanear={pedidos.length > 0 ? () => setEscaneando(true) : null}
-        navegacion={propuesta ? null : navegacion}
         resumen={resumenDelDia}
         errorUbicacion={errorUbicacion}
         señalDebil={señalDebil}
@@ -321,7 +310,6 @@ export function PantallaEncomiendas({
       {!propuesta ? (
         <ControlesMapa
           abajo={alturaCerrada + 12}
-          voz={voz}
           siguiendo={enNavegacion && miUbicacion != null}
           onCentrar={() => {
             setSiguiendo(true);

@@ -4,7 +4,7 @@ import { STORES, escribir, leerTodos } from "../idb";
 import { enFila } from "./fila";
 import { leerDiaGuardado, leerPedidos, leerRuta, leerTodosLosPedidos, pedidosEnOrden } from "./lecturas";
 import { diaAlDia, rutaAlDia } from "./migrar";
-import type { Pedido, ResumenDia, Ruta } from "./tipos";
+import type { Pedido, ResumenDia, Ruta, TramoDelDia } from "./tipos";
 
 /** Los días de este teléfono, del más nuevo al más viejo: los ya borrados
  *  (store `dias`, spec 007) y los que todavía tienen su ruta.
@@ -111,7 +111,21 @@ export type EntradaRuta = {
   propuestasComparadas?: number;
   /** De dónde sale y adonde vuelve. Ver Ruta.partida. */
   partida?: Coordenada | null;
+  /** Los tramos de `trazado` (ver Ruta.tramos y tramosConPedidos). */
+  tramos?: TramoDelDia[] | null;
 };
+
+/** Los tramos que devolvió el servicio de rutas, con el pedido al que llega cada
+ *  uno. `idsPorPunto` va alineado con los puntos que se le pidieron (el primero
+ *  es la partida, su id no se usa; null = un punto que no es pedido, como la
+ *  vuelta a la central). */
+export function tramosConPedidos(
+  tramos: { desde: number; hasta: number; metros: number; segundos: number }[] | undefined,
+  idsPorPunto: (string | null)[],
+): TramoDelDia[] | null {
+  if (!tramos) return null;
+  return tramos.map((t, k) => ({ ...t, pedidoId: idsPorPunto[k + 1] ?? null }));
+}
 
 // Guarda la ruta del día conservando SIEMPRE el orden de lo que ya se cerró:
 // los pedidos entregados u omitidos quedan primero, en su orden original, y
@@ -138,6 +152,8 @@ export function guardarRuta(entrada: EntradaRuta): Promise<Ruta> {
       trazado: entrada.trazado ?? anterior?.trazado ?? null,
       distanciaM: entrada.distanciaM ?? anterior?.distanciaM ?? null,
       duracionS: entrada.duracionS ?? anterior?.duracionS ?? null,
+      // Los tramos van con su trazado: si se conservó el anterior, también los suyos.
+      tramos: entrada.trazado ? (entrada.tramos ?? null) : (anterior?.tramos ?? null),
       // La primera generación del día manda: es el comienzo del día. Si
       // se pisara en cada rehacer, agregar un pedido a media tarde diría que el
       // conductor empezó a esa hora.
@@ -209,12 +225,15 @@ export function ordenarRuta(fecha: string, pendientesEnOrden: string[]): Promise
  *  reordenarse: sin señal no se llama y queda el trazado anterior. */
 export function fijarTrazado(
   fecha: string,
-  calles: { trazado: Trazado; distanciaM: number; duracionS: number },
+  calles: { trazado: Trazado; distanciaM: number; duracionS: number; tramos?: TramoDelDia[] | null },
 ): Promise<void> {
   return enFila(async () => {
     const ruta = await leerRuta(fecha);
     if (!ruta) return;
-    await escribir([STORES.rutas], ({ guardar }) => guardar(STORES.rutas, { ...ruta, ...calles }));
+    const { trazado, distanciaM, duracionS, tramos = null } = calles;
+    await escribir([STORES.rutas], ({ guardar }) =>
+      guardar(STORES.rutas, { ...ruta, trazado, distanciaM, duracionS, tramos }),
+    );
   });
 }
 

@@ -1,33 +1,23 @@
-// Teléfono del conductor: llamar, leer el registro de llamadas, mantener la
-// pantalla encendida (spec 015), leer el texto de una foto (spec 005) y decir las
-// indicaciones de manejo (spec 017). Dentro de la APK usa el plugin propio `Telefono`
+// Teléfono del conductor: llamar, mantener la pantalla encendida (spec 015) y leer
+// el texto de una foto (spec 005). Ya no se lee el registro de llamadas: saber si
+// contestó no ayuda a repartir (el dueño, 2026-11-06, spec 020).
+// Dentro de la APK usa el plugin propio `Telefono`
 // (android/…/TelefonoPlugin.java); fuera de ella, lo que ya hacía la web.
 // Contrato: specs/015-app-android/contracts/nativo.md.
 import { registerPlugin } from "@capacitor/core";
 import { esApp } from "./entorno";
 
-/** Una llamada del registro del teléfono, solo del número consultado. No lleva el
- *  número: el plugin ya filtró por él y nada de esto sale del teléfono. */
-export type EntradaRegistro = {
-  duracionS: number;
-  tipo: "saliente" | "entrante" | "perdida" | "otra";
-  fechaMs: number;
-};
-
 type EstadoPermiso = "granted" | "denied" | "prompt" | "prompt-with-rationale";
 
 /** Permisos de la APK; `ubicacion` = ubicación precisa (el WebView no trae
  *  `navigator.permissions`). */
-export type PermisosApp = { llamadas: EstadoPermiso; registro: EstadoPermiso; ubicacion: EstadoPermiso };
+export type PermisosApp = { llamadas: EstadoPermiso; ubicacion: EstadoPermiso };
 
 type PluginTelefono = {
   checkPermissions(): Promise<PermisosApp>;
   llamar(opciones: { numero: string }): Promise<void>;
-  llamadasDesde(opciones: { numero: string; desdeMs: number }): Promise<{ llamadas: EntradaRegistro[] }>;
   pantallaEncendida(opciones: { encendida: boolean }): Promise<void>;
   leerTexto(opciones: { imagen: string }): Promise<{ texto: string }>;
-  hablar(opciones: { texto: string; urgente: boolean }): Promise<void>;
-  callar(): Promise<void>;
 };
 
 const Telefono = registerPlugin<PluginTelefono>("Telefono");
@@ -51,17 +41,6 @@ export async function llamar(numero: string): Promise<"directa" | "marcador"> {
   }
   window.location.href = `tel:${limpio}`;
   return "marcador";
-}
-
-/** Llamadas a ese número desde `desdeMs`, más recientes primero. null = no se
- *  puede saber (navegador, o sin permiso de registro de llamadas). */
-export async function llamadasDesde(numero: string, desdeMs: number): Promise<EntradaRegistro[] | null> {
-  if (!esApp()) return null;
-  try {
-    return (await Telefono.llamadasDesde({ numero: limpiar(numero), desdeMs })).llamadas;
-  } catch {
-    return null;
-  }
 }
 
 /** Estado de los permisos de la APK (para el diagnóstico); null fuera de ella. */
@@ -95,40 +74,6 @@ export async function textoDeFoto(foto: Blob): Promise<string | null> {
     return texto.trim() ? texto : null;
   } catch {
     return null;
-  }
-}
-
-/** La APK no tiene voz (anterior a la 1.2.0, o el teléfono sin motor de voz):
- *  no se vuelve a intentar en todo el día. */
-let sinVozNativa = false;
-
-/** true si la voz de Android está disponible: dentro de la APK, hasta que se
- *  demuestre lo contrario. El WebView de Android no trae una síntesis de voz que
- *  suene, así que en la APK esta es LA voz (spec 017, N1). */
-export function hayVozNativa(): boolean {
-  return esApp() && !sinVozNativa;
-}
-
-/** Dice el texto con la voz de Android. `urgente` corta lo que esté sonando; si
- *  no, se encola detrás. false = no se pudo y la pantalla usa la del navegador. */
-export async function hablarNativo(texto: string, urgente: boolean): Promise<boolean> {
-  if (!hayVozNativa()) return false;
-  try {
-    await Telefono.hablar({ texto, urgente });
-    return true;
-  } catch {
-    sinVozNativa = true;
-    return false;
-  }
-}
-
-/** Corta lo que esté diciendo la voz de Android. */
-export async function callarNativo(): Promise<void> {
-  if (!hayVozNativa()) return;
-  try {
-    await Telefono.callar();
-  } catch {
-    // Nada que callar.
   }
 }
 

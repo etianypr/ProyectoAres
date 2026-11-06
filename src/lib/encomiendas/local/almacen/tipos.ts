@@ -120,6 +120,21 @@ export type Ruta = {
    *  2026-10-28). Sumar un pedido tarde la usa para no dejarlo en la otra
    *  punta. Opcional: las rutas guardadas antes no la tienen. */
   partida?: Coordenada | null;
+  /** Los tramos de `trazado`, uno por punto después del primero (spec 020): con
+   *  ellos la app mide cuánto falta hasta la parada activa sin pedir otra ruta.
+   *  Opcional: las rutas guardadas antes no los tienen (se mide en línea recta). */
+  tramos?: TramoDelDia[] | null;
+};
+
+/** Un tramo de la línea del día: hasta qué pedido llega y dónde está en el
+ *  trazado. `pedidoId` null = la vuelta a la central. */
+export type TramoDelDia = {
+  pedidoId: string | null;
+  /** Índices en `Ruta.trazado`. */
+  desde: number;
+  hasta: number;
+  metros: number;
+  segundos: number;
 };
 
 /** Un día de trabajo en cifras. Es lo único que queda en el teléfono cuando el

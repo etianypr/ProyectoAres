@@ -24,19 +24,20 @@
 
         </activity>
 
-        <!-- Navegación de Google dentro de ARES (spec 019). Vertical, como el resto de
-             la app del conductor. -->
-        <activity
-            android:name=".NavegacionActivity"
-            android:theme="@style/AppTheme.NoActionBar"
-            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|screenLayout|uiMode|density"
-            android:exported="false" />
-
-        <!-- La clave del kit de navegación de Google entra al compilar (MAPS_API_KEY);
-             vacía, la app navega con OpenRouteService. -->
-        <meta-data
-            android:name="com.google.android.geo.API_KEY"
-            android:value="${MAPS_API_KEY}" />
+        <!-- La burbuja de ARES sobre Google Maps (spec 020): un servicio en primer
+             plano sostiene la ventana mientras ARES está atrás. "location" solo para
+             abrir la burbuja al llegar a la parada, con la ubicación pasiva que ya
+             pide Google Maps y mientras la burbuja está en curso (FR-016; la
+             constitución deja fuera el GPS permanente salvo spec explícita). Guía
+             Google Maps. -->
+        <service
+            android:name=".BurbujaServicio"
+            android:exported="false"
+            android:foregroundServiceType="specialUse|location">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Muestra la parada de reparto activa sobre la app de navegacion, con sus botones." />
+        </service>
 
         <!-- Escáner de Google (ML Kit) con su propia pantalla: sin permiso de cámara
              (spec 015, US3). -->
@@ -62,9 +63,15 @@
          plano: la constitución deja fuera el GPS permanente. -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <!-- Llamar con un toque y saber si el cliente contestó (spec 015, FR-004/005).
-         El registro de llamadas se lee en el teléfono y no sale de ahí. -->
+    <!-- Llamar con un toque (spec 015, FR-004). Ya no se lee el registro de llamadas:
+         saber si contestó no ayuda a repartir (el dueño, 2026-11-06, spec 020). -->
     <uses-permission android:name="android.permission.CALL_PHONE" />
-    <uses-permission android:name="android.permission.READ_CALL_LOG" />
     <uses-feature android:name="android.hardware.telephony" android:required="false" />
+    <!-- La burbuja de ARES sobre Google Maps (spec 020): "Mostrar sobre otras
+         apps" lo da el conductor una vez; el servicio en primer plano evita que
+         Android cierre ARES mientras está atrás. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
 </manifest>
