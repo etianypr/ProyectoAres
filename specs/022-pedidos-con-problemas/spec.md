@@ -1,7 +1,7 @@
 # Spec 022 · Pedidos con problemas (⚠) dentro de la ruta
 
-**Creada**: 2026-11-05 · **Definida**: 2026-11-06 · **Estado**: en curso · **Rama**:
-`022-pedidos-con-problemas` (sale de `027-hoja-por-paso`) · **Pedido del dueño**: `AGENTS.md`, «El
+**Creada**: 2026-11-05 · **Definida**: 2026-11-06 · **Estado**: hecha (falta día real) · **Rama**:
+`022-pedidos-con-problemas`, en `main` desde 2026-11-06 · **Pedido del dueño**: `AGENTS.md`, «El
 flujo del conductor» (paso 2) y «Pedidos con problemas (⚠)».
 
 ## Lo que ya hizo la 027 (no se repite)

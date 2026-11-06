@@ -1,6 +1,6 @@
 # Spec 027 · La hoja de ARES, paso por paso
 
-**Creada**: 2026-11-06 · **Estado**: definida · **Rama**: `027-hoja-por-paso` (desde `main`) ·
+**Creada**: 2026-11-06 · **Estado**: hecha (falta día real) · **Rama**: `027-hoja-por-paso`, en `main` desde 2026-11-06 ·
 **Pedido del dueño**: "hagamos cambios en el frontend, en la pestaña desplegable de ARES […]
 cuando no se ha escaneado ningún pedido, cuando aparecen pedidos con peligro, cuando la aplicación
 parte sin ningún…". Maqueta aprobada el 2026-11-06 (casos A–G, hoy vs. propuesta):

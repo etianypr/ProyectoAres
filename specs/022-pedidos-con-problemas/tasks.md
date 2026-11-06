@@ -11,4 +11,4 @@
 - [x] T009 Docs: `AGENTS.md` (OF y ⚠), `CLASES.md`, `ARQUITECTURA.md`, `pruebas/README.md`
 - [x] T010 Recorrido a 360 px en modo prueba (2026-11-06): OF de 8 y 10 sin ⚠, lejana con «Va igual», aviso «En 2 paradas» con «Ver», fuera de la guía con «Es así», etiqueta con otra dirección con «Dejar la de la guía». Sin ver en pantalla (cubierto por pruebas): calle en varios lugares y bultos 1 de 2
 - [ ] T012 En la APK: la línea de la burbuja y un día real
-- [ ] T011 En `main`: la fila de la 022 en `specs/README.md` («en curso», rama) — el índice se edita solo ahí
+- [x] T011 En `main`: la fila de la 022 en `specs/README.md` (unida a `main` el 2026-11-06)
