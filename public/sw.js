@@ -3,7 +3,7 @@
 // Guarda el "cascarón" de la app —el HTML de /conductor y los JS/CSS de Next—
 // para que abra sin señal: los pedidos, la ruta y la cola ya viven en IndexedDB,
 // lo único que faltaba era la página. Acá NO se guarda ningún dato de clientes: no
-// toca /api, ni Supabase, ni Mapbox, ni nada de otro origen.
+// toca /api, ni Supabase, ni nada de otro origen.
 //
 // Navegación del conductor: red primero (la versión publicada manda) con un tope
 // de espera, porque en la periferia la red suele estar "conectada" sin llegar a

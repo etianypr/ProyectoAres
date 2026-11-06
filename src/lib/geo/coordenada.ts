@@ -3,7 +3,7 @@
 //
 // Dos convenciones conviven y NO se mezclan:
 //   Coordenada   {lat, lng}   la del dominio: pedidos, GPS, geocodificador.
-//   PuntoLngLat  [lng, lat]   la de GeoJSON, Mapbox y ORS: trazados del mapa.
+//   PuntoLngLat  [lng, lat]   la de GeoJSON, MapLibre y ORS: trazados del mapa.
 // Se pasa de una a otra solo con aLngLat() / deLngLat().
 
 export type Coordenada = { lat: number; lng: number };

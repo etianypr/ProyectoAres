@@ -2,7 +2,7 @@
 //
 // Por qué esto existe en un sistema de Arica: acá las casas no tienen
 // numeración estructurada, y el geocodificador lo confirma midiendo — de 23
-// direcciones reales, Mapbox tiene la puerta exacta en 2 y estima el resto
+// direcciones reales, Mapbox tenía la puerta exacta en 2 y estimaba el resto
 // (ver scripts/sondear-proveedores.mjs). Un Plus Code corta ese problema de
 // raíz: la casa se marca UNA vez, queda escrita como texto corto que una
 // persona puede dictar por teléfono, y no se vuelve a geocodificar nunca.

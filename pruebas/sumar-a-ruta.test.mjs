@@ -1,13 +1,11 @@
 // Pedidos que entran o vuelven a la ruta en curso sin rehacerla (spec 017, R4).
 //
 // Las funciones puras de planificar.ts sobre una recta (como planificar.test) y
-// el flujo real sobre IndexedDB (fake-indexeddb), con el trazado de Mapbox en un
-// doble.
+// el flujo real sobre IndexedDB (fake-indexeddb), con el trazado de
+// OpenRouteService en un doble.
 import "fake-indexeddb/auto";
 import test from "node:test";
 import assert from "node:assert/strict";
-
-process.env.NEXT_PUBLIC_MAPBOX_TOKEN = "pk.prueba";
 
 const { lugarMasBarato, lugarParaReintentar, MIN_REINTENTO } = await import("@/lib/encomiendas/local/planificar");
 const almacen = await import("@/lib/encomiendas/local/almacen");

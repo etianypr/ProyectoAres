@@ -12,6 +12,7 @@
 // Se guarda solo en el teléfono (localStorage): es un estado de ESTE teléfono.
 
 import { useSyncExternalStore } from "react";
+import { olvidarConsultasGoogle } from "@/lib/geo/geocoding/google";
 import { olvidarMatriz } from "@/lib/geo/matriz";
 import { enFila } from "./almacen/fila";
 import { STORES, STORES_DEL_DIA, escribir, leerTodos } from "./idb";
@@ -49,8 +50,10 @@ export function salirDelModoPrueba(): Promise<void> {
     await escribir(stores, ({ vaciar }) => {
       for (const store of stores) vaciar(store);
     });
-    // Las distancias del día guardan puntos de destinatarios (en memoria).
+    // Las distancias y las respuestas de Google guardan puntos y direcciones de
+    // destinatarios (en memoria).
     olvidarMatriz();
+    olvidarConsultasGoogle();
     fijar(false);
   });
 }

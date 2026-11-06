@@ -1,16 +1,10 @@
 // Trazado por calles con OpenRouteService: el camino ABIERTO, sobre el grafo de
 // OpenStreetMap y con Jerarquías de Contracción (Contraction Hierarchies).
 //
-// Esto NO reemplaza a lib/geo/mapbox/direcciones.ts. La ruta que maneja el conductor sigue saliendo
-// de Mapbox, y por dos razones concretas que están escritas allá: las
-// instrucciones vienen ya redactadas en español con sus avisos de voz, y el
-// trazado sale del mismo mundo que las teselas que se dibujan. Cambiar eso
-// sería rehacer la navegación entera.
-//
-// Para qué sirve entonces: para preguntar SIN gastar cuota de Mapbox y sin
-// tocar el camino del conductor — comparar un trazado, revisar una ruta vieja,
-// contestarle al LLM cuánto tarda ir de acá a allá. Es la herramienta del
-// servidor MCP (ver mcp/), no la de la app.
+// La ruta que maneja el conductor sale de lib/geo/ors/ (spec 019). Esto es otra
+// cosa: la herramienta del servidor MCP, para preguntar sin tocar el camino del
+// conductor — comparar un trazado, revisar una ruta vieja, contestarle al LLM
+// cuánto tarda ir de acá a allá (ver mcp/).
 //
 // La cuenta gratuita de ORS da 2.000 consultas de direcciones por día y 40 por
 // minuto. No es open source autohospedado —pide una API key— pero tampoco se
@@ -38,15 +32,14 @@ const EVITABLES: Record<Evitable, string> = {
 // Verificado contra la API real: 70 puntos devuelve 200 y 71 devuelve 400, con
 // el mensaje "The specified number of waypoints must not be greater than 70".
 // Antes acá decía 50, sacado de la documentación: era un supuesto y estaba de
-// más: rechazaba rutas que el servicio acepta. Es el mismo criterio con el que
-// está escrito MAX_PUNTOS_POR_CONSULTA en lib/geo/mapbox/direcciones.ts.
+// más: rechazaba rutas que el servicio acepta.
 //
 // Da de sobra: un día de 30 paradas más la base son 31 puntos.
 const MAX_PUNTOS = 70;
 
 /** Falta la API key. NO es una falla de red y no se traga: sin esto, un .env
  *  mal armado se ve igual que "OpenRouteService está caído" y se busca el
- *  problema donde no está. Mismo criterio que ErrorTokenMapbox en lib/geo/mapbox/direcciones. */
+ *  problema donde no está. */
 export class ErrorClaveORS extends Error {
   constructor() {
     super("Falta ORS_API_KEY: no se puede consultar OpenRouteService.");
@@ -64,7 +57,7 @@ export type PasoRuta = {
 
 export type RutaAbierta = {
   /** [lng, lat] por punto — formato GeoJSON, IDÉNTICO a RutaCalles.trazado en
-   *  lib/geo/mapbox/direcciones.ts. Es a propósito: así entra sin traducir a ajustarATrazado(),
+   *  lib/geo/ors/direcciones.ts. Es a propósito: así entra sin traducir a ajustarATrazado(),
    *  recortarTrazado() y metrosRestantes(). Invertir el par no da error, pone
    *  la ruta en el mar. */
   trazado: Trazado;
@@ -108,7 +101,7 @@ type RespuestaGeoJson = {
 /** Trazado real por calles entre coordenadas.
  *
  *  Devuelve null si ORS no contestó o contestó algo inservible — el llamador se
- *  queda con lo que ya tenía, igual que hace obtenerRutaCalles() con Mapbox. Lo
+ *  queda con lo que ya tenía, igual que hace obtenerRutaCalles(). Lo
  *  único que SÍ se lanza es la falta de API key.
  *
  *  Se pide el endpoint /geojson y no el /json a propósito: el json entrega la

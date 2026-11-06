@@ -1,0 +1,92 @@
+{
+  "_lee_esto_primero": [
+    "Respuestas RECORTADAS de Google Geocoding (formato de la API), armadas a mano",
+    "con las mismas direcciones que ya usaban estas pruebas con Mapbox. Se conservan",
+    "los campos que el código lee (address_components,",
+    "geometry.location, geometry.location_type, place_id). Reemplazan a las de",
+    "Mapbox desde la spec 019, cuando Google pasó a ser el que da el número de casa.",
+    "",
+    "Lo que se prueba con cada una:",
+    "'exacta' — ROOFTOP: la puerta existe en los datos de Google.",
+    "'puerta_interpolada' — RANGE_INTERPOLATED: la calle es la correcta y el número",
+    "cae en su cuadra, pero la posición es estimada. Entra a la ruta CON aviso.",
+    "'otra_calle' — el caso caro: Google contesta el número pedido sobre OTRAS",
+    "avenidas. Mandar al conductor ahí es mandarlo a otro barrio: se descarta entero.",
+    "'ambigua' — la misma dirección en Arica y en Azapa, a nueve kilómetros.",
+    "Si Google cambia su formato, estos fixtures pasan en verde igual: hay que",
+    "volver a medir contra la API (pruebas/README.md)."
+  ],
+  "exacta": {
+    "status": "OK",
+    "results": [
+      {
+        "place_id": "g-quinsachata-1749",
+        "address_components": [
+          { "long_name": "1749", "short_name": "1749", "types": ["street_number"] },
+          { "long_name": "Quinsachata", "short_name": "Quinsachata", "types": ["route"] },
+          { "long_name": "Arica", "short_name": "Arica", "types": ["locality", "political"] }
+        ],
+        "geometry": { "location": { "lat": -18.471152, "lng": -70.289929 }, "location_type": "ROOFTOP" }
+      }
+    ]
+  },
+  "puerta_interpolada": {
+    "status": "OK",
+    "results": [
+      {
+        "place_id": "g-chacabuco-500",
+        "address_components": [
+          { "long_name": "500", "short_name": "500", "types": ["street_number"] },
+          { "long_name": "Avenida Chacabuco", "short_name": "Av. Chacabuco", "types": ["route"] },
+          { "long_name": "Arica", "short_name": "Arica", "types": ["locality", "political"] }
+        ],
+        "geometry": { "location": { "lat": -18.47851, "lng": -70.31323 }, "location_type": "RANGE_INTERPOLATED" }
+      }
+    ]
+  },
+  "otra_calle": {
+    "status": "OK",
+    "results": [
+      {
+        "place_id": "g-palza-2000",
+        "address_components": [
+          { "long_name": "2000", "short_name": "2000", "types": ["street_number"] },
+          { "long_name": "Avenida Senador Humberto Palza Corvacho", "short_name": "Av. Sen. Humberto Palza Corvacho", "types": ["route"] }
+        ],
+        "geometry": { "location": { "lat": -18.4924, "lng": -70.2803 }, "location_type": "ROOFTOP" }
+      },
+      {
+        "place_id": "g-avalos-2000",
+        "address_components": [
+          { "long_name": "2000", "short_name": "2000", "types": ["street_number"] },
+          { "long_name": "Avenida Capitán Ávalos", "short_name": "Av. Capitán Ávalos", "types": ["route"] }
+        ],
+        "geometry": { "location": { "lat": -18.4562, "lng": -70.2931 }, "location_type": "RANGE_INTERPOLATED" }
+      }
+    ]
+  },
+  "ambigua": {
+    "status": "OK",
+    "results": [
+      {
+        "place_id": "g-aromos-arica",
+        "address_components": [
+          { "long_name": "120", "short_name": "120", "types": ["street_number"] },
+          { "long_name": "Los Aromos", "short_name": "Los Aromos", "types": ["route"] },
+          { "long_name": "Arica", "short_name": "Arica", "types": ["locality", "political"] }
+        ],
+        "geometry": { "location": { "lat": -18.4655, "lng": -70.3105 }, "location_type": "ROOFTOP" }
+      },
+      {
+        "place_id": "g-aromos-azapa",
+        "address_components": [
+          { "long_name": "120", "short_name": "120", "types": ["street_number"] },
+          { "long_name": "Los Aromos", "short_name": "Los Aromos", "types": ["route"] },
+          { "long_name": "Azapa", "short_name": "Azapa", "types": ["locality", "political"] }
+        ],
+        "geometry": { "location": { "lat": -18.5211, "lng": -70.2402 }, "location_type": "ROOFTOP" }
+      }
+    ]
+  },
+  "vacia": { "status": "ZERO_RESULTS", "results": [] }
+}

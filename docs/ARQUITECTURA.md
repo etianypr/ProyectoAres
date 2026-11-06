@@ -13,8 +13,7 @@ flowchart LR
     SW["sw.js · caché de /conductor"]
   end
   subgraph EXT["Proveedores"]
-    MAPBOX["Mapbox (direcciones; sale en la spec 019)"]
-    OFM["OpenFreeMap (el mapa, sin clave)"]
+    OFM["OpenFreeMap (el mapa y las calles alrededor de cada parada, sin clave)"]
     ORS["OpenRouteService (orden, trazado, navegación)"]
     OSM["OSM / Nominatim"]
     GOOGLE["Google Geocoding"]
@@ -35,10 +34,10 @@ flowchart LR
     PG[("Postgres + RLS + triggers de pago")]
     CRON["pg_cron · 00:30 cierra días · cada hora limpia correlaciones"]
   end
-  LOCAL -- "dirección" --> MAPBOX
+  UI -- "zona que se mira · zona de cada parada (teselas)" --> OFM
   LOCAL -- "coordenadas de paradas" --> ORS
   LOCAL -- "dirección" --> OSM
-  LOCAL -- "dirección que los otros no ubicaron (tránsito)" --> GEO --> GOOGLE
+  LOCAL -- "dirección con número (tránsito)" --> GEO --> GOOGLE
   LOCAL -- "foto de etiqueta o guía (tránsito)" --> TXT --> VISION
   LOCAL -- "actividad / día (RLS)" --> PG
   LOCAL -- "nombre + teléfono en tránsito" --> API --> META
@@ -53,8 +52,9 @@ flowchart LR
 Regla: datos de destinatarios solo en el teléfono; al servidor sube el hecho
 (`encomienda_actividad`). Ver `docs/PRIVACIDAD.md`.
 
-**Direcciones (spec 016).** `ubicarDireccion` limpia el texto, consulta Mapbox y Nominatim y,
-sin puerta, vuelve a preguntar a Mapbox con el nombre oficial de la calle, corregido con un
+**Direcciones (spec 016 y 019).** `ubicarDireccion` limpia el texto, consulta Google (solo con
+número, por `/api/geocodificar`) y Nominatim y, sin puerta, vuelve a preguntar a Google con el
+nombre oficial de la calle, corregido con un
 catálogo de calles de Arica que viaja en el código (`geo/geocoding/calles-arica.ts`, generado
 de OpenStreetMap con `npm run calles`; Overpass solo recibe el recuadro). Flujo:
 `specs/016-ubicar-direcciones/plan.md`.
@@ -205,8 +205,7 @@ src/
 │   ├── comun/                    fechas · format · forms · utils · uuid · deslizar · telefono · periodo · periodo-servidor
 │   ├── encomiendas/              catalogos · estados · pago · periodos · config · paquete · contrato-whatsapp · lectura/ (guía, etiqueta, código de barras)
 │   │   └── local/                idb · almacen/ (lecturas, pedidos, ruta, terreno…) · generar-ruta/ (partida, ubicar-pedidos, estrategias, horarios) · planificar · replanificar · sumar-a-ruta · corregir-direcciones · enviar · sincronizar-whatsapp
-│   ├── geo/                      coordenada · trazado · recorrido (paso en curso, lo que falta) · plus-code · openrouteservice (MCP) · estilo-mapa (OpenFreeMap con los tonos Dashund y el worker de MapLibre, que copia scripts/copiar-worker-mapa.mjs a public/) · matriz (distancias por calle con ORS, por bloques, en memoria) · ors/ (cliente · direcciones: trazado del día sin reversa en calles estrechas · navegacion: pasos, cartel y voz · vuelta: tipo de calle) · geocoding/ (consulta · calles · calles-arica generado · mapbox · nominatim · codigo · google · completar-numero · ubicar) · direccion-ia/ (contrato · servidor · cliente: corregir con IA, spec 018)
-│   │   └── mapbox/               token · acceso (Tilequery) (salen en la spec 019)
+│   ├── geo/                      coordenada · trazado · recorrido (paso en curso, lo que falta) · plus-code · openrouteservice (MCP) · estilo-mapa (OpenFreeMap "Liberty" con edificios planos y el worker de MapLibre, que copia scripts/copiar-worker-mapa.mjs a public/) · matriz (distancias por calle con ORS, por bloques, en memoria) · ors/ (cliente · direcciones: trazado del día sin reversa en calles estrechas · navegacion: pasos, cartel y voz · vuelta: tipo de calle) · acceso (la calle por donde se llega a una parada pegada a una troncal) · teselas (las calles de las teselas de OpenFreeMap) · geocoding/ (consulta · calles · calles-arica generado · google · nominatim · sugerir · codigo · completar-numero · ubicar) · direccion-ia/ (contrato · servidor · cliente: corregir con IA, spec 018)
 │   ├── rutas/orden-paradas/      exacto · construccion · mejora · perturbacion · con-horarios · sin-congelar
 │   ├── whatsapp/                 meta · correlacion
 │   ├── conductores/              vencimientos

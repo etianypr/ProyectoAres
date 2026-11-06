@@ -320,6 +320,32 @@ test("leerDias distingue un día cerrado de uno que quedó abierto", async () =>
   assert.ok((await leerDias())[0].cierre, "el día cerrado tiene que traer la hora");
 });
 
+test("cerrar el día olvida las direcciones que contestó Google (spec 007 y 019)", async () => {
+  // Lo ya preguntado a Google queda en memoria para no pagarlo dos veces, y son
+  // direcciones de destinatarios: se van con el día, como la matriz.
+  const { preguntarAGoogle } = await import("@/lib/geo/geocoding/google");
+  const original = globalThis.fetch;
+  let consultas = 0;
+  globalThis.window = {};
+  globalThis.fetch = async () => {
+    consultas++;
+    return Response.json({ sugerencias: [] });
+  };
+  try {
+    await preguntarAGoogle("Quinsachata 1749");
+    await preguntarAGoogle("Quinsachata 1749");
+    assert.equal(consultas, 1, "lo ya preguntado no se vuelve a pagar");
+    const ids = await cargar(1);
+    await guardarRuta({ fecha: HOY, pedidoIdsEnOrden: ids, trazado: null, distanciaM: null, duracionS: null });
+    await almacen.cerrarYBorrarDia(HOY);
+    await preguntarAGoogle("Quinsachata 1749");
+    assert.equal(consultas, 2, "la respuesta sobrevivió al cierre del día");
+  } finally {
+    globalThis.fetch = original;
+    delete globalThis.window;
+  }
+});
+
 test("un día sin ruta armada no aparece en la lista", async () => {
   await cargar(2);
   assert.deepEqual(await leerDias(), [], "sin ruta no hubo día que resumir");

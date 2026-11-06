@@ -2,8 +2,10 @@
 // cada buscador y cuándo cerrar la lista.
 
 // Lo que se espera desde la última tecla antes de consultar. Escribiendo una
-// dirección entera, esto son unas pocas consultas en vez de una por letra.
-export const MS_ESPERA_TECLEO = 300;
+// dirección entera, esto son unas pocas consultas en vez de una por letra. Desde
+// la spec 019 la consulta es a Google, que se paga pasado lo gratis: se le
+// pregunta cuando el conductor para de escribir, no entre tecla y tecla.
+export const MS_ESPERA_TECLEO = 600;
 
 // A OpenStreetMap se le pregunta con más pausa: no completa palabras a medias
 // (escribir "chacab" no le devuelve nada), así que solo aporta cuando el conductor

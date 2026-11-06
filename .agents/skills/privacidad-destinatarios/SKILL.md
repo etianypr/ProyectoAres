@@ -46,8 +46,8 @@ Detalle por archivo, ruta de API y proveedor: [references/mapa-de-datos.md](refe
 
 | Dato | Dónde vive | Quién más lo recibe | Se borra |
 |---|---|---|---|
-| Nombre, teléfono, dirección, coordenadas, notas, OF, POR PAGAR y monto, referencia, llamada y resultado | store `pedidos` | dirección: Mapbox y Nominatim (directo), Google Geocoding (`/api/geocodificar`), Anthropic (`/api/direccion-ia`, sin nombre ni teléfono) · nombre y teléfono: Meta (`/api/whatsapp/send`, **en pausa**) | al cerrar el día, al cerrar sesión, con la cuenta desactivada y al salir del modo prueba |
-| Coordenadas de las paradas y de la partida | `pedidos`, `rutas`, matriz en memoria | ORS (matriz y trazado), Mapbox Tilequery, Google Maps (app o enlace) y el kit de navegación de Google (APK) | con el día; la matriz con `olvidarMatriz()` |
+| Nombre, teléfono, dirección, coordenadas, notas, OF, POR PAGAR y monto, referencia, llamada y resultado | store `pedidos` | dirección: Nominatim (directo), Google Geocoding (`/api/geocodificar`, toda dirección con número desde la spec 019), Anthropic (`/api/direccion-ia`, sin nombre ni teléfono) · nombre y teléfono: Meta (`/api/whatsapp/send`, **en pausa**) | al cerrar el día, al cerrar sesión, con la cuenta desactivada y al salir del modo prueba |
+| Coordenadas de las paradas y de la partida | `pedidos`, `rutas`, matriz en memoria | ORS (matriz y trazado), OpenFreeMap (solo la zona de ~2 km de cada parada, para ver sus calles), Google Maps (app o enlace) y el kit de navegación de Google (APK) | con el día; la matriz con `olvidarMatriz()` |
 | Foto de la etiqueta | memoria; la del paquete, store `fotos` | ML Kit (en el teléfono) · Cloud Vision (`/api/texto`) · Anthropic Haiku (`/api/lectura`, si hay clave) | al cerrarse el pedido y con el día |
 | Foto de la guía (OF y destino) | memoria | ML Kit · Cloud Vision · Anthropic Opus | no se guarda |
 | Registro de llamadas de Android | Android | nadie: `TelefonoPlugin.java` filtra por los últimos 8 dígitos y devuelve duración, tipo y hora, sin el número | en el pedido queda solo `llamada` |
@@ -135,9 +135,8 @@ GPS simulado, voz) y `public/sw.js` (nunca guarda `/api` ni otros orígenes).
 - **El modo prueba no corta a los proveedores:** no va nada a la base ni por WhatsApp, pero las
   fotos y direcciones salen igual. Probar con guías reales manda datos reales (skill
   `recorrer-conductor`).
-- **Mapbox** sigue recibiendo direcciones (sugerencias y ubicar) y puntos (Tilequery) mientras haya
-  token: sale con la 019 (T008, T011 y T013, que también lo quita de A10 y de `PRIVACIDAD.md`).
-  Skill `direcciones-arica`.
+- **Google Geocoding** recibe toda dirección con número desde la spec 019 (antes solo las que
+  Mapbox y OSM no ubicaban): el tope diario de la consola lo pone el dueño (019 T012).
 - **Spec 007 sin terminar:** modo piloto/oficial, `PROVEEDORES` en `config.ts`,
   `proveedorHabilitado()` y `validarPlantilla()` (T003, T004, T013, T016–T018, T020).
 - **Spec 026:** la WebView puede desalojar la IndexedDB por falta de espacio (es pérdida de

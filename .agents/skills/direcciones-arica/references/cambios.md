@@ -35,28 +35,11 @@ skill `recorrer-conductor`.
 5. Pruebas: el almacén con `fake-indexeddb` (como `3-almacen`) y, si sube la versión,
    `idb-version.test.mjs`.
 
-## Sacar Mapbox de las direcciones (spec 019, T008 y T011–T013)
-1. Inventario: `grep -rln -i mapbox src pruebas scripts docs .env.example`. En direcciones:
-   `conMapbox`, `sugerirDirecciones`, `urlMapbox`, `aSugerencia`, `FeatureV6`, `puertaEnCalle`
-   (completar número), `geo/mapbox/{acceso,token}.ts`, la `Fuente` `"mapbox"` y `NOMBRE_FUENTE`,
-   `buscarEnTodos` y la descripción de `buscar_direccion` en la IA, `ubicarConMapboxYOsm`,
-   `fixtures/geocoding-mapbox.json`, `PROVEEDORES` de A10 y la fila de `docs/PRIVACIDAD.md`.
-2. Lo que se pierde: Mapbox es el que tiene los números de casa en Arica (OSM casi no). Sin él,
-   `completarNumeroEnCalles` no encuentra nada y casi toda dirección con número pasa a Google.
-   Por eso **T012 (tope diario de Google) va antes que T013**. Qué reemplaza a «nombre oficial +
-   número» lo decide el dueño (la 019 menciona ORS; su geocodificación gratis es de 1.000 al día).
-3. Medir antes y después sobre las mismas direcciones: puertas exactas, ambiguas detectadas
-   («Los Aromos» con número, ver `cadena.md`), sin ubicar y consultas a Google por guía. Pedir permiso
-   diciendo cuántas consultas son.
-4. T008, calle cercana: `elegirAcceso` es pura y se queda. Cambia la fuente de `puntoDeAcceso`
-   (la 019 la pone en `lib/geo/acceso.ts`, con OSM/Overpass). Las clases de vía de OSM
-   (`motorway`, `trunk`, `primary`, `residential`…) no son las de Mapbox Streets (`street`,
-   `street_limited`): rehacer `MANEJABLES`. El Overpass público limita consultas simultáneas: mejor
-   pocas consultas que una por parada. Su host va a A10 y a PRIVACIDAD (recibe la zona alrededor de
-   una parada).
-5. T013: dependencia, `NEXT_PUBLIC_MAPBOX_TOKEN`, `.env.example`, README, PRIVACIDAD, A10 sin
-   `api.mapbox.com` (019 SC-002) y la base de comparación de `scripts/sondear-proveedores.mjs`. El
-   token en Vercel lo anula el dueño.
+## Mapbox ya salió (spec 019, 2026-11-06)
+Google da el número de casa (`preguntarAGoogle`, con memoria por pantalla), OSM las calles y los
+lugares, y la calle cercana sale de las teselas de OpenFreeMap (`geo/teselas.ts`). No se vuelve a
+proponer Mapbox: la prueba de arquitectura falla si aparece su API, su token o `mapbox-gl`. Lo que
+queda es del dueño: el tope diario de Google (T012), borrar el token en Vercel y anularlo (T013).
 
 ## Regenerar el catálogo de calles
 1. Preguntar antes: consulta Overpass (gratis, solo el recuadro). Sin red se puede usar una
@@ -89,14 +72,13 @@ skill `recorrer-conductor`.
 import test from "node:test";
 import assert from "node:assert/strict";
 const { ubicarDireccion } = await import("@/lib/geo/geocoding");
-const { googleDirecto } = await import("@/lib/geo/geocoding/google");
+const { googleDirecto, olvidarConsultasGoogle } = await import("@/lib/geo/geocoding/google");
 
 const fetchOriginal = globalThis.fetch;
-let mapbox = () => ({ features: [] }), osm = () => [], google = () => ({ status: "ZERO_RESULTS", results: [] });
+let osm = () => [], google = () => ({ status: "ZERO_RESULTS", results: [] });
 const json = (c) => new Response(JSON.stringify(c), { status: 200, headers: { "content-type": "application/json" } });
 
 test.before(() => {
-  process.env.NEXT_PUBLIC_MAPBOX_TOKEN = "pk.prueba"; // sin token no se pregunta a Mapbox
   globalThis.fetch = async (entrada, opciones) => {
     const url = typeof entrada === "string" ? entrada : entrada.url;
     if (url === "/api/geocodificar") {
@@ -105,11 +87,12 @@ test.before(() => {
     }
     const q = new URL(url).searchParams;
     if (url.includes("nominatim")) return json(osm(q.get("q")));
-    if (url.includes("googleapis")) return json(google(q.get("address")));
-    return json(mapbox(q.get("q")));
+    return json(google(q.get("address")));
   };
 });
 test.after(() => { globalThis.fetch = fetchOriginal; delete globalThis.window; });
+// Lo ya preguntado a Google se recuerda: sin esto, una prueba contesta con la anterior.
+test.beforeEach(() => olvidarConsultasGoogle());
 
 test("calle corta sin el número: entra aproximada con aviso", async () => {
   globalThis.window = {}; // desde el teléfono: habilita Google
@@ -120,5 +103,5 @@ test("calle corta sin el número: entra aproximada con aviso", async () => {
   assert.match(r.advertencia, /corta/);
 });
 ```
-Los ayudantes `puerta`, `calleSola`, `tramoOsm` y `resultadoGoogle` de
+Los ayudantes `tramoOsm` y `resultadoGoogle` de
 `ubicar-direcciones.test.mjs` arman las respuestas; cópialos en vez de inventar otra forma.

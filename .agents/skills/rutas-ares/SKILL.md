@@ -56,9 +56,8 @@ ellos, y hay que avisar la diferencia.
   se reutiliza dentro de la corrida y nunca se usa `Infinity` como cupo (así se generó la cuenta de
   US$66 de Mapbox el 2026-10-29).
 - La herramienta `get_route_ch` del MCP `ares-geo` también consulta ORS.
-- `generar-ruta/ubicar-pedidos.ts` todavía llama a Mapbox (`geo/mapbox/acceso.ts`, Tilequery)
-  cuando hay token, hasta que la 019 cierre la T008 («calle cercana con OSM»). No agregues usos
-  nuevos de `geo/mapbox/`.
+- La calle cercana a cada parada (`corregirAccesos`, `geo/acceso.ts`) sale de las teselas de
+  OpenFreeMap (`geo/teselas.ts`, spec 019): gratis, sin clave y sin cupo. Mapbox salió entero.
 
 ## Medir un cambio
 - Compara km (y minutos, si aplica) antes y después sobre **la misma matriz**: fixtures de
@@ -76,5 +75,4 @@ ellos, y hay que avisar la diferencia.
 - Datos de prueba: calles reales de Arica con números y nombres inventados.
 
 ## Docs que hoy no calzan con el código
-- `docs/HOJA-DE-RUTA.md` cita `geo/mapbox/vuelta.ts`; hoy está en `geo/ors/vuelta.ts`.
 - `orden-paradas/index.ts` dice «~30 paradas/día»; hoy son ~60–100.

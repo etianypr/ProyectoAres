@@ -13,7 +13,6 @@ import {
   type Coincidencia,
 } from "./consulta";
 import { conGoogle } from "./google";
-import { conMapbox } from "./mapbox";
 import { conNominatim } from "./nominatim";
 import type { SugerenciaDireccion, TipoUbicacion } from "./tipos";
 
@@ -55,31 +54,11 @@ export type ResultadoUbicacion = {
  *  conductor sale con el paquete hacia el lugar equivocado y no se entera hasta
  *  llegar.
  *
- *  Los dos proveedores se consultan SIEMPRE, no en cascada: se necesitan las dos
+ *  Los dos buscadores se consultan SIEMPRE, no en cascada: se necesitan las dos
  *  listas para poder detectar que dos lugares distintos responden al mismo
- *  texto. Mapbox va primero porque tiene los números de casa (ver la cabecera). */
+ *  texto. Google va primero porque tiene los números de casa (ver ./google.ts;
+ *  spec 019: antes era Mapbox) y OSM aporta las calles y los lugares. */
 export async function ubicarDireccion(direccion: string): Promise<ResultadoUbicacion> {
-  const r = await ubicarConMapboxYOsm(direccion);
-  // Google, último recurso (spec 016, US3; ver ./google.ts): solo si los otros
-  // no dieron la puerta exacta. Ante dos lugares posibles sigue eligiendo el
-  // conductor (principio IV), y un Plus Code no se le pregunta a nadie.
-  if (r.tipo === "exacta" || r.tipo === "ambigua" || r.elegida?.fuente === "plus_code") return r;
-  const [puerta] = await conGoogle(normalizarConsulta(direccion));
-  if (!puerta) return r;
-  // Solo si mejora: una cuadra de Google no reemplaza una cuadra de Mapbox.
-  if (r.tipo === "aproximada" && puerta.confianza !== "exacta") return r;
-  const exacta = puerta.confianza === "exacta";
-  return {
-    tipo: exacta ? "exacta" : "aproximada",
-    candidatos: [puerta, ...r.candidatos],
-    elegida: puerta,
-    advertencia: exacta
-      ? null
-      : "La ubicación es aproximada (Google): llegas a la cuadra, no a la puerta. Confirma el número al llegar.",
-  };
-}
-
-async function ubicarConMapboxYOsm(direccion: string): Promise<ResultadoUbicacion> {
   // Un Plus Code no tiene ambigüedad que resolver: ES la ubicación. Se contesta
   // sin consultar a nadie, y por eso va antes que todo lo demás.
   const codigo = comoPlusCode(direccion);
@@ -105,14 +84,14 @@ async function ubicarConMapboxYOsm(direccion: string): Promise<ResultadoUbicacio
 
   // En paralelo: son proveedores distintos y ninguno depende del otro. El
   // espaciado que pide OpenStreetMap lo garantiza su propia fila de turnos (ver
-  // la cabecera), no una espera acá.
-  const [deMapbox, deOsm] = await Promise.all([conMapbox(q), conNominatim(q)]);
-  const primeraVuelta = combinarSugerencias(deMapbox, deOsm);
+  // nominatim.ts), no una espera acá.
+  const [deGoogle, deOsm] = await Promise.all([conGoogle(q), conNominatim(q)]);
+  const primeraVuelta = combinarSugerencias(deGoogle, deOsm);
 
   // El número que quedó colgando de un nombre de calle a medias ("Linderos
   // 3536"). Va acá y no adentro de cada proveedor porque necesita las DOS
-  // listas: OSM es el que tiene los nombres de calle correctos y Mapbox el que
-  // tiene los números de casa.
+  // listas: OSM y el catálogo tienen los nombres de calle correctos y Google los
+  // números de casa.
   const completadas = await completarNumeroEnCalles(q, primeraVuelta);
   const candidatos = aplicarPuertas(primeraVuelta, completadas);
 
@@ -189,7 +168,7 @@ async function ubicarConMapboxYOsm(direccion: string): Promise<ResultadoUbicacio
 
   // La puerta está INTERPOLADA: calle correcta, número dentro de su cuadra,
   // pero el proveedor no tiene esa puerta. Entra a la ruta CON la advertencia a
-  // la vista, y esto es una decisión medida y no una comodidad: Mapbox contesta
+  // la vista, y esto es una decisión medida y no una comodidad: Mapbox contestaba
   // "plausible" en 10 de cada 23 direcciones de Arica. Dejarlas todas fuera es
   // lo que estuvo pasando —el conductor confirmaba a mano ruta por ruta— y nadie
   // confirma media ruta: se sale igual, o no se sale. Llegar a la cuadra
@@ -208,7 +187,7 @@ async function ubicarConMapboxYOsm(direccion: string): Promise<ResultadoUbicacio
 }
 
 /** Las calles sin número que SON la escrita van primero, la más parecida antes:
- *  Mapbox puede poner arriba "Santiago" cuando se escribió "Santiago Arata". */
+ *  Un buscador puede poner arriba "Santiago" cuando se escribió "Santiago Arata". */
 function callesEscritasPrimero(
   consulta: string,
   candidatos: SugerenciaDireccion[],

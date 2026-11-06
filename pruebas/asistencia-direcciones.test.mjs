@@ -1,14 +1,14 @@
 // Teléfonos y direcciones: el punto donde un dato mal interpretado manda al
 // conductor —o el aviso de WhatsApp— a otra persona.
 //
-// Los dos proveedores de mapas se responden con los fixtures de
-// pruebas/fixtures/ (sustituyendo el fetch global), así que estas pruebas no
-// tocan la red y no dependen de que Mapbox devuelva hoy lo mismo que ayer. Lo
-// que se ejercita es el código REAL de src/lib/geo/geocoding: cómo normaliza la
+// Los dos buscadores se responden con los fixtures de pruebas/fixtures/
+// (sustituyendo el fetch global), así que estas pruebas no tocan la red y no
+// dependen de que Google u OSM devuelvan hoy lo mismo que ayer. Lo que se
+// ejercita es el código REAL de src/lib/geo/geocoding: cómo normaliza la
 // consulta, cómo combina las dos listas, y sobre todo cuándo se NIEGA a elegir.
 //
-// Los casos no son inventados: salen de direcciones reales de la operación en
-// Arica. El peor de todos es el de "Los Aromos 120", que existe en la ciudad y
+// Los casos salen de la operación en Arica, con calles reales y números de
+// prueba. El peor de todos es el de "Los Aromos 120", que existe en la ciudad y
 // en el valle de Azapa a nueve kilómetros: quedándose con el primer resultado,
 // el conductor sale con el paquete hacia el lugar equivocado y se entera al llegar.
 import test from "node:test";
@@ -27,65 +27,76 @@ const {
   ubicarDireccion,
   geocodificarDireccion,
 } = geo;
+const { googleDirecto, olvidarConsultasGoogle } = await import("@/lib/geo/geocoding/google");
 
-const MAPBOX = JSON.parse(readFileSync("pruebas/fixtures/geocoding-mapbox.json", "utf8"));
+const GOOGLE = JSON.parse(readFileSync("pruebas/fixtures/geocoding-google.json", "utf8"));
 const OSM = JSON.parse(readFileSync("pruebas/fixtures/geocoding-osm.json", "utf8"));
 
 // ---------------------------------------------------------------------------
-// Doble de los dos proveedores
+// Doble de los dos buscadores
 // ---------------------------------------------------------------------------
 //
 // Se sustituye el fetch global y no los módulos: así corre el armado real de la
-// URL (el recuadro de Arica, los tipos pedidos, el país) y la interpretación
-// real de cada respuesta. Un doble a nivel de módulo no probaría nada de eso.
+// consulta (el recuadro de Arica, el país) y la interpretación real de cada
+// respuesta. Un doble a nivel de módulo no probaría nada de eso. El teléfono le
+// pregunta a Google por /api/geocodificar, y el doble hace lo mismo que esa
+// ruta: googleDirecto con la clave del servidor.
 
 const fetchOriginal = globalThis.fetch;
 
-/** Qué contesta cada proveedor. Cada entrada puede ser un objeto o una función
- *  que recibe la URL, para responder distinto según lo que se pidió. */
-let respuestas = { mapbox: MAPBOX.vacia, osm: OSM.vacia };
+/** Qué contesta cada buscador. Cada entrada puede ser un objeto o una función
+ *  que recibe la consulta, para responder distinto según lo que se pidió. null =
+ *  caído (la ruta del servidor contesta 503). */
+let respuestas = { google: GOOGLE.vacia, osm: OSM.vacia };
+/** Lo que se le preguntó a cada uno: { cual, q, url }. */
 let consultas = [];
+
+const json = (cuerpo, status = 200) =>
+  new Response(JSON.stringify(cuerpo), { status, headers: { "content-type": "application/json" } });
+const contestar = (r, q) => (typeof r === "function" ? r(q) : r);
 
 function instalar() {
   consultas = [];
-  globalThis.fetch = async (entrada) => {
+  globalThis.fetch = async (entrada, opciones) => {
     const url = typeof entrada === "string" ? entrada : entrada.url;
-    consultas.push(url);
-
-    const cual = url.includes("nominatim") ? "osm" : "mapbox";
-    const r = respuestas[cual];
-    const cuerpo = typeof r === "function" ? r(url) : r;
-
-    // null = el proveedor se cayó. Es un caso que hay que probar: la
-    // constitución exige que un fallo deje al conductor con algo accionable.
+    if (url === "/api/geocodificar") {
+      const { direccion } = JSON.parse(opciones.body);
+      consultas.push({ cual: "google", q: direccion, url });
+      if (respuestas.google === null) return new Response("boom", { status: 503 });
+      return json({ sugerencias: await googleDirecto(direccion, "clave-prueba") });
+    }
+    if (url.includes("googleapis")) {
+      const address = new URL(url).searchParams.get("address") ?? "";
+      consultas.push({ cual: "googleapis", q: address, url });
+      return json(contestar(respuestas.google, address.replace(/, Arica, Chile$/, "")));
+    }
+    const q = new URL(url).searchParams.get("q");
+    consultas.push({ cual: "osm", q, url });
+    const cuerpo = contestar(respuestas.osm, q);
+    // La constitución exige que un fallo deje al conductor con algo accionable.
     if (cuerpo === null) return new Response("boom", { status: 503 });
-
-    return new Response(JSON.stringify(cuerpo), {
-      status: 200,
-      headers: { "content-type": "application/json" },
-    });
+    return json(cuerpo);
   };
 }
 
 test.before(() => {
-  // La app lee el token de acá; sin él, sugerirDirecciones no consulta nada.
-  process.env.NEXT_PUBLIC_MAPBOX_TOKEN = "pk.prueba";
+  // Google se pregunta solo desde el teléfono (ver lib/geo/geocoding/google.ts).
+  globalThis.window = {};
   instalar();
 });
 test.after(() => {
   globalThis.fetch = fetchOriginal;
+  delete globalThis.window;
 });
 test.beforeEach(() => {
-  respuestas = { mapbox: MAPBOX.vacia, osm: OSM.vacia };
+  respuestas = { google: GOOGLE.vacia, osm: OSM.vacia };
   consultas = [];
+  olvidarConsultasGoogle();
 });
 
-/** El texto de la consulta `q` que se le mandó a un proveedor. */
+/** El texto que se le preguntó a un buscador ("google" u "osm"), el primero. */
 function consultaHecha(cual) {
-  const url = consultas.find((u) =>
-    cual === "osm" ? u.includes("nominatim") : !u.includes("nominatim"),
-  );
-  return url ? new URL(url).searchParams.get("q") : null;
+  return consultas.find((c) => c.cual === cual)?.q ?? null;
 }
 
 // ===========================================================================
@@ -218,9 +229,9 @@ test("los espacios de más no llegan al proveedor", () => {
 });
 
 test("la consulta normalizada es la que de verdad se manda", async () => {
-  respuestas.mapbox = MAPBOX.exacta;
+  respuestas.google = GOOGLE.exacta;
   await sugerirDirecciones("Av. Chacabuco #500 depto 42");
-  assert.equal(consultaHecha("mapbox"), "avenida Chacabuco 500");
+  assert.equal(consultaHecha("google"), "avenida Chacabuco 500");
 });
 
 test("una abreviatura sola no gasta una consulta", async () => {
@@ -230,90 +241,61 @@ test("una abreviatura sola no gasta una consulta", async () => {
   assert.equal(consultas.length, 0, "se consultó por una abreviatura sola");
 });
 
+test("sin número no se le pregunta a Google: no hay puerta que buscar", async () => {
+  // Google se paga pasado lo gratis, y una calle sola la trae OSM.
+  assert.deepEqual(await sugerirDirecciones("avenida Chacabuco"), []);
+  assert.equal(consultaHecha("google"), null);
+});
+
 // ===========================================================================
 // Calidad de cada sugerencia
 // ===========================================================================
 
 test("una dirección con número y coincidencia exacta es 'exacta'", async () => {
-  respuestas.mapbox = MAPBOX.exacta;
+  respuestas.google = GOOGLE.exacta;
   const [s] = await sugerirDirecciones("Quinsachata 1749");
   assert.equal(s.direccion, "Quinsachata 1749");
   assert.equal(s.confianza, "exacta");
   assert.equal(s.coincideNumero, true);
   assert.equal(s.soloCalle, false);
-  assert.equal(s.fuente, "mapbox");
-});
-
-test("una puerta con confidence 'low' pero número 'matched' SIGUE siendo exacta", async () => {
-  // La regresión que costó cara. Mapbox recalibró su confidence y hoy contesta
-  // "low" para toda dirección de Arica —hasta para una puerta que SÍ tiene—
-  // porque la consulta no trae código postal ni comuna. Cuando el código
-  // decidía por ese campo, esta dirección quedaba "baja", ubicarDireccion()
-  // dejaba `elegida` en null y NINGÚN pedido entraba a la ruta.
-  assert.equal(
-    MAPBOX.exacta.features[0].properties.match_code.confidence,
-    "low",
-    "el fixture dejó de tener el confidence 'low' que motivó esta prueba",
-  );
-  respuestas.mapbox = MAPBOX.exacta;
-  const [s] = await sugerirDirecciones("Quinsachata 1749");
-  assert.equal(s.confianza, "exacta", "se volvió a decidir por confidence");
+  assert.equal(s.fuente, "google");
 });
 
 test("la puerta INTERPOLADA es aproximada, y su número no es 'otro número'", async () => {
-  // address_number "plausible": la calle es la correcta y el número cae en su
-  // cuadra, pero Mapbox no tiene esa puerta y estima la posición. Son 10 de
-  // cada 23 direcciones de Arica, así que esto es el caso NORMAL, no el raro.
-  respuestas.mapbox = MAPBOX.puerta_interpolada;
+  // RANGE_INTERPOLATED: la calle es la correcta y el número cae en su cuadra,
+  // pero la posición es estimada.
+  respuestas.google = GOOGLE.puerta_interpolada;
   const [s] = await sugerirDirecciones("avenida Chacabuco 500");
 
   assert.equal(s.confianza, "aproximada", "una puerta interpolada no es exacta");
   assert.equal(s.soloCalle, false, "la calle sí trae número: no es una calle sola");
-  // Ni true (no hay puerta) ni false (false le pinta al conductor la marca grave
-  // "otro número" sobre una dirección que está bien escrita).
-  assert.equal(s.coincideNumero, null);
+  // false le pinta al conductor la marca grave "otro número" sobre una dirección
+  // que está bien escrita.
+  assert.notEqual(s.coincideNumero, false);
 });
 
-test("cada valor de address_number cae donde tiene que caer", async () => {
-  // La tabla completa, en un solo lugar. Mapbox ya cambió esto una vez sin
-  // avisar; si agrega o renombra un valor, acá se ve.
+test("cada location_type de Google cae donde tiene que caer", async () => {
+  // La tabla completa, en un solo lugar: si Google agrega o renombra un valor,
+  // acá se ve. El centro de la calle o del barrio no agrega nada: no entra.
   const casos = [
-    ["matched", "exacta"],
-    ["plausible", "aproximada"],
-    ["not_applicable", "aproximada"],
-    [undefined, "aproximada"],
+    ["ROOFTOP", "exacta"],
+    ["RANGE_INTERPOLATED", "aproximada"],
+    ["GEOMETRIC_CENTER", null],
+    ["APPROXIMATE", null],
   ];
-
-  for (const [valor, esperada] of casos) {
-    const base = MAPBOX.exacta.features[0];
-    respuestas.mapbox = {
-      features: [
-        {
-          ...base,
-          properties: {
-            ...base.properties,
-            match_code: { ...base.properties.match_code, address_number: valor },
-          },
-        },
-      ],
-    };
+  const [base] = GOOGLE.exacta.results;
+  for (const [tipo, esperada] of casos) {
+    olvidarConsultasGoogle();
+    respuestas.google = { status: "OK", results: [{ ...base, geometry: { ...base.geometry, location_type: tipo } }] };
     const [s] = await sugerirDirecciones("Quinsachata 1749");
-    assert.equal(s.confianza, esperada, `address_number=${valor} dio ${s.confianza}`);
+    assert.equal(s?.confianza ?? null, esperada, `${tipo} dio ${s?.confianza}`);
   }
 });
 
-test("la calle sin número se marca como tal", async () => {
-  respuestas.mapbox = MAPBOX.solo_calle;
-  const [s] = await sugerirDirecciones("avenida Chacabuco");
-  assert.equal(s.soloCalle, true);
-  assert.equal(s.confianza, "aproximada", "una calle sola no puede ser exacta");
-});
-
-test("el número interpolado sobre OTRA calle se descarta entero", async () => {
-  // Mapbox pega el número pedido sobre cualquier calle que le suene parecida y
-  // no avisa: para "Av. Diego Portales 2000" devolvió seis avenidas distintas
-  // con el 2000. Mandar al conductor ahí es mandarlo a otro barrio con el paquete.
-  respuestas.mapbox = MAPBOX.numero_interpolado;
+test("el número sobre OTRA calle se descarta entero", async () => {
+  // Para "Av. Diego Portales 2000" un buscador puede contestar el 2000 de otras
+  // avenidas. Mandar al conductor ahí es mandarlo a otro barrio con el paquete.
+  respuestas.google = GOOGLE.otra_calle;
   assert.deepEqual(
     await sugerirDirecciones("avenida Diego Portales 2000"),
     [],
@@ -357,36 +339,36 @@ test("los tramos repetidos de una misma calle se muestran una vez", async () => 
 // Combinar los dos proveedores
 // ===========================================================================
 
-test("Mapbox va primero y OSM agrega lo que falta", () => {
-  const deMapbox = [
-    { id: "m1", direccion: "Avenida Chacabuco 500", detalle: null, lat: -18.47, lng: -70.29, soloCalle: false, confianza: "exacta", coincideNumero: true, fuente: "mapbox" },
+test("Google va primero y OSM agrega lo que falta", () => {
+  const deGoogle = [
+    { id: "g1", direccion: "Avenida Chacabuco 500", detalle: null, lat: -18.47, lng: -70.29, soloCalle: false, confianza: "exacta", coincideNumero: true, fuente: "google" },
   ];
   const deOsm = [
     { id: "o1", direccion: "Terminal Rodoviario de Arica", detalle: null, lat: -18.48, lng: -70.30, soloCalle: false, confianza: "exacta", coincideNumero: null, fuente: "osm" },
   ];
-  const lista = combinarSugerencias(deMapbox, deOsm);
-  assert.deepEqual(lista.map((s) => s.id), ["m1", "o1"]);
+  const lista = combinarSugerencias(deGoogle, deOsm);
+  assert.deepEqual(lista.map((s) => s.id), ["g1", "o1"]);
 });
 
-test("la calle de OSM se descarta si Mapbox ya dio esa calle CON número", () => {
+test("la calle de OSM se descarta si Google ya dio esa calle CON número", () => {
   // Sería un renglón peor justo debajo del bueno, y encima marcado "sin número".
-  const deMapbox = [
-    { id: "m1", direccion: "Avenida Chacabuco 500", detalle: null, lat: -18.47, lng: -70.29, soloCalle: false, confianza: "exacta", coincideNumero: true, fuente: "mapbox" },
+  const deGoogle = [
+    { id: "g1", direccion: "Avenida Chacabuco 500", detalle: null, lat: -18.47, lng: -70.29, soloCalle: false, confianza: "exacta", coincideNumero: true, fuente: "google" },
   ];
   const deOsm = [
     { id: "o1", direccion: "Avenida Chacabuco", detalle: null, lat: -18.47, lng: -70.29, soloCalle: true, confianza: "aproximada", coincideNumero: null, fuente: "osm" },
   ];
-  assert.deepEqual(combinarSugerencias(deMapbox, deOsm).map((s) => s.id), ["m1"]);
+  assert.deepEqual(combinarSugerencias(deGoogle, deOsm).map((s) => s.id), ["g1"]);
 });
 
 test("las tildes y los espacios no hacen aparecer un duplicado", () => {
-  const deMapbox = [
-    { id: "m1", direccion: "Avenida Colón 123", detalle: null, lat: -18.47, lng: -70.29, soloCalle: false, confianza: "exacta", coincideNumero: true, fuente: "mapbox" },
+  const deGoogle = [
+    { id: "g1", direccion: "Avenida Colón 123", detalle: null, lat: -18.47, lng: -70.29, soloCalle: false, confianza: "exacta", coincideNumero: true, fuente: "google" },
   ];
   const deOsm = [
     { id: "o1", direccion: "avenida  colon   123", detalle: null, lat: -18.47, lng: -70.29, soloCalle: false, confianza: "exacta", coincideNumero: null, fuente: "osm" },
   ];
-  assert.deepEqual(combinarSugerencias(deMapbox, deOsm).map((s) => s.id), ["m1"]);
+  assert.deepEqual(combinarSugerencias(deGoogle, deOsm).map((s) => s.id), ["g1"]);
 });
 
 // ===========================================================================
@@ -394,8 +376,8 @@ test("las tildes y los espacios no hacen aparecer un duplicado", () => {
 // ===========================================================================
 
 test("una sola coincidencia exacta se puede usar sin preguntar", async () => {
-  respuestas.mapbox = MAPBOX.exacta;
-  const r = await ubicarDireccion("avenida Chacabuco 500");
+  respuestas.google = GOOGLE.exacta;
+  const r = await ubicarDireccion("Quinsachata 1749");
   assert.equal(r.tipo, "exacta");
   assert.ok(r.elegida, "una dirección exacta tiene que quedar elegida");
   assert.equal(r.advertencia, null);
@@ -404,7 +386,7 @@ test("una sola coincidencia exacta se puede usar sin preguntar", async () => {
 test("la MISMA dirección en dos lugares distintos es ambigua y NO se elige", async () => {
   // El caso que motivó todo esto: "Los Aromos 120" en Arica y en Azapa, a nueve
   // kilómetros. Quedándose con el primero, el conductor se entera al llegar.
-  respuestas.mapbox = MAPBOX.ambigua;
+  respuestas.google = GOOGLE.ambigua;
   const r = await ubicarDireccion("Los Aromos 120");
 
   assert.equal(r.tipo, "ambigua");
@@ -414,20 +396,12 @@ test("la MISMA dirección en dos lugares distintos es ambigua y NO se elige", as
 });
 
 test("dos coincidencias CERCA no son ambiguas: es la misma puerta", async () => {
-  // Dos resultados a veinte metros son el mismo lugar visto por dos proveedores.
-  // Tratarlos como ambiguos haría preguntar en cada carga, por nada.
-  respuestas.mapbox = {
-    features: [
-      MAPBOX.exacta.features[0],
-      {
-        id: "cerca",
-        properties: {
-          ...MAPBOX.exacta.features[0].properties,
-          mapbox_id: "cerca",
-          coordinates: { longitude: -70.28975, latitude: -18.4713 },
-        },
-      },
-    ],
+  // Dos resultados a veinte metros son el mismo lugar. Tratarlos como ambiguos
+  // haría preguntar en cada carga, por nada.
+  const [base] = GOOGLE.exacta.results;
+  respuestas.google = {
+    status: "OK",
+    results: [base, { ...base, place_id: "cerca", geometry: { ...base.geometry, location: { lat: -18.4713, lng: -70.28975 } } }],
   };
   const r = await ubicarDireccion("Quinsachata 1749");
   assert.equal(r.tipo, "exacta");
@@ -439,7 +413,7 @@ test("una puerta interpolada ENTRA a la ruta, pero con la advertencia puesta", a
   // conductor confirmaba a mano media ruta. Nadie confirma media ruta —se sale
   // igual, o no se sale—. Llegar a la cuadra correcta con el cartel puesto es
   // mejor que no llegar. Lo que NO se negocia es que el cartel esté.
-  respuestas.mapbox = MAPBOX.puerta_interpolada;
+  respuestas.google = GOOGLE.puerta_interpolada;
   const r = await ubicarDireccion("avenida Chacabuco 500");
 
   assert.equal(r.tipo, "aproximada");
@@ -449,7 +423,7 @@ test("una puerta interpolada ENTRA a la ruta, pero con la advertencia puesta", a
 });
 
 test("solo la calle: se avisa y no se elige", async () => {
-  respuestas.mapbox = MAPBOX.solo_calle;
+  respuestas.osm = OSM.calle_sin_numero;
   const r = await ubicarDireccion("avenida Chacabuco");
   assert.equal(r.tipo, "solo_calle");
   assert.equal(r.elegida, null);
@@ -472,10 +446,10 @@ test("una dirección vacía no gasta ninguna consulta", async () => {
   assert.equal(consultas.length, 0);
 });
 
-test("si Mapbox se cae, OSM sostiene la búsqueda", async () => {
-  // Principio IV de la constitución: un proveedor caído no puede dejar al conductor
-  // sin poder trabajar.
-  respuestas.mapbox = null; // 503
+test("si Google no contesta, OSM sostiene la búsqueda", async () => {
+  // Principio IV de la constitución: un proveedor caído (o sin clave en el
+  // servidor) no puede dejar al conductor sin poder trabajar.
+  respuestas.google = null; // 503
   respuestas.osm = OSM.con_numero;
 
   const r = await ubicarDireccion("Quinsachata 1749");
@@ -484,7 +458,7 @@ test("si Mapbox se cae, OSM sostiene la búsqueda", async () => {
 });
 
 test("si los DOS se caen, no se lanza: se informa", async () => {
-  respuestas.mapbox = null;
+  respuestas.google = null;
   respuestas.osm = null;
 
   const r = await ubicarDireccion("avenida Chacabuco 500");
@@ -492,34 +466,33 @@ test("si los DOS se caen, no se lanza: se informa", async () => {
   assert.ok(r.advertencia, "un fallo total tiene que dejar un mensaje accionable");
 });
 
-test("se consultan los DOS proveedores, no en cascada", async () => {
+test("se consultan los DOS buscadores, no en cascada", async () => {
   // Hace falta para poder DETECTAR la ambigüedad: con uno solo no hay con qué
   // comparar.
-  respuestas.mapbox = MAPBOX.exacta;
+  respuestas.google = GOOGLE.exacta;
   respuestas.osm = OSM.con_numero;
-  await ubicarDireccion("avenida Chacabuco 500");
+  await ubicarDireccion("Quinsachata 1749");
 
-  assert.ok(consultaHecha("mapbox"), "no se consultó Mapbox");
+  assert.ok(consultaHecha("google"), "no se consultó Google");
   assert.ok(consultaHecha("osm"), "no se consultó OpenStreetMap");
 });
 
 test("la búsqueda queda acotada a Arica", async () => {
   // Sin el recuadro, "colón 123" devuelve la Avenida Colón de Santiago.
-  respuestas.mapbox = MAPBOX.exacta;
+  respuestas.google = GOOGLE.exacta;
   await ubicarDireccion("avenida Colón 123");
 
-  const url = consultas.find((u) => !u.includes("nominatim"));
-  const params = new URL(url).searchParams;
-  assert.equal(params.get("country"), "cl");
-  assert.ok(params.get("bbox"), "falta el recuadro que acota a Arica");
+  const google = new URL(consultas.find((c) => c.cual === "googleapis").url).searchParams;
+  assert.equal(google.get("components"), "country:CL");
+  assert.ok(google.get("bounds"), "falta el recuadro que acota a Arica");
+  // A OSM se le agrega la ciudad (ver conNominatim).
+  assert.match(consultaHecha("osm"), /Arica, Chile$/);
 });
 
-test("se piden VARIOS candidatos, no uno solo", async () => {
+test("a OSM se le piden VARIOS candidatos, no uno solo", async () => {
   // Con limit=1 no hay forma de saber que la dirección era ambigua.
-  respuestas.mapbox = MAPBOX.exacta;
   await ubicarDireccion("avenida Chacabuco 500");
-
-  const url = consultas.find((u) => !u.includes("nominatim"));
+  const url = consultas.find((c) => c.cual === "osm").url;
   assert.ok(Number(new URL(url).searchParams.get("limit")) > 1);
 });
 
@@ -530,11 +503,11 @@ test("se piden VARIOS candidatos, no uno solo", async () => {
 test("geocodificarDireccion sigue devolviendo coordenadas o null", async () => {
   // La usan la dirección de la EMPRESA (punto de partida) y nada más que necesite
   // preguntar. Su contrato no cambió.
-  respuestas.mapbox = MAPBOX.exacta;
-  const c = await geocodificarDireccion("avenida Chacabuco 500");
+  respuestas.google = GOOGLE.exacta;
+  const c = await geocodificarDireccion("Quinsachata 1749");
   assert.ok(Number.isFinite(c.lat) && Number.isFinite(c.lng));
 
-  respuestas.mapbox = MAPBOX.vacia;
+  respuestas.google = GOOGLE.vacia;
   assert.equal(await geocodificarDireccion("Calle Inexistente 1"), null);
 });
 
@@ -542,7 +515,7 @@ test("una dirección ambigua NO queda elegida, aunque geocodificar devuelva algo
   // Las dos funciones tienen contratos distintos a propósito: geocodificar es
   // "dame lo mejor que haya" y ubicar es "decime si puedo confiar". Un pedido
   // usa la segunda (ver reintentarUbicar en generar-ruta.ts).
-  respuestas.mapbox = MAPBOX.ambigua;
+  respuestas.google = GOOGLE.ambigua;
 
   assert.ok(await geocodificarDireccion("Los Aromos 120"), "geocodificar tiene que dar algo");
   assert.equal(
@@ -561,12 +534,7 @@ test("una dirección ambigua NO queda elegida, aunque geocodificar devuelva algo
 // puerta aparece recién escribiendo el nombre largo entero (ver
 // completarNumeroEnCalles en lib/geo/geocoding).
 //
-// Cada prueba usa un NÚMERO distinto a propósito: lo ya preguntado se recuerda
-// mientras dure el módulo (escribiendo "3536" dígito a dígito la misma consulta
-// vuelve a caer, y cada una se paga), así que reusar el número haría que una
-// prueba contestara con la memoria de la anterior.
-
-/** Qué puertas existen de verdad en cada avenida. Hace de "lo que sabe Mapbox"
+/** Qué puertas existen de verdad en cada avenida. Hace de "lo que sabe Google"
  *  para estas pruebas: cada número está en una avenida, en las dos, o en
  *  ninguna. */
 const AVENIDAS = [
@@ -579,52 +547,46 @@ const AVENIDAS = [
   { nombre: "Avenida Linderos Oriente", lng: -70.2865, lat: -18.4712, numeros: ["3538", "3540"] },
 ];
 
-/** Una puerta con número, en la forma exacta que devuelve la v6 de Mapbox (la
- *  misma del caso "exacta" del fixture). Se arma acá y no se guarda en el
- *  fixture porque cada prueba pide un número distinto. */
-function puertaMapbox(avenida, numero) {
+/** El doble de Google para estos casos: contesta la puerta solo si le preguntan
+ *  por el nombre OFICIAL de la avenida con un número que existe ahí. */
+function googleLinderos(q) {
+  const m = /^(.*[^\d\s])\s+(\d+)$/.exec(q.trim());
+  const avenida = m && AVENIDAS.find((a) => a.nombre.toLowerCase() === m[1].trim().toLowerCase());
+  if (!avenida || !avenida.numeros.includes(m[2])) return GOOGLE.vacia;
   return {
-    features: [
+    status: "OK",
+    results: [
       {
-        id: `urn:prueba:${numero}`,
-        properties: {
-          mapbox_id: `urn:prueba:${numero}`,
-          feature_type: "address",
-          name: `${avenida.nombre} ${numero}`,
-          place_formatted: "Arica, Región de Arica y Parinacota, Chile",
-          coordinates: { longitude: avenida.lng, latitude: avenida.lat },
-          match_code: { street: "matched", address_number: "matched", confidence: "exact" },
-        },
+        place_id: `g-prueba-${m[2]}`,
+        address_components: [
+          { long_name: m[2], short_name: m[2], types: ["street_number"] },
+          { long_name: avenida.nombre, short_name: avenida.nombre, types: ["route"] },
+        ],
+        geometry: { location: { lat: avenida.lat, lng: avenida.lng }, location_type: "ROOFTOP" },
       },
     ],
   };
 }
 
-/** El doble de Mapbox para estos casos: si le preguntan por una avenida con
- *  número contesta la puerta cuando existe, y para cualquier otra cosa contesta
- *  las dos avenidas sin número —que es lo que hace hoy con "Linderos 3536"—. */
-function mapboxLinderos(url) {
-  const q = new URL(url).searchParams.get("q") ?? "";
-  const m = /^(.*[^\d\s])\s+(\d+)$/.exec(q.trim());
-  if (m) {
-    const pedida = m[1].trim().toLowerCase();
-    const avenida = AVENIDAS.find((a) => a.nombre.toLowerCase() === pedida);
-    if (avenida) {
-      return avenida.numeros.includes(m[2]) ? puertaMapbox(avenida, m[2]) : MAPBOX.vacia;
-    }
-  }
-  return MAPBOX.linderos_calles;
-}
+/** OSM contesta las dos AVENIDAS sin número, que es lo que hace con "Linderos". */
+const osmLinderos = AVENIDAS.map((a, i) => ({
+  osm_type: "way",
+  osm_id: 5500 + i,
+  lat: String(a.lat),
+  lon: String(a.lng),
+  category: "highway",
+  name: a.nombre,
+  address: { road: a.nombre, city: "Arica" },
+}));
 
-/** Las consultas `q` que se le hicieron a Mapbox, en orden. */
-function consultasMapbox() {
-  return consultas
-    .filter((u) => !u.includes("nominatim"))
-    .map((u) => new URL(u).searchParams.get("q"));
+/** Lo que se le preguntó a Google, en orden. */
+function consultasGoogle() {
+  return consultas.filter((c) => c.cual === "google").map((c) => c.q);
 }
 
 test("el número se busca en la calle cuyo nombre contiene lo escrito", async () => {
-  respuestas.mapbox = mapboxLinderos;
+  respuestas.google = googleLinderos;
+  respuestas.osm = osmLinderos;
 
   const r = await ubicarDireccion("Linderos 3536");
 
@@ -632,14 +594,12 @@ test("el número se busca en la calle cuyo nombre contiene lo escrito", async ()
   assert.equal(r.elegida?.direccion, "Avenida Linderos Poniente 3536");
   // La segunda vuelta se hizo con el nombre OFICIAL, que es lo único que hace
   // aparecer la puerta.
-  assert.ok(
-    consultasMapbox().includes("Avenida Linderos Poniente 3536"),
-    consultasMapbox().join(" | "),
-  );
+  assert.ok(consultasGoogle().includes("Avenida Linderos Poniente 3536"), consultasGoogle().join(" | "));
 });
 
 test("la calle que NO tiene ese número desaparece de la lista", async () => {
-  respuestas.mapbox = mapboxLinderos;
+  respuestas.google = googleLinderos;
+  respuestas.osm = osmLinderos;
 
   const r = await ubicarDireccion("Linderos 3536");
   const textos = r.candidatos.map((c) => c.direccion);
@@ -653,7 +613,8 @@ test("la calle que NO tiene ese número desaparece de la lista", async () => {
 });
 
 test("si el número existe en las DOS calles, no se elige ninguna", async () => {
-  respuestas.mapbox = mapboxLinderos;
+  respuestas.google = googleLinderos;
+  respuestas.osm = osmLinderos;
 
   // El 3540 existe en Linderos Poniente y en Linderos Oriente, a casi tres
   // kilómetros una de otra. Son dos avenidas distintas, no dos formas de
@@ -669,61 +630,48 @@ test("si el número existe en las DOS calles, no se elige ninguna", async () => 
 });
 
 test("escribir más acota: 'Linderos Poniente' no pregunta por la otra avenida", async () => {
-  respuestas.mapbox = mapboxLinderos;
+  respuestas.google = googleLinderos;
+  respuestas.osm = osmLinderos;
 
   const r = await ubicarDireccion("Linderos Poniente 3542");
 
   assert.equal(r.elegida?.direccion, "Avenida Linderos Poniente 3542");
   // "poniente" y "oriente" distinguen una avenida de la otra: no son palabras
   // genéricas. Preguntar por las dos sería una consulta pagada al aire.
-  assert.ok(
-    !consultasMapbox().some((q) => q?.includes("Oriente")),
-    consultasMapbox().join(" | "),
-  );
+  assert.ok(!consultasGoogle().some((q) => q?.includes("Oriente")), consultasGoogle().join(" | "));
 });
 
 test("una palabra a medias NO se toma por la calle", async () => {
-  respuestas.mapbox = mapboxLinderos;
+  respuestas.google = googleLinderos;
+  respuestas.osm = osmLinderos;
 
-  // Aunque el proveedor devuelva igual las dos avenidas, "Linder" no es
-  // "Linderos": la palabra tiene que estar entera. Es lo único que separa "es
-  // esta calle" de "se parece a esta calle".
+  // Aunque OSM devuelva igual las dos avenidas, "Linder" no es "Linderos": la
+  // palabra tiene que estar entera. Es lo único que separa "es esta calle" de
+  // "se parece a esta calle".
   await ubicarDireccion("Linder 3536");
 
-  assert.deepEqual(consultasMapbox(), ["Linder 3536"]);
+  assert.deepEqual(consultasGoogle(), ["Linder 3536"]);
 });
 
 test("coincidir solo en una palabra genérica no es coincidir", async () => {
-  respuestas.mapbox = mapboxLinderos;
+  respuestas.google = googleLinderos;
+  respuestas.osm = osmLinderos;
 
   // "avenida" está en el nombre de las dos y no distingue nada. Sin esta regla,
   // escribir "Avenida 1234" mandaría a preguntar por todas las avenidas de
   // Arica.
   await ubicarDireccion("Avenida 1234");
 
-  assert.deepEqual(consultasMapbox(), ["Avenida 1234"]);
+  assert.deepEqual(consultasGoogle(), ["Avenida 1234"]);
 });
 
-test("el nombre de la calle lo puede aportar OSM y el número, Mapbox", async () => {
-  // Es la razón por la que esto vive afuera de los dos proveedores: OSM tiene
-  // los nombres de calle correctos y Mapbox los números de casa (ver la cabecera
-  // de lib/geo/geocoding). Acá Mapbox no reconoce "Linderos 3544" y la calle sale
+test("el nombre de la calle lo aporta OSM y el número, Google", async () => {
+  // Es la razón por la que esto vive afuera de los dos buscadores: OSM tiene los
+  // nombres de calle correctos y Google los números de casa (ver la cabecera de
+  // lib/geo/geocoding). Acá Google no reconoce "Linderos 3544" y la calle sale
   // de OSM.
-  respuestas.mapbox = (url) => {
-    const q = new URL(url).searchParams.get("q") ?? "";
-    return q.toLowerCase().startsWith("avenida linderos") ? mapboxLinderos(url) : MAPBOX.vacia;
-  };
-  respuestas.osm = [
-    {
-      osm_type: "way",
-      osm_id: 5544,
-      lat: "-18.4795",
-      lon: "-70.3128",
-      category: "highway",
-      name: "Avenida Linderos Poniente",
-      address: { road: "Avenida Linderos Poniente", city: "Arica" },
-    },
-  ];
+  respuestas.google = googleLinderos;
+  respuestas.osm = [osmLinderos[0]];
 
   const r = await ubicarDireccion("Linderos 3544");
 
@@ -732,22 +680,23 @@ test("el nombre de la calle lo puede aportar OSM y el número, Mapbox", async ()
 });
 
 test("con la puerta ya resuelta no se gasta ninguna consulta de más", async () => {
-  respuestas.mapbox = MAPBOX.exacta;
+  respuestas.google = GOOGLE.exacta;
 
-  await ubicarDireccion("avenida Chacabuco 500");
+  await ubicarDireccion("Quinsachata 1749");
 
-  // El camino normal es este: alguien ya devolvió el número pedido, así que no
-  // hay nada que completar. Una consulta a cada proveedor y nada más.
-  assert.deepEqual(consultasMapbox(), ["avenida Chacabuco 500"]);
+  // El camino normal es este: Google ya devolvió el número pedido, así que no
+  // hay nada que completar. Una consulta a cada buscador y nada más.
+  assert.deepEqual(consultasGoogle(), ["Quinsachata 1749"]);
 });
 
-test("una calle sin número escrito no dispara la búsqueda de puertas", async () => {
-  respuestas.mapbox = mapboxLinderos;
+test("una calle sin número escrito no le pregunta nada a Google", async () => {
+  respuestas.google = googleLinderos;
+  respuestas.osm = osmLinderos;
 
   // Sin número no hay puerta que buscar: el conductor todavía está escribiendo.
   await ubicarDireccion("Linderos");
 
-  assert.deepEqual(consultasMapbox(), ["Linderos"]);
+  assert.deepEqual(consultasGoogle(), []);
 });
 
 test("las puertas encontradas se muestran ARRIBA de lo que ya había", () => {
@@ -763,7 +712,7 @@ test("las puertas encontradas se muestran ARRIBA de lo que ya había", () => {
       soloCalle: true,
       confianza: "aproximada",
       coincideNumero: null,
-      fuente: "mapbox",
+      fuente: "osm",
     },
   ];
   const puerta = {
@@ -775,7 +724,7 @@ test("las puertas encontradas se muestran ARRIBA de lo que ya había", () => {
     soloCalle: false,
     confianza: "exacta",
     coincideNumero: true,
-    fuente: "mapbox",
+    fuente: "google",
   };
 
   const conPuerta = geo.aplicarPuertas(lista, {
@@ -801,7 +750,7 @@ test("las puertas encontradas se muestran ARRIBA de lo que ya había", () => {
 // ===========================================================================
 //
 // El atajo para el problema de fondo de Arica. Está medido: de 23 direcciones
-// reales, Mapbox tiene la puerta exacta en 2 y estima el resto. Para una casa
+// reales, Mapbox tenía la puerta exacta en 2 y estimaba el resto. Para una casa
 // sin número, un código dictado por teléfono ubica mejor que cualquier
 // dirección escrita — y ubica igual de bien mañana.
 
@@ -809,7 +758,7 @@ test("un Plus Code no se le pregunta a NADIE", async () => {
   // Es la propiedad que lo hace valioso: sin red, sin API key, sin límite de
   // consultas y sin poder fallar. Si algún día esto sale a consultar, la
   // sugerencia deja de aparecer con el teléfono sin señal.
-  respuestas.mapbox = MAPBOX.vacia;
+  respuestas.google = GOOGLE.vacia;
   respuestas.osm = OSM.vacia;
 
   await sugerirDirecciones("57HFGMCP+MX");
@@ -862,19 +811,19 @@ test("lo que no es un código sigue el camino de siempre", async () => {
   assert.equal(geo.esPlusCode("Los Aromos 120"), false);
   assert.equal(geo.esPlusCode(""), false);
 
-  respuestas.mapbox = MAPBOX.exacta;
+  respuestas.google = GOOGLE.exacta;
   await ubicarDireccion("Quinsachata 1749");
   assert.ok(consultas.length > 0, "una dirección normal dejó de consultar");
 });
 
 test("cada fuente tiene nombre propio en pantalla", async () => {
   // Antes esto era `s.fuente === "osm" ? "OSM" : "Mapbox"` escrito en dos
-  // pantallas, y ese `else` etiquetaba como "Mapbox" cualquier fuente nueva —
-  // un Plus Code habría salido a pantalla diciendo "Mapbox".
+  // pantallas, y ese `else` etiquetaba con un solo nombre cualquier fuente
+  // nueva: un Plus Code habría salido a pantalla diciendo "Mapbox".
   const r = await ubicarDireccion("57HFGMCP+MX");
   assert.equal(geo.NOMBRE_FUENTE[r.elegida.fuente], "Plus Code");
 
-  for (const fuente of ["mapbox", "osm", "plus_code"]) {
+  for (const fuente of ["google", "osm", "plus_code"]) {
     assert.ok(geo.NOMBRE_FUENTE[fuente], `la fuente "${fuente}" no tiene nombre`);
   }
 });

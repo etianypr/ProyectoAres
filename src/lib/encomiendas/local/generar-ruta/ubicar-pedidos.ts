@@ -1,7 +1,7 @@
 // Volver a ubicar, antes de armar la ruta, los pedidos que quedaron sin punto.
 
 import { ubicarDireccion } from "@/lib/geo/geocoding";
-import { puntoDeAcceso, type Acceso } from "@/lib/geo/mapbox/acceso";
+import { puntoDeAcceso, type Acceso } from "@/lib/geo/acceso";
 import { nombreVisible } from "@/lib/encomiendas/paquete";
 import { fijarCoordenadas, type Pedido } from "../almacen";
 import type { PedidoUbicado } from "./tipos";
@@ -44,7 +44,7 @@ export async function reintentarUbicar(
   // Secuencial a propósito: en paralelo se pasaría del límite de consultas por
   // segundo de OpenStreetMap. El espaciado ya no se hace acá — lo garantiza el
   // propio geocodificador (ver la fila de turnos en lib/geo/geocoding), y así una
-  // dirección que Mapbox resuelve sola no paga ninguna espera.
+  // dirección que Google resuelve sola no paga ninguna espera.
   for (const pedido of aIntentar) {
     const r = await ubicarDireccion(pedido.direccion);
     if (r.elegida) {
@@ -84,7 +84,7 @@ export async function reintentarUbicar(
 }
 
 // ---------------------------------------------------------------------------
-// Paradas pegadas a una carretera (terreno 2026-10-29, ver geo/mapbox/acceso.ts)
+// Paradas pegadas a una carretera (terreno 2026-10-29, ver geo/acceso.ts)
 // ---------------------------------------------------------------------------
 
 /** Lo ya revisado en esta sesión, por punto: regenerar no vuelve a preguntar. */
@@ -94,7 +94,7 @@ const EN_PARALELO = 6;
 /** Tope de la revisión entera: con mala señal no puede demorar el armado. */
 const MS_REVISION = 10_000;
 
-/** Corre a la calle local las paradas que Mapbox engancharía a una carretera que
+/** Corre a la calle local las paradas que el ruteo engancharía a una carretera que
  *  no es su calle, y lo guarda en el pedido. Devuelve los pedidos con el punto
  *  nuevo y un aviso por cada uno que se movió. */
 export async function corregirAccesos(

@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { conductorDeLaApi } from "@/lib/auth/api-conductor";
 import { googleDirecto } from "@/lib/geo/geocoding/google";
 
-// La dirección que Mapbox y OSM no ubicaron, preguntada a Google con la clave
-// del servidor (spec 016, US3). Solo el conductor. La dirección pasa en
-// tránsito: no se guarda ni se registra (sin console.*).
+// Una dirección con número, preguntada a Google con la clave del servidor (spec
+// 016, US3; desde la spec 019 Google es el que da el número de casa). Solo el
+// conductor. La dirección pasa en tránsito: no se guarda ni se registra (sin
+// console.*).
 //
 //   401 sin sesión de conductor · 400 sin dirección · 503 sin GOOGLE_MAPS_KEY
 

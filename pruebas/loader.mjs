@@ -7,7 +7,7 @@
 // dentro del servidor de Next.
 //
 // Ojo con lo que NO está acá: los proveedores externos que se consultan con
-// fetch (Mapbox, ORS, la Cloud API de Meta) NO se sustituyen a nivel de módulo
+// fetch (Google, ORS, la Cloud API de Meta) NO se sustituyen a nivel de módulo
 // sino reemplazando el `fetch` global, dentro de cada prueba. Así corre el
 // código real que arma la URL, los headers y el cuerpo, y que interpreta cada
 // error — que es justo lo que se rompe cuando el proveedor cambia algo.

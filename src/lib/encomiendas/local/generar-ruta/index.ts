@@ -51,7 +51,7 @@ export type { Alternativa, EstrategiaRuta, PedidoUbicado, PropuestaRuta, PuntoIn
 /** Huella de TODO lo que entra en el cálculo de una ruta. Si no cambió ni un
  *  pedido, ni su ubicación, ni su horario, ni quién confirmó, ni de dónde y a
  *  qué hora se parte, la ruta que saldría es la misma y no hay nada que
- *  preguntarle a Mapbox. Antes no miraba los horarios: un cliente que eligió
+ *  preguntarle a OpenRouteService. Antes no miraba los horarios: un cliente que eligió
  *  bloque seguía recibiendo la propuesta vieja (spec 017, R3). */
 /** Partida y llegada a menos de esto son el mismo punto: la ruta es cerrada. */
 const METROS_MISMO_PUNTO = 30;
@@ -238,9 +238,8 @@ export async function calcularRutaLocal(
   // puede costar tres veces más. Cuando el conductor elige otra, se le pide el
   // trazado de esa en ese momento (ver elegirAlternativa).
   //
-  // El límite de 25 puntos por consulta de Mapbox (un día de 30 paradas no
-  // entra) lo resuelve obtenerRutaCalles partiendo el pedido en tramos y
-  // pegando los trazados.
+  // El límite de puntos por consulta (70 en ORS) lo resuelve obtenerRutaCalles
+  // partiendo el pedido en tramos y pegando los trazados.
   // Con la vuelta: la línea del mapa, los km y el reloj cuentan el regreso.
   let calles = await obtenerRutaCalles([base, ...paradas.map(coord), llegada]);
 

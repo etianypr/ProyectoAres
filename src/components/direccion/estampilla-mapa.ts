@@ -10,7 +10,7 @@
 //
 // De a una por vez (hay listas con varias miniaturas) y guardadas en memoria por
 // esquina: la misma dirección otra vez no vuelve a dibujar nada.
-import { ESTILO, URL_WORKER, tonoDashund } from "@/lib/geo/estilo-mapa";
+import { ESTILO, URL_WORKER, ajustarEstilo } from "@/lib/geo/estilo-mapa";
 
 /** El zoom de la estampilla: la cuadra y los nombres de las calles de alrededor. */
 export const ZOOM_PUNTO = 16.5;
@@ -67,7 +67,7 @@ async function dibujar({ lat, lng, ancho, alto, zoom }: Required<PedidoEstampill
       let cargado = false;
       mapa.once("load", () => {
         cargado = true;
-        tonoDashund(mapa);
+        ajustarEstilo(mapa);
         mapa.once("idle", () => {
           clearTimeout(tope);
           listo();

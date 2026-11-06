@@ -124,7 +124,7 @@ function proyectarEnTrazado(p: Coordenada, trazado: Trazado): Proyeccion | null 
 
 // Cuánto se apartó una posición del trazado, en metros. Se mide contra el
 // SEGMENTO más cercano y no contra el vértice más cercano: en una recta larga
-// Mapbox pone dos vértices a cuadras de distancia, así que ir justo por el medio
+// el trazado trae dos vértices a cuadras de distancia, así que ir justo por el medio
 // de esa recta daba "200 m de desvío" y habría hecho recalcular la ruta sin
 // motivo. Es lo que decide si el conductor sigue el camino o se salió (ver
 // use-navegacion).
@@ -141,7 +141,7 @@ export function distanciaAPolilinea(p: Coordenada, trazado: Trazado): number {
 // posición sobre la ruta que se está siguiendo y dibujan ahí.
 //
 // HASTA DÓNDE SE PEGA. 90 metros, y no es un número al voleo: el primer punto
-// del trazado es donde MAPBOX enganchó a la calle la lectura del propio conductor
+// del trazado es donde el ruteo enganchó a la calle la lectura del propio conductor
 // al calcular el tramo, o sea la mejor respuesta que existe a "por dónde sale
 // este auto al camino". Una casa, un galpón o un estacionamiento están a 20-60
 // m de la calle, así que con menos tolerancia el punto se queda adentro del

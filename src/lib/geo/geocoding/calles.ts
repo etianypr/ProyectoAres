@@ -1,12 +1,12 @@
 // El catálogo de calles de Arica (calles-arica.ts, sacado de OpenStreetMap): lo
-// que permite corregir el nombre ANTES de preguntarle a Mapbox, sin red.
+// que permite corregir el nombre ANTES de preguntarle a un buscador, sin red.
 //
 //   "Braulio Muniz"   → "Braulio Muñoz"                       (una letra)
 //   "Santiago Arata"  → "Santiago Arata Gandolfo"             (falta un apellido)
 //   "Humberto Arellano" → "Avenida Diputado Humberto Arellano Figueroa"
 //
-// Mapbox no corrige esto solo: con el nombre mal escrito contesta otra calle o
-// nada, y con el nombre oficial encuentra la puerta. El catálogo se carga
+// Los buscadores no corrigen esto solos: con el nombre mal escrito contestan otra calle o
+// nada, y con el nombre oficial encuentran la puerta. El catálogo se carga
 // recién la primera vez que hace falta (son ~30 KB que la pantalla no necesita
 // para arrancar).
 import { coincidenciaCalle, compararCoincidencias, normalizar, type Coincidencia } from "./consulta";

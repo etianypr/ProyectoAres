@@ -1,6 +1,6 @@
 // Arma src/lib/geo/geocoding/calles-arica.ts: los nombres de calle de Arica
 // sacados de OpenStreetMap, para corregir el tipeo de una dirección antes de
-// preguntarle a Mapbox (spec 016).
+// preguntarle a un buscador (spec 016).
 //
 //   node scripts/generar-calles.mjs                 consulta Overpass
 //   node scripts/generar-calles.mjs calles-osm.json usa una descarga ya hecha
