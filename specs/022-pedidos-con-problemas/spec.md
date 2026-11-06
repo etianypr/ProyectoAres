@@ -30,4 +30,5 @@
 - Cuándo se considera resuelto cada tipo de ⚠.
 
 ## Cruces
-016 y 018 (ubicar direcciones) · 005 (escaneo) · 017 (horarios) · 020 (burbuja, para el aviso).
+016 y 018 (ubicar direcciones) · 005 (escaneo) · 017 (horarios) · 020 (burbuja, para el aviso) · 027 (dónde se ve cada ⚠ en la hoja: casos B, E y F de su maqueta;
+`problemasDelPedido` es la función que esta spec extiende).

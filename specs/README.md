@@ -10,7 +10,7 @@ pedido. Un *Pendiente* en `AGENTS.md` apunta a su carpeta.
 - Spec Kit en Claude Code: `/speckit-specify` (crea la carpeta aquí), `/speckit-clarify`,
   `/speckit-plan`, `/speckit-tasks`, `/speckit-analyze` y `/speckit-implement`.
 
-**Próximo número: 027.**
+**Próximo número: 028.**
 
 ## Índice
 
@@ -23,6 +23,7 @@ Estados: borrador → definida → en curso → hecha (falta día real) · poste
 | [020](020-burbuja-google-maps/spec.md) burbuja de Google Maps | la ruta en ARES, la guía en Google Maps con la burbuja encima | hecha (falta APK 1.5.0 y día real) | — (en `main` desde 2026-11-06) | 16/19 | APK 1.5.0 firmada (tag `apk-v1.5.0`) e instalada con el día cerrado; el dueño sube `APK_VERSION_MINIMA`; día real (T019) |
 | [019](019-sin-mapbox/spec.md) sin Mapbox | ORS, MapLibre y OpenFreeMap (Liberty); Google da el número de casa | hecha (falta día real) | — (en `main` desde 2026-11-06) | 13/16 | el dueño borra el token de Mapbox en Vercel (T013); sin tope de Google, decisión del dueño (T012); día real (T014) |
 | [021](021-lector-etiquetas/spec.md) lector de etiquetas | la foto de la etiqueta se lee solo en el teléfono (ML Kit + lector Starken), sin IA: US$0 y ningún dato sale del teléfono | definida | — | 0/13 | ejemplos anonimizados del dueño → pruebas (T002) |
+| [027](027-hoja-por-paso/spec.md) la hoja paso por paso | la cabecera de la hoja dice el paso del día que toca (guía, ⚠, ruta, cargar el auto, recorrer, cerrar) y adentro va solo lo de ese paso | en curso | `027-hoja-por-paso` | — | usa `Ruta.inicioReparto` (campo opcional, sin subir idb); lo de guardar el ⚠ va con la 022 |
 | [022](022-pedidos-con-problemas/spec.md) pedidos con ⚠ | el ⚠ queda en el pedido, entra a la ruta igual y avisa dos paradas antes | borrador | — | — | dónde se guarda el ⚠ y cómo se avisa |
 | [023](023-paradas-cercanas/spec.md) paradas cercanas | en cada parada, las paradas que quedan cerca | borrador | — | — | ¿va dentro de la 020? qué es «cerca» |
 | [024](024-criterios-de-ruta/spec.md) criterios de ruta | km, tiempo, éxito por parada y ganancia | borrador | — | — | cómo se mide y cuánto pesa cada criterio |
