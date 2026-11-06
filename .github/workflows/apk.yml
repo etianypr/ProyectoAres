@@ -20,6 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       TIENE_FIRMA: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+      FIRMAR_APK: "false"
     steps:
       - uses: actions/checkout@v4
 
@@ -47,14 +48,31 @@ jobs:
       - run: npm ci
       - run: npx cap sync android
 
-      - name: Clave de firma
+      - name: Preparar firma
         if: env.TIENE_FIRMA == 'true'
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/ares.keystore"
-          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/ares.keystore" >> "$GITHUB_ENV"
+          if ! echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/ares.keystore"; then
+            echo "::warning::No se pudo decodificar ANDROID_KEYSTORE_BASE64. Se compilará APK de depuración."
+            exit 0
+          fi
+
+          if keytool -list \
+            -keystore "$RUNNER_TEMP/ares.keystore" \
+            -storepass "$ANDROID_KEYSTORE_PASSWORD" \
+            -alias "$ANDROID_KEY_ALIAS" \
+            -keypass "$ANDROID_KEY_PASSWORD" > /dev/null; then
+            echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/ares.keystore" >> "$GITHUB_ENV"
+            echo "FIRMAR_APK=true" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Credenciales de firma inválidas. Se compilará APK de depuración."
+          fi
 
       - name: Compilar (release firmada)
-        if: env.TIENE_FIRMA == 'true'
+        if: env.FIRMAR_APK == 'true'
         working-directory: android
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -66,7 +84,7 @@ jobs:
           cp app/build/outputs/apk/release/app-release.apk "../ares-${APK_VERSION}.apk"
 
       - name: Compilar (depuración, sin firma)
-        if: env.TIENE_FIRMA != 'true'
+        if: env.FIRMAR_APK != 'true'
         working-directory: android
         run: |
           chmod +x gradlew
@@ -79,7 +97,7 @@ jobs:
           path: ares-*.apk
 
       - name: Release
-        if: startsWith(github.ref, 'refs/tags/apk-v') && env.TIENE_FIRMA == 'true'
+        if: startsWith(github.ref, 'refs/tags/apk-v') && env.FIRMAR_APK == 'true'
         uses: softprops/action-gh-release@v2
         with:
           files: ares-*.apk
