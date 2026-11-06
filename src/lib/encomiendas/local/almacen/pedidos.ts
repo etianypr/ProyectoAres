@@ -3,7 +3,8 @@ import { STORES, escribir } from "../idb";
 import { enFila } from "./fila";
 import { leerPedido, leerPedidos, leerRuta } from "./lecturas";
 import { avisoVacio } from "./migrar";
-import type { Pedido, Ruta } from "./tipos";
+import { PROBLEMAS_DE_LUGAR, type ProblemaGuardado } from "@/lib/encomiendas/problemas";
+import type { OrigenCarga, Pedido, Ruta } from "./tipos";
 
 /** Los del día que todavía hay que visitar: la entrada para armar la ruta.
  *
@@ -25,6 +26,9 @@ export function guardarPedido(
   datos: DatosPedido,
   fecha: string,
   id?: string,
+  /** Solo para uno nuevo: de dónde vino y sus ⚠ (el paquete que no estaba en la
+   *  guía, spec 022). */
+  nuevo?: { origen: OrigenCarga; problemas: ProblemaGuardado[] },
 ): Promise<Pedido> {
   return enFila(async () => {
     const anterior = id ? await leerPedido(id) : null;
@@ -54,7 +58,14 @@ export function guardarPedido(
       porPagar: anterior?.porPagar ?? null,
       montoPorPagar: anterior?.montoPorPagar ?? null,
       folioGuia: anterior?.folioGuia ?? null,
-      origenCarga: anterior?.origenCarga ?? "manual",
+      origenCarga: anterior?.origenCarga ?? nuevo?.origen ?? "manual",
+      // Editar conserva los ⚠; cambiar la dirección o el punto quita los que
+      // hablaban del lugar de antes (spec 022, FR-002).
+      problemas: anterior
+        ? anterior.direccion !== datos.direccion || anterior.lat !== datos.lat || anterior.lng !== datos.lng
+          ? anterior.problemas.filter((x) => !PROBLEMAS_DE_LUGAR.has(x.tipo))
+          : anterior.problemas
+        : (nuevo?.problemas ?? []),
     };
 
     await escribir([STORES.pedidos], ({ guardar }) => guardar(STORES.pedidos, pedido));
@@ -97,7 +108,15 @@ export function cambiarDireccion(
     const pedido = await leerPedido(id);
     if (!pedido) return null;
     const notas = nota ? (pedido.notas ? `${pedido.notas} · ${nota}` : nota) : pedido.notas;
-    const cambiado: Pedido = { ...pedido, direccion, notas, lat: punto?.lat ?? null, lng: punto?.lng ?? null };
+    const cambiado: Pedido = {
+      ...pedido,
+      direccion,
+      notas,
+      lat: punto?.lat ?? null,
+      lng: punto?.lng ?? null,
+      // Los ⚠ del lugar de antes ya no valen (spec 022).
+      problemas: pedido.problemas.filter((x) => !PROBLEMAS_DE_LUGAR.has(x.tipo)),
+    };
     await escribir([STORES.pedidos], ({ guardar }) => guardar(STORES.pedidos, cambiado));
     return cambiado;
   });

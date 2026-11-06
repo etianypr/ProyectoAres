@@ -14,7 +14,7 @@ export type LineaGuia = {
   of: string;
   destino: string;
   /** Sin OF (ningún dígito) o sin destino: el conductor la revisa antes de
-   *  crear. Una OF de otro largo no es dudosa: va con ⚠ (ofDistinta). */
+   *  crear. Una OF de otro largo no es dudosa: vale igual, sin ⚠ (dueño, 2026-11-06). */
   dudosa: boolean;
 };
 

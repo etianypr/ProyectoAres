@@ -81,11 +81,19 @@ export {
   aplicarLecturaEtiqueta,
   crearDesdeGuia,
   avanceCarga,
+  bultosIncompletos,
   sinEtiquetaEscaneada,
   type LecturaParaAplicar,
   type LineaParaCrear,
   type ResultadoEscaneo,
 } from "./carga";
+export {
+  elegirLugar,
+  fijarProblemasDeRuta,
+  marcarRevisado,
+  quitarProblema,
+  ubicarConDuda,
+} from "./problemas";
 export {
   borrarFoto,
   guardarFoto,

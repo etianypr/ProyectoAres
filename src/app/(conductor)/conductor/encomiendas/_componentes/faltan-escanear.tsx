@@ -16,7 +16,7 @@ export function FaltanEscanear({ faltan }: { faltan: FaltaEscanear[] }) {
   return (
     <div className="space-y-2">
       <ol className="divide-y divide-divider overflow-hidden rounded-2xl bg-card shadow-soft">
-        {vista.map(({ pedido, secuencia }) => (
+        {vista.map(({ pedido, secuencia, bultos }) => (
           <li key={pedido.id} className="flex items-center gap-3 px-3.5 py-2.5">
             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-[1.5px] border-separator text-[11px] font-semibold tabular-nums">
               {secuencia ?? "–"}
@@ -27,6 +27,12 @@ export function FaltanEscanear({ faltan }: { faltan: FaltaEscanear[] }) {
               </p>
               <p className="truncate text-xs text-muted">{pedido.direccion}</p>
             </div>
+            {/* Un envío de varios bultos al que le falta alguno (spec 022). */}
+            {bultos ? (
+              <span className="shrink-0 rounded-full bg-warn-bg px-2 py-0.5 text-[11px] font-semibold tabular-nums text-warn">
+                Bultos {bultos.escaneados} de {bultos.total}
+              </span>
+            ) : null}
           </li>
         ))}
       </ol>

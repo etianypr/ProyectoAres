@@ -36,18 +36,13 @@ export function formatoOf(of: string): string {
 }
 
 /** La OF escrita (con espacios, puntos o guiones) → sus dígitos sin ceros a la
- *  izquierda, o null si no son solo dígitos. Sin regla de largo: la distinta se
- *  acepta y se marca (ofDistinta). Sin los ceros, la OF del código de barras
+ *  izquierda, o null si no son solo dígitos. Sin regla de largo: hay OF de
+ *  distintos largos y valen todas, sin ⚠ (dueño, 2026-11-06). Sin los ceros, la OF del código de barras
  *  ("007000123") calza con la de la guía ("7000123"). */
 export function ofValida(texto: string): string | null {
   const digitos = texto.replace(/[\s.\-]/g, "");
   if (!/^\d+$/.test(digitos)) return null;
   return digitos.replace(/^0+/, "") || null;
-}
-
-/** Una OF de otro largo que las de siempre: va con ⚠ para que se note. */
-export function ofDistinta(of: string): boolean {
-  return of.length !== LARGO_OF;
 }
 
 // Género del sustantivo, para que el texto concuerde: "bolsa blanca", "sobre blanco".

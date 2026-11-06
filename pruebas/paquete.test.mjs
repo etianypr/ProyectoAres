@@ -8,7 +8,6 @@ import assert from "node:assert/strict";
 
 const {
   formatoOf,
-  ofDistinta,
   ofValida,
   textoReferencia,
   notaPaquete,
@@ -38,8 +37,6 @@ test("la OF acepta espacios, puntos y guiones, y exige 9 dígitos", () => {
   assert.equal(ofValida("2753881845"), "2753881845", "sin regla de largo");
   assert.equal(ofValida("007000123"), "7000123", "sin ceros a la izquierda (código de barras)");
   assert.equal(ofValida("000000000"), null, "cero");
-  assert.equal(ofDistinta("275388184"), false);
-  assert.equal(ofDistinta("7000123"), true);
   assert.equal(ofValida("27538818a"), null);
   assert.equal(ofValida(""), null);
 });

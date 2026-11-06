@@ -10,7 +10,8 @@ import { createPortal } from "react-dom";
 import { cn } from "@/lib/comun/utils";
 import { formatCLP, formatDistancia, formatDuracion, formatTime } from "@/lib/comun/format";
 import { AlertTriangle, Navigation } from "lucide-react";
-import { formatoOf, ofDistinta, textoReferencia } from "@/lib/encomiendas/paquete";
+import { formatoOf, textoReferencia } from "@/lib/encomiendas/paquete";
+import { problemasDelPedido } from "@/lib/encomiendas/problemas";
 import type { Pedido } from "@/lib/encomiendas/local/almacen";
 import { useFotoGuardada } from "../_hooks/use-foto-paquete";
 
@@ -47,9 +48,6 @@ export function TarjetaParada({
         {pedido.of ? (
           <p className="font-mono text-[22px] font-semibold leading-tight tracking-tight">
             OF {formatoOf(pedido.of)}
-            {ofDistinta(pedido.of) ? (
-              <AlertTriangle aria-label="OF distinta" className="ml-1.5 inline h-5 w-5 align-[-3px] text-warn" />
-            ) : null}
           </p>
         ) : null}
         {referencia ? (
@@ -70,6 +68,13 @@ export function TarjetaParada({
           </p>
         ) : null}
         <p className="truncate text-sm text-muted">{pedido.direccion}</p>
+        {/* Su ⚠, en palabras (spec 022): al llegar se ve qué estaba en duda. */}
+        {problemasDelPedido(pedido).map((x) => (
+          <p key={x.tipo} className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-warn">
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+            {x.texto}
+          </p>
+        ))}
         {/* Spec 005: lo que hay que cobrar, en palabras y no solo en color. */}
         {pedido.porPagar ? (
           <p className="mt-1 inline-block rounded-lg bg-danger-bg px-2 py-0.5 text-sm font-bold text-danger">

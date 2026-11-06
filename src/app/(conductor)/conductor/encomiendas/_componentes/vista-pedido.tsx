@@ -6,6 +6,7 @@
 import { ArrowLeft, X } from "lucide-react";
 import type { Pedido } from "@/lib/encomiendas/local/almacen";
 import { PedidoFormLocal } from "./pedido-form-local";
+import { ProblemasPedido } from "./problemas-pedido";
 
 /** El formulario de un pedido, DENTRO de la hoja deslizable (ver BottomSheet,
  *  prop "vista"): sobre el contenido y debajo de la misma cabecera.
@@ -81,6 +82,10 @@ export function VistaPedido({
           <X className="h-5 w-5" />
         </button>
       </div>
+
+      {/* Sus ⚠ guardados, con su salida, arriba del formulario (spec 022).
+          Resolver uno cuenta como guardar: resolviendo los ⚠, abre el siguiente. */}
+      {pedido ? <ProblemasPedido pedido={pedido} onResuelto={() => onGuardado(null)} /> : null}
 
       {/* Sin scroll ni padding propios: los pone el formulario, que necesita
           repartirlos él para dejar el botón de guardar clavado abajo y que solo

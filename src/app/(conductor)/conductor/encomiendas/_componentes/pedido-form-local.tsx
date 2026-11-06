@@ -15,7 +15,7 @@
 
 import { useMemo, useState } from "react";
 import { ResolverDireccion, type PorResolver } from "./resolver-direccion";
-import { AlertTriangle, Check, Save, StickyNote } from "lucide-react";
+import { Check, Save, StickyNote } from "lucide-react";
 import { Campo, CampoArea, NotaCampo } from "@/components/ui/campo";
 import { DireccionInput } from "@/components/direccion/direccion-input";
 
@@ -23,7 +23,7 @@ import { Button } from "@/components/ui/button";
 import { ubicarDireccion, type SugerenciaDireccion } from "@/lib/geo/geocoding";
 import { normalizarTelefono } from "@/lib/comun/telefono";
 import { guardarPedido, ofRepetida, reiniciarDisponibilidad, type Pedido } from "@/lib/encomiendas/local/almacen";
-import { ofDistinta, ofValida } from "@/lib/encomiendas/paquete";
+import { ofValida } from "@/lib/encomiendas/paquete";
 
 const VACIO = { nombre: "", telefono: "", direccion: "", notas: "" };
 
@@ -162,6 +162,8 @@ export function PedidoFormLocal({
       },
       fecha,
       pedido?.id,
+      // Nuevo desde una etiqueta que no estaba en la guía (spec 022, US4).
+      !pedido && ofInicial ? { origen: "etiqueta", problemas: [{ tipo: "fuera_de_guia" }] } : undefined,
     );
     // Una OF repetida en el día es casi siempre el mismo paquete cargado dos
     // veces: se avisa, pero se guarda (puede ser un error de la etiqueta).
@@ -338,9 +340,7 @@ export function PedidoFormLocal({
             className="font-mono tabular-nums"
             tono={ofEscrita && !of ? "aviso" : "normal"}
             fin={
-              of && ofDistinta(of) ? (
-                <AlertTriangle aria-label="OF distinta" className="h-4 w-4 text-warn" />
-              ) : of ? (
+              of ? (
                 <Check aria-hidden className="h-4 w-4 text-ok" />
               ) : null
             }

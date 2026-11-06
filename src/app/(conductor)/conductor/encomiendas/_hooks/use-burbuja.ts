@@ -58,6 +58,7 @@ export function useBurbuja({
   confirmacion,
   enAres,
   acciones,
+  adelante = null,
 }: {
   fecha: string;
   activa: Parada | null;
@@ -74,6 +75,10 @@ export function useBurbuja({
    *  que verse (el vivo, 2026-11-05 y 2026-11-06). */
   enAres: boolean;
   acciones: AccionesParada;
+  /** «⚠ En 2 paradas: …» (spec 022): va en el aviso de la burbuja cuando no hay
+   *  un «Deshacer» ni una confirmación. Sin tocar android/: solo se ve con la
+   *  tarjeta abierta. */
+  adelante?: string | null;
 }) {
   const [enCurso, setEnCurso] = useState(false);
   const textoDeshacer = deshacer?.texto ?? null;
@@ -84,8 +89,10 @@ export function useBurbuja({
         ? { texto: textoDeshacer, deshacer: true }
         : textoConfirmacion != null
           ? { texto: textoConfirmacion, deshacer: false }
-          : null,
-    [textoDeshacer, textoConfirmacion],
+          : adelante != null
+            ? { texto: adelante, deshacer: false }
+            : null,
+    [textoDeshacer, textoConfirmacion, adelante],
   );
   /** El pedido al que se mandó Google Maps por última vez. */
   const navegada = useRef<string | null>(null);

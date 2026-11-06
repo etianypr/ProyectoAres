@@ -305,6 +305,41 @@ test("una parada lejos de todas se avisa con lo que suma; un día normal no avis
   assert.ok(p.advertencias.some((a) => /del resto y suma .* km a la ruta/.test(a)), "la ruta guardada también lo dice");
 });
 
+test("spec 022: la parada lejana queda como ⚠ en su pedido; «Va igual» se conserva al rehacer", async () => {
+  await pedidoAKm("Cerca A", 0.5);
+  await pedidoAKm("Cerca B", 1);
+  await pedidoAKm("Cerca C", 1.5);
+  await pedidoAKm("Lejos", 0, { este: 7 });
+  await confirmarRutaLocal(await calcularRutaLocal(HOY, inicioDe()));
+  const lejos = () => leerPedidos(HOY).then((ps) => ps.find((x) => x.nombre === "Lejos"));
+  const [problema] = (await lejos()).problemas;
+  assert.equal(problema.tipo, "lejana");
+  assert.match(problema.texto, /^Queda a \d+,\d km del resto$/);
+  assert.deepEqual(
+    (await leerPedidos(HOY)).filter((x) => x.nombre !== "Lejos").map((x) => x.problemas),
+    [[], [], []],
+    "las cercanas no llevan ⚠",
+  );
+
+  await almacen.marcarRevisado((await lejos()).id, "lejana");
+  olvidarMatriz();
+  await confirmarRutaLocal(await calcularRutaLocal(HOY, inicioDe()));
+  assert.equal((await lejos()).problemas[0].revisado, true, "rehacer la ruta no vuelve a preguntar");
+});
+
+test("spec 022: la ruta que sale del caché no pierde el aviso de la parada lejana", async () => {
+  await pedidoAKm("Cerca A", 0.5);
+  await pedidoAKm("Cerca B", 1);
+  await pedidoAKm("Lejos", 0, { este: 7 });
+  const inicio = inicioDe();
+  const primera = await calcularRutaLocal(HOY, inicio);
+  const segunda = await calcularRutaLocal(HOY, inicio);
+  assert.equal(consultasDeMatriz(), 1, "la segunda salió del caché");
+  const lejana = (p) => p.advertencias.filter((a) => /del resto y suma/.test(a));
+  assert.equal(lejana(primera).length, 1);
+  assert.deepEqual(lejana(segunda), lejana(primera), "antes se perdía al salir del caché");
+});
+
 test("una sola propuesta cuesta una matriz y un trazado, igual que antes", async () => {
   for (const n of [1, 2, 3]) await pedidoA(n);
   await calcularRutaLocal(HOY, inicioDe());

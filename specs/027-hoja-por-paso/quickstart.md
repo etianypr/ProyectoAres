@@ -1,5 +1,8 @@
 # Quickstart 027 · Recorrer la hoja paso por paso
 
+> Desde la 022 la OF de otro largo **no** lleva ⚠ (dueño, 2026-11-06): en B queda «1 por resolver»
+> (el sin ubicar) y en B → C se resuelve uno solo.
+
 A 360 × 800, en modo prueba (skill `recorrer-conductor`). Sin gasto: claves de pago vacías y
 pedidos con Plus Code (se ubican sin proveedor). Armar la ruta necesita `NEXT_PUBLIC_ORS_KEY`
 (gratis, con cupo: ~1 matriz y hasta 3 trazados por recorrido; se pregunta antes). Si Chrome no deja

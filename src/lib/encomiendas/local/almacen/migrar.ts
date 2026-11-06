@@ -40,6 +40,8 @@ export function alDia(pedido: Pedido): Pedido {
     montoPorPagar: pedido.montoPorPagar ?? null,
     folioGuia: pedido.folioGuia ?? null,
     origenCarga: pedido.origenCarga ?? "manual",
+    // Spec 022: los pedidos de antes no tienen ⚠ guardados.
+    problemas: pedido.problemas ?? [],
   };
 }
 

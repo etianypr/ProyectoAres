@@ -3,7 +3,7 @@
 // AGENTS.md: cargar la guía, resolver los ⚠, armar la ruta, cargar el auto,
 // recorrer y cerrar el día. Puro.
 
-import { sinEtiquetaEscaneada, type Pedido, type Ruta } from "@/lib/encomiendas/local/almacen";
+import { bultosIncompletos, sinEtiquetaEscaneada, type Pedido, type Ruta } from "@/lib/encomiendas/local/almacen";
 
 export type Paso = "guia" | "resolver" | "ruta" | "carga" | "reparto" | "cierre";
 
@@ -40,16 +40,17 @@ export function pasoDelDia({
     return cargaTerminada ? "reparto" : "carga";
   }
   if (pendientesFuera === 0) return "guia";
-  // Un ⚠ que no se arregla (una OF que de verdad viene con 8 dígitos) deja la
-  // cabecera en "resolver", pero nunca bloquea: "Armar la ruta igual" está ahí.
+  // Un ⚠ que no se arregla deja la cabecera en "resolver" hasta marcarlo («Va
+  // igual», «Es así»), pero nunca bloquea: "Armar la ruta igual" está ahí.
   return conProblema > 0 ? "resolver" : "ruta";
 }
 
 /** Si ya terminó de cargar el auto: salió a repartir (lo anotó él o el último
  *  escaneo, ver Ruta.inicioReparto), ya cerró alguna parada, o no queda paquete
- *  de la guía sin escanear (un día cargado a mano no tiene nada que escanear). */
+ *  de la guía sin escanear, ni bultos sueltos de un envío (spec 022). Un día
+ *  cargado a mano no tiene nada que escanear. */
 export function cargaTerminada(ruta: Pick<Ruta, "inicioReparto"> | null, pedidos: Pedido[]): boolean {
   if (ruta?.inicioReparto) return true;
   if (pedidos.some((p) => p.resultado !== "pendiente")) return true;
-  return sinEtiquetaEscaneada(pedidos).length === 0;
+  return sinEtiquetaEscaneada(pedidos).length === 0 && bultosIncompletos(pedidos).length === 0;
 }

@@ -287,6 +287,7 @@ export function medir(
     bloquesCumplidos: conBloque - fuera.length,
     bloquesIncumplidos: fuera.length,
     fueraDeHorario: fuera.map((p) => nombreVisible(p)),
+    fueraDeHorarioIds: fuera.map((p) => p.id),
   };
 }
 

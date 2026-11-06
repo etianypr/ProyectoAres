@@ -37,6 +37,7 @@ import { usePropuesta } from "./_hooks/use-propuesta";
 import { CabeceraHoja } from "./_componentes/cabecera-hoja";
 import { pasoDelDia } from "./_hooks/paso-del-dia";
 import { useResolverProblemas } from "./_hooks/use-resolver-problemas";
+import { avisoAdelante, lineaAvisoAdelante } from "./_hooks/aviso-adelante";
 import { useCargaAuto } from "./_hooks/use-carga-auto";
 import { problemasDelPedido } from "@/lib/encomiendas/problemas";
 import { ControlesMapa } from "./_componentes/controles-mapa";
@@ -134,9 +135,7 @@ export function PantallaEncomiendas({
   const ventanas = useVentanas();
   const { setCargandoGuia, setEscaneando } = ventanas;
   // La ruta propuesta a la vista, elegir otra alternativa y usarla.
-  const { propuesta, setPropuesta, onElegirAlternativa, onUsarPropuesta, quitado, onQuitar, onDeshacerQuitar } = usePropuesta({
-    dia,
-  });
+  const { propuesta, setPropuesta, onElegirAlternativa, onUsarPropuesta, quitado, onQuitar, onDeshacerQuitar } = usePropuesta({ dia });
   const carga = useCargaAuto({ dia, fecha });
   const [ofParaNuevo, setOfParaNuevo] = useState<string | undefined>(undefined);
   const nuevoPedido = (of?: string) => {
@@ -147,11 +146,7 @@ export function PantallaEncomiendas({
   // cuántos hay y con el largo del mensaje de un fallo.
   const [altoNotificaciones, setAltoNotificaciones] = useState(0);
 
-  const {
-    ubicacion: miUbicacion,
-    error: errorUbicacion,
-    pedirAhora: pedirUbicacion,
-  } = useUbicacionActual(true);
+  const { ubicacion: miUbicacion, error: errorUbicacion, pedirAhora: pedirUbicacion } = useUbicacionActual(true);
 
   // Modo navegación (seguir la ubicación). Soltado a mano se queda soltado: el
   // mapa espera donde el conductor lo dejó hasta que toque el botón de fijar.
@@ -184,7 +179,9 @@ export function PantallaEncomiendas({
     deshacer: () => void onDeshacer(),
   };
   const enAres = ventanas.cargandoGuia;
-  const burbuja = useBurbuja({ fecha, activa, fase, whatsapp, deshacer, confirmacion, enAres, acciones });
+  // Un pedido con ⚠ a una o dos paradas (spec 022): en la cabecera y en la burbuja.
+  const adelante = avisoAdelante(paradas, activa?.pedido.id ?? null);
+  const burbuja = useBurbuja({ fecha, activa, fase, whatsapp, deshacer, confirmacion, enAres, acciones, adelante: adelante && lineaAvisoAdelante(adelante) });
 
   const ayer = useResumenAyer(fecha);
 
@@ -241,7 +238,7 @@ export function PantallaEncomiendas({
       paso={paso}
       parada={
         activa
-          ? { activa, fase, whatsapp, guardando, seAproximaSinContacto, faltan, onBoton: (id) => atenderBoton(id, acciones),
+          ? { activa, fase, whatsapp, guardando, seAproximaSinContacto, faltan, onBoton: (id) => atenderBoton(id, acciones), adelante, onLlamarA: onLlamar, onVer: setFormPedido,
               onNavegar: destinoActivo ? () => void burbuja.navegar() : undefined }
           : null
       }

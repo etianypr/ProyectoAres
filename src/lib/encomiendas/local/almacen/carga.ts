@@ -58,6 +58,7 @@ export function crearDesdeGuia(
         montoPorPagar: null,
         folioGuia: folio,
         origenCarga: origen,
+        problemas: [],
       });
     }
     await escribir([STORES.pedidos], ({ guardar }) => {
@@ -144,6 +145,19 @@ export function avanceCarga(pedidos: Pedido[]): { escaneados: number; total: num
   return { escaneados: deLaGuia.filter((p) => p.bultosEscaneados.length > 0).length, total: deLaGuia.length };
 }
 
+/** Envíos de la guía con algún bulto escaneado pero no todos (spec 022): siguen
+ *  en "Faltan" hasta que llegue el que falta. */
+export function bultosIncompletos(pedidos: Pedido[]): Pedido[] {
+  return pedidos.filter(
+    (p) =>
+      p.origenCarga.startsWith("guia") &&
+      p.resultado === "pendiente" &&
+      p.bultos != null &&
+      p.bultosEscaneados.length > 0 &&
+      p.bultosEscaneados.length < p.bultos,
+  );
+}
+
 export function aplicarLecturaEtiqueta(fecha: string, lectura: LecturaParaAplicar): Promise<ResultadoEscaneo | null> {
   return enFila(async () => {
     const [pedidos, ruta] = await Promise.all([leerPedidos(fecha), leerRuta(fecha)]);
@@ -151,6 +165,17 @@ export function aplicarLecturaEtiqueta(fecha: string, lectura: LecturaParaAplica
     if (!pedido) return null;
 
     const { escaneados, aMano } = contarBulto(pedido.bultosEscaneados, lectura);
+    // La etiqueta dice otra dirección que la guía: no se cambia sola (FR-014),
+    // pero queda como ⚠ en el pedido hasta que el conductor elija (spec 022).
+    const distinta =
+      lectura.direccion && comparable(lectura.direccion) !== comparable(pedido.direccion) ? lectura.direccion : null;
+    const problemas =
+      lectura.direccion == null
+        ? pedido.problemas
+        : [
+            ...pedido.problemas.filter((x) => x.tipo !== "etiqueta_otra_direccion"),
+            ...(distinta ? [{ tipo: "etiqueta_otra_direccion" as const, direccion: distinta }] : []),
+          ];
     // Más bultos escaneados que los que se sabían: el envío tiene uno más.
     const conocidos = lectura.bultosTotal ?? pedido.bultos;
     const actualizado: Pedido = {
@@ -162,13 +187,12 @@ export function aplicarLecturaEtiqueta(fecha: string, lectura: LecturaParaAplica
       porPagar: lectura.porPagar !== undefined && lectura.porPagar !== null ? lectura.porPagar : pedido.porPagar,
       montoPorPagar: lectura.montoPorPagar ?? pedido.montoPorPagar,
       referencia: lectura.referencia ?? pedido.referencia,
+      problemas,
     };
     await escribir([STORES.pedidos], ({ guardar }) => guardar(STORES.pedidos, actualizado));
 
     const enRuta = pedidosEnOrden(ruta, pedidos);
     const indice = enRuta.findIndex((p) => p.id === pedido.id);
-    const distinta =
-      lectura.direccion && comparable(lectura.direccion) !== comparable(pedido.direccion) ? lectura.direccion : null;
     return {
       pedido: actualizado,
       parada: indice >= 0 ? { n: indice + 1, total: enRuta.length } : null,
