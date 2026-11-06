@@ -58,7 +58,7 @@ export function EscanearEtiqueta({
       }
       let r: ResultadoEscaneo | null;
       try {
-        r = await aplicarLecturaEtiqueta(fecha, codigo);
+        r = await aplicarLecturaEtiqueta(fecha, { ...codigo, escaneo: true });
       } catch {
         // Si falla el guardado local, no puede quedar "Abriendo el escáner…"
         // para siempre (spec 017, E12).

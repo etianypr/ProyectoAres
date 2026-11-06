@@ -5,7 +5,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 const { faseDeParada, SALIDAS } = await import("@/app/(conductor)/conductor/encomiendas/_hooks/fase-parada");
-const { cifrasPantalla } = await import("@/app/(conductor)/conductor/encomiendas/_hooks/cifras-pantalla");
+const { cifrasPantalla, cierreDelDia } = await import("@/app/(conductor)/conductor/encomiendas/_hooks/cifras-pantalla");
 
 const parada = (pedido = {}, hayQueContactar = true) => ({
   pedido: { id: "p1", llamada: null, ...pedido },
@@ -41,4 +41,61 @@ test("cifrasPantalla: fuera de la ruta, sin ubicar y avance de la ruta", () => {
   assert.equal(c.noEntregadas, 1);
   assert.equal(c.porcentaje, 50);
   assert.equal(cifrasPantalla([], []).porcentaje, 0);
+});
+
+// ------------------------------------------------- spec 027: el paso del día
+const { pasoDelDia, cargaTerminada, PASOS } = await import(
+  "@/app/(conductor)/conductor/encomiendas/_hooks/paso-del-dia"
+);
+
+const dia = (extra = {}) => ({
+  hayRuta: false,
+  hayActiva: false,
+  pendientesFuera: 0,
+  conProblema: 0,
+  cargaTerminada: false,
+  ...extra,
+});
+
+test("pasoDelDia: sin ruta, guía → resolver ⚠ → armar la ruta", () => {
+  assert.equal(pasoDelDia(dia()), "guia", "el día parte vacío");
+  assert.equal(pasoDelDia(dia({ pendientesFuera: 42, conProblema: 4 })), "resolver");
+  assert.equal(pasoDelDia(dia({ pendientesFuera: 42 })), "ruta", "todo ubicado y sin ⚠");
+});
+
+test("pasoDelDia: con ruta, cargar el auto → recorrer → cerrar el día", () => {
+  assert.equal(pasoDelDia(dia({ hayRuta: true, hayActiva: true })), "carga", "la parada 1 no aparece en la central");
+  assert.equal(pasoDelDia(dia({ hayRuta: true, hayActiva: true, cargaTerminada: true })), "reparto");
+  assert.equal(pasoDelDia(dia({ hayRuta: true, hayActiva: false })), "cierre", "todas las paradas cerradas");
+  // Un pedido que llega tarde (fuera de la ruta, con ⚠) no saca al conductor del reparto.
+  assert.equal(
+    pasoDelDia(dia({ hayRuta: true, hayActiva: true, cargaTerminada: true, pendientesFuera: 1, conProblema: 1 })),
+    "reparto",
+  );
+});
+
+test("PASOS: seis, en el orden del flujo de AGENTS.md", () => {
+  assert.deepEqual(
+    PASOS.map((p) => p.paso),
+    ["guia", "resolver", "ruta", "carga", "reparto", "cierre"],
+  );
+});
+
+test("cargaTerminada: salió, cerró una parada o no queda nada de la guía por escanear", () => {
+  const p = (extra = {}) => ({ origenCarga: "guia_foto", bultosEscaneados: [], resultado: "pendiente", ...extra });
+  const sinEscanear = [p(), p({ bultosEscaneados: [1] })];
+  assert.equal(cargaTerminada({ inicioReparto: null }, sinEscanear), false, "recién armada, falta uno");
+  assert.equal(cargaTerminada(null, sinEscanear), false);
+  assert.equal(cargaTerminada({}, sinEscanear), false, "una ruta guardada antes de la 027 no tiene el campo");
+  assert.equal(cargaTerminada({ inicioReparto: "2026-11-06T12:00:00.000Z" }, sinEscanear), true, "tocó «Salir a repartir»");
+  assert.equal(cargaTerminada({ inicioReparto: null }, [...sinEscanear, p({ resultado: "entregado" })]), true, "ya entregó uno");
+  assert.equal(cargaTerminada({ inicioReparto: null }, [p({ bultosEscaneados: [1] })]), true, "todo escaneado");
+  assert.equal(cargaTerminada({ inicioReparto: null }, [p({ origenCarga: "manual" })]), true, "lo cargado a mano no se escanea");
+});
+
+test("cierreDelDia: cuenta todo el día, como la pantalla de cierre (spec 027)", () => {
+  const p = (resultado) => ({ resultado });
+  // 3 entregados, 1 no entregado en la ruta y 1 que nunca entró (sin ubicar).
+  const pedidos = [p("entregado"), p("entregado"), p("entregado"), p("no_entregado"), p("pendiente")];
+  assert.deepEqual(cierreDelDia(pedidos), { entregadas: 3, noEntregadas: 2 });
 });

@@ -34,6 +34,7 @@ export function VistaPedido({
   pedido,
   fecha,
   ofInicial,
+  titulo,
   onCerrar,
   onGuardado,
 }: {
@@ -43,6 +44,8 @@ export function VistaPedido({
   ofInicial?: string;
   /** Día de trabajo de un pedido nuevo. */
   fecha: string;
+  /** Resolviendo los ⚠ de a uno (spec 027): "⚠ 1 de 4". */
+  titulo?: string;
   onCerrar: () => void;
   /** El aviso que devuelve el formulario: null si todo salió limpio, o el texto
    *  de una advertencia que hay que dejar escrita (una dirección que no se pudo
@@ -67,7 +70,7 @@ export function VistaPedido({
           <ArrowLeft className="h-5 w-5" />
         </button>
         <p className="min-w-0 flex-1 truncate font-semibold">
-          {pedido ? "Editar pedido" : "Nuevo pedido"}
+          {titulo ?? (pedido ? "Editar pedido" : "Nuevo pedido")}
         </p>
         <button
           type="button"

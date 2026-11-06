@@ -4,7 +4,7 @@
 // usarla (sale de pantalla.tsx, spec 002 T036).
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { sinEtiquetaEscaneada, type PedidoEliminado } from "@/lib/encomiendas/local/almacen";
+import type { PedidoEliminado } from "@/lib/encomiendas/local/almacen";
 import {
   confirmarRutaLocal,
   devolverParada,
@@ -22,14 +22,7 @@ export type QuitadoDeLaPropuesta = { recibo: PedidoEliminado; parada: PedidoUbic
 
 const idsDe = (p: PropuestaRuta) => p.paradas.map((x) => x.id).join();
 
-export function usePropuesta({
-  dia,
-  alArmar,
-}: {
-  dia: DiaEnCurso;
-  /** Armada la ruta: cuántos paquetes de la guía falta escanear (abre el aviso). */
-  alArmar: (faltan: number) => void;
-}) {
+export function usePropuesta({ dia }: { dia: DiaEnCurso }) {
   const [propuesta, setPropuestaEstado] = useState<PropuestaRuta | null>(null);
   const [quitado, setQuitado] = useState<QuitadoDeLaPropuesta | null>(null);
   // La última propuesta, para lo que termina después de un await: dos pedidos
@@ -101,10 +94,8 @@ export function usePropuesta({
     await confirmarRutaLocal(propuesta);
     await dia.recargar();
     setPropuesta(null);
-    // Armada la ruta, lo que sigue es cargar el auto: se abre el aviso con el
-    // botón para escanear los paquetes (terreno 2026-10-27).
-    const faltan = sinEtiquetaEscaneada(propuesta.paradas).length;
-    if (faltan > 0) alArmar(faltan);
+    // Armada la ruta, lo que sigue es cargar el auto: lo pide la cabecera de la
+    // hoja (spec 027), sin una ventana encima que se cierra por error.
     // Acá se cumple FR-007: el aviso sale en cuanto el pedido queda ubicado
     // DENTRO de una ruta, no al cargarlo. Antes de eso no hay nada que
     // prometerle al receptor — todavía podía caerse por una dirección que no se
@@ -115,7 +106,7 @@ export function usePropuesta({
     // que falló queda en el estado de cada pedido (dia.whatsapp), con su
     // botón de reintentar al lado.
     void dia.avisarPedidos(enLaRuta);
-  }, [propuesta, dia, alArmar, setPropuesta]);
+  }, [propuesta, dia, setPropuesta]);
 
   return { propuesta, setPropuesta, onElegirAlternativa, onUsarPropuesta, quitado, onQuitar, onDeshacerQuitar };
 }

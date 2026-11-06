@@ -1,20 +1,23 @@
 "use client";
 
 // Las ventanas que se abren ENCIMA de la pantalla del conductor —el menú, cargar la
-// guía, "ahora carga el auto", el escáner, buscar por OF y el cierre del día— y
-// su estado (sale de pantalla.tsx, spec 002 T037).
+// guía, el escáner, buscar por OF y el cierre del día— y su estado (sale de
+// pantalla.tsx, spec 002 T037). La de "ahora carga el auto" se fue con la spec
+// 027: lo pide la cabecera de la hoja.
 
 import { useState } from "react";
 import { logout } from "@/lib/auth/acciones";
-import { avanceCarga, leerDias, type ResumenDia } from "@/lib/encomiendas/local/almacen";
+import { avanceCarga, leerDias, type Pedido, type ResumenDia } from "@/lib/encomiendas/local/almacen";
+import type { PropuestaRuta } from "@/lib/encomiendas/local/generar-ruta";
+import { problemasDelPedido } from "@/lib/encomiendas/problemas";
 import type { DiaEnCurso } from "../_hooks/use-dia-trabajo";
 import type { useCierreDia } from "../_hooks/use-cierre-dia";
 import { Ayuda } from "./ayuda";
-import { AvisoCargarAuto } from "./aviso-cargar-auto";
 import { BuscarOf } from "./buscar-of";
 import { CargarGuia } from "./cargar-guia";
 import { CierreDia } from "./cierre-dia";
 import { EscanearEtiqueta } from "./escanear-etiqueta";
+import { GenerarRutaLocal } from "./generar-ruta-local";
 import { MenuLateral } from "./menu-lateral";
 
 export function useVentanas() {
@@ -29,8 +32,6 @@ export function useVentanas() {
   /** La carga de la guía está ubicando direcciones: no se puede cerrar. */
   const [guiaOcupada, setGuiaOcupada] = useState(false);
   const [escaneando, setEscaneando] = useState(false);
-  /** Recién armada la ruta: cuántos paquetes de la guía falta escanear (abre el aviso). */
-  const [pedirCarga, setPedirCarga] = useState<number | null>(null);
   /** Cómo se usa la app (ver ayuda.tsx). */
   const [ayudaAbierta, setAyudaAbierta] = useState(false);
 
@@ -50,8 +51,6 @@ export function useVentanas() {
     setGuiaOcupada,
     escaneando,
     setEscaneando,
-    pedirCarga,
-    setPedirCarga,
     ayudaAbierta,
     setAyudaAbierta,
   };
@@ -67,6 +66,9 @@ export function VentanasPantalla({
   dia,
   cierreDia,
   onNuevoConOf,
+  direccionEmpresa,
+  onPropuesta,
+  onResolver,
 }: {
   ventanas: Ventanas;
   fecha: string;
@@ -76,7 +78,13 @@ export function VentanasPantalla({
   cierreDia: ReturnType<typeof useCierreDia>;
   /** El escáner leyó una OF que no está en el día: abrir un pedido nuevo con ella. */
   onNuevoConOf: (of: string) => void;
+  /** Para armar la ruta al terminar de cargar la guía (spec 027). */
+  direccionEmpresa: string | null;
+  onPropuesta: (propuesta: PropuestaRuta) => void;
+  /** Abre de a uno los pedidos con ⚠ (useResolverProblemas). */
+  onResolver: (conProblema: Pedido[]) => void;
 }) {
+  const conProblema = dia.pedidos.filter((p) => p.resultado === "pendiente" && problemasDelPedido(p).length > 0);
   return (
     <>
       {v.menuAbierto ? (
@@ -110,17 +118,22 @@ export function VentanasPantalla({
           onCerrar={() => v.setCargandoGuia(false)}
           onCreados={() => void dia.recargar()}
           onAyuda={() => v.setAyudaAbierta(true)}
-        />
-      ) : null}
-
-      {v.pedirCarga != null && !v.escaneando ? (
-        <AvisoCargarAuto
-          faltan={v.pedirCarga}
-          onEscanear={() => {
-            v.setPedirCarga(null);
-            v.setEscaneando(true);
+          conProblema={conProblema.length}
+          onResolver={() => {
+            v.setCargandoGuia(false);
+            onResolver(conProblema);
           }}
-          onDespues={() => v.setPedirCarga(null)}
+          armar={(enlace) => (
+            <GenerarRutaLocal
+              fecha={fecha}
+              direccionEmpresa={direccionEmpresa}
+              enlace={enlace}
+              onPropuesta={(p) => {
+                v.setCargandoGuia(false);
+                onPropuesta(p);
+              }}
+            />
+          )}
         />
       ) : null}
 

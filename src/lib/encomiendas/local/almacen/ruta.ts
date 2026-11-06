@@ -163,6 +163,8 @@ export function guardarRuta(entrada: EntradaRuta): Promise<Ruta> {
       // no estaba terminada. El servidor la vuelve a valorar cuando se cierre
       // otra vez (0032).
       cierre: null,
+      // Rehacer la ruta no devuelve al conductor a cargar el auto (spec 027).
+      inicioReparto: anterior?.inicioReparto ?? null,
       // Las advertencias son de ESTE cálculo y reemplazan a las anteriores: una
       // dirección que el conductor ya corrigió no puede seguir avisando.
       advertencias: entrada.advertencias ?? [],
@@ -172,6 +174,19 @@ export function guardarRuta(entrada: EntradaRuta): Promise<Ruta> {
 
     await escribir([STORES.rutas], ({ guardar }) => guardar(STORES.rutas, ruta));
     return ruta;
+  });
+}
+
+/** Anota que el conductor salió a repartir (spec 027, ver Ruta.inicioReparto).
+ *  Una sola vez: volver a marcarlo no mueve la hora. Sin ruta no hace nada. */
+export function marcarInicioReparto(fecha: string): Promise<Ruta | null> {
+  return enFila(async () => {
+    const ruta = await leerRuta(fecha);
+    if (!ruta || ruta.inicioReparto) return ruta;
+
+    const conSalida: Ruta = { ...ruta, inicioReparto: new Date().toISOString() };
+    await escribir([STORES.rutas], ({ guardar }) => guardar(STORES.rutas, conSalida));
+    return conSalida;
   });
 }
 

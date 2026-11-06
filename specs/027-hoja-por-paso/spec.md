@@ -34,7 +34,9 @@ Decidido con el dueño (2026-11-06):
 |---|---|
 | El botón de la cabecera arma la ruta aunque haya dudas | «Resolver los N ⚠»: abre el primero en la hoja y, al guardarlo, el siguiente |
 | Armar es lo único | «Armar la ruta igual» queda como enlace |
-| Los en duda, mezclados entre todos; solo «Sin ubicar» se marca | «Por resolver» primero, cada uno con su problema escrito (sin ubicar, OF de N dígitos, sin OF); después «Listos», plegados en una fila |
+| La ventana de la guía termina en «Armar la ruta», que solo la cierra | Con ⚠: «Resolver los N ⚠» y el enlace «Armar la ruta igual» (que la arma); sin ⚠, «Armar la ruta» la arma |
+| Armada la ruta, los ⚠ quedan sueltos en la lista | «Por resolver · N» con «Resolver los N ⚠», adentro de la hoja al cargar el auto y al recorrer |
+| Los en duda, mezclados entre todos; solo «Sin ubicar» se marca | «Por resolver» primero, cada uno con su problema escrito (sin ubicar, OF con menos o más de 9 dígitos —«OF de 8 dígitos», «OF de 10 dígitos»—, sin OF); después «Listos», plegados en una fila |
 
 ## C (P2) · Todo ubicado, falta la ruta
 
@@ -52,6 +54,11 @@ Decidido con el dueño (2026-11-06):
 | El avance de la carga, adentro (no se ve con la hoja cerrada) | Adentro, «Faltan» con el número de parada de cada uno |
 | El resumen de entregadas arriba del mapa | Se muestra al salir a repartir |
 
+- Bultos (decidido con el dueño, 2026-11-06): el código trae el número de bulto; uno nuevo suma y la
+  misma etiqueta leída otra vez no (es la misma caja). La **OF escrita a mano** (código dañado) suma
+  un bulto cada vez, con el primer número libre, y cuenta para «Cargar el auto». Si después se lee la
+  etiqueta de esa caja (foto o texto), su número reemplaza al provisorio. Más bultos escaneados que
+  los conocidos suben el total del envío. Sin campo nuevo en el pedido.
 - La carga termina al escanear todo, al tocar «Salir a repartir» o al cerrar la primera parada.
   No bloquea: lo no escaneado sigue en «Faltan» (plegado durante el reparto) y, si no viene en el
   auto, queda en «No entregados» al cerrar el día.
@@ -66,7 +73,7 @@ Decidido con el dueño (2026-11-06):
 | Hoy | Debe |
 |---|---|
 | Adentro, «Pedidos fuera de la ruta» aunque esté vacío, con «Cargar la guía» grande | La sección aparece solo si hay alguno; «Agregar pedido · Sumar guía · Rehacer la ruta» como enlaces al final |
-| La parada con OF distinta no se marca en la lista | La fila dice su problema (OF de N dígitos, sin OF) |
+| La parada con OF distinta no se marca en la lista | La fila dice su problema (OF con menos o más de 9 dígitos, sin OF) |
 
 - La parada activa y sus botones no cambian (spec 020).
 - El aviso dos paradas antes de un ⚠ → 022.
@@ -75,7 +82,7 @@ Decidido con el dueño (2026-11-06):
 
 | Hoy | Debe |
 |---|---|
-| «¡Ruta completa!» sin botón: si se cerró el cierre con «después», no se vuelve a él | «Cerrar el día» abre la misma pantalla de cierre (spec 007) |
+| «¡Ruta completa!» sin botón: si se cerró el cierre con «después», no se vuelve a él | «Cerrar el día» abre la misma pantalla de cierre (spec 007), con las cifras de todo el día como ella |
 | Los no entregados, perdidos en la lista de la ruta | Primero «No entregados» (OF, cómo es el paquete y dirección), después lo que falta enviar, y la ruta plegada |
 | «Rehacer la ruta» sigue a la vista | Sale |
 
@@ -87,7 +94,8 @@ Decidido con el dueño (2026-11-06):
 - **FR-004** `Ruta.inicioReparto` se escribe una vez (al salir o al escanear todo) y rehacer la ruta
   no lo borra ni lo mueve. Una ruta guardada antes no lo tiene y se lee como `null`.
 - **FR-005** Sin instrucciones en pantalla: estados, datos y botones. El cómo, en la Ayuda.
-- **FR-006** Lo derivable del pedido hoy (sin ubicar, OF distinta, sin OF) sale de una función pura
+- **FR-006** Lo derivable del pedido hoy (sin ubicar, OF distinta —toda OF que no tenga exactamente 9
+  dígitos, menos o más—, sin OF) sale de una función pura
   de `lib/encomiendas/` que la 022 extiende.
 
 ## Criterios de éxito

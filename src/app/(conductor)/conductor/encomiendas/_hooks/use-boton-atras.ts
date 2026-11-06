@@ -35,7 +35,6 @@ export function useBotonAtras({
         [v.ayudaAbierta, () => v.setAyudaAbierta(false)],
         [v.buscandoOf, () => v.setBuscandoOf(false)],
         [v.escaneando, () => v.setEscaneando(false)],
-        [v.pedirCarga != null, () => v.setPedirCarga(null)],
         // Mientras se ubican las direcciones la X está deshabilitada; el botón
         // atrás tampoco la cierra (spec 017, E12).
         [v.cargandoGuia, () => (v.guiaOcupada ? undefined : v.setCargandoGuia(false))],

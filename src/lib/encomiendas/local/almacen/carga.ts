@@ -72,6 +72,13 @@ export function crearDesdeGuia(
 export type LecturaParaAplicar = {
   of: string;
   bulto: number | null;
+  /** Es un escaneo nuevo (el código leído o la OF escrita) y no un volver a
+   *  leer el pedido. Una OF escrita no trae número de bulto: igual suma uno, con
+   *  el primer número libre (spec 027). */
+  escaneo?: boolean;
+  /** El número provisorio que tomó la OF escrita: la etiqueta de esa misma caja
+   *  (foto o texto) trae el de verdad en `bulto` y lo reemplaza, sin contar dos. */
+  reemplazaBulto?: number | null;
   /** La etiqueta leída trae impresa la misma OF del código: es de ESTE paquete
    *  y lo que dice corrige lo leído antes (spec 017, E4). */
   ofConfirmada?: boolean;
@@ -90,7 +97,24 @@ export type ResultadoEscaneo = {
   parada: { n: number; total: number } | null;
   /** La dirección de la etiqueta, si no coincide con la del pedido (FR-014). */
   direccionDistinta: string | null;
+  /** El número provisorio que tomó esta OF escrita a mano; null si no hubo. */
+  bultoAMano: number | null;
 };
+
+/** Los bultos escaneados después de esta lectura (spec 027). El código trae el
+ *  número de bulto: uno nuevo suma y la misma etiqueta leída otra vez no (es la
+ *  misma caja). La OF escrita no lo trae: cada vez suma uno, con el primer
+ *  número libre. */
+function contarBulto(antes: number[], l: LecturaParaAplicar): { escaneados: number[]; aMano: number | null } {
+  if (l.bulto != null) {
+    const base = l.reemplazaBulto != null ? antes.filter((n) => n !== l.reemplazaBulto) : antes;
+    return { escaneados: base.includes(l.bulto) ? base : [...base, l.bulto].sort((a, b) => a - b), aMano: null };
+  }
+  if (!l.escaneo) return { escaneados: antes, aMano: null };
+  let libre = 1;
+  while (antes.includes(libre)) libre++;
+  return { escaneados: [...antes, libre].sort((a, b) => a - b), aMano: libre };
+}
 
 const comparable = (t: string) =>
   t
@@ -126,15 +150,14 @@ export function aplicarLecturaEtiqueta(fecha: string, lectura: LecturaParaAplica
     const pedido = pedidos.find((p) => p.of === lectura.of);
     if (!pedido) return null;
 
-    const escaneados =
-      lectura.bulto != null && !pedido.bultosEscaneados.includes(lectura.bulto)
-        ? [...pedido.bultosEscaneados, lectura.bulto].sort((a, b) => a - b)
-        : pedido.bultosEscaneados;
+    const { escaneados, aMano } = contarBulto(pedido.bultosEscaneados, lectura);
+    // Más bultos escaneados que los que se sabían: el envío tiene uno más.
+    const conocidos = lectura.bultosTotal ?? pedido.bultos;
     const actualizado: Pedido = {
       ...pedido,
       nombre: (lectura.ofConfirmada && lectura.destinatario) || pedido.nombre || lectura.destinatario || "",
       telefono: (lectura.ofConfirmada && lectura.telefono) || pedido.telefono || lectura.telefono || "",
-      bultos: lectura.bultosTotal ?? pedido.bultos,
+      bultos: escaneados.length > (conocidos ?? 1) ? escaneados.length : conocidos,
       bultosEscaneados: escaneados,
       porPagar: lectura.porPagar !== undefined && lectura.porPagar !== null ? lectura.porPagar : pedido.porPagar,
       montoPorPagar: lectura.montoPorPagar ?? pedido.montoPorPagar,
@@ -150,6 +173,7 @@ export function aplicarLecturaEtiqueta(fecha: string, lectura: LecturaParaAplica
       pedido: actualizado,
       parada: indice >= 0 ? { n: indice + 1, total: enRuta.length } : null,
       direccionDistinta: distinta,
+      bultoAMano: aMano,
     };
   });
 }

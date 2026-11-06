@@ -38,6 +38,7 @@ export function GenerarRutaLocal({
   fecha,
   direccionEmpresa,
   regenerar = false,
+  enlace,
   onPropuesta,
 }: {
   fecha: string;
@@ -45,6 +46,9 @@ export function GenerarRutaLocal({
    *  página desde la base y lo pasa acá. */
   direccionEmpresa: string | null;
   regenerar?: boolean;
+  /** Un enlace con este texto en vez del botón, y sin elegir desde dónde: es
+   *  «Armar la ruta igual» con pedidos en duda (spec 027, paso 2). */
+  enlace?: string;
   onPropuesta: (propuesta: PropuestaRuta) => void;
 }) {
   // Desde DONDE arranca la ruta. Por defecto, desde la central de carga de
@@ -130,6 +134,23 @@ export function GenerarRutaLocal({
   const ocupado = armando || obteniendoUbicacion;
   const elegida = OPCIONES.find((o) => o.valor === opcion)!;
 
+  if (enlace) {
+    return (
+      <div className="space-y-2">
+        {armando ? <BuscandoRuta /> : null}
+        <button
+          type="button"
+          onClick={onClick}
+          disabled={ocupado}
+          className="flex w-full items-center justify-center gap-1.5 py-1 text-sm font-semibold text-brand disabled:opacity-50"
+        >
+          {obteniendoUbicacion ? "Obteniendo ubicación…" : armando ? "Armando la ruta…" : enlace}
+        </button>
+        {error ? <p className="rounded-lg bg-danger-bg px-3 py-2 text-xs text-danger">{error}</p> : null}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-2">
       {armando ? <BuscandoRuta /> : null}
@@ -140,8 +161,8 @@ export function GenerarRutaLocal({
           : armando
             ? "Armando la ruta…"
             : regenerar
-              ? "Regenerar ruta"
-              : "Generar ruta del día"}
+              ? "Rehacer la ruta"
+              : "Armar la ruta"}
       </Button>
 
       <button

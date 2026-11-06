@@ -1,8 +1,9 @@
 "use client";
 
 // Encomiendas del conductor — una sola pantalla: mapa a pantalla completa y, abajo,
-// una hoja deslizable cuya cabecera ES la parada activa con el botón de su paso
-// (lo único que se usa manejando). La carga de pedidos se abre DENTRO de la hoja
+// una hoja deslizable cuya cabecera ES el paso del día que toca con su botón
+// (spec 027): cargar la guía, resolver los ⚠, armar la ruta, cargar el auto, la
+// parada activa (lo único que se usa manejando) o cerrar el día. La carga de pedidos se abre DENTRO de la hoja
 // (prop "vista"), debajo de la misma cabecera. Las piezas viven en _hooks/ y
 // _componentes/ (spec 002, T035–T037); esta pantalla las une.
 
@@ -26,18 +27,20 @@ import { atenderBoton, type AccionesParada } from "./_hooks/botones-parada";
 import { useBrujula } from "./_hooks/use-brujula";
 import { useCierreDia } from "./_hooks/use-cierre-dia";
 import { useFechaDelDia } from "./_hooks/use-fecha-del-dia";
-import { ParadaActiva } from "./_componentes/parada-activa";
 import { faseDeParada, type Fase } from "./_hooks/fase-parada";
 import { useVentanas, VentanasPantalla } from "./_componentes/ventanas-pantalla";
 import { useBotonAtras } from "./_hooks/use-boton-atras";
-import { cifrasPantalla } from "./_hooks/cifras-pantalla";
+import { cierreDelDia, cifrasPantalla } from "./_hooks/cifras-pantalla";
 import { ContenidoHoja } from "./_componentes/contenido-hoja";
 import { CarrilSuperior, ResumenDelDia } from "./_componentes/carril-superior";
 import { usePropuesta } from "./_hooks/use-propuesta";
-import { CabeceraSinParada } from "./_componentes/cabecera-sin-parada";
+import { CabeceraHoja } from "./_componentes/cabecera-hoja";
+import { pasoDelDia } from "./_hooks/paso-del-dia";
+import { useResolverProblemas } from "./_hooks/use-resolver-problemas";
+import { useCargaAuto } from "./_hooks/use-carga-auto";
+import { problemasDelPedido } from "@/lib/encomiendas/problemas";
 import { ControlesMapa } from "./_componentes/controles-mapa";
 import { VistaPedido } from "./_componentes/vista-pedido";
-import { GenerarRutaLocal } from "./_componentes/generar-ruta-local";
 import { VistaPreviaRuta } from "./_componentes/vista-previa-ruta";
 import { useModoPrueba } from "@/lib/encomiendas/local/modo-prueba";
 import { CintaModoPrueba } from "./_componentes/cinta-modo-prueba";
@@ -121,18 +124,20 @@ export function PantallaEncomiendas({
   // La vista de formulario abierta dentro de la hoja: "nuevo" o el pedido que se
   // está corrigiendo. null = cerrada.
   const [formPedido, setFormPedido] = useState<"nuevo" | Pedido | null>(null);
+  // «Resolver los ⚠» de a uno (spec 027).
+  const resolver = useResolverProblemas(setFormPedido);
   // Estables entre dibujados: la lista no se redibuja con cada lectura del GPS.
   const eliminarDeLaLista = useEvento((id: string) => void onEliminarPedido(id));
   const editarDeLaLista = useEvento((p: Pedido) => setFormPedido(p));
   const [alturaCerrada, setAlturaCerrada] = useState(140);
   // Las ventanas que se abren encima (ver _componentes/ventanas-pantalla.tsx).
   const ventanas = useVentanas();
-  const { setCargandoGuia, setEscaneando, setPedirCarga } = ventanas;
+  const { setCargandoGuia, setEscaneando } = ventanas;
   // La ruta propuesta a la vista, elegir otra alternativa y usarla.
   const { propuesta, setPropuesta, onElegirAlternativa, onUsarPropuesta, quitado, onQuitar, onDeshacerQuitar } = usePropuesta({
     dia,
-    alArmar: setPedirCarga,
   });
+  const carga = useCargaAuto({ dia, fecha });
   const [ofParaNuevo, setOfParaNuevo] = useState<string | undefined>(undefined);
   const nuevoPedido = (of?: string) => {
     setOfParaNuevo(of);
@@ -188,7 +193,7 @@ export function PantallaEncomiendas({
     cierreDia,
     ventanas,
     despues: [
-      [formPedido != null, () => setFormPedido(null)],
+      [formPedido != null, resolver.cerrar],
       [propuesta != null, () => setPropuesta(null)],
       [dandoResultadoDe != null, () => setDandoResultadoDe(null)],
     ],
@@ -204,10 +209,14 @@ export function PantallaEncomiendas({
   if (dia.error) return <PantallaError error={dia.error} logout={logout} />;
 
   const { sinRutear, sinUbicar, entregadas, noEntregadas, porcentaje } = cifrasPantalla(paradas, pedidos);
+  // El paso del día decide la cabecera de la hoja y lo de adentro (spec 027).
+  const conProblema = pedidos.filter((p) => p.resultado === "pendiente" && problemasDelPedido(p).length > 0);
+  const paso = pasoDelDia({ hayRuta, hayActiva: activa != null, pendientesFuera: sinRutear.length, conProblema: conProblema.length, cargaTerminada: carga.terminada });
 
-  // Cómo va el día, en el carril de arriba (ver ResumenDelDia).
+  // Cómo va el día, en el carril de arriba (ver ResumenDelDia). Cargando el auto
+  // no: competía con el contador de escaneados.
   const resumenDelDia =
-    hayRuta && !propuesta ? <ResumenDelDia entregadas={entregadas} total={paradas.length} noEntregadas={noEntregadas} /> : null;
+    (paso === "reparto" || paso === "cierre") && !propuesta ? <ResumenDelDia entregadas={entregadas} total={paradas.length} noEntregadas={noEntregadas} /> : null;
 
   // Los avisos de arriba (ver _componentes/notificaciones-pantalla.tsx).
   const notificaciones = armarNotificaciones({
@@ -225,36 +234,32 @@ export function PantallaEncomiendas({
     confirmacion,
   });
 
-  // La cabecera de la hoja, lo único visible manejando: el paso que toca AHORA.
-  // Sin ruta (o cargando pedidos) es cargar o armar; con ruta, la parada activa.
-  const cabecera = !hayRuta || !activa ? (
-    <CabeceraSinParada
-      cargando={formPedido != null}
-      hayRuta={hayRuta}
-      sinRutear={sinRutear.length}
-      nombreConductor={nombreConductor}
-      entregadas={entregadas}
-      noEntregadas={noEntregadas}
-      onCargarGuia={() => setCargandoGuia(true)}
-      armarRuta={
-        <GenerarRutaLocal
-          fecha={fecha}
-          direccionEmpresa={direccionEmpresa}
-          regenerar={false}
-          onPropuesta={setPropuesta}
-        />
+  // La cabecera de la hoja, lo único visible con la hoja cerrada: el paso que
+  // toca AHORA (spec 027). Recorriendo, la parada activa (spec 020).
+  const cabecera = (
+    <CabeceraHoja
+      paso={paso}
+      parada={
+        activa
+          ? { activa, fase, whatsapp, guardando, seAproximaSinContacto, faltan, onBoton: (id) => atenderBoton(id, acciones),
+              onNavegar: destinoActivo ? () => void burbuja.navegar() : undefined }
+          : null
       }
-    />
-  ) : (
-    <ParadaActiva
-      activa={activa}
-      fase={fase}
-      whatsapp={whatsapp}
+      carga={carga}
       guardando={guardando}
-      seAproximaSinContacto={seAproximaSinContacto}
-      faltan={faltan}
-      onNavegar={destinoActivo ? () => void burbuja.navegar() : undefined}
-      onBoton={(id) => atenderBoton(id, acciones)}
+      cargando={formPedido === "nuevo" && !hayRuta}
+      cifras={{ pendientes: sinRutear.length, conProblema: conProblema.length, ...cierreDelDia(pedidos) }}
+      diaCerrado={dia.ruta?.cierre != null}
+      nombreConductor={nombreConductor}
+      fecha={fecha}
+      direccionEmpresa={direccionEmpresa}
+      onCargarGuia={() => setCargandoGuia(true)}
+      onAgregar={() => nuevoPedido()}
+      onResolver={() => resolver.empezar(conProblema)}
+      onPropuesta={setPropuesta}
+      onEscanear={() => setEscaneando(true)}
+      onSalir={() => void correr(carga.salir)}
+      onCerrarDia={cierreDia.reabrir}
     />
   );
 
@@ -294,6 +299,9 @@ export function PantallaEncomiendas({
         dia={dia}
         cierreDia={cierreDia}
         onNuevoConOf={nuevoPedido}
+        direccionEmpresa={direccionEmpresa}
+        onPropuesta={setPropuesta}
+        onResolver={resolver.empezar}
       />
 
       <CarrilSuperior
@@ -325,17 +333,19 @@ export function PantallaEncomiendas({
         vista={
           formPedido ? (
             <VistaPedido
+              // Resolviendo los ⚠ se pasa de uno a otro: el formulario empieza de cero.
+              key={formPedido === "nuevo" ? "nuevo" : formPedido.id}
               pedido={formPedido === "nuevo" ? undefined : formPedido}
               ofInicial={formPedido === "nuevo" ? ofParaNuevo : undefined}
               fecha={fecha}
-              onCerrar={() => setFormPedido(null)}
+              titulo={formPedido === "nuevo" ? undefined : resolver.titulo}
+              onCerrar={resolver.cerrar}
               onGuardado={(aviso) => {
                 void dia.recargar();
                 const esNuevo = formPedido === "nuevo";
-                // Corrigiendo uno, la vista se cierra sola; cargando nuevos se queda
-                // (van en tanda). Una advertencia (dirección sin ubicar) queda
-                // escrita en el formulario: no se tapa con una confirmación.
-                if (!esNuevo) setFormPedido(null);
+                // Corrigiendo se cierra o, resolviendo los ⚠, abre el siguiente; cargando
+                // nuevos se queda (van en tanda). Una advertencia queda escrita en el formulario.
+                if (!esNuevo) resolver.despuesDeGuardar(pedidos);
                 if (esNuevo && aviso == null) avisar("Pedido agregado — listo para el siguiente");
               }}
             />
@@ -343,6 +353,7 @@ export function PantallaEncomiendas({
         }
       >
         <ContenidoHoja
+          paso={paso}
           dia={dia}
           fecha={fecha}
           direccionEmpresa={direccionEmpresa}
@@ -355,7 +366,7 @@ export function PantallaEncomiendas({
           entregadas={entregadas}
           noEntregadas={noEntregadas}
           porcentaje={porcentaje}
-          onEscanear={() => setEscaneando(true)}
+          faltan={carga.faltan}
           onEliminar={eliminarDeLaLista}
           onEditar={editarDeLaLista}
           onSumar={async () => {
@@ -365,6 +376,7 @@ export function PantallaEncomiendas({
           onCargarGuia={() => setCargandoGuia(true)}
           onAgregar={() => nuevoPedido()}
           onPropuesta={setPropuesta}
+          onResolver={() => resolver.empezar(conProblema)}
         />
       </BottomSheet>
 
