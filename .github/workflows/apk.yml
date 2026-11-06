@@ -53,6 +53,31 @@ jobs:
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/ares.keystore"
           echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/ares.keystore" >> "$GITHUB_ENV"
 
+      # Dice qué secreto no calza sin mostrar ninguno: el log pide sesión de GitHub,
+      # pero las anotaciones se leen con la API pública (spec 015).
+      - name: Probar la clave
+        if: env.TIENE_FIRMA == 'true'
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          echo "::notice::Huella del keystore: $(sha256sum "$ANDROID_KEYSTORE_PATH" | cut -c1-12)"
+          if [[ "$ANDROID_KEYSTORE_PASSWORD" =~ [[:space:]] ]]; then
+            echo "::error::ANDROID_KEYSTORE_PASSWORD tiene espacios o saltos de línea"
+          fi
+          if [ "$ANDROID_KEYSTORE_PASSWORD" != "$ANDROID_KEY_PASSWORD" ]; then
+            echo "::error::ANDROID_KEY_PASSWORD no es igual a ANDROID_KEYSTORE_PASSWORD (PKCS12 usa una sola)"
+          fi
+          if ! keytool -list -keystore "$ANDROID_KEYSTORE_PATH" -storepass:env ANDROID_KEYSTORE_PASSWORD > /dev/null 2>&1; then
+            echo "::error::ANDROID_KEYSTORE_PASSWORD no abre el keystore de ANDROID_KEYSTORE_BASE64"
+            exit 1
+          fi
+          if ! keytool -list -keystore "$ANDROID_KEYSTORE_PATH" -storepass:env ANDROID_KEYSTORE_PASSWORD -alias "$ANDROID_KEY_ALIAS" > /dev/null 2>&1; then
+            echo "::error::El keystore no tiene el alias de ANDROID_KEY_ALIAS"
+            exit 1
+          fi
+
       - name: Compilar (release firmada)
         if: env.TIENE_FIRMA == 'true'
         working-directory: android
