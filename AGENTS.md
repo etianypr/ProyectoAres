@@ -216,13 +216,13 @@ y un agente no debe "corregir".
   - Dejar el paquete con un vecino o el conserje cuenta como entregado.
   - "Dejar como pendiente" manda la parada al final de la ruta.
   - La disponibilidad (lo que dice el receptor) y el resultado son dimensiones separadas.
-- **OF.** Se acepta cualquiera que tenga dígitos. La que no tiene 9 lleva ⚠ y nunca bloquea. Se
+- **OF.** Se acepta cualquiera que tenga dígitos, del largo que sea: hay OF de distintos largos y
+  valen si están en el paquete o en la orden de flete, así que no llevan ⚠ (dueño, 2026-11-06). Se
   quitan los ceros a la izquierda, para que la del código de barras (9 posiciones, con ceros) calce
   con la de la guía. En el paquete no se escribe nada; la parada muestra la OF y su descripción.
 - **Pedidos con problemas (⚠).** Se marcan con ⚠ desde el momento en que aparecen, y se resuelven
   en ese mismo paso del flujo:
-  - **Al leer la guía, antes de armar la ruta:** una OF que no se puede identificar (ilegible, o
-    distinta de 9 dígitos), y una dirección sin ubicar o con una calle que existe en dos o más
+  - **Al leer la guía, antes de armar la ruta:** una línea sin OF (ilegible), y una dirección sin ubicar o con una calle que existe en dos o más
     lugares (ver "Direcciones en Arica"). Si no se resuelve, el pedido entra igual a la ruta, con
     la primera dirección que encontró la búsqueda y con ⚠. La app avisa **dos paradas antes** de
     llegar a él, para confirmar antes de gastar combustible y tiempo en ir.
@@ -230,11 +230,11 @@ y un agente no debe "corregir".
   - **Al escanear:** una dirección de la etiqueta distinta de la de la guía; un paquete que no
     está en la guía (se agrega como pedido); y bultos o paquetes de la guía sin escanear (si no
     vienen en el auto, quedan en «No entregados» al cerrar el día y vuelven a Starken).
-  - *Pendiente:* la hoja ya muestra con ⚠ lo que se deduce del pedido (sin ubicar, OF distinta, sin
-    OF; spec 027), pero el ⚠ no se guarda en el pedido y los demás problemas se avisan solo en la
-    pantalla donde aparecen. Un pedido sin resolver queda fuera de la ruta (con
-    advertencia) en vez de entrar con la primera dirección y ⚠, y falta el aviso dos paradas antes
-    (spec 022).
+  - Los ⚠ quedan en el pedido (`Pedido.problemas`, spec 022) y se resuelven arriba de su
+    formulario: elegir el lugar entre las opciones guardadas (sin volver a buscar), «Va igual»
+    (lejana, horario), «Es así» (fuera de la guía) o qué dirección vale. El aviso dos paradas antes
+    va en la cabecera de ARES y en la línea de aviso de la burbuja (solo se ve abierta).
+  - Una dirección sin ninguna opción de lugar sigue fuera de la ruta: no hay punto adonde ir.
 - **Escaneo de la etiqueta de Starken (spec 005).** Tiene dos partes que no se mezclan: el código
   de barras dice *qué paquete es* y la foto de la etiqueta dice *a quién va*. Se escanea al cargar
   el auto y también desde la parada, cuando le falta el teléfono.

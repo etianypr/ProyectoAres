@@ -3,7 +3,8 @@
 import { ubicarDireccion } from "@/lib/geo/geocoding";
 import { puntoDeAcceso, type Acceso } from "@/lib/geo/acceso";
 import { nombreVisible } from "@/lib/encomiendas/paquete";
-import { fijarCoordenadas, type Pedido } from "../almacen";
+import { lugarProvisorio, type ProblemaGuardado } from "@/lib/encomiendas/problemas";
+import { fijarCoordenadas, ubicarConDuda, type Pedido } from "../almacen";
 import type { PedidoUbicado } from "./tipos";
 
 // Las direcciones se ubican al CARGAR cada pedido, una por una, así que acá
@@ -38,6 +39,7 @@ export async function reintentarUbicar(
   if (sinUbicar.length === 0) return { pendientes, advertencias: [] };
 
   const encontradas: { id: string; lat: number; lng: number }[] = [];
+  const enDuda: { id: string; punto: { lat: number; lng: number }; problema: ProblemaGuardado }[] = [];
   const advertencias: string[] = [];
   const aIntentar = sinUbicar.slice(0, MAX_REINTENTOS_UBICAR);
 
@@ -56,6 +58,15 @@ export async function reintentarUbicar(
       if (r.advertencia) advertencias.push(`${nombreVisible(pedido)}: ${r.advertencia}`);
       continue;
     }
+    // En duda pero con opciones (calle en varios lugares, o solo la calle):
+    // entra con la primera y un ⚠ con todas, para elegir después sin volver a
+    // buscar (spec 022, US1).
+    const provisorio = lugarProvisorio(r);
+    if (provisorio) {
+      enDuda.push({ id: pedido.id, ...provisorio });
+      advertencias.push(`${nombreVisible(pedido)}: en duda, entra con la primera opción (⚠).`);
+      continue;
+    }
     // Sin ubicación confirmada. La advertencia nombra al destinatario porque es
     // así como el conductor sabe de qué paquete se trata; el texto no sale del
     // teléfono.
@@ -72,8 +83,12 @@ export async function reintentarUbicar(
   }
 
   await fijarCoordenadas(encontradas);
+  await ubicarConDuda(enDuda);
 
-  const porId = new Map(encontradas.map((c) => [c.id, c] as const));
+  const porId = new Map([
+    ...encontradas.map((c) => [c.id, c] as const),
+    ...enDuda.map((d) => [d.id, { id: d.id, ...d.punto }] as const),
+  ]);
   return {
     pendientes: pendientes.map((p) => {
       const coord = porId.get(p.id);

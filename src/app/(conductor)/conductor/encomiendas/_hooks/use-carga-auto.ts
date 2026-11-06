@@ -6,12 +6,17 @@
 // "Faltan" y, si no viene en el auto, queda en "No entregados" al cerrar el día.
 
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { avanceCarga, marcarInicioReparto, sinEtiquetaEscaneada, type Pedido } from "@/lib/encomiendas/local/almacen";
+import { avanceCarga, bultosIncompletos, marcarInicioReparto, sinEtiquetaEscaneada, type Pedido } from "@/lib/encomiendas/local/almacen";
 import type { DiaEnCurso } from "./use-dia-trabajo";
 import { cargaTerminada } from "./paso-del-dia";
 
-/** Un paquete de la guía sin escanear y su parada (null = no está en la ruta). */
-export type FaltaEscanear = { pedido: Pedido; secuencia: number | null };
+/** Un paquete de la guía sin escanear y su parada (null = no está en la ruta).
+ *  `bultos`: escaneó algunos pero no todos (spec 022). */
+export type FaltaEscanear = {
+  pedido: Pedido;
+  secuencia: number | null;
+  bultos: { escaneados: number; total: number } | null;
+};
 
 export type CargaAuto = {
   escaneados: number;
@@ -29,9 +34,15 @@ export function useCargaAuto({ dia, fecha }: { dia: DiaEnCurso; fecha: string })
   const faltan = useMemo(() => {
     const secuencia = new Map(paradas.map((p) => [p.pedido.id, p.secuencia] as const));
     const fin = Number.MAX_SAFE_INTEGER;
-    return sinEtiquetaEscaneada(pedidos)
-      .map((pedido) => ({ pedido, secuencia: secuencia.get(pedido.id) ?? null }))
-      .sort((a, b) => (a.secuencia ?? fin) - (b.secuencia ?? fin));
+    const incompletos = bultosIncompletos(pedidos).map((pedido) => ({
+      pedido,
+      secuencia: secuencia.get(pedido.id) ?? null,
+      bultos: { escaneados: pedido.bultosEscaneados.length, total: pedido.bultos ?? 0 },
+    }));
+    return [
+      ...sinEtiquetaEscaneada(pedidos).map((pedido) => ({ pedido, secuencia: secuencia.get(pedido.id) ?? null, bultos: null })),
+      ...incompletos,
+    ].sort((a, b) => (a.secuencia ?? fin) - (b.secuencia ?? fin));
   }, [pedidos, paradas]);
 
   const salir = useCallback(async () => {

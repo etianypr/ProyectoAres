@@ -20,7 +20,7 @@ de la base conservan sus nombres viejos hasta la spec 002 (equivalencias en
 | Paquete a entregar ese día | `Pedido` |
 | Orden de visita y trazado del día | `Ruta` (`orden`, `trazado`, `tramos`, `inicio`, `inicioReparto`, `cierre`, `partida`) · un tramo por parada: `TramoDelDia` |
 | Paso del día del conductor (cabecera de la hoja, spec 027) | `Paso`: `guia` · `resolver` · `ruta` · `carga` · `reparto` · `cierre` (solo pantalla) |
-| Lo que hace dudar de un pedido (⚠) | `ProblemaPedido` (`TipoProblema`: sin ubicar, OF distinta —menos o más de 9 dígitos—, sin OF; la 022 suma los guardados) |
+| Lo que hace dudar de un pedido (⚠) | `ProblemaPedido` (`TipoProblema`): deducidos (sin ubicar, sin OF) y guardados en `Pedido.problemas` como `ProblemaGuardado` (calle en varios lugares con sus `OpcionLugar`, solo la calle, lejana, horario, etiqueta con otra dirección, fuera de la guía; spec 022). La OF de otro largo no es ⚠ |
 | Pedido dentro de la ruta, con su número | `Parada` (solo pantalla) |
 | Cómo terminó la visita · la llamada | `Pedido.resultado`: entregado o no entregado · `Pedido.llamada`: `ResultadoLlamada` |
 | Lo que dijo el receptor | `Pedido.disponibilidad` |
@@ -48,6 +48,7 @@ classDiagram
       llamada: ResultadoLlamada
       resultado: ResultadoVisita
       aviso: estado · codigo · intentos
+      problemas: ProblemaGuardado[] (022)
     }
     class Ruta {
       <<store rutas>>
@@ -337,6 +338,7 @@ lo usa.
 | Indicadores del período y comparación con el anterior: `calcularIndicadores`, `periodoAnterior` (spec 006) | `encomiendas/indicadores.ts`, `(app)/encomiendas/_componentes/indicadores.tsx` |
 | APK con respaldo web: `esApp`, `alBotonAtras`, `llamar`, `pantallaEncendida`, `escanearCodigo` (sin registro de llamadas desde el 2026-11-06) | `nativo/entorno.ts`, `nativo/telefono.ts`, `nativo/escaner.ts` |
 | La burbuja sobre Google Maps (spec 020): `VistaBurbuja`, `permisoBurbuja`, `mostrarBurbuja`, `terminarBurbuja`, `burbujaEnAres`, `alTocarBurbuja`, `navegarA` | `nativo/burbuja.ts` |
+| ⚠ guardados en el pedido (spec 022): `ubicarConDuda`, `elegirLugar` (sin consultar a nadie), `marcarRevisado`, `quitarProblema`, `fijarProblemasDeRuta` · la dirección en duda entra con su primera opción: `lugarProvisorio` · la de la etiqueta: `usarDireccionDeEtiqueta` · los del armado: `problemasDelArmado` · aviso dos paradas antes: `avisoAdelante` · bultos sueltos: `bultosIncompletos` | `encomiendas/local/almacen/problemas.ts` · `encomiendas/problemas.ts` · `local/direccion-etiqueta.ts` · `generar-ruta/confirmar.ts` · `(conductor)/…/_hooks/aviso-adelante.ts` · `_componentes/problemas-pedido.tsx` |
 | Paso del día y cabecera de la hoja (spec 027): `pasoDelDia`, `cargaTerminada`, `PASOS` · cargar el auto: `useCargaAuto` (`FaltaEscanear`, «Salir a repartir» → `marcarInicioReparto`) · «Resolver los ⚠» de a uno: `useResolverProblemas` · ⚠ deducidos del pedido: `problemasDelPedido` | `(conductor)/…/encomiendas/_hooks/paso-del-dia.ts`, `use-carga-auto.ts`, `use-resolver-problemas.ts` · `_componentes/cabecera-hoja.tsx` · `encomiendas/problemas.ts` |
 | Botones de la parada en un solo lugar, para la tarjeta y la burbuja (en la parada: «Pedido entregado» · llamar · «No se entrega», 2026-11-06): `BotonParada`, `IdBoton`, `botonesDeParada`, `estadoDeParada`, `atenderBoton` · la vista y cuándo navegar: `vistaDeBurbuja`, `aDondeNavegar` · en curso, permiso del día y toques: `useBurbuja` | `(conductor)/…/encomiendas/_hooks/botones-parada.ts`, `vista-burbuja.ts`, `use-burbuja.ts` |
 | Aviso de APK vieja | `nativo/version.ts` |

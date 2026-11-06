@@ -7,6 +7,7 @@ import type {
   TipoEvento,
 } from "@/lib/encomiendas/catalogos";
 import type { ReferenciaPaquete } from "@/lib/encomiendas/paquete";
+import type { ProblemaGuardado } from "@/lib/encomiendas/problemas";
 import type { ResultadoVisita, ResultadoLlamada } from "@/lib/encomiendas/estados";
 import type { Coordenada, Trazado } from "@/lib/geo/coordenada";
 
@@ -67,6 +68,12 @@ export type Pedido = {
   folioGuia: string | null;
   /** De dónde salió el pedido: se cuenta en el resumen del día (sin datos). */
   origenCarga: OrigenCarga;
+  /** Los ⚠ guardados (spec 022): la calle en varios lugares con sus opciones, la
+   *  parada lejana, el horario que no alcanza, la etiqueta con otra dirección y el
+   *  paquete que no estaba en la guía. Lo que se deduce del pedido (sin punto, sin
+   *  OF) no se guarda: ver problemasDelPedido. Los pedidos de antes no lo tienen
+   *  (alDia). */
+  problemas: ProblemaGuardado[];
 };
 
 /** guia_foto: la foto de la guía leída en el teléfono, sin IA (spec 005). */

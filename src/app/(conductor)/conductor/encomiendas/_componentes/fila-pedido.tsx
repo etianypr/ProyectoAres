@@ -13,8 +13,13 @@ import { FilaDeslizable } from "./fila-deslizable";
 /** Qué se hace con cada ⚠ al tocar la fila (siempre abre la edición). */
 const ACCION: Record<TipoProblema, string> = {
   sin_ubicar: "Corregir",
-  of_distinta: "Revisar",
   sin_of: "Escribir",
+  calle_repetida: "Elegir",
+  solo_calle: "Elegir",
+  lejana: "Revisar",
+  horario: "Revisar",
+  etiqueta_otra_direccion: "Elegir",
+  fuera_de_guia: "Revisar",
 };
 
 /** Tocarla abre la edición: es como se arregla un ⚠.

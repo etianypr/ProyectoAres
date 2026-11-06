@@ -90,4 +90,6 @@ export type Alternativa = {
   /** Nombres de los receptores a cuyo bloque se llegaría fuera de horario,
    *  antes o después (ver planificar.ts). */
   fueraDeHorario: string[];
+  /** Los mismos, por id: quedan como ⚠ en el pedido al usar la ruta (spec 022). */
+  fueraDeHorarioIds: string[];
 };

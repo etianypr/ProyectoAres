@@ -22,6 +22,8 @@ const SECCIONES: { titulo: string; pasos: string[] }[] = [
       "«Resolver los ⚠» abre el primero; al guardarlo, pasa al siguiente. También se toca el pedido en la lista.",
       "«Corregir con IA»: confirma cada una mirando el mapa.",
       "Si no se resuelve: «Armar la ruta igual». Después, «Resolver los ⚠» sigue adentro de la hoja.",
+      "Arriba del pedido va su ⚠: una calle en varios lugares se elige entre sus opciones; «Va igual» (lejana, horario) y «Es así» (no estaba en la guía) lo dan por revisado.",
+      "Recorriendo, dos paradas antes de un ⚠ aparece arriba de la parada, con «Llamar».",
     ],
   },
   {

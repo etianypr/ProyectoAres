@@ -6,12 +6,14 @@
 // mismo que dibuja la burbuja sobre Google Maps (spec 020): acá solo se les pone
 // ícono y clases.
 
-import { Check, Clock, PackageCheck, Pencil, Phone, RotateCw, ScanLine, X, type LucideIcon } from "lucide-react";
+import { AlertTriangle, Check, Clock, PackageCheck, Pencil, Phone, RotateCw, ScanLine, X, type LucideIcon } from "lucide-react";
+import type { Pedido } from "@/lib/encomiendas/local/almacen";
 import { cn } from "@/lib/comun/utils";
 import type { Parada } from "../_hooks/use-dia-trabajo";
 import type { Fase } from "../_hooks/fase-parada";
 import { botonesDeParada, estadoDeParada, type BotonParada, type IdBoton, type Tono } from "../_hooks/botones-parada";
 import { TarjetaParada } from "./tarjeta-parada";
+import { tituloAvisoAdelante, type AvisoAdelante } from "../_hooks/aviso-adelante";
 
 // Botones de la hoja: a ancho completo y de 48 px. Es lo que el conductor aprieta
 // manejando, con el pulgar y sin mirar mucho.
@@ -59,6 +61,9 @@ export function ParadaActiva({
   faltan,
   onNavegar,
   onBoton,
+  adelante = null,
+  onLlamarA,
+  onVer,
 }: {
   activa: Parada;
   fase: Fase;
@@ -72,6 +77,11 @@ export function ParadaActiva({
   /** Navegar con Google Maps y la burbuja (spec 020); sin punto, no hay. */
   onNavegar?: () => void;
   onBoton: (id: IdBoton) => void;
+  /** Un pedido con ⚠ a una o dos paradas (spec 022, US2). */
+  adelante?: AvisoAdelante | null;
+  /** Llamar a ESE pedido, o abrirlo si no tiene teléfono. */
+  onLlamarA?: (parada: Parada) => void;
+  onVer?: (pedido: Pedido) => void;
 }) {
   const estado = estadoDeParada(activa, whatsapp);
   const filas = botonesDeParada(activa, fase);
@@ -79,6 +89,27 @@ export function ParadaActiva({
 
   return (
     <div className="space-y-3">
+      {/* Spec 022: dos paradas antes de un pedido con ⚠, para confirmar antes de
+          ir. Va en la cabecera porque manejando es lo único que se mira. */}
+      {adelante ? (
+        <div className="flex items-center gap-2 rounded-xl bg-warn-bg py-1.5 pl-3 pr-1.5 text-warn">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <div className="min-w-0 flex-1 text-xs">
+            <p className="truncate text-[13px] font-semibold">{tituloAvisoAdelante(adelante)}</p>
+            <p className="truncate">{adelante.problema.texto}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() =>
+              adelante.parada.pedido.telefono ? onLlamarA?.(adelante.parada) : onVer?.(adelante.parada.pedido)
+            }
+            className="flex h-9 shrink-0 items-center gap-1 rounded-full border border-warn/30 bg-card px-3 text-xs font-semibold active:scale-[0.97]"
+          >
+            {adelante.parada.pedido.telefono ? <Phone className="h-3.5 w-3.5" /> : null}
+            {adelante.parada.pedido.telefono ? "Llamar" : "Ver"}
+          </button>
+        </div>
+      ) : null}
       <TarjetaParada
         secuencia={activa.secuencia}
         pedido={activa.pedido}

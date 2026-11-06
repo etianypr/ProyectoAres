@@ -36,7 +36,7 @@ import { matrizCalles } from "@/lib/geo/matriz";
 import { nombreVisible } from "@/lib/encomiendas/paquete";
 import { resultadoCerrado } from "@/lib/encomiendas/estados";
 import { minutoDelDia } from "../planificar";
-import { guardarRuta, leerPedidos, leerRuta, pedidosEnOrden, tramosConPedidos } from "../almacen";
+import { leerPedidos, leerRuta, pedidosEnOrden, tramosConPedidos } from "../almacen";
 import { resolverInicio } from "./partida";
 import { corregirAccesos, reintentarUbicar, tieneCoordenadas } from "./ubicar-pedidos";
 import { coord, elegirUtiles, medir, metrosPorMatriz, ordenPorEstrategia, TITULOS, vueltaPorMatriz } from "./estrategias";
@@ -44,7 +44,7 @@ import { paradasLejanas } from "./lejanas";
 import { ordenConHorarios } from "./horarios";
 import { ordenarConSentido } from "./sentido";
 import { matrizPorZonas, zonasPorCercania } from "./zonas";
-import type { Alternativa, EstrategiaRuta, PedidoUbicado, PropuestaRuta, PuntoInicio, ResultadoRuta } from "./tipos";
+import type { Alternativa, EstrategiaRuta, PedidoUbicado, PropuestaRuta, PuntoInicio } from "./tipos";
 
 export type { Alternativa, EstrategiaRuta, PedidoUbicado, PropuestaRuta, PuntoInicio, ResultadoRuta } from "./tipos";
 
@@ -89,7 +89,7 @@ const cederTurno = () => new Promise<void>((listo) => setTimeout(listo, 0));
  *  y a descartar la propuesta —que es cuando se repetía— pero no a recargar la
  *  página, y eso está bien: recargar es justo cuando conviene volver a
  *  preguntar por si el tráfico cambió. */
-let ultimaPropuesta: { huella: string; propuesta: PropuestaRuta } | null = null;
+let ultimaPropuesta: { huella: string; propuesta: PropuestaRuta; delCalculo: string[] } | null = null;
 
 // Calcula (sin guardar) la ruta de "fecha" con todos los pedidos pendientes del
 // día. Lanza Error con un
@@ -168,9 +168,13 @@ export async function calcularRutaLocal(
       ...ultimaPropuesta.propuesta,
       sinUbicar,
       cerradas: cerradas.length,
-      advertencias,
+      // Las de ubicar, recién calculadas, más las del cálculo de la ruta (sin
+      // matriz, parada lejana, horario, sin trazado): antes estas se perdían al
+      // salir del caché (spec 022).
+      advertencias: [...advertencias, ...ultimaPropuesta.delCalculo],
     };
   }
+  const desdeElCalculo = advertencias.length;
 
   const puntos: Coordenada[] = [
     base,
@@ -299,7 +303,9 @@ export async function calcularRutaLocal(
 
   // Sin trazado no se guarda: quedó a medias por falta de señal y volver a
   // pedirla es justamente lo que hay que hacer la próxima vez.
-  if (!propuesta.sinTrazado) ultimaPropuesta = { huella: clave, propuesta };
+  if (!propuesta.sinTrazado) {
+    ultimaPropuesta = { huella: clave, propuesta, delCalculo: propuesta.advertencias.slice(desdeElCalculo) };
+  }
   return propuesta;
 }
 
@@ -379,22 +385,4 @@ export async function retrazar(propuesta: PropuestaRuta): Promise<PropuestaRuta>
   };
 }
 
-/** Guarda la propuesta como la ruta del día. Entre calcular y confirmar el
- *  conductor pudo cerrar una parada o agregar un pedido: guardarRuta vuelve a leer
- *  lo guardado y conserva lo cerrado, así que la propuesta nunca lo pisa. */
-export async function confirmarRutaLocal(propuesta: PropuestaRuta): Promise<ResultadoRuta> {
-  const ruta = await guardarRuta({
-    fecha: propuesta.fecha,
-    pedidoIdsEnOrden: propuesta.paradas.map((p) => p.id),
-    trazado: propuesta.trazado,
-    tramos: propuesta.tramos,
-    distanciaM: propuesta.distanciaM,
-    duracionS: propuesta.duracionS,
-    advertencias: propuesta.advertencias,
-    propuestasComparadas: propuesta.alternativas.length,
-    partida: propuesta.llegada ?? propuesta.partida,
-  });
-
-  return { ruta, sinUbicar: propuesta.sinUbicar, sinTrazado: propuesta.sinTrazado };
-}
-
+export { confirmarRutaLocal, problemasDelArmado } from "./confirmar";

@@ -14,7 +14,8 @@ import { AlertTriangle, ArrowLeft, CircleHelp, ClipboardPaste, Loader2, X } from
 import { CampoArea } from "@/components/ui/campo";
 import { armarGuia, leerGuia, limpiarDestino, type LineaGuia } from "@/lib/encomiendas/lectura/guia";
 import { ofValida } from "@/lib/encomiendas/paquete";
-import { crearDesdeGuia, fijarCoordenadas } from "@/lib/encomiendas/local/almacen";
+import { crearDesdeGuia, fijarCoordenadas, ubicarConDuda } from "@/lib/encomiendas/local/almacen";
+import { lugarProvisorio } from "@/lib/encomiendas/problemas";
 import { ubicarDireccion } from "@/lib/geo/geocoding";
 import { leerFotosGuia, type FuenteLectura } from "@/lib/encomiendas/local/lectura-cliente";
 import { esApp } from "@/lib/nativo/entorno";
@@ -158,8 +159,13 @@ export function CargarGuia({
         setPaso({ tipo: "ubicando", hechos: i, total: creados.length });
         try {
           const r = await ubicarDireccion(p.direccion);
+          const provisorio = lugarProvisorio(r);
           if (r.elegida) {
             await fijarCoordenadas([{ id: p.id, lat: r.elegida.lat, lng: r.elegida.lng }]);
+            ubicados++;
+          } else if (provisorio) {
+            // En duda pero con opciones: entra con la primera y ⚠ (spec 022).
+            await ubicarConDuda([{ id: p.id, ...provisorio }]);
             ubicados++;
           }
         } catch {

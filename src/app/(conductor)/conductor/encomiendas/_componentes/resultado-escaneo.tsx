@@ -14,13 +14,12 @@ import { leerEtiqueta } from "@/lib/encomiendas/lectura/etiqueta";
 import { formatoOf, notaPaquete, referenciaOVacia, textoReferencia } from "@/lib/encomiendas/paquete";
 import {
   aplicarLecturaEtiqueta,
-  cambiarDireccion,
   guardarFoto,
   guardarPaquete,
   type ResultadoEscaneo,
 } from "@/lib/encomiendas/local/almacen";
 import { leerImagen } from "@/lib/encomiendas/local/lectura-cliente";
-import { ubicarDireccion } from "@/lib/geo/geocoding";
+import { usarDireccionDeEtiqueta } from "@/lib/encomiendas/local/direccion-etiqueta";
 import { esApp } from "@/lib/nativo/entorno";
 import { comprimirFoto } from "@/lib/encomiendas/local/foto";
 import { CamposPaquete, paqueteDe, type EstadoPaquete } from "./campos-paquete";
@@ -104,14 +103,16 @@ export function Resultado({
   async function usarDireccionEtiqueta(direccion: string) {
     setCambiandoDireccion(true);
     try {
-      const ubicacion = await ubicarDireccion(direccion);
-      await cambiarDireccion(p.id, direccion, ubicacion.elegida);
+      // En duda pero con opciones, entra con la primera y ⚠ (spec 022).
+      const como = await usarDireccionDeEtiqueta(p.id, direccion);
       const nuevo = await aplicarLecturaEtiqueta(fecha, { of: codigo.of, bulto: null });
-      if (nuevo) onCambio(nuevo);
+      if (nuevo) onCambio({ ...nuevo, direccionDistinta: null });
       setAvisoDireccion(
-        ubicacion.elegida
+        como === "ubicada"
           ? "Dirección cambiada. Rehaz la ruta para que la parada quede en su orden."
-          : "Dirección cambiada, pero no se pudo ubicar: corrígela en el pedido.",
+          : como === "en_duda"
+            ? "Dirección cambiada, en duda: quedó en la primera opción con ⚠. Elige en el pedido."
+            : "Dirección cambiada, pero no se pudo ubicar: corrígela en el pedido.",
       );
     } finally {
       setCambiandoDireccion(false);
