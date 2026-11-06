@@ -8,7 +8,7 @@ import { FIN, type Costo } from "./costo";
 // cambio no queda ninguna duda: no existe un orden mejor.
 //
 // Devuelve null si no hay ningún recorrido completo posible (tramos sin camino
-// entre sí, que Mapbox marca como Infinity): ahí no hay óptimo que dar y manda
+// entre sí, que la matriz marca como Infinity): ahí no hay óptimo que dar y manda
 // la heurística, que al menos devuelve algo.
 export function exacto(n: number, costo: Costo): number[] | null {
   const m = n - 1; // paradas, sin contar la base

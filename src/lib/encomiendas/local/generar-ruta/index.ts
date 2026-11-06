@@ -51,7 +51,7 @@ export type { Alternativa, EstrategiaRuta, PedidoUbicado, PropuestaRuta, PuntoIn
 /** Huella de TODO lo que entra en el cálculo de una ruta. Si no cambió ni un
  *  pedido, ni su ubicación, ni su horario, ni quién confirmó, ni de dónde y a
  *  qué hora se parte, la ruta que saldría es la misma y no hay nada que
- *  preguntarle a Mapbox. Antes no miraba los horarios: un cliente que eligió
+ *  preguntarle a OpenRouteService. Antes no miraba los horarios: un cliente que eligió
  *  bloque seguía recibiendo la propuesta vieja (spec 017, R3). */
 /** Partida y llegada a menos de esto son el mismo punto: la ruta es cerrada. */
 const METROS_MISMO_PUNTO = 30;

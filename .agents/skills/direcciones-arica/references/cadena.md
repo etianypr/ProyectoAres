@@ -8,7 +8,7 @@ verificado contra el código del 2026-11-05; si algo cambió, manda el código.
 |---|---|---|
 | Cargar la guía (`_componentes/cargar-guia.tsx`) | `ubicarDireccion`, una por una; con punto, `fijarCoordenadas` (solo lat/lng; el texto queda como vino) | queda «Sin ubicar». Si hay IA en el servidor (`lecturaIA` = `ANTHROPIC_API_KEY`), sigue `corregirSinUbicar` y `fin-guia.tsx` muestra las propuestas |
 | Editar o cargar a mano (`pedido-form-local.tsx`) | `ubicarDireccion` al guardar | `ResolverDireccion` muestra los candidatos con su foto de mapa, o «Guardar sin ubicar y corregir después» |
-| Campo con sugerencias (`components/direccion/direccion-input.tsx`) | `sugerirDirecciones` (Mapbox, 300 ms), `sugerirEnOsm` (800 ms), `completarNumeroEnCalles` (500 ms; `esperas.ts`) | se puede guardar igual; «Usar «…» tal como está» dice «pega su Plus Code acá» |
+| Campo con sugerencias (`components/direccion/direccion-input.tsx`) | `sugerirDirecciones` (Plus Code y Google, 600 ms), `sugerirEnOsm` (800 ms), `completarNumeroEnCalles` (500 ms; `esperas.ts`) | se puede guardar igual; «Usar «…» tal como está» dice «pega su Plus Code acá» |
 | Escaneo: la etiqueta trae otra dirección (`resultado-escaneo.tsx`, `usarDireccionEtiqueta`) | `ubicarDireccion` + `cambiarDireccion` | el pedido queda sin punto (el de antes era de otra dirección) |
 | Armar la ruta (`generar-ruta/index.ts` → `reintentarUbicar`) | `ubicarDireccion`, secuencial, máx. 5 (`MAX_REINTENTOS_UBICAR`) | fuera de la ruta, con advertencia que nombra al destinatario (no sale del teléfono) |
 | La central (`generar-ruta/partida.ts`) | `geocodificarDireccion` | toma la mejor sin preguntar: solo para la central, nunca para un pedido |
@@ -24,20 +24,17 @@ depende solo del color.
 | `METROS_MISMA_PUERTA` (Plus Code exacto) | 20 m | `codigo.ts` |
 | `DIGITOS` al anotar un Plus Code (`plusCodeDe`) | 11 (~3 m; 10 son ~14 m) | `plus-code.ts` |
 | `CANDIDATOS_POR_PROVEEDOR` · `MIN_CARACTERES` | 5 · 3 | `tipos.ts` |
-| `MAX_CALLES_A_PROBAR` · `MAX_RECORDADAS` | 3 · 60 (memoria mientras dura la pantalla) | `completar-numero.ts` |
+| `MAX_CALLES_A_PROBAR` · `MAX_RECORDADAS` | 3 (`completar-numero.ts`) · 100 consultas a Google recordadas mientras dura la pantalla (`google.ts`) | |
 | `MS_ENTRE_CONSULTAS_OSM` | 1.200 ms, fila global | `nominatim.ts` |
-| Topes de tiempo | Mapbox y Google 8 s; Nominatim 10 s; `/api/geocodificar` 12 s; IA 30 s | cada proveedor |
+| Topes de tiempo | Google 8 s; Nominatim 10 s; `/api/geocodificar` 12 s; teselas 8 s; IA 30 s | cada proveedor |
 | `RECUADRO_ARICA` | sur −18,65 · oeste −70,45 · norte −18,35 · este −70,10 | `geo/coordenada.ts` |
 
 ## Confianza por fuente
-- **Mapbox** (`aSugerencia`, `confianzaMapbox`): `street: unmatched` se descarta salvo que el
-  nombre sea el escrito. Barrio o ciudad → `baja`; calle → `aproximada`; `address_number:
-  matched` → `exacta`; `plausible` o sin dato → `aproximada`, y `coincideNumero` queda `null`
-  (no `false`: `false` pinta «otro número» y dispara la búsqueda cara). `confidence` no se lee.
 - **Nominatim** (`aSugerenciaOsm`): con `house_number` → `exacta`; un punto de interés con nombre
   también (ese punto **es** el destino); una calle sin número → `aproximada` y `soloCalle`.
 - **Google** (`aSugerenciaGoogle`): exige calle escrita, el mismo número y punto dentro de Arica;
-  `ROOFTOP` → `exacta`, `RANGE_INTERPOLATED` → `aproximada`; lo demás se ignora. En el servidor
+  `ROOFTOP` → `exacta`, `RANGE_INTERPOLATED` → `aproximada`; lo demás se ignora (una calle sola la trae
+  OSM). Desde la spec 019 es el que da el número de casa. En el servidor
   (panel) `conGoogle` no hace nada (`typeof window === "undefined"`).
 - **Plus Code**: ≤ 20 m → `exacta`; si no, `aproximada` con «cubre unos N m».
 
@@ -72,8 +69,8 @@ es «con …», «al lado de…» y lo que va **antes** del número. Ojo con el 
   ≤ 300 m no son ambiguas.
 
 ## La IA (spec 018) por dentro
-- Teléfono (`cliente.ts`): arma la conversación, ejecuta `buscar_direccion` (Mapbox + Nominatim +
-  Google en paralelo, hasta 8 candidatos, el punto con 4 decimales) y `calles_parecidas` (catálogo,
+- Teléfono (`cliente.ts`): arma la conversación, ejecuta `buscar_direccion` (Nominatim + Google en
+  paralelo, hasta 8 candidatos, el punto con 4 decimales) y `calles_parecidas` (catálogo,
   hasta 5). Servidor (`servidor.ts`): solo habla con Claude (`SISTEMA`, `HERRAMIENTAS`, sin
   pensamiento, `effort: low`).
 - La respuesta pasa por `interpretar`: un id que nadie devolvió no se acepta; un barrio deja la
@@ -83,7 +80,9 @@ es «con …», «al lado de…» y lo que va **antes** del número. Ojo con el 
   `aplicarCorreccion` deja en las notas «Dirección corregida con IA y confirmada…; decía «…»».
 
 ## Punto pegado a una carretera (`corregirAccesos`)
-Mapbox Tilequery en 150 m (`RADIO_M`), 6 a la vez, 10 s en total, caché por punto mientras dura la
-sesión, nada sin señal. `elegirAcceso` (pura) corre el punto solo si la vía más cercana es
+Las calles a 150 m (`RADIO_M`) salen de las teselas vectoriales de OpenFreeMap del zoom 14
+(`geo/teselas.ts`, spec 019; antes Tilequery de Mapbox): la misma tesela sirve a todas las paradas
+de su zona (~2,4 km), se guarda en memoria y el navegador la cachea. 6 paradas a la vez, 10 s en
+total, nada sin señal. Las clases son las de OpenMapTiles (`minor` es la calle común). `elegirAcceso` (pura) corre el punto solo si la vía más cercana es
 `motorway`/`trunk` y **no** es la calle de la dirección (`mismaCalle`: basta una palabra que
 importe). Caso de origen: una casa junto a Capitán Ávalos costaba 6,8 km de vuelta.

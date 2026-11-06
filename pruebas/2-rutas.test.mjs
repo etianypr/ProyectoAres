@@ -533,25 +533,136 @@ test("penalizacionPorSentido: en calle estrecha cobra entrar y salir por el mism
 });
 
 // ------------------------------------------- paradas pegadas a una carretera
-const { elegirAcceso, mismaCalle } = await import("@/lib/geo/mapbox/acceso");
+const { elegirAcceso, mismaCalle, puntoDeAcceso } = await import("@/lib/geo/acceso");
+const { teselasAlrededor, ZOOM } = await import("@/lib/geo/teselas");
+const { PbfWriter } = await import("pbf");
 
 test("elegirAcceso: una casa junto a la troncal se corre a su calle (o a la local más cercana)", () => {
   const via = (clase, nombre, metros, lng) => ({ clase, nombre, metros, punto: { lat: -18.426, lng } });
   const alrededor = [
     via("trunk", "Avenida Capitán Ávalos", 6, -70.2905),
-    via("street", "Zapiga", 7, -70.2906),
+    via("minor", "Zapiga", 7, -70.2906),
     via("path", null, 3, -70.2904),
-    via("street", "Avenida Santiago Arata Gandolfo", 60, -70.2911),
+    via("minor", "Avenida Santiago Arata Gandolfo", 60, -70.2911),
   ];
   const a = elegirAcceso(alrededor, "AVENIDA SANTIAGO ARATA 4551, CONDOMINIO NORTE");
   assert.equal(a.calle, "Avenida Santiago Arata Gandolfo", "prefiere la calle de la dirección");
   assert.equal(a.carretera, "Avenida Capitán Ávalos");
   assert.equal(elegirAcceso(alrededor, "PASAJE TRES 120").calle, "Zapiga", "si no está, la local más cercana");
   assert.equal(elegirAcceso(alrededor, "AV. CAPITAN AVALOS 1234"), null, "la dirección es de esa avenida: no se toca");
-  assert.equal(elegirAcceso([via("street", "Zapiga", 5, -70.29), ...alrededor], "PASAJE TRES 120"), null, "ya está en una calle local");
-  assert.equal(elegirAcceso([via("trunk", "Ruta 5", 4, -70.29), via("street", "Lejos", 400, -70.3)], "PASAJE TRES 120"), null, "sin calle local cerca, se deja");
+  assert.equal(elegirAcceso([via("minor", "Zapiga", 5, -70.29), ...alrededor], "PASAJE TRES 120"), null, "ya está en una calle local");
+  assert.equal(elegirAcceso([via("trunk", "Ruta 5", 4, -70.29), via("minor", "Lejos", 400, -70.3)], "PASAJE TRES 120"), null, "sin calle local cerca, se deja");
   assert.ok(mismaCalle("Avenida Santiago Arata Gandolfo", "AVENIDA SANTIAGO ARATA"));
   assert.ok(!mismaCalle("Avenida Capitán Ávalos", "Avenida Linderos"));
+});
+
+// Una tesela vectorial de mentira (formato de OpenMapTiles), sin red: cada capa
+// lleva líneas { clase, nombre, puntos: [[lng, lat], …] }.
+function teselaDePrueba(x, y, capas) {
+  const n = 2 ** ZOOM;
+  const px = (lng) => Math.round((((lng + 180) / 360) * n - x) * 4096);
+  const py = (lat) => {
+    const r = (lat * Math.PI) / 180;
+    return Math.round((((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * n - y) * 4096);
+  };
+  const zz = (v) => (v << 1) ^ (v >> 31);
+  const pbf = new PbfWriter();
+  for (const [nombre, lineas] of Object.entries(capas)) {
+    const claves = ["class", "name"];
+    const valores = [];
+    const indice = (v) => (valores.includes(v) ? valores.indexOf(v) : valores.push(v) - 1);
+    pbf.writeMessage(3, (_, p) => {
+      p.writeVarintField(15, 2);
+      p.writeStringField(1, nombre);
+      for (const l of lineas) {
+        p.writeMessage(2, (__, f) => {
+          const tags = [0, indice(l.clase)];
+          if (l.nombre) tags.push(1, indice(l.nombre));
+          f.writePackedVarint(2, tags);
+          f.writeVarintField(3, 2);
+          let cx = 0;
+          let cy = 0;
+          const geo = [];
+          l.puntos.forEach(([lng, lat], i) => {
+            if (i === 0) geo.push((1 & 7) | (1 << 3));
+            if (i === 1) geo.push((2 & 7) | ((l.puntos.length - 1) << 3));
+            const [gx, gy] = [px(lng), py(lat)];
+            geo.push(zz(gx - cx), zz(gy - cy));
+            [cx, cy] = [gx, gy];
+          });
+          f.writePackedVarint(4, geo);
+        });
+      }
+      for (const c of claves) p.writeStringField(3, c);
+      for (const v of valores) p.writeMessage(4, (___, w) => w.writeStringField(1, v));
+      p.writeVarintField(5, 4096);
+    });
+  }
+  return pbf.finish();
+}
+
+/** El centro de la tesela donde cae el punto: a 150 m no toca otra. */
+function centroDeTesela(punto) {
+  const [{ x, y }] = teselasAlrededor(punto, 0);
+  const n = 2 ** ZOOM;
+  return {
+    x,
+    y,
+    lng: ((x + 0.5) / n) * 360 - 180,
+    lat: (Math.atan(Math.sinh(Math.PI * (1 - (2 * (y + 0.5)) / n))) * 180) / Math.PI,
+  };
+}
+
+test("teselasAlrededor: una tesela en el medio, dos junto al borde", () => {
+  const { x, lat, lng } = centroDeTesela({ lat: -18.4790, lng: -70.3115 });
+  assert.equal(teselasAlrededor({ lat, lng }, 150).length, 1);
+  const borde = (x / 2 ** ZOOM) * 360 - 180; // longitud del borde oeste de la tesela
+  assert.equal(teselasAlrededor({ lat, lng: borde + 0.0005 }, 150).length, 2);
+});
+
+test("puntoDeAcceso: lee las calles de las teselas del mapa, sin Mapbox", async () => {
+  const { x, y, lat, lng } = centroDeTesela({ lat: -18.4260, lng: -70.2905 });
+  const casa = { lat, lng };
+  // La troncal pasa a ~5 m al oeste y Zapiga a ~40 m al este. La troncal viene
+  // dos veces, como en OpenFreeMap: con nombre y sin él.
+  const m = 1 / (111_320 * Math.cos((lat * Math.PI) / 180));
+  const norteSur = (dx) => [[lng + dx * m, lat + 0.002], [lng + dx * m, lat - 0.002]];
+  const troncal = { clase: "trunk", puntos: norteSur(-5) };
+  const zapiga = { clase: "minor", nombre: "Zapiga", puntos: norteSur(40) };
+  const tesela = teselaDePrueba(x, y, {
+    transportation: [troncal, { ...zapiga, nombre: undefined }],
+    transportation_name: [{ ...troncal, nombre: "Avenida Capitán Ávalos" }, zapiga],
+  });
+  const original = globalThis.fetch;
+  const pedidas = [];
+  globalThis.fetch = async (url) => {
+    pedidas.push(String(url));
+    if (String(url).endsWith("/planet")) return Response.json({ tiles: ["https://tiles.openfreemap.org/planet/v1/{z}/{x}/{y}.pbf"] });
+    return new Response(tesela);
+  };
+  try {
+    const a = await puntoDeAcceso(casa, "PASAJE TRES 120");
+    assert.equal(a?.calle, "Zapiga");
+    assert.equal(a?.carretera, "Avenida Capitán Ávalos", "la troncal sin nombre no tapa a la con nombre");
+    assert.ok(Math.abs(a.metros - 40) <= 3, `a ${a.metros} m`);
+    assert.equal(await puntoDeAcceso(casa, "AV CAPITAN AVALOS 1234"), null, "la dirección es de la troncal");
+    assert.ok(pedidas.every((u) => u.startsWith("https://tiles.openfreemap.org/")), "solo OpenFreeMap");
+    assert.equal(pedidas.filter((u) => u.endsWith(".pbf")).length, 1, "la tesela se baja una vez");
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test("puntoDeAcceso: sin señal, la parada queda donde estaba", async () => {
+  const original = globalThis.fetch;
+  globalThis.fetch = async () => {
+    throw new TypeError("sin red");
+  };
+  try {
+    assert.equal(await puntoDeAcceso({ lat: -18.5, lng: -70.3 }, "PASAJE TRES 120"), null);
+  } finally {
+    globalThis.fetch = original;
+  }
 });
 
 // ------------------------------------------------- el número de un lugar

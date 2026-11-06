@@ -81,11 +81,11 @@ export function ListaSugerencias({
                   <span className="flex items-center gap-1.5 text-xs text-muted">
                     {s.detalle ? <span className="min-w-0 truncate">{s.detalle}</span> : null}
                     {/* De qué proveedor salió, SIEMPRE y no solo en OSM: saber
-                        que una dirección la resolvió Mapbox y la otra
+                        que una dirección la resolvió Google y la otra
                         OpenStreetMap es lo que explica por qué una trae número y
                         la otra no. El nombre sale de NOMBRE_FUENTE y no de un
-                        ternario acá: el `else` etiquetaba como "Mapbox" todo lo
-                        que no fuera OSM. */}
+                        ternario acá: un `else` etiquetaba con un solo nombre
+                        todo lo que no fuera OSM. */}
                     <span className="shrink-0 rounded bg-background px-1 text-[10px] font-semibold uppercase tracking-wide text-muted">
                       {NOMBRE_FUENTE[s.fuente]}
                     </span>

@@ -86,7 +86,7 @@ export function DireccionInput({
   const propio = useId();
   const idCampo = id ?? propio;
   const [sugerencias, setSugerencias] = useState<SugerenciaDireccion[]>([]);
-  // Las de OpenStreetMap llegan medio segundo después que las de Mapbox, así que
+  // Las de OpenStreetMap llegan medio segundo después que las de Google, así que
   // se guardan junto AL TEXTO que las pidió: mientras el conductor sigue
   // escribiendo, las de la palabra anterior no se muestran debajo de las nuevas.
   const [extras, setExtras] = useState<{ para: string; items: SugerenciaDireccion[] }>({
@@ -160,7 +160,7 @@ export function DireccionInput({
   }, [consulta, buscable, abierta]);
 
   // OpenStreetMap, aparte y después: lo que traiga se agrega debajo de lo de
-  // Mapbox. Va en su propio efecto para que la lista principal aparezca a los
+  // Google. Va en su propio efecto para que la lista principal aparezca a los
   // 300 ms sin esperar al proveedor más lento.
   useEffect(() => {
     if (!abierta || !buscable) return;
@@ -185,7 +185,7 @@ export function DireccionInput({
   //
   // Depende de lo que trajeron las otras dos y por eso va después de las dos: el
   // nombre oficial de la calle lo suele tener OpenStreetMap y el número de casa
-  // solo lo tiene Mapbox (ver la cabecera de lib/geo/geocoding), así que no puede
+  // solo lo tiene Google (ver la cabecera de lib/geo/geocoding), así que no puede
   // vivir adentro de ninguna de las dos búsquedas.
   //
   // La lista se rearma DENTRO del efecto y no se toma la de arriba: la de arriba

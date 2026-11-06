@@ -23,7 +23,7 @@ const SANTA_MARIA = {
   soloCalle: false,
   confianza: "exacta",
   coincideNumero: true,
-  fuente: "mapbox",
+  fuente: "google",
 };
 
 /** La IA de mentira: contesta por turno lo que diga el guion. */

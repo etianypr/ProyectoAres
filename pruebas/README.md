@@ -13,8 +13,8 @@ de las pruebas: cambiar por un doble lo que no puede ser real acá adentro, el
 cliente de Supabase y `next/headers`. El servidor MCP usa el mismo resolvedor
 sin ningún doble (ver `mcp/loader.mjs`).
 
-Los proveedores externos que se consultan con `fetch` (Mapbox, OpenRouteService,
-la Cloud API de Meta) no se sustituyen a nivel de módulo sino **reemplazando el
+Los proveedores externos que se consultan con `fetch` (Google, OSM, OpenRouteService,
+OpenFreeMap, la Cloud API de Meta) no se sustituyen a nivel de módulo sino **reemplazando el
 `fetch` global**.
 Es a propósito: así corre el código real que arma la URL, los headers y el cuerpo,
 y que interpreta cada error. Un doble a nivel de módulo no probaría nada de eso —
@@ -25,7 +25,7 @@ No hay framework de pruebas: `node:test` viene con Node.
 | Archivo | Qué cubre |
 | --- | --- |
 | `1-pago.test.mjs` | `lib/encomiendas/pago.ts` — la tarifa de cada día, cuánto se paga, cómo se agrupa la actividad. **Es la plata.** |
-| `2-rutas.test.mjs` | `lib/rutas/orden-paradas/`, `lib/geo/trazado.ts` y `lib/geo/mapbox/` — orden de paradas, trazado por tramos y los tramos de la línea del día por parada (spec 020). Mapbox se sustituye con un doble de `fetch`. |
+| `2-rutas.test.mjs` | `lib/rutas/orden-paradas/`, `lib/geo/trazado.ts`, `lib/geo/acceso.ts` y `lib/geo/teselas.ts` — orden de paradas, trazado por tramos, los tramos de la línea del día por parada (spec 020) y la calle por donde se llega a una parada leída de una tesela vectorial armada en la prueba (sin red). |
 | `3-almacen.test.mjs` | `lib/encomiendas/local/` — el teléfono del conductor, sobre una IndexedDB real (`fake-indexeddb`). Día completo, regenerar la ruta, doble toque. |
 | `4-envio.test.mjs` | La cola offline: nada se borra del teléfono sin confirmación del servidor. |
 | `5-periodo.test.mjs` | El filtro de mes/año y las fechas: que ningún día de pago quede fuera de su periodo. |
@@ -40,7 +40,7 @@ No hay framework de pruebas: `node:test` viene con Node.
 | `15-ruteo-ch.test.mjs` | `lib/geo/openrouteservice.ts` — el trazado por calles abierto (grafo de OSM, Jerarquías de Contracción), que usa el servidor MCP y **no** el camino del conductor. Corre contra `fixtures/ruta-ors-arica.json`, capturado de la API real sobre el **mismo** tramo que `tramo-arica.json` usa para Mapbox. Fija el orden `[lng, lat]` del cuerpo que sale —invertirlo no da error, devuelve una ruta por el océano—, que la geometría entre **sin traducir** a `ajustarATrazado()` y `metrosRestantes()` de `lib/geo/trazado.ts`, que la falta de API key **lance** en vez de confundirse con "el servicio está caído", y el máximo de puntos **medido** (70 pasa, 71 devuelve 400). Fija además que ORS diga *"Camina hacia el noroeste"* en perfil `driving-car`: no es un bug nuestro, es su traducción al castellano. |
 | `16-mcp.test.mjs` | El contrato del servidor MCP hablado **por el protocolo**: levanta `mcp/servidor.ts` como proceso y le habla con el cliente oficial del SDK. Lo que protege no son las funciones (esas ya están en las dos de arriba) sino el armado — un nombre de tool cambiado, un campo caído del esquema de salida, o un `console.log` suelto que ensucia stdout y tumba la sesión entera. Comprueba también que ninguna salida de ubicación prometa una dirección de texto, y el viaje de ida y vuelta entre `encode_plus_code` y `resolve_plus_code`: marcar la casa y releerla mañana no puede moverla. Mismo criterio que `whatsapp-contract`. |
 | `asistencia-local.test.mjs` | Disponibilidad del receptor, resultado entregado o no e idempotencia de las respuestas de WhatsApp. Al final, siete comprobaciones que leen la migración `0003` como texto: son las que impiden que alguien le agregue una columna con datos del receptor sin que nada avise. |
-| `asistencia-direcciones.test.mjs` | Normalización de teléfonos chilenos (a quién se le manda el aviso) y de direcciones. Dos casos reales la motivaron: "Los Aromos 120" existe en Arica **y** en Azapa, a nueve kilómetros, y quedarse con el primer resultado mandaba al conductor al lugar equivocado; y "Linderos 3536", donde la calle se llama "Avenida Linderos Poniente" y el número se perdía — ahora se busca en las calles cuyo nombre contiene, **entera**, cada palabra escrita, y si el número existe en dos de ellas elige el conductor. Fija además la **tabla completa de `address_number`** de Mapbox (`matched` → exacta, `plausible` → aproximada) y que un `confidence: "low"` con la puerta real **siga siendo exacta**: decidir por `confidence` es lo que rompió la app entera (ver abajo). Y el atajo de los **Plus Codes en el campo de dirección**: que un código escrito no consulte a ningún proveedor (cero peticiones, comprobado), que se guarde el código **completo** aunque se haya escrito el corto, y que un código impreciso entre igual pero diciendo cuántos metros cubre. |
+| `asistencia-direcciones.test.mjs` | Normalización de teléfonos chilenos (a quién se le manda el aviso) y de direcciones. Dos casos reales la motivaron: "Los Aromos 120" existe en Arica **y** en Azapa, a nueve kilómetros, y quedarse con el primer resultado mandaba al conductor al lugar equivocado; y "Linderos 3536", donde la calle se llama "Avenida Linderos Poniente" y el número se perdía — ahora se busca en las calles cuyo nombre contiene, **entera**, cada palabra escrita, y si el número existe en dos de ellas elige el conductor. Fija además la **tabla completa de `location_type`** de Google (`ROOFTOP` → exacta, `RANGE_INTERPOLATED` → aproximada, el centro de la calle no entra; spec 019, antes Mapbox: ver abajo). Y el atajo de los **Plus Codes en el campo de dirección**: que un código escrito no consulte a ningún proveedor (cero peticiones, comprobado), que se guarde el código **completo** aunque se haya escrito el corto, y que un código impreciso entre igual pero diciendo cuántos metros cubre. |
 | `estampilla-mapa.test.mjs` | La estampilla de mapa que muestra **dónde** quedó una dirección (`components/direccion/estampilla-mapa.ts`, spec 019): la misma esquina es la misma foto y no se vuelve a dibujar. |
 | `whatsapp-contract.test.mjs` | El contrato con Meta en las dos direcciones: la plantilla que sale, los tres botones y su orden, los reintentos, y que **no se filtre ningún dato del receptor** al cuerpo que sale ni a los mensajes de error. |
 | `asistencia-rutas.test.mjs` | Que los bloques horarios pesen en el orden, que un pedido cerrado no vuelva a proponerse, que se muestre **una** ruta cuando comparar no aporta, y que ofrecer tres no cueste tres veces más en consultas. |
@@ -48,7 +48,7 @@ No hay framework de pruebas: `node:test` viene con Node.
 | `asistencia-resumen.test.mjs` | Que el resumen del jefe coincida con el detalle individual (SC-006) y que las no entregas **no muevan ni un peso** del pago. |
 | `migracion-v3.test.mjs` | La migración de la base del teléfono a v3 (specs 009 y 011): nada se pierde al abrir con la app nueva. |
 | `planificar.test.mjs` · `replanificar.test.mjs` | Llegada estimada y lugar de un pedido con horario; la ruta en curso se reordena con las respuestas. |
-| `sw.test.mjs` | `public/sw.js` (spec 015): qué se guarda para abrir sin señal y qué pasa siempre por la red (`/api`, Supabase, Mapbox, POST). |
+| `sw.test.mjs` | `public/sw.js` (spec 015): qué se guarda para abrir sin señal y qué pasa siempre por la red (`/api`, Supabase, los proveedores, POST). |
 | `nativo-version.test.mjs` | La APK (spec 015): cuándo avisar que hay una APK nueva. |
 | `arquitectura.test.mjs` | Las reglas A1–A10 de `specs/002-reestructuracion-codigo/contracts/estructura-modulos.md`: capas, `server-only`, tamaño, vocabulario y proveedores en `docs/PRIVACIDAD.md`. Una excepción que sobra también falla. |
 | `privacidad.test.mjs` | Spec 007: al cerrar el día o la sesión no queda ningún dato de destinatarios en el teléfono (solo el resumen y la cola); ninguna tabla `encomienda_*` tiene columnas de personas; las rutas de API no escriben en el log. |
@@ -81,13 +81,14 @@ Los dobles de `dobles/`:
 
 El fixture de navegación se capturó una vez de la API real. Para renovarlo hace
 falta el token de Mapbox en `.env.local` y volver a pedir el mismo tramo. Los de
-`fixtures/geocoding-*.json`, `fixtures/ruta-ors-arica.json` y
+`fixtures/geocoding-osm.json`, `fixtures/ruta-ors-arica.json` y
 `fixtures/whatsapp.json` también son respuestas reales, recortadas a los campos
-que el código lee. Cada uno lleva en su cabecera cuándo se capturó y contra qué.
+que el código lee; `fixtures/geocoding-google.json` sigue el formato de la API
+con calles reales y números de prueba (spec 019). Cada uno lleva en su cabecera cuándo se capturó y contra qué.
 
 ## Un fixture viejo miente y nada falla
 
-Pasó, y costó la app entera. Mapbox recalibró su `match_code`: dejó de contestar
+Pasó con Mapbox (antes de la spec 019), y costó la app entera. Mapbox recalibró su `match_code`: dejó de contestar
 `confidence: "exact"` para las direcciones de Arica y pasó a contestar `"low"`
 en **23 de 23** —incluso con la puerta real encontrada—, porque la consulta no
 trae código postal, comuna ni región y esos componentes pesan igual. Además
@@ -106,14 +107,13 @@ manda.
 
 Lo que quedó de eso:
 
-- `scripts/sondear-proveedores.mjs` — corre las direcciones reales de Arica
-  contra Mapbox, Photon y Nominatim y saca una tabla de aciertos, latencias y
-  qué contesta cada uno ante una dirección inexistente. **Corrélo cuando algo
-  del geocodificador se sienta raro**; es lo que destapó esto.
-- Las pruebas nuevas de `asistencia-direcciones.test.mjs` fijan la tabla de
-  `address_number` y afirman explícitamente que el fixture todavía trae el
-  `confidence: "low"` que motivó el arreglo: si alguien recaptura y ese valor
-  cambia, la prueba lo dice en vez de pasar en silencio.
+- `scripts/sondear-proveedores.mjs` (`npm run sondear`) — corre direcciones de
+  Arica contra Google, el buscador de ORS y Nominatim y saca una tabla de
+  aciertos, latencias y qué contesta cada uno ante una dirección inexistente.
+  Gasta 27 consultas de Google: avisar antes. **Corrélo cuando algo del
+  geocodificador se sienta raro**; es lo que destapó esto.
+- `asistencia-direcciones.test.mjs` fija la tabla de `location_type` de Google:
+  si Google agrega o renombra un valor, hay que volver a medir.
 
 La moraleja no es "no uses fixtures": es que un fixture es una foto con fecha, y
 lo único que comprueba que la foto sigue siendo la realidad es volver a mirar.

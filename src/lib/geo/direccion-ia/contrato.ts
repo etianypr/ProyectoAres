@@ -4,7 +4,7 @@
 // El reparto del trabajo:
 //   · el SERVIDOR solo habla con Claude (la clave no sale de ahí): le pasa la
 //     conversación y devuelve lo que contestó;
-//   · el TELÉFONO ejecuta las herramientas que Claude pide —buscar en Mapbox,
+//   · el TELÉFONO ejecuta las herramientas que Claude pide —buscar en
 //     OpenStreetMap y Google, mirar el catálogo de calles de Arica— igual que
 //     cuando el conductor escribe una dirección, y arma la conversación.
 //

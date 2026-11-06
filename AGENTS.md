@@ -38,9 +38,10 @@ comparten layout: el panel del jefe (escritorio) y la app del conductor (APK And
 - APK: Capacitor 8, paquete `cl.dashund.ares`. Abre `https://proyecto-ares-five.vercel.app/conductor`,
   así que cada deploy le llega solo. Lo nativo está en `android/` (plugins `Telefono` y `Burbuja`,
   ML Kit) y la web lo usa solo a través de `src/lib/nativo/`.
-- Proveedores: OpenRouteService (matriz y trazado), OSM/Nominatim y Google Geocoding (direcciones),
+- Proveedores: OpenRouteService (matriz y trazado), Google Geocoding (número de casa) y OSM/Nominatim
+  (calles y lugares),
   ML Kit en el teléfono y Google Cloud Vision (texto de fotos), Anthropic (guía, etiquetas,
-  direcciones sin ubicar) y Meta WhatsApp (en pausa). Mapbox va de salida (spec 019). Las variables
+  direcciones sin ubicar) y Meta WhatsApp (en pausa). Mapbox salió en la spec 019. Las variables
   están en `.env.example`.
 - Pruebas con `node:test`, sin framework (`pruebas/`). Servidor MCP de datos geo en `mcp/`
   (registrado en `.mcp.json`).
@@ -102,7 +103,7 @@ npm run test:base        # esquema de encomiendas y cuenta del pago contra la ba
 npm run test:esquema     # cada campo de src/types/db.ts existe en la base
 npm run mcp              # servidor MCP geo (stdio)
 npm run calles           # regenera el catálogo de calles de Arica desde OSM
-npm run sondear          # mide los proveedores de direcciones con direcciones reales (llama a Mapbox: gasta)
+npm run sondear          # mide los buscadores de direcciones (gasta 27 consultas de Google y 27 de ORS)
 ```
 
 Para probar en el teléfono hace falta HTTPS: `npx ngrok http 3000`.

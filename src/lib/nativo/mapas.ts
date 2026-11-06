@@ -1,7 +1,7 @@
-// Seguir con Google Maps (terreno 2026-10-29: "descarta cualquier error que me
-// pueda dejar botado sin alternativas"). Si la navegación de la app no carga —sin
-// señal para Mapbox, un servicio caído—, el conductor igual tiene que llegar a la
-// parada: esto abre Google Maps ya navegando hacia ella.
+// Navegar con Google Maps (terreno 2026-10-29: "descarta cualquier error que me
+// pueda dejar botado sin alternativas"; desde la spec 020 es la navegación de
+// ARES): abre Google Maps ya navegando hacia la parada. Es también el respaldo
+// cuando no hay burbuja (fuera de la APK o en una APK anterior, ver burbuja.ts).
 //
 // En la APK, `google.navigation:` lo atiende Android directo (como `tel:` al
 // llamar, ver telefono.ts): no hace falta nada nativo nuevo. En el navegador, el

@@ -12,7 +12,7 @@
 // arreglos, todos medidos contra direcciones reales de la operación:
 //
 //   1. Las abreviaturas. "Av. Chacabuco" y "Avda Chacabuco" son la misma calle,
-//      pero Mapbox y Nominatim las puntúan distinto según cómo vengan escritas.
+//      pero los buscadores las puntúan distinto según cómo vengan escritas.
 //   2. El "#" y el "N°" del número. "Chacabuco #500" le hace perder el número a
 //      Nominatim, que lo trata como parte del nombre de la calle. Y lo que viene
 //      DESPUÉS de "# 406" ("# 406 1") es el depto: se corta ahí.
@@ -20,8 +20,8 @@
 //      "406-1", "cerro La Cruz", ", Arica". Es información que el conductor
 //      necesita para tocar el timbre correcto, pero para el geocodificador es
 //      ruido que empuja el resultado a otra cuadra.
-//   4. Los ceros a la izquierda de la guía de Starken ("0428", "064"): Mapbox
-//      busca el "0428" como texto y no encuentra la puerta 428.
+//   4. Los ceros a la izquierda de la guía de Starken ("0428", "064"): un
+//      buscador busca el "0428" como texto y no encuentra la puerta 428.
 //
 // OJO con el punto 3: se saca de la CONSULTA, no de la dirección guardada. El
 // pedido conserva el texto entero — sin el "depto 42" el conductor llega al

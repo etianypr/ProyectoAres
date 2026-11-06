@@ -12,13 +12,13 @@ import type { SugerenciaDireccion } from "./tipos";
 // siempre igual (ver lib/geo/plus-code.ts).
 //
 // Que esto exista en el campo de dirección es la respuesta al problema de fondo
-// de Arica, y está medido: de 23 direcciones reales, Mapbox tiene la puerta
-// exacta en 2 y estima el resto (npm run sondear). Para una casa sin número, un
+// de Arica, y está medido: de 23 direcciones reales, Mapbox tenía la puerta
+// exacta en 2 y estimaba el resto (npm run sondear). Para una casa sin número, un
 // código dictado por teléfono —"GMCP+MX"— ubica mejor que cualquier dirección
 // escrita, y ubica igual de bien mañana.
 //
 // Por eso corta antes que los proveedores en los tres caminos de entrada: no
-// tiene sentido preguntarle a Mapbox por algo que ya sabemos.
+// tiene sentido preguntarle a un buscador por algo que ya sabemos.
 
 /** Un código con este recuadro o menos apunta a la puerta. Diez dígitos dan
  *  ~14 m; once, ~3 m. Por encima de esto ya es la cuadra o el barrio y hay que

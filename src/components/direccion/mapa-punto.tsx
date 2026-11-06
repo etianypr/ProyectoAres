@@ -15,7 +15,7 @@
 //     los gestos al formulario que lo contiene;
 //   · un preview no se explora: se mira y se sigue.
 // Desde la spec 019 la imagen es una foto del mismo mapa del conductor
-// (OpenFreeMap con los tonos Dashund), dibujada una vez y destruida: ver
+// (OpenFreeMap "Liberty"), dibujada una vez y destruida: ver
 // estampilla-mapa.ts. Antes era una imagen de Mapbox, que se cobra.
 //
 // Los tres estados se dibujan DENTRO de la misma caja de alto fijo, para que la

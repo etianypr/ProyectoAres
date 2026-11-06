@@ -130,7 +130,7 @@ Segunda tanda de la misma revisión (citas del dueño, no verificadas), y qué s
 - **Costo con varios criterios (distancia, tiempo, giros complejos, semáforos; colonias de
   hormigas con 12,3 % menos costo).** El dueño pidió menos kilómetros: el objetivo sigue siendo
   km. De los giros complejos se tomó el que más pesa acá: no dar la vuelta en pasajes ni
-  residenciales (`geo/mapbox/vuelta.ts`, `generar-ruta/sentido.ts`). El tiempo vendría gratis en
+  residenciales (`geo/ors/vuelta.ts`, `generar-ruta/sentido.ts`). El tiempo vendría gratis en
   la misma matriz si algún día sirve de desempate.
 - **Probabilidad de fallo en el primer intento.** Necesita historial por cliente, y los datos de
   clientes se borran cada día. Ya están "llámalo antes de bajar" y "Dejar como pendiente". Más
@@ -140,7 +140,7 @@ Segunda tanda de la misma revisión (citas del dueño, no verificadas), y qué s
 - **Posponer clientes muy caros.** Ya hay aviso de parada lejana y se puede quitar de la
   propuesta. Apareció un caso que el aviso no veía: una parada cerca de otras pero pegada por
   Mapbox a la troncal (6,8 km de vuelta por la carretera); ahora se corre a la calle por donde se
-  llega (`geo/mapbox/acceso.ts`).
+  llega (`geo/acceso.ts`, con las calles de las teselas de OpenFreeMap desde la spec 019).
 - **Criterio final del dueño: cada zona una sola vez.** Terminar un barrio antes de pasar al
   siguiente y no volver a pisarlo, aunque cueste algo más: en la prueba de 66 paradas, +1,7 km
   (+4,6 %). Es la versión que funciona de la sectorización: zonas chicas de barrio (~900 m, 17) y

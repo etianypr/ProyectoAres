@@ -1,7 +1,7 @@
 // Cómo se arma la ruta cuando entran en juego las respuestas de los receptores.
 //
 // Corre calcularRutaLocal() de verdad, sobre IndexedDB de verdad, con la matriz
-// de OpenRouteService y el trazado de Mapbox respondidos por un doble del fetch global. Lo que se
+// y el trazado de OpenRouteService respondidos por un doble del fetch global. Lo que se
 // verifica es lo que el documento principal pide y que la distancia sola no
 // puede dar:
 //
@@ -125,7 +125,6 @@ const consultasDeMatriz = () => consultas.filter((u) => u.includes("/v2/matrix")
 const consultasDeTrazado = () => consultas.filter((u) => u.includes("/v2/directions")).length;
 
 test.before(() => {
-  process.env.NEXT_PUBLIC_MAPBOX_TOKEN = "pk.prueba";
   process.env.NEXT_PUBLIC_ORS_KEY = "ors.prueba";
   instalar();
 });
@@ -258,12 +257,12 @@ test("la ruta vuelve a la partida: el trazado termina en ella y la ruta la guard
 test("si la revisión de calles cercanas falla, la ruta sale igual (no deja al conductor sin ruta)", async () => {
   // Terreno 2026-10-29: lo agregado al armado (calles alrededor, sentido de las
   // calles, zonas) es mejora; ninguna falla suya puede impedir que haya ruta.
-  // Este doble de Mapbox revienta ante cualquier consulta que no conoce, así que
-  // la de calles alrededor (Tilequery) falla siempre.
+  // Este doble revienta ante cualquier consulta que no conoce, así que la de
+  // calles alrededor (las teselas de OpenFreeMap, spec 019) falla siempre.
   // Puntos que ninguna otra prueba usa: lo ya revisado se recuerda en la sesión.
   for (const [nombre, km] of [["Norte 1", 1.37], ["Norte 2", 2.41], ["Norte 3", 3.53]]) await pedidoAKm(nombre, km);
   const p = await calcularRutaLocal(HOY, inicioDe());
-  assert.ok(consultas.some((u) => u.includes("tilequery")), "no intentó revisar las calles");
+  assert.ok(consultas.some((u) => u.includes("tiles.openfreemap.org")), "no intentó revisar las calles");
   // En línea recta, 1-2-3 y 1-3-2 miden lo mismo ida y vuelta: importa que estén las tres.
   assert.deepEqual(nombres(p.paradas).sort(), ["Norte 1", "Norte 2", "Norte 3"]);
   assert.ok(p.trazado && p.trazado.length > 0, "quedó sin trazado");

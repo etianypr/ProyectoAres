@@ -46,17 +46,16 @@ export function ResolverDireccion({
                         mismo: "Los Aromos 120" de la ciudad y el del valle de
                         Azapa se leen igual y están a nueve kilómetros.
     
-                        Cuesta una petición a Mapbox por opción, y solo cuando
-                        la dirección salió dudosa. Al lado de salir con el
-                        paquete hacia el valle equivocado, no es nada. */}
+                        Es una foto del mismo mapa, sin costo (spec 019), y
+                        solo cuando la dirección salió dudosa. Al lado de salir
+                        con el paquete hacia el valle equivocado, no es nada. */}
                     <MapaPunto
                       lat={s.lat}
                       lng={s.lng}
                       etiqueta={s.direccion}
-                      // 96 px y no menos: por debajo de eso la atribución de
-                      // Mapbox —que viene dibujada en la imagen y no se
-                      // puede sacar— se come un tercio de la estampilla y no
-                      // queda mapa que mirar.
+                      // 96 px y no menos: por debajo de eso la atribución del
+                      // mapa, que es obligatoria, se come un tercio de la
+                      // estampilla y no queda mapa que mirar.
                       alto={96}
                       ancho={96}
                       // Más lejos que la tira de abajo del campo: acá no hay

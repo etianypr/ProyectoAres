@@ -1,7 +1,7 @@
 // Spec 016: que la dirección de la guía se ubique sola pese al tipeo.
 //
 // Los nombres de calle son reales (del catálogo de OpenStreetMap); los NÚMEROS
-// son inventados: ninguna dirección de un destinatario entra al repo. Mapbox y
+// son inventados: ninguna dirección de un destinatario entra al repo. Google y
 // Nominatim se responden reemplazando el fetch global, como en
 // asistencia-direcciones.test.mjs.
 import test from "node:test";
@@ -12,7 +12,7 @@ const { normalizarConsulta, coincidenciaCalle, distanciaEdicion } = await import
 );
 const { callesParecidas, largoDeCalle } = await import("@/lib/geo/geocoding/calles");
 const { ubicarDireccion } = await import("@/lib/geo/geocoding");
-const { googleDirecto } = await import("@/lib/geo/geocoding/google");
+const { googleDirecto, olvidarConsultasGoogle } = await import("@/lib/geo/geocoding/google");
 
 // ---------------------------------------------------------------------------
 // Limpieza del texto
@@ -111,13 +111,11 @@ test("el catálogo sabe cuánto mide cada calle", async () => {
 // ---------------------------------------------------------------------------
 
 const fetchOriginal = globalThis.fetch;
-let mapbox = () => ({ features: [] });
 let osm = () => [];
 let google = () => ({ status: "ZERO_RESULTS", results: [] });
 let consultas = [];
 
 test.before(() => {
-  process.env.NEXT_PUBLIC_MAPBOX_TOKEN = "pk.prueba";
   globalThis.fetch = async (entrada, opciones) => {
     const url = typeof entrada === "string" ? entrada : entrada.url;
     // El teléfono pregunta a Google por /api/geocodificar: se hace lo mismo que
@@ -128,40 +126,39 @@ test.before(() => {
       return new Response(JSON.stringify({ sugerencias }), { status: 200, headers: { "content-type": "application/json" } });
     }
     const params = new URL(url).searchParams;
-    const q = params.get("q") ?? params.get("address") ?? "";
-    const cual = url.includes("nominatim") ? "osm" : url.includes("googleapis") ? "google" : "mapbox";
+    const cual = url.includes("googleapis") ? "google" : "osm";
+    const q = (params.get("q") ?? params.get("address") ?? "").replace(/, Arica, Chile$/, "");
     consultas.push({ cual, q });
-    const cuerpo = cual === "osm" ? osm(q) : cual === "google" ? google(q) : mapbox(q);
+    const cuerpo = cual === "google" ? google(q) : osm(q);
     return new Response(JSON.stringify(cuerpo), { status: 200, headers: { "content-type": "application/json" } });
   };
 });
 test.after(() => {
   globalThis.fetch = fetchOriginal;
+  delete globalThis.window;
 });
 test.beforeEach(() => {
-  mapbox = () => ({ features: [] });
   osm = () => [];
   google = () => ({ status: "ZERO_RESULTS", results: [] });
   consultas = [];
-  delete globalThis.window;
+  olvidarConsultasGoogle();
+  globalThis.window = {}; // Google se pregunta desde el teléfono
 });
 
-function rasgo(tipo, nombre, lat, lng, match_code) {
-  return {
-    id: `urn:${nombre}`,
-    properties: {
-      mapbox_id: `urn:${nombre}:${lat}`,
-      feature_type: tipo,
-      name: nombre,
-      place_formatted: "Arica, Región de Arica y Parinacota, Chile",
-      coordinates: { latitude: lat, longitude: lng },
-      ...(match_code ? { match_code } : {}),
+const resultadoGoogle = (calle, numero, lat, lng, location_type = "ROOFTOP") => ({
+  status: "OK",
+  results: [
+    {
+      place_id: `g-${calle}-${numero}`,
+      address_components: [
+        { long_name: numero, short_name: numero, types: ["street_number"] },
+        { long_name: calle, short_name: calle, types: ["route"] },
+      ],
+      geometry: { location: { lat, lng }, location_type },
     },
-  };
-}
-const puerta = (nombre, lat, lng, calle = "matched") =>
-  rasgo("address", nombre, lat, lng, { street: calle, address_number: "matched", confidence: "low" });
-const calleSola = (nombre, lat, lng) => rasgo("street", nombre, lat, lng);
+  ],
+});
+const sinResultados = { status: "ZERO_RESULTS", results: [] };
 const tramoOsm = (nombre, lat, lng, id) => ({
   osm_type: "way",
   osm_id: id,
@@ -172,29 +169,31 @@ const tramoOsm = (nombre, lat, lng, id) => ({
   address: { road: nombre, city: "Arica" },
 });
 
-test("la puerta que Mapbox marca 'otra calle' se acepta si es la escrita", async () => {
-  mapbox = () => ({ features: [puerta("Alejandro Azolas 901", -18.49, -70.29, "unmatched")] });
+test("la puerta de Google con el nombre largo de la calle se acepta", async () => {
+  // La avenida se llama de dos formas ("Alejandro Azolas" y "Avenida Alejandro
+  // Azola", spec 016): la última palabra la tiene nuestra comparación de nombres.
+  google = () => resultadoGoogle("Avenida Alejandro Azola", "901", -18.49, -70.29);
   const r = await ubicarDireccion("ALEJANDRO AZOLAS 901");
   assert.equal(r.tipo, "exacta");
-  assert.equal(r.elegida?.direccion, "Alejandro Azolas 901");
+  assert.equal(r.elegida?.direccion, "Avenida Alejandro Azola 901");
 });
 
-test("la puerta de OTRA calle se sigue descartando", async () => {
-  mapbox = () => ({ features: [puerta("Avenida Senador Humberto Palza Corvacho 902", -18.5, -70.3, "unmatched")] });
+test("la puerta de OTRA calle se descarta", async () => {
+  google = () => resultadoGoogle("Avenida Senador Humberto Palza Corvacho", "902", -18.5, -70.3);
   const r = await ubicarDireccion("Avenida Diego Portales 902");
   assert.equal(r.tipo, "no_encontrada");
 });
 
 test("con el nombre mal escrito se pregunta por el oficial y se encuentra la puerta", async () => {
-  mapbox = (q) => (q === "Braulio Muñoz 903" ? { features: [puerta("Braulio Muñoz 903", -18.47, -70.3)] } : { features: [] });
+  google = (q) => (q === "Braulio Muñoz 903" ? resultadoGoogle("Braulio Muñoz", "903", -18.47, -70.3) : sinResultados);
   const r = await ubicarDireccion("BRAULIO MUNIZ 903");
   assert.equal(r.tipo, "exacta");
   assert.equal(r.elegida?.direccion, "Braulio Muñoz 903");
-  assert.ok(consultas.some((c) => c.cual === "mapbox" && c.q === "Braulio Muñoz 903"));
+  assert.ok(consultas.some((c) => c.cual === "google" && c.q === "Braulio Muñoz 903"));
 });
 
 test("en una calle corta sin el número, la parada va a la calle con aviso", async () => {
-  mapbox = () => ({ features: [calleSola("Carlos Witting", -18.46, -70.29)] });
+  osm = () => [tramoOsm("Carlos Witting", -18.46, -70.29, 4)];
   const r = await ubicarDireccion("CARLOS WITTING 0904");
   assert.equal(r.tipo, "aproximada");
   assert.equal(r.elegida?.direccion, "Carlos Witting");
@@ -202,8 +201,7 @@ test("en una calle corta sin el número, la parada va a la calle con aviso", asy
 });
 
 test("en una calle larga sin el número no se elige, y la calle escrita va primero", async () => {
-  mapbox = () => ({ features: [calleSola("Santiago", -18.45, -70.3)] });
-  osm = () => [tramoOsm("Santiago Arata Gandolfo", -18.49, -70.3, 1)];
+  osm = () => [tramoOsm("Santiago", -18.45, -70.3, 7), tramoOsm("Santiago Arata Gandolfo", -18.49, -70.3, 1)];
   const r = await ubicarDireccion("SANTIAGO ARATA 905");
   assert.equal(r.tipo, "solo_calle");
   assert.equal(r.elegida, null);
@@ -222,79 +220,69 @@ test("dos tramos lejanos de la misma avenida no son 'dos lugares'", async () => 
 test("el mismo número en dos nombres de la misma calle, juntos: no hay que elegir", async () => {
   // "Avenida Linderos Poniente" y "Avenida Linderos Oriente" como si fueran una
   // sola calle con dos nombres: las dos puertas caen a 15 m.
-  mapbox = (q) => {
-    if (q === "Avenida Linderos Poniente 907") return { features: [puerta(q, -18.4795, -70.3128)] };
-    if (q === "Avenida Linderos Oriente 907") return { features: [puerta(q, -18.4796, -70.3127)] };
-    return { features: [calleSola("Avenida Linderos Poniente", -18.48, -70.31), calleSola("Avenida Linderos Oriente", -18.47, -70.28)] };
+  google = (q) => {
+    if (q === "Avenida Linderos Poniente 907") return resultadoGoogle("Avenida Linderos Poniente", "907", -18.4795, -70.3128);
+    if (q === "Avenida Linderos Oriente 907") return resultadoGoogle("Avenida Linderos Oriente", "907", -18.4796, -70.3127);
+    return sinResultados;
   };
+  osm = () => [tramoOsm("Avenida Linderos Poniente", -18.48, -70.31, 8), tramoOsm("Avenida Linderos Oriente", -18.47, -70.28, 9)];
   const r = await ubicarDireccion("Linderos 907");
   assert.equal(r.tipo, "exacta");
   assert.ok(r.elegida);
 });
 
 // ---------------------------------------------------------------------------
-// Google, último recurso (spec 016, US3)
+// Google, el que da la puerta (spec 019; antes último recurso, spec 016)
 // ---------------------------------------------------------------------------
 
-const resultadoGoogle = (calle, numero, lat, lng, location_type = "ROOFTOP") => ({
-  status: "OK",
-  results: [
-    {
-      place_id: `g-${numero}`,
-      address_components: [
-        { long_name: numero, short_name: numero, types: ["street_number"] },
-        { long_name: calle, short_name: calle, types: ["route"] },
-      ],
-      geometry: { location: { lat, lng }, location_type },
-    },
-  ],
-});
-
-test("sin puerta en Mapbox ni OSM, Google la da y queda exacta", async () => {
-  globalThis.window = {}; // desde el teléfono
-  mapbox = () => ({ features: [calleSola("Santiago Arata Gandolfo", -18.49, -70.3)] });
+test("con solo la calle en OSM, Google da la puerta y queda exacta", async () => {
+  osm = () => [tramoOsm("Santiago Arata Gandolfo", -18.49, -70.3, 10)];
   google = () => resultadoGoogle("Avenida Santiago Arata Gandolfo", "910", -18.4905, -70.301);
   const r = await ubicarDireccion("SANTIAGO ARATA 910");
   assert.equal(r.tipo, "exacta");
   assert.deepEqual([r.elegida?.fuente, r.elegida?.direccion], ["google", "Avenida Santiago Arata Gandolfo 910"]);
-  assert.ok(consultas.some((c) => c.cual === "google" && c.q.startsWith("SANTIAGO ARATA 910")));
+  assert.ok(consultas.some((c) => c.cual === "google" && c.q === "SANTIAGO ARATA 910"));
 });
 
-test("Google no se consulta si Mapbox ya dio la puerta, ni desde el servidor", async () => {
-  globalThis.window = {};
-  mapbox = () => ({ features: [puerta("Pudahuel 911", -18.47, -70.29)] });
-  await ubicarDireccion("PUDAHUEL 911");
-  assert.ok(!consultas.some((c) => c.cual === "google"));
+test("Google no se consulta sin número, ni desde el servidor", async () => {
+  await ubicarDireccion("PUDAHUEL");
+  assert.ok(!consultas.some((c) => c.cual === "google"), "sin número no hay puerta que buscar");
 
-  delete globalThis.window; // en el servidor no se usa Google
+  delete globalThis.window; // en el servidor no hay sesión de conductor
   consultas = [];
-  mapbox = () => ({ features: [] });
   const r = await ubicarDireccion("CALLE SIN DATOS 912");
   assert.equal(r.tipo, "no_encontrada");
   assert.ok(!consultas.some((c) => c.cual === "google"));
 });
 
 test("una respuesta de Google en otra calle, otro número o fuera de Arica no se usa", async () => {
-  globalThis.window = {};
   for (const respuesta of [
     resultadoGoogle("Avenida Diego Portales", "913", -18.48, -70.3),
     resultadoGoogle("Avenida Santiago Arata Gandolfo", "999", -18.49, -70.3),
     resultadoGoogle("Avenida Santiago Arata Gandolfo", "913", -33.45, -70.66),
   ]) {
+    olvidarConsultasGoogle();
     google = () => respuesta;
     const r = await ubicarDireccion("SANTIAGO ARATA 913");
     assert.notEqual(r.elegida?.fuente, "google");
   }
 });
 
-test("una cuadra de Google no reemplaza la cuadra de Mapbox; la puerta sí", async () => {
-  globalThis.window = {};
-  mapbox = () => ({
-    features: [rasgo("address", "San Marcos 914", -18.47, -70.3, { street: "matched", address_number: "plausible" })],
-  });
+test("la cuadra de Google entra con aviso; la puerta, sin aviso", async () => {
   google = () => resultadoGoogle("San Marcos", "914", -18.4701, -70.3001, "RANGE_INTERPOLATED");
-  assert.equal((await ubicarDireccion("SAN MARCOS 914")).elegida?.fuente, "mapbox");
+  const cuadra = await ubicarDireccion("SAN MARCOS 914");
+  assert.deepEqual([cuadra.tipo, cuadra.elegida?.fuente], ["aproximada", "google"]);
+  assert.match(cuadra.advertencia, /cuadra/);
+
+  olvidarConsultasGoogle();
   google = () => resultadoGoogle("San Marcos", "914", -18.4702, -70.3002, "ROOFTOP");
-  const r = await ubicarDireccion("SAN MARCOS 914");
-  assert.deepEqual([r.tipo, r.elegida?.fuente], ["exacta", "google"]);
+  const puerta = await ubicarDireccion("SAN MARCOS 914");
+  assert.deepEqual([puerta.tipo, puerta.elegida?.fuente, puerta.advertencia], ["exacta", "google", null]);
+});
+
+test("lo ya preguntado a Google no se vuelve a pagar", async () => {
+  google = () => resultadoGoogle("San Marcos", "915", -18.4702, -70.3002);
+  await ubicarDireccion("SAN MARCOS 915");
+  await ubicarDireccion("SAN MARCOS 915");
+  assert.equal(consultas.filter((c) => c.cual === "google").length, 1);
 });

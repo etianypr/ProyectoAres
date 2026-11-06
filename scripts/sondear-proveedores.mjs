@@ -1,16 +1,17 @@
-// Tarea 0 del plan del servidor MCP: NO se escribe un proveedor sin medirlo antes.
+// NO se escribe un proveedor sin medirlo antes: en este proyecto los límites de
+// un proveedor se escriben medidos, no supuestos.
 //
-// Este script es DESCARTABLE. Su única salida que importa es la tabla que queda
-// pegada como comentario de cabecera en src/lib/geo/proveedores/: en este
-// proyecto los límites de un proveedor se escriben medidos, no supuestos (ver
-// MAX_PUNTOS_POR_CONSULTA en lib/rutas.ts, "25 devuelve 200 y 26 devuelve 422").
+//   npm run sondear   (node --env-file=.env.local scripts/sondear-proveedores.mjs)
 //
-//   node --env-file=.env.local scripts/sondear-proveedores.mjs
+// GASTA: 27 consultas a Google Geocoding (dentro de las 10.000 gratis del mes,
+// con GOOGLE_MAPS_KEY) y 27 al buscador de ORS (de su cupo gratis de 1.000 al
+// día). Avisar antes de correrlo (AGENTS.md, «Límites»).
 //
 // La pregunta que contesta es UNA: ¿un proveedor abierto encuentra puertas de
-// Arica que Mapbox+OSM no tienen? Si no, no entra a la cascada.
+// Arica que Google+OSM no tienen? Si no, no entra a la cascada. Desde la spec
+// 019 la línea base es Google (antes Mapbox) y el candidato, el buscador de ORS
+// (Photon se midió antes y no aportó ninguna puerta).
 const RECUADRO_ARICA = "-70.45,-18.65,-70.10,-18.35";
-const CENTRO = { lat: -18.4783, lng: -70.3126 };
 const UA = "ares-encomiendas/1.0 (sondeo de proveedores; contacto: admin de la empresa)";
 
 // Las seis primeras son las direcciones reales que ya están en
@@ -47,38 +48,44 @@ async function pedir(url, headers = {}) {
   }
 }
 
-// Mapbox: la línea base contra la que se mide todo lo demás.
-async function mapbox(d) {
-  const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-  if (!token) return { error: "sin token" };
+// Google: la línea base contra la que se mide todo lo demás (spec 019). Solo la
+// puerta o la cuadra cuentan: el centro de la calle no es una puerta.
+async function google(d) {
+  const clave = process.env.GOOGLE_MAPS_KEY;
+  if (!clave) return { error: "sin GOOGLE_MAPS_KEY" };
+  const [oeste, sur, este, norte] = RECUADRO_ARICA.split(",");
   const p = new URLSearchParams({
-    q: d, country: "cl", bbox: RECUADRO_ARICA,
-    types: "address,street,neighborhood,place", language: "es", access_token: token, limit: "5",
+    address: d + ", Arica, Chile", components: "country:CL", region: "cl", language: "es",
+    bounds: `${sur},${oeste}|${norte},${este}`, key: clave,
   });
-  const r = await pedir("https://api.mapbox.com/search/geocode/v6/forward?" + p);
+  const r = await pedir("https://maps.googleapis.com/maps/api/geocode/json?" + p);
   if (r.error) return r;
-  const f = r.datos.features?.[0];
+  const f = r.datos.results?.[0];
   if (!f) return { ...r, vacio: true };
-  const pr = f.properties ?? {};
-  // match_code.street='unmatched' es Mapbox pegando el número sobre OTRA calle:
-  // ese resultado NO cuenta como puerta encontrada.
-  const pegado = pr.match_code?.address_number === "matched" && pr.match_code?.street === "matched";
+  const tipo = f.geometry?.location_type;
+  const puerta = tipo === "ROOFTOP" || tipo === "RANGE_INTERPOLATED";
+  const numero = f.address_components?.find((c) => c.types.includes("street_number"))?.long_name;
   return {
     ms: r.ms,
-    n: r.datos.features.length,
-    numero: pegado ? (pr.name?.match(/\d+/)?.[0] ?? null) : null,
-    etiqueta: pr.name,
-    lat: pr.coordinates?.latitude,
-    lng: pr.coordinates?.longitude,
+    n: r.datos.results.length,
+    numero: puerta ? (numero ?? null) : null,
+    etiqueta: f.formatted_address?.split(",")[0] + " (" + tipo + ")",
+    lat: f.geometry?.location?.lat,
+    lng: f.geometry?.location?.lng,
   };
 }
 
-// Photon: sin API key, datos de OSM, tolera errores de tipeo.
-async function photon(d) {
+// El buscador de ORS (Pelias: OSM más OpenAddresses): gratis, con la misma
+// cuenta que la matriz. El candidato a dar puertas sin pagar.
+async function ors(d) {
+  const clave = process.env.NEXT_PUBLIC_ORS_KEY || process.env.ORS_API_KEY;
+  if (!clave) return { error: "sin clave de ORS" };
+  const [oeste, sur, este, norte] = RECUADRO_ARICA.split(",");
   const p = new URLSearchParams({
-    q: d, limit: "5", lat: String(CENTRO.lat), lon: String(CENTRO.lng), bbox: RECUADRO_ARICA,
+    text: d + ", Arica", "boundary.country": "CL", "boundary.rect.min_lon": oeste, "boundary.rect.min_lat": sur,
+    "boundary.rect.max_lon": este, "boundary.rect.max_lat": norte, size: "5", lang: "es",
   });
-  const r = await pedir("https://photon.komoot.io/api/?" + p, { "User-Agent": UA });
+  const r = await pedir("https://api.openrouteservice.org/geocode/search?" + p, { Authorization: clave });
   if (r.error) return r;
   const f = r.datos.features?.[0];
   if (!f) return { ...r, vacio: true };
@@ -86,8 +93,8 @@ async function photon(d) {
   return {
     ms: r.ms,
     n: r.datos.features.length,
-    numero: pr.housenumber ?? null,
-    etiqueta: [pr.street ?? pr.name, pr.housenumber].filter(Boolean).join(" "),
+    numero: pr.layer === "address" ? (pr.housenumber ?? null) : null,
+    etiqueta: [pr.street ?? pr.name, pr.housenumber].filter(Boolean).join(" ") + " (" + pr.layer + ")",
     lat: f.geometry?.coordinates?.[1],
     lng: f.geometry?.coordinates?.[0],
   };
@@ -114,7 +121,7 @@ async function nominatim(d) {
   };
 }
 
-const PROVEEDORES = [["mapbox", mapbox, 0], ["photon", photon, 1100], ["nominatim", nominatim, 1200]];
+const PROVEEDORES = [["google", google, 0], ["ors", ors, 1600], ["nominatim", nominatim, 1200]];
 const resumen = {};
 
 for (const [nombre, fn, espera] of PROVEEDORES) {
@@ -160,20 +167,20 @@ for (const [n, r] of Object.entries(resumen)) {
 
 // El criterio de corte, calculado y no opinado.
 const base = new Set(
-  [...resumen.mapbox.filas, ...resumen.nominatim.filas].filter((f) => f.acierto).map((f) => f.d),
+  [...resumen.google.filas, ...resumen.nominatim.filas].filter((f) => f.acierto).map((f) => f.d),
 );
-const aporta = resumen.photon.filas.filter((f) => f.acierto && !base.has(f.d));
-console.log("\nPuertas que Photon encuentra y Mapbox+OSM NO: " + aporta.length);
+const aporta = resumen.ors.filas.filter((f) => f.acierto && !base.has(f.d));
+console.log("\nPuertas que ORS encuentra y Google+OSM NO: " + aporta.length);
 for (const f of aporta) console.log("  + " + f.d + " -> " + f.r.lat + "," + f.r.lng + " (" + f.r.etiqueta + ")");
 
-const rescate = resumen.photon.filas.filter(
+const rescate = resumen.ors.filas.filter(
   (f) =>
     !f.r.error && !f.r.vacio &&
-    [...resumen.mapbox.filas, ...resumen.nominatim.filas]
+    [...resumen.google.filas, ...resumen.nominatim.filas]
       .filter((g) => g.d === f.d)
       .every((g) => g.r.error || g.r.vacio),
 );
-console.log("\nDirecciones que SOLO Photon ubica (los otros dos vacios): " + rescate.length);
+console.log("\nDirecciones que SOLO ORS ubica (los otros dos vacios): " + rescate.length);
 for (const f of rescate) console.log("  + " + f.d + " -> " + f.r.etiqueta);
 
 // Qué contesta cada uno ante una dirección que no existe: es lo que decide si el

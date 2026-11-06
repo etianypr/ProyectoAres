@@ -41,7 +41,6 @@ const EXC_A7 = [
 const EXC_A9 = [];
 /** A10: host contactado → nombre con que figura en docs/PRIVACIDAD.md. */
 const PROVEEDORES = {
-  "api.mapbox.com": "Mapbox",
   "nominatim.openstreetmap.org": "Nominatim",
   "maps.googleapis.com": "Google Geocoding",
   "vision.googleapis.com": "Google Cloud Vision",
@@ -292,4 +291,13 @@ test("A10: todo host contactado figura en docs/PRIVACIDAD.md", () => {
     else if (!privacidad.includes(proveedor)) malos.push(`${h}: "${proveedor}" no figura en docs/PRIVACIDAD.md`);
   }
   assert.deepEqual(malos, []);
+});
+
+test("Mapbox fuera (spec 019, SC-002): ni su API, ni su token, ni su librería", () => {
+  // Cobra pasado lo gratis y no tiene tope de gasto: unas pruebas dejaron una
+  // cuenta de US$66. El dueño decidió que no vuelve.
+  const conMapbox = MODULOS.filter((m) => /api\.mapbox\.com|MAPBOX_TOKEN|["']mapbox-gl["']/.test(m.texto)).map((m) => m.ruta);
+  assert.deepEqual(conMapbox, []);
+  const paquete = JSON.parse(readFileSync(join(RAIZ, "package.json"), "utf8"));
+  assert.ok(!paquete.dependencies?.["mapbox-gl"] && !paquete.devDependencies?.["mapbox-gl"], "mapbox-gl volvió a package.json");
 });

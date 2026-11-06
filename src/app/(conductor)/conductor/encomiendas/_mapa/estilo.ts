@@ -4,9 +4,9 @@
 import type * as maplibregl from "maplibre-gl";
 import type { Trazado } from "@/lib/geo/coordenada";
 
-// El estilo, el worker y los tonos Dashund viven en lib/geo/estilo-mapa.ts: los
+// El estilo, el worker y sus ajustes viven en lib/geo/estilo-mapa.ts: los
 // comparte la estampilla de una dirección (components/direccion).
-export { ESTILO, URL_WORKER, tonoDashund } from "@/lib/geo/estilo-mapa";
+export { ESTILO, URL_WORKER, ajustarEstilo } from "@/lib/geo/estilo-mapa";
 
 export const FUENTE_DIA = "ruta-dia";
 export const FUENTE_NAV = "ruta-navegacion";

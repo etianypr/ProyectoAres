@@ -1,7 +1,6 @@
 // Unir las listas de los proveedores y buscar el número escrito en la calle
 // que se quiso decir ("Linderos 3536"; spec 016 con el catálogo de calles).
 
-import { tope } from "@/lib/comun/tope";
 import { callesParecidas } from "./calles";
 import {
   coincidenciaCalle,
@@ -12,24 +11,24 @@ import {
   partirCalleYNumero,
   type Coincidencia,
 } from "./consulta";
-import { aSugerencia, urlMapbox, type FeatureV6 } from "./mapbox";
+import { preguntarAGoogle } from "./google";
 import type { SugerenciaDireccion } from "./tipos";
 
-// Une las dos listas sin repetir: primero las de Mapbox —que son las que traen
-// número de casa— y debajo las de OSM que aportan algo nuevo.
+// Une las dos listas sin repetir: primero las puertas —las de Google, que son
+// las que traen número de casa— y debajo lo que OSM aporta de nuevo.
 //
-// Se descarta la calle de OSM cuando Mapbox ya dio "esa misma calle + número":
-// sería un renglón peor justo debajo del bueno, y encima marcado "sin número".
+// Se descarta la calle de OSM cuando ya está "esa misma calle + número": sería
+// un renglón peor justo debajo del bueno, y encima marcado "sin número".
 export function combinarSugerencias(
-  deMapbox: SugerenciaDireccion[],
+  primero: SugerenciaDireccion[],
   deOsm: SugerenciaDireccion[],
 ): SugerenciaDireccion[] {
-  const yaEstan = deMapbox.map((s) => normalizar(s.direccion));
+  const yaEstan = primero.map((s) => normalizar(s.direccion));
   const extras = deOsm.filter((s) => {
     const clave = normalizar(s.direccion);
     return !yaEstan.some((otra) => otra === clave || otra.startsWith(`${clave} `));
   });
-  return [...deMapbox, ...extras];
+  return [...primero, ...extras];
 }
 
 // ----------------------------------------------------------------------------
@@ -38,7 +37,7 @@ export function combinarSugerencias(
 //
 // Caso medido en la operación, y de los que más tiempo hacen perder: la calle se
 // llama "Avenida Linderos Poniente" y en la boleta dice "Linderos 3536". Los dos
-// proveedores contestan la CALLE marcada "sin número" —el 3536 se pierde— y la
+// buscadores contestan la CALLE marcada "sin número" —el 3536 se pierde— y la
 // puerta aparece recién si el conductor escribe el nombre largo entero. Treinta
 // veces al día eso son tres palabras de más cada vez, o un pedido sin ubicar.
 //
@@ -86,56 +85,23 @@ function nombreDeCalleDe(c: SugerenciaDireccion): string | null {
  *  que el conductor tenía en la cabeza" y son consultas que se pagan. */
 const MAX_CALLES_A_PROBAR = 3;
 
-/** Lo ya preguntado, mientras dure la pantalla. Escribiendo el número dígito a
- *  dígito la misma consulta vuelve a caer, y cada una se paga. */
-const MAX_RECORDADAS = 60;
-const yaPreguntado = new Map<string, SugerenciaDireccion[]>();
-
-function recordar(clave: string, puertas: SugerenciaDireccion[]): void {
-  if (yaPreguntado.size >= MAX_RECORDADAS) {
-    const masVieja = yaPreguntado.keys().next();
-    if (!masVieja.done) yaPreguntado.delete(masVieja.value);
-  }
-  yaPreguntado.set(clave, puertas);
-}
-
-/** Le pregunta a Mapbox por una puerta concreta —y solo a Mapbox: los números de
- *  casa de Arica los tiene él (ver la cabecera del archivo)—.
+/** Le pregunta a Google por una puerta concreta: los números de casa de Arica
+ *  los tiene él (ver google.ts), que además recuerda lo ya preguntado.
  *
- *  Devuelve null cuando no se pudo preguntar (sin señal, sin token, o el conductor
- *  siguió escribiendo). No es lo mismo que "ese número no existe ahí", y
- *  confundirlos borraría de la lista la única calle correcta por un corte de
+ *  Devuelve null cuando no se pudo preguntar (sin señal, sin clave, o el
+ *  conductor siguió escribiendo). No es lo mismo que "ese número no existe ahí",
+ *  y confundirlos borraría de la lista la única calle correcta por un corte de
  *  señal. */
 async function puertaEnCalle(
   calle: string,
   numero: string,
   senal?: AbortSignal,
 ): Promise<SugerenciaDireccion[] | null> {
-  const consulta = `${calle} ${numero}`;
-  const clave = normalizar(consulta);
-  const recordada = yaPreguntado.get(clave);
-  if (recordada) return recordada;
-
-  // autocomplete=false: esta consulta la armamos nosotros y está completa, no es
-  // un prefijo a medio teclear.
-  const url = urlMapbox(consulta, { limit: "2", autocomplete: "false" });
-  if (!url) return null;
-
-  try {
-    const res = await fetch(url, { signal: tope(8_000, senal) });
-    if (!res.ok) return null;
-    const datos = (await res.json()) as { features?: FeatureV6[] };
-    const puertas = (datos.features ?? [])
-      .flatMap((f) => aSugerencia(f, calle))
-      // El número tiene que ser EL QUE SE PIDIÓ y la calle, la que se preguntó.
-      // Sin estos dos filtros volvemos al error de siempre: Mapbox interpola el
-      // 3536 donde le parece y contesta con cara de resultado bueno.
-      .filter((s) => s.coincideNumero === true && esLaCalleEscrita(calle, s.direccion));
-    recordar(clave, puertas);
-    return puertas;
-  } catch {
-    return null;
-  }
+  const puertas = await preguntarAGoogle(`${calle} ${numero}`, senal);
+  // El número tiene que ser EL QUE SE PIDIÓ y la calle, la que se preguntó: un
+  // buscador que interpola el número sobre otra calle contesta con cara de
+  // resultado bueno (googleDirecto ya filtra; esto lo deja escrito acá).
+  return puertas && puertas.filter((s) => s.coincideNumero === true && esLaCalleEscrita(calle, s.direccion));
 }
 
 /** Las calles donde buscar el número: las que trajeron los proveedores y las

@@ -6,7 +6,6 @@ import { tope } from "@/lib/comun/tope";
 import { callesParecidas } from "../geocoding/calles";
 import { normalizarConsulta } from "../geocoding/consulta";
 import { conGoogle } from "../geocoding/google";
-import { conMapbox } from "../geocoding/mapbox";
 import { conNominatim } from "../geocoding/nominatim";
 import type { SugerenciaDireccion } from "../geocoding/tipos";
 import {
@@ -49,11 +48,11 @@ async function pedirAlServidor(mensajes: MensajeIA[]): Promise<RespuestaPaso> {
   return datos;
 }
 
-/** Los tres buscadores a la vez, sin repetidos. Google solo si hay clave. */
+/** Los dos buscadores a la vez, sin repetidos (spec 019: sin Mapbox). Google
+ *  solo si hay clave. */
 async function buscarEnTodos(consulta: string): Promise<SugerenciaDireccion[]> {
   const q = normalizarConsulta(consulta);
   const listas = await Promise.all([
-    conMapbox(q).catch(() => []),
     conNominatim(q).catch(() => []),
     conGoogle(q).catch(() => []),
   ]);

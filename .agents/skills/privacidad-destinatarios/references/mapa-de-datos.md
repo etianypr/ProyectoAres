@@ -23,9 +23,8 @@ desarrollo).
 
 | Desde | A | Qué |
 |---|---|---|
-| `geo/geocoding/mapbox.ts`, `completar-numero.ts` | Mapbox (`api.mapbox.com`, GET) | la dirección escrita o de la guía, en la URL |
 | `geo/geocoding/nominatim.ts` | Nominatim (GET) | la dirección |
-| `geo/mapbox/acceso.ts` (desde `generar-ruta/ubicar-pedidos.ts`) | Mapbox Tilequery | el punto de la parada |
+| `geo/teselas.ts` (desde `geo/acceso.ts` y `generar-ruta/ubicar-pedidos.ts`) | OpenFreeMap (GET de teselas) | la tesela de la zona de cada parada (~2 km), sin el punto |
 | `geo/matriz.ts`, `geo/ors/` | OpenRouteService | coordenadas de paradas y partida, sin texto |
 | `nativo/mapas.ts` | Google Maps (app, o `www.google.com/maps` en el navegador) | el punto de esa parada |
 | `nativo/navegacion.ts` → `NavegacionActivity.java` (APK) | kit de navegación de Google | el punto; el `Waypoint` lleva el título fijo «Parada». OF, nombre y dirección se muestran solo en la franja local |
@@ -54,7 +53,7 @@ desarrollo).
 | `cola` | `ActividadPorEnviar`, sin datos de personas | al confirmarlo el servidor; salir del modo prueba la vacía (solo se entra con la cola vacía) |
 | `dias` | `ResumenDia`, solo cifras | no se borra |
 | `localStorage` | `ares-modo-prueba`, partida (`generar-ruta/partida.ts`), GPS simulado, voz | sin datos de destinatarios |
-| Memoria | matriz (`olvidarMatriz()` al borrar); `yaPreguntado` (`completar-numero.ts`) y `accesosRevisados` (`ubicar-pedidos.ts`), hasta recargar la app | no los limpia el cierre del día |
+| Memoria | matriz (`olvidarMatriz()`) y respuestas de Google (`olvidarConsultasGoogle()`, `google.ts`), al borrar el día; `accesosRevisados` (`ubicar-pedidos.ts`) y las teselas (`teselas.ts`, sin datos de personas), hasta recargar la app | `accesosRevisados` no lo limpia el cierre del día |
 | `public/sw.js` | páginas y estáticos de `/conductor` | nunca `/api`, Supabase ni otros orígenes |
 | Registro de llamadas (Android) | `TelefonoPlugin.java` compara los últimos 8 dígitos y devuelve `duracionS`, `tipo` y `fechaMs`, sin número; `nativo/llamada.ts` decide «contestó» (≥ 5 s) | en el pedido queda `llamada`; a la `cola` va un evento `llamada` sin número (`almacen/terreno.ts`) |
 

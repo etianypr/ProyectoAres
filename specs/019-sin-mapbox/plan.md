@@ -10,10 +10,10 @@
 Teléfono ─┬─ ordenar la ruta ───── Mapbox Matrix      →  ORS Matrix          lib/geo/matriz.ts (hecho)
           ├─ línea del día ─────── Mapbox Directions  →  ORS Directions      lib/geo/ors/direcciones.ts
           ├─ navegar (cartel/voz)─ Mapbox Directions  →  ORS Directions      lib/geo/ors/navegacion.ts
-          ├─ calle cercana ─────── Mapbox Tilequery   →  OSM (Overpass)      lib/geo/acceso.ts
+          ├─ calle cercana ─────── Mapbox Tilequery   →  teselas de OpenFreeMap  lib/geo/acceso.ts · teselas.ts
           ├─ dibujar el mapa ───── Mapbox GL + estilo →  MapLibre + OpenFreeMap  _mapa/* · lib/geo/estilo-mapa.ts
           ├─ vista del punto ───── imagen de Mapbox   →  foto de MapLibre    components/direccion/estampilla-mapa.ts
-          └─ buscar dirección ──── Mapbox + OSM       →  OSM + ORS (+ Google con tope, servidor)  lib/geo/geocoding/*
+          └─ buscar dirección ──── Mapbox + OSM       →  Google (número, con tope, servidor) + OSM  lib/geo/geocoding/*
 ```
 
 Las pantallas no cambian: `obtenerRutaCalles`, `obtenerNavegacion`, `PasoNavegacion`,
@@ -24,8 +24,7 @@ Las pantallas no cambian: `obtenerRutaCalles`, `obtenerNavegacion`, `PasoNavegac
 | Proveedor | Recibe | Desde | Límite gratis | Si se pasa |
 |---|---|---|---|---|
 | OpenRouteService | coordenadas de paradas y partida (orden, línea, navegación) | teléfono | 500 matrices, 2.000 direcciones, 1.000 geocodificaciones al día | rechaza (429): línea recta / sin cartel |
-| OpenFreeMap | teselas de la zona que se mira (nada del destinatario) | teléfono | sin límite | — |
-| OpenStreetMap (Overpass) | la zona alrededor de una parada | teléfono | uso razonable | la parada queda donde estaba |
+| OpenFreeMap | teselas de la zona que se mira y de la zona de cada parada, ~2 km (nada del destinatario) | teléfono | sin límite | la parada queda donde estaba |
 | Nominatim | dirección escrita | teléfono | 1 por segundo | sigue con las otras |
 | Google Geocoding | dirección escrita, sin nombre ni teléfono | servidor (de paso) | tope diario que pone el dueño, debajo de 10.000 al mes | rechaza: queda "Sin ubicar" |
 | Google Maps (app) | coordenadas de la parada activa | teléfono | — | — |

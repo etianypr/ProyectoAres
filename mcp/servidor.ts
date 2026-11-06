@@ -13,8 +13,8 @@
 // y los dos se cayeron: IDE Chile no expone API REST de geocodificación —solo un
 // buscador sobre su catálogo de metadatos, sin coordenadas— y Photon devolvió
 // housenumber null en las 26 direcciones de Arica que se le pidieron, o sea cero
-// puertas que Mapbox+OSM no tuvieran ya. Agregarlos habría sido latencia y
-// código para nada.
+// puertas que Mapbox+OSM no tuvieran ya (medido antes de la spec 019).
+// Agregarlos habría sido latencia y código para nada.
 //
 // ⚠️ En stdio, stdout ES el canal del protocolo. Un console.log suelto acá
 // adentro rompe la sesión entera y el error que se ve no se parece a la causa.
@@ -144,9 +144,8 @@ servidor.registerTool(
       "Trazado real por calles entre coordenadas, con su distancia y duración, " +
       "vía OpenRouteService: grafo de OpenStreetMap con Jerarquías de " +
       "Contracción, así que respeta avenidas, calles y pasajes. Recibe y " +
-      "devuelve SOLO coordenadas. No es la ruta que maneja el conductor —esa sale " +
-      "de Mapbox, con la voz en español— sino la que se puede preguntar sin " +
-      "gastar esa cuota.",
+      "devuelve SOLO coordenadas. Gasta del cupo diario de OpenRouteService, el " +
+      "mismo con que el teléfono arma la ruta del conductor.",
     inputSchema: entradaRuta,
     outputSchema: salidaRuta,
     annotations: { readOnlyHint: true, openWorldHint: true },

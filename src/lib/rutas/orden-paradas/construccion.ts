@@ -10,7 +10,7 @@ export function vecinoMasCercano(n: number, costo: Costo, primero?: number): num
 
   for (let k = 1; k < n; k++) {
     // Con la matriz de calles un costo puede ser Infinity (dos paradas sin
-    // camino entre sí, según Mapbox), cosa que en línea recta no pasa nunca.
+    // camino entre sí, según la matriz), cosa que en línea recta no pasa nunca.
     // Si TODAS las que quedan son inalcanzables no hay "más cercana", así que
     // se toma la primera pendiente: mejor una parada en un orden discutible que
     // un índice -1 metido en la ruta.

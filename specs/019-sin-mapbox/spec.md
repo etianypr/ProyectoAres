@@ -30,15 +30,16 @@ pruebas que pedían su matriz sin el tope de la app dejaron una cuenta de US$66.
 ## US3 (P2) · El mapa sin Mapbox
 
 El mapa se dibuja con MapLibre y las teselas de OpenFreeMap (sin clave ni límite), con las
-mismas pastillas, línea, cámara y colores Dashund. La vista previa del punto al escribir una
+mismas pastillas, línea y cámara. El estilo es «Liberty» con los edificios planos, elegido por el
+dueño (2026-11-06) por parecerse al «navigation-day» de Mapbox. La vista previa del punto al escribir una
 dirección deja de ser una imagen de Mapbox.
 
 ## US4 (P2) · Las direcciones sin Mapbox
 
-Las sugerencias y la ubicación de una dirección salen de OpenStreetMap y ORS; lo que no
-encuentren, de Google con **tope diario** debajo de lo gratis (la clave la crea el dueño). La
-IA de la spec 018 usa las mismas herramientas, sin Mapbox. Se pierden números de casa que
-Mapbox tenía en Arica: quedan el pin, los Plus Codes, el catálogo de calles y Google.
+El número de casa lo da Google, con **tope diario** debajo de lo gratis (la clave y el tope los
+crea el dueño): «OSM falla mucho, Maps es más bueno para encontrar direcciones» (el dueño,
+2026-11-06). OpenStreetMap trae las calles y los lugares; los Plus Codes y el catálogo de calles
+siguen sin red. La IA de la spec 018 usa las mismas herramientas, sin Mapbox.
 
 ## US5 (P3) · Mapbox fuera
 

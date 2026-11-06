@@ -7,7 +7,7 @@ import { RECUADRO_ARICA } from "@/lib/geo/coordenada";
 // Santiago. Es un filtro duro, a diferencia de "proximity", que solo empuja los
 // resultados cercanos hacia arriba — probado contra la API: con proximity en
 // Arica, el primer resultado de "colón 123" seguía siendo San Bernardo.
-// Formato "oeste,sur,este,norte": el bbox de Mapbox y el viewbox de Nominatim.
+// Formato "oeste,sur,este,norte": el viewbox de Nominatim.
 export const BBOX_ARICA = [
   RECUADRO_ARICA.oeste,
   RECUADRO_ARICA.sur,
@@ -15,7 +15,7 @@ export const BBOX_ARICA = [
   RECUADRO_ARICA.norte,
 ].join(",");
 
-/** Menos que esto no se consulta: con dos letras Mapbox devuelve cualquier
+/** Menos que esto no se consulta: con dos letras un buscador devuelve cualquier
  *  cosa y se gastan consultas por cada tecla. */
 export const MIN_CARACTERES = 3;
 
@@ -75,11 +75,11 @@ export type SugerenciaDireccion = {
   coincideNumero: boolean | null;
   /** De dónde salió. Se muestra en la lista: es lo que le permite a la empresa
    *  ver que una corrección que hizo en OpenStreetMap ya está llegando a la app
-   *  (Mapbox tarda lo suyo en incorporarlas, ver la cabecera). */
+   *  (Google no las incorpora, ver la cabecera de index.ts). */
   fuente: Fuente;
 };
 
-export type Fuente = "mapbox" | "osm" | "plus_code" | "google";
+export type Fuente = "osm" | "plus_code" | "google";
 
 /** Cómo se llama cada fuente en pantalla.
  *
@@ -88,7 +88,6 @@ export type Fuente = "mapbox" | "osm" | "plus_code" | "google";
  *  etiquetaba como "Mapbox" cualquier fuente nueva. Con esto, agregar una
  *  fuente sin ponerle nombre no compila. */
 export const NOMBRE_FUENTE: Record<Fuente, string> = {
-  mapbox: "Mapbox",
   osm: "OSM",
   plus_code: "Plus Code",
   google: "Google",

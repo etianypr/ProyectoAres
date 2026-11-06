@@ -55,7 +55,7 @@ export function PedidosFueraDeRuta({
                 ))}
               </ul>
               <div className="mb-2" />
-              {/* Spec 018: la IA busca en Mapbox, OSM y Google y propone; el
+              {/* Spec 018: la IA busca en OSM y Google y propone; el
                   conductor confirma cada corrección. */}
               {lecturaIA && sinUbicar > 0 ? (
                 <BotonCorregirIA

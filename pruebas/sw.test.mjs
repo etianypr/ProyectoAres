@@ -1,6 +1,7 @@
 // Política del service worker de la app del conductor (spec 015, R2): qué guarda
 // y qué deja pasar. Lo que se protege: que nunca intercepte /api, Supabase ni
-// Mapbox (ahí viajan datos), y que la app del conductor pueda abrir sin señal.
+// los proveedores de afuera (ahí viajan datos), y que la app del conductor pueda
+// abrir sin señal.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -29,7 +30,7 @@ test("nunca intercepta lo que lleva datos", () => {
   assert.equal(estrategia("/api/whatsapp/status", "cors"), "red");
   assert.equal(estrategia("/conductor/encomiendas", "navigate", "POST"), "red");
   assert.equal(estrategia("https://abc.supabase.co/rest/v1/encomienda_actividad", "cors"), "red");
-  assert.equal(estrategia("https://api.mapbox.com/directions/v5/x", "cors"), "red");
+  assert.equal(estrategia("https://api.openrouteservice.org/v2/directions/driving-car", "cors"), "red");
 });
 
 test("el panel del jefe y el login no se guardan", () => {

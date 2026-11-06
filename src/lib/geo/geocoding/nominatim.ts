@@ -35,7 +35,7 @@ function turnoOsm(): Promise<void> {
   return proximo;
 }
 
-// Nunca lanza: sin OSM se sigue con lo que haya dado Mapbox.
+// Nunca lanza: sin OSM se sigue con lo que haya dado Google.
 async function pedirNominatim(
   params: URLSearchParams,
   senal?: AbortSignal,
@@ -123,9 +123,8 @@ function aSugerenciaOsm(f: FilaOsm): SugerenciaDireccion[] {
 }
 
 // Lo mismo, pero preguntándole a OpenStreetMap. Va SEPARADO de
-// sugerirDirecciones y no dentro: Mapbox contesta en ~150 ms y Nominatim puede
-// tardar el triple, así que esperarlos juntos haría que la lista entera aparezca
-// tarde. La pantalla pide este después, con más pausa, y agrega lo que traiga.
+// sugerirDirecciones y no dentro: Nominatim puede tardar el triple que Google,
+// así que esperarlos juntos haría que la lista entera aparezca tarde. La pantalla pide este después, con más pausa, y agrega lo que traiga.
 //
 // Ojo con qué esperar de acá: Nominatim NO completa palabras a medias
 // ("chacab" devuelve vacío), así que esto aporta cuando la palabra ya está
@@ -148,7 +147,7 @@ export async function sugerirEnOsm(
     addressdetails: "1",
     limit: "4",
     countrycodes: "cl",
-    // Mismo recuadro que Mapbox, y "bounded" lo hace filtro duro: sin esto,
+    // El recuadro de Arica, y "bounded" lo hace filtro duro: sin esto,
     // "Chacabuco 500" trae el de Santiago o el de Concepción.
     viewbox: BBOX_ARICA,
     bounded: "1",

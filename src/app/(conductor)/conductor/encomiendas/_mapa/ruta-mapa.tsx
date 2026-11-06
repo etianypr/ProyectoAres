@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import { AttributionControl, LngLatBounds, Map as MapaGL, Popup, setWorkerUrl, type GeoJSONSource, type Marker } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { CENTRO_ARICA, aLngLat, type Trazado } from "@/lib/geo/coordenada";
-import { ESTILO, FUENTE_DIA, FUENTE_NAV, FUENTE_PREVIA, URL_WORKER, agregarLineas, linea, soportaWebGL, tonoDashund } from "./estilo";
+import { ESTILO, FUENTE_DIA, FUENTE_NAV, FUENTE_PREVIA, URL_WORKER, agregarLineas, linea, soportaWebGL, ajustarEstilo } from "./estilo";
 import { agruparPorLugar, contenidoGlobo, type LugarMapa } from "./marcadores-dom";
 import { agregarParadas, datosParadas, fuentesDelTema, lugarTocado, ponerParadas } from "./capa-paradas";
 import type { PreviaRuta, PuntoMapa, Ubicacion } from "./tipos";
@@ -142,7 +142,7 @@ export function RutaMapa({
     mapa.addControl(new AttributionControl({ compact: true }), "bottom-right");
 
     mapa.on("load", () => {
-      tonoDashund(mapa);
+      ajustarEstilo(mapa);
 
       agregarLineas(mapa);
       agregarParadas(mapa);

@@ -3,6 +3,7 @@
 // direcciones y rutas se van al cerrar el día o la sesión. La cola de eventos
 // no se toca: no tiene datos de personas y sin ella el conductor no cobra.
 
+import { olvidarConsultasGoogle } from "@/lib/geo/geocoding/google";
 import { olvidarMatriz } from "@/lib/geo/matriz";
 import { STORES, STORES_DEL_DIA, clavesFotosDe, escribir, leerTodos } from "../idb";
 import { enFila } from "./fila";
@@ -49,8 +50,10 @@ export function cerrarYBorrarDia(fecha: string): Promise<ResumenDia | null> {
       for (const id of fotos) borrar(STORES.fotos, id);
       if (ruta) borrar(STORES.rutas, fecha);
     });
-    // Las distancias del día guardan puntos de destinatarios (en memoria).
+    // Las distancias y las respuestas de Google guardan puntos y direcciones de
+    // destinatarios (en memoria).
     olvidarMatriz();
+    olvidarConsultasGoogle();
     return resumen;
   });
 }
@@ -78,6 +81,7 @@ export function borrarDatosDestinatarios(): Promise<void> {
       for (const store of STORES_DEL_DIA) vaciar(store);
     });
     olvidarMatriz();
+    olvidarConsultasGoogle();
   });
 }
 
