@@ -31,6 +31,7 @@ const SECCIONES: { titulo: string; pasos: string[] }[] = [
     pasos: [
       "«Armar la ruta» → elige una alternativa → «Usar esta ruta».",
       "Un pedido que no va: 🗑 en la lista de la ruta propuesta («Deshacer» lo devuelve).",
+      "La misma ruta al revés (la última parada primero): «Invertir orden de ruta». Otro toque la deja como la propuso ARES.",
       "Cargar el auto: «Escanear paquete» con cada etiqueta (dice su parada). «Salir a repartir» muestra la primera parada; lo no escaneado queda en «Faltan».",
       "Código dañado: escribe la OF; cada vez que la escribes suma un bulto. La misma etiqueta escaneada dos veces no suma.",
       "Pedido que llega tarde: «Sumar a la ruta».",

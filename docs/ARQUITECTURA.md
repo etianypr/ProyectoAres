@@ -213,7 +213,7 @@ src/
 │   ├── encomiendas/              catalogos · estados · pago · periodos · config · paquete · contrato-whatsapp · lectura/ (guía, etiqueta, código de barras)
 │   │   └── local/                idb · almacen/ (lecturas, pedidos, ruta, terreno…) · generar-ruta/ (partida, ubicar-pedidos, estrategias, horarios) · planificar · replanificar · sumar-a-ruta · corregir-direcciones · enviar · sincronizar-whatsapp
 │   ├── geo/                      coordenada · trazado · hacia-parada (km a la parada activa por su tramo, spec 020) · plus-code · openrouteservice (MCP) · estilo-mapa (OpenFreeMap "Liberty" con edificios planos y el worker de MapLibre, que copia scripts/copiar-worker-mapa.mjs a public/) · matriz (distancias por calle con ORS, por bloques, en memoria) · ors/ (cliente · direcciones: línea del día y sus tramos por parada, sin reversa en calles estrechas · vuelta: tipo de calle) · acceso (la calle por donde se llega a una parada pegada a una troncal) · teselas (las calles de las teselas de OpenFreeMap) · geocoding/ (consulta · calles · calles-arica generado · google · nominatim · sugerir · codigo · completar-numero · ubicar) · direccion-ia/ (contrato · servidor · cliente: corregir con IA, spec 018)
-│   ├── rutas/orden-paradas/      exacto · construccion · mejora · perturbacion · con-horarios · sin-congelar
+│   ├── rutas/orden-paradas/      exacto · construccion · mejora · perturbacion · descarga · con-horarios · sin-congelar
 │   ├── whatsapp/                 meta · correlacion
 │   ├── conductores/              vencimientos
 │   └── nativo/                   entorno · telefono · llamada · escaner · version (APK) · mapas · burbuja (la parada sobre Google Maps, spec 020)

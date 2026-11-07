@@ -16,7 +16,8 @@ import { distanciaMetros, type Coordenada } from "@/lib/geo/coordenada";
 import { obtenerRutaCalles, type CalleDelPunto, type RutaCalles } from "@/lib/geo/ors/direcciones";
 import { permiteDarLaVuelta } from "@/lib/geo/ors/vuelta";
 import { ordenarParadas } from "@/lib/rutas/orden-paradas";
-import { FIN, type Penalizacion } from "@/lib/rutas/orden-paradas/costo";
+import { conFinal, distanciaOrden, EPSILON, FIN, type Penalizacion } from "@/lib/rutas/orden-paradas/costo";
+import { descargaDelGrupo, type DescargaDelDia } from "./bultos";
 import type { PedidoUbicado } from "./tipos";
 
 /** Una parada vecina "casi de costado" (ni adelante ni atrás a lo largo de la
@@ -74,6 +75,9 @@ export async function ordenarConSentido(
   calles: RutaCalles,
   /** Donde termina la ruta (la columna 0 de la matriz son las distancias hasta acá). */
   llegada: Coordenada = base,
+  /** Los bultos se vuelven a adelantar: si no, ordenar por km de nuevo deshace lo
+   *  que hizo la más corta (spec 024). */
+  descarga?: DescargaDelDia,
 ): Promise<{ paradas: PedidoUbicado[]; calles: RutaCalles } | null> {
   if (!matriz || !calles.puntos) return null;
   const puntos = [base, ...paradas.map((p) => ({ lat: p.lat, lng: p.lng }))];
@@ -87,10 +91,16 @@ export async function ordenarConSentido(
   const orden = ordenarParadas(puntos, sub, vuelta, false, {
     penalizacion: pen,
     arranque: puntos.map((_, i) => i),
+    ...(descarga && { descarga: descargaDelGrupo(descarga, paradas, indices) }),
   });
 
   const nuevas = orden.slice(1).map((i) => paradas[i - 1]);
   if (nuevas.every((p, k) => p.id === paradas[k].id)) return null;
+  // Se vuelve a dibujar solo si la estimación dice que mide menos: un orden que
+  // cambió solo por los bultos (spec 024) no vale otro trazado, que en el día real
+  // de 53 paradas fueron 15 consultas.
+  const costo = conFinal((a, b) => sub[a]?.[b] ?? Infinity, vuelta);
+  if (distanciaOrden(orden, costo, pen) >= distanciaOrden(puntos.map((_, i) => i), costo, pen) - EPSILON) return null;
   const otra = await obtenerRutaCalles([base, ...nuevas.map((p) => ({ lat: p.lat, lng: p.lng })), llegada]);
   if (!otra || otra.distanciaM >= calles.distanciaM) return null;
   return { paradas: nuevas, calles: otra };

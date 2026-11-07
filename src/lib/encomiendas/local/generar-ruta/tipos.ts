@@ -58,6 +58,14 @@ export type PropuestaRuta = {
   elegida: EstrategiaRuta;
   /** Paradas lejos de todas las demás, con lo que suman (ver lejanas.ts). */
   lejanas: ParadaLejana[];
+  /** La propuesta como la armó ARES, si el conductor invirtió el orden (spec 024):
+   *  con ella se ve cuánto cuesta el invertido, y volver no pide el trazado otra vez. */
+  deAres?: PropuestaRuta;
+  /** La invertida ya dibujada, guardada al volver a la de ARES: ir y volver otra
+   *  vez no pide más trazados (en la prueba, 15 consultas por cada vuelta). */
+  alReves?: PropuestaRuta;
+  /** El trazado todavía es del orden anterior: hay que pedir el de este (retrazar). */
+  esperaTrazado?: boolean;
 };
 
 export type ResultadoRuta = {

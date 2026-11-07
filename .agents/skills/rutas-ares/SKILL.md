@@ -18,7 +18,9 @@ ellos, y hay que avisar la diferencia.
 3. Tipos y nombres: `docs/CLASES.md` §2 (armado de rutas).
 
 ## Lo que ya está decidido (no se «corrige»)
-- **Objetivo: km.** La ruta es cerrada (vuelve a la central). Cada zona de ~900 m se recorre una
+- **Objetivo: km.** Encima, una pasada saca los bultos antes solo si cuesta ≤ 1 % de km y cada
+  metro de más los saca en promedio un metro antes (`descarga.ts`, spec 024): no darle más peso
+  sin preguntar (sin tope, ≤ 10–15 % menos espera por +10–15 % de km). La ruta es cerrada (vuelve a la central). Cada zona de ~900 m se recorre una
   sola vez (`zonas.ts`), aunque cueste ~5 % más: lo pidió el dueño.
 - **No se da la vuelta** en pasajes ni en calles residenciales (`sentido.ts`, `geo/ors/vuelta.ts`).
 - **El orden ya está en el óptimo práctico** con un conductor y ~60–100 paradas: la búsqueda llega
@@ -45,6 +47,7 @@ ellos, y hay que avisar la diferencia.
 | Reubicar pedidos sin punto y puntos pegados a carretera | `generar-ruta/ubicar-pedidos.ts` |
 | Partida (central guardada) | `generar-ruta/partida.ts` |
 | Orden: construcción, 2-opt/Or-opt, sacudida, exacto (Held-Karp) | `src/lib/rutas/orden-paradas/` |
+| Bultos fuera antes, casi sin km de más (spec 024) | `orden-paradas/descarga.ts`, `DescargaDelDia` en `estrategias.ts` |
 | Orden con horarios, sin congelar la pantalla | `orden-paradas/con-horarios.ts`, `sin-congelar.ts` |
 | Hora de llegada, replanificar, sumar a la ruta | `local/planificar.ts`, `replanificar.ts`, `sumar-a-ruta.ts` |
 | Matriz y trazado | `src/lib/geo/matriz.ts`, `trazado.ts`, `ors/` |
@@ -68,7 +71,7 @@ ellos, y hay que avisar la diferencia.
 ## Pruebas
 - Siempre: `npm test`, `npm run lint`, `npm run build`.
 - Cambios de rutas llevan pruebas enfocadas nuevas (constitución III). Las que ya cubren esto:
-  `2-rutas`, `8-orden-paradas`, `rutas-017`, `planificar`, `replanificar`, `sumar-a-ruta`,
+  `2-rutas`, `8-orden-paradas`, `rutas-017`, `rutas-024`, `planificar`, `replanificar`, `sumar-a-ruta`,
   `asistencia-rutas`, `15-ruteo-ch` y `ubicar-direcciones`. Para correr una sola:
   `node --import ./pruebas/registrar.mjs --test pruebas/8-orden-paradas.test.mjs`
 - Un proveedor se sustituye reemplazando el `fetch` global, no el módulo (`pruebas/README.md`).

@@ -225,6 +225,21 @@ paradas en zonas por distancia por calle (enlace promedio, `ZONA_M` = 900 m) y e
 real. En la prueba de 66 paradas: 17 zonas, 0 repetidas (sin zonas, 2), 38,71 km en vez de 37,00 por
 calles (+4,6 %, +4 min).
 
+**Los bultos fuera antes** (spec 024, dueño 2026-11-07): sobre el orden de menos km,
+`adelantarBultos` (`orden-paradas/descarga.ts`) baja la espera de los bultos en el auto (lo manejado
+hasta su parada más 4 min por parada anterior, por bulto) moviendo barrios enteros, tramos y paradas,
+solo si no maneja más de 1 % (`TOLERANCIA_DESCARGA`), no paga más cambios de zona ni vueltas, y cada
+metro de más saca los bultos en promedio un metro antes. Corre en cada orden de las estrategias y
+otra vez en `ordenarConSentido` (si no, ordenar por km lo deshace). Los bultos son `Pedido.bultos`
+(salen al escanear), o 1 por pedido. Simulado en 16 días de 60–100 paradas: 3 bajan la espera 5–10 %
+(~5 bultos menos a las 2 h) por +0,3 a +0,6 % de km; los demás quedan igual.
+
+**Invertir orden de ruta** (spec 024): `invertirOrden` (`generar-ruta/invertir.ts`) da vuelta la
+propuesta y guarda la de ARES en `PropuestaRuta.deAres` (y la invertida ya dibujada en `alReves`; las
+dos solo en memoria): ir y volver pide un trazado. `esperaTrazado` marca que falta el del orden nuevo.
+Al revés mide distinto por los sentidos únicos (día de 53 paradas: +2,8 km); los horarios se vuelven a
+medir con la matriz en memoria.
+
 Partiendo de "Mi ubicación" u otra dirección, la ruta termina igual en la central (terreno
 2026-10-29: repasar lo pendiente y volver): `calcularRutaLocal(fecha, inicio, fin)`, `PropuestaRuta.llegada`,
 y la columna 0 de la matriz pasa a ser la distancia HASTA la central, así que todo lo que cuenta
@@ -351,7 +366,7 @@ lo usa.
 | Plugins nativos (Java): `Telefono`; `Burbuja` con su servicio, su vista, el aviso de llegada (ubicación pasiva, ≤ 50 m) y abrir Google Maps (spec 020) | `android/app/src/main/java/cl/dashund/ares/`: `TelefonoPlugin.java`, `BurbujaPlugin.java`, `BurbujaServicio.java`, `BurbujaVista.java`, `BurbujaLlegada.java`, `BurbujaAviso.java`, `GoogleMaps.java`; `WebViewAres.java` (con la burbuja en curso, la página no se congela atrás) |
 | Sesión y puertas (`exigirPanel`, `exigirConductor`); rol y destino por rol (`leerRol`, `inicioSegunRol`); ficha por usuario | `auth/sesion.ts`, `auth/roles.ts`, `auth/conductor-de-usuario.ts` |
 | Días "YYYY-MM-DD" en hora de Chile (`hoyChile`, `sumarDias`, `esFecha`), `MESES`; periodo del panel y su cookie | `comun/fechas.ts`, `comun/periodo.ts` (+ `periodo-servidor.ts`) |
-| Orden de paradas (exacto hasta 14 puntos; si no, construcción + mejora + sacudidas; la propuesta busca a fondo —hasta 300 sacudidas seguidas sin mejora— con la pantalla `BuscandoRuta` encima, y reusa el orden de un grupo repetido entre estrategias) · con horarios (`optimizarConHorarios`, por partes en `optimizarSinCongelar`) | `rutas/orden-paradas/` (`con-horarios.ts`, `sin-congelar.ts`) |
+| Orden de paradas (exacto hasta 14 puntos; si no, construcción + mejora + sacudidas; la propuesta busca a fondo —hasta 300 sacudidas seguidas sin mejora— con la pantalla `BuscandoRuta` encima, y reusa el orden de un grupo repetido entre estrategias) · bultos fuera antes, ≤ 1 % de km (`adelantarBultos`, spec 024) · con horarios (`optimizarConHorarios`, por partes en `optimizarSinCongelar`) | `rutas/orden-paradas/` (`descarga.ts`, `con-horarios.ts`, `sin-congelar.ts`) |
 | Matriz de calles por bloques, en memoria, con OpenRouteService (`matrizCalles`, `planificarConsultas`) | `geo/matriz.ts` |
 | Corregir con IA una dirección sin ubicar (spec 018): conversación y validación (`conversacionValida`), una ida con Claude (`pasoDireccionIA`, `server-only`), el bucle en el teléfono (`corregirConIA`, `interpretar`); los del día, a confirmar por el conductor (`corregirSinUbicar`, `esSegura` —la calle entera, sin el número, nunca es segura—, `aplicarCorreccion`) | `geo/direccion-ia/{contrato,servidor,cliente}.ts`, `src/app/api/direccion-ia/route.ts`, `encomiendas/local/corregir-direcciones.ts` |
 | Trazado en el teléfono: pegar al camino, rumbo, metros restantes · OpenRouteService (spec 019; antes Mapbox): la línea del día y sus tramos por parada (`obtenerRutaCalles` → `RutaCalles.tramos`, `TramoDeRuta`); dar la vuelta solo en calles anchas (`vuelta.ts`: tipo de ORS 1 carretera y 2 principal), y en la ruta del día, donde se devolvía en un pasaje o residencial, ese pedazo se vuelve a pedir de frente; antes de armar la ruta, una parada pegada a una troncal que no es su calle se corre a la calle local (`acceso.ts` con las calles de las teselas de OpenFreeMap, `teselas.ts`; spec 019, antes Tilequery de Mapbox; `corregirAccesos`) · hacia la parada activa (spec 020; reemplaza la navegación tramo a tramo): `haciaParada` da metros, segundos, punto pegado, lo que falta y rumbo por el tramo de la línea del día (`tramoHacia`), o en línea recta fuera de él | `geo/trazado.ts` · `geo/hacia-parada.ts` · `geo/ors/` · `geo/acceso.ts` · `geo/teselas.ts` |
