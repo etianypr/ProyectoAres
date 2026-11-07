@@ -1,16 +1,15 @@
 // Contrato teléfono ↔ POST /api/lectura (spec 005). Lo comparten las dos puntas.
+// Solo la guía: la etiqueta se lee en el teléfono y no pasa por el servidor
+// (spec 021).
 
-import type { ReferenciaPaquete } from "../paquete";
-import type { EtiquetaIA, GuiaIA } from "./esquemas";
-import type { LecturaEtiqueta } from "./etiqueta";
+import type { GuiaIA } from "./esquemas";
 
+/** Qué foto es. Con ella se elige cuánto se achica en el teléfono. */
 export type TipoLectura = "guia" | "etiqueta";
 
-/** Lo que devuelve el servidor. La guía va cruda (se juntan varias fotos en el
- *  teléfono); la etiqueta, ya con las reglas aplicadas. */
-export type RespuestaLectura =
-  | { tipo: "guia"; guia: GuiaIA }
-  | { tipo: "etiqueta"; etiqueta: LecturaEtiqueta & { referencia: ReferenciaPaquete | null } };
+/** Lo que devuelve el servidor: la guía cruda (se juntan varias fotos en el
+ *  teléfono). */
+export type RespuestaLectura = { tipo: "guia"; guia: GuiaIA };
 
 export type ErrorLecturaApi = { error: string };
 
@@ -26,4 +25,4 @@ export const MAX_FOTOS_GUIA = 6;
  *  cuesta un tercio menos que 2576; medido 2026-10-25). */
 export const LADO_MAXIMO: Record<TipoLectura, number> = { guia: 2000, etiqueta: 1280 };
 
-export type { EtiquetaIA, GuiaIA };
+export type { GuiaIA };

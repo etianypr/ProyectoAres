@@ -1,13 +1,12 @@
 // El texto de la etiqueta de Starken (spec 005) → los datos del pedido. Puro.
 //
-// El texto llega pegado desde Google Lens (sin IA) o ya separado por la IA. Se
-// buscan las palabras clave de la etiqueta (research R1). No se extrae nada que
-// no haga falta para repartir: ni RUT, ni remitente, ni correo, ni cuenta
-// corriente (FR-017).
+// El texto llega del lector del teléfono (ML Kit) o pegado desde Google Lens; la
+// etiqueta no pasa por la IA (spec 021). Se buscan las palabras clave de la
+// etiqueta (research R1). No se extrae nada que no haga falta para repartir: ni
+// RUT, ni remitente, ni correo, ni cuenta corriente (FR-017).
 
 import { normalizarTelefono } from "@/lib/comun/telefono";
-import { notaPaquete, ofValida, referenciaOVacia, type ReferenciaPaquete } from "../paquete";
-import type { EtiquetaIA } from "./esquemas";
+import { ofValida } from "../paquete";
 
 export type Pago = "POR_PAGAR" | "CONTADO" | "CTA_CTE" | "DESCONOCIDO";
 
@@ -42,54 +41,9 @@ export function pagoDe(texto: string): Pago {
   return "DESCONOCIDO";
 }
 
-/** Lo que leyó la IA de la foto de la etiqueta → las mismas reglas que el texto
- *  pegado: teléfono +569, monto nunca supuesto, solo lo necesario. La descripción
- *  del paquete llena la referencia de la spec 003. */
-export function etiquetaDesdeIA(ia: EtiquetaIA): LecturaEtiqueta & { referencia: ReferenciaPaquete | null } {
-  const dudosos = new Set(ia.dudosos);
-  let telefono: string | null = null;
-  if (ia.telefono) {
-    const n = normalizarTelefono(ia.telefono);
-    telefono = n.ok ? n.telefono.e164 : ia.telefono;
-    if (!n.ok) dudosos.add("telefono");
-  }
-  const porPagar = ia.pago === "POR_PAGAR" ? true : ia.pago === "DESCONOCIDO" ? null : false;
-  const montoPorPagar = porPagar && ia.montoPorPagar != null && ia.montoPorPagar > 0 ? Math.round(ia.montoPorPagar) : null;
-  if (porPagar === null) dudosos.add("pago");
-  if (porPagar && montoPorPagar === null) dudosos.add("montoPorPagar");
-  const entero = (n: number | null) => (n != null && n > 0 ? Math.round(n) : null);
-  const destinatario = ia.destinatario?.trim() || null;
-  const direccion = ia.direccion?.trim() || null;
-  if (!destinatario) dudosos.add("destinatario");
-  if (!telefono) dudosos.add("telefono");
-  if (!direccion) dudosos.add("direccion");
-  return {
-    ofImpresa: ia.of ? ofValida(ia.of) : null,
-    bulto: entero(ia.bulto),
-    bultosTotal: entero(ia.bultosTotal),
-    destinatario,
-    telefono,
-    direccion,
-    porPagar,
-    montoPorPagar,
-    dudosos: [...dudosos],
-    referencia: referenciaOVacia({ ...ia.descripcion, nota: notaPaquete(ia.descripcion.nota ?? "") }),
-  };
-}
-
 /** ¿Alcanza lo leído para repartir sin volver a leer la foto? Hacen falta el
  *  nombre, un teléfono válido y el pago (con su monto si es POR PAGAR). La
  *  dirección no: la parada ya tiene la de la guía. */
-/** Lo leído de una etiqueta con la descripción del paquete. */
-export type EtiquetaLeida = LecturaEtiqueta & { referencia: ReferenciaPaquete | null };
-
-/** La descripción del paquete sale siempre de la IA (terreno 2026-10-28). Si el
- *  texto de la foto ya traía los datos, mandan esos (como antes) y la IA pone
- *  la descripción; si no, manda la IA. */
-export function conDescripcion(texto: EtiquetaLeida | null, ia: EtiquetaLeida): EtiquetaLeida {
-  return texto && etiquetaCompleta(texto) ? { ...texto, referencia: ia.referencia } : ia;
-}
-
 export function etiquetaCompleta(e: LecturaEtiqueta): boolean {
   const imprescindibles = ["destinatario", "telefono", "pago", "montoPorPagar"];
   return Boolean(e.destinatario && e.telefono) && !e.dudosos.some((d) => imprescindibles.includes(d));

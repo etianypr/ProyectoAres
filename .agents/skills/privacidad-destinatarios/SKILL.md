@@ -48,7 +48,7 @@ Detalle por archivo, ruta de API y proveedor: [references/mapa-de-datos.md](refe
 |---|---|---|---|
 | Nombre, teléfono, dirección, coordenadas, notas, OF, POR PAGAR y monto, referencia, llamada y resultado | store `pedidos` | dirección: Nominatim (directo), Google Geocoding (`/api/geocodificar`, toda dirección con número desde la spec 019), Anthropic (`/api/direccion-ia`, sin nombre ni teléfono) · nombre y teléfono: Meta (`/api/whatsapp/send`, **en pausa**) | al cerrar el día, al cerrar sesión, con la cuenta desactivada y al salir del modo prueba |
 | Coordenadas de las paradas y de la partida | `pedidos`, `rutas`, matriz en memoria | ORS (matriz y trazado), OpenFreeMap (solo la zona de ~2 km de cada parada, para ver sus calles), Google Maps (app o enlace) y el kit de navegación de Google (APK) | con el día; la matriz con `olvidarMatriz()` |
-| Foto de la etiqueta | memoria; la del paquete, store `fotos` | ML Kit (en el teléfono) · Cloud Vision (`/api/texto`) · Anthropic Haiku (`/api/lectura`, si hay clave) | al cerrarse el pedido y con el día |
+| Foto de la etiqueta | memoria; la del paquete, store `fotos` | solo ML Kit (en el teléfono) desde la 021; en `main`, hasta el merge, también Cloud Vision y Anthropic Haiku | al cerrarse el pedido y con el día |
 | Foto de la guía (OF y destino) | memoria | ML Kit · Cloud Vision · Anthropic Opus | no se guarda |
 | Registro de llamadas de Android | Android | nadie: `TelefonoPlugin.java` filtra por los últimos 8 dígitos y devuelve duración, tipo y hora, sin el número | en el pedido queda solo `llamada` |
 | `ActividadPorEnviar` (id, conductor, día, tipo, hora) | store `cola` | Supabase `encomienda_actividad` (`enviar.ts`, `aFila`) | al confirmarlo el servidor |
@@ -130,8 +130,9 @@ GPS simulado, voz) y `public/sw.js` (nunca guarda `/api` ni otros orígenes).
   `GOOGLE_VISION_KEY` vacía, `vision.ts` usa `GOOGLE_MAPS_KEY`. Si Vision está apagada en esa
   clave, la foto igual viaja a `vision.googleapis.com` y vuelve con error (502), y
   `lectura-cliente.ts` solo deja de intentarlo con un 503 (`nubeApagada`).
-- **Anthropic recibe todas las etiquetas** si hay `ANTHROPIC_API_KEY`: la spec 021 las deja solo
-  en el teléfono (skill `lectura-starken`). La guía (OF y destino) sigue yendo a Anthropic y a Vision.
+- **Anthropic recibía todas las etiquetas** si hay `ANTHROPIC_API_KEY`: resuelto en la rama 021
+  (2026-11-07, falta el merge). La guía (OF y destino) sigue yendo a Anthropic y a Vision por decisión
+  del dueño: «en la guía de despacho no sale datos personales». Regla en `AGENTS.md`.
 - **El modo prueba no corta a los proveedores:** no va nada a la base ni por WhatsApp, pero las
   fotos y direcciones salen igual. Probar con guías reales manda datos reales (skill
   `recorrer-conductor`).

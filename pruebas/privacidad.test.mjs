@@ -224,3 +224,18 @@ test("las rutas de API no escriben en el log", () => {
     .filter((f) => /console\.(log|info|warn|error|debug)\s*\(/.test(readFileSync(f, "utf8")));
   assert.deepEqual(conLog, [], "un console.* en una ruta puede terminar registrando el cuerpo con datos de personas");
 });
+
+test("la etiqueta no va a la IA: /api/lectura la rechaza antes de mirar la clave (spec 021)", () => {
+  // La ruta no tiene prueba propia (no hay doble de la sesión, 005 T012); lo que
+  // la etiqueta hace en el teléfono lo prueba etiqueta-en-el-telefono.test.mjs.
+  const ruta = readFileSync(join(RAIZ, "src", "app", "api", "lectura", "route.ts"), "utf8");
+  const rechazo = ruta.search(/get\("tipo"\)\s*!==\s*"guia"\)\s*return error\(400/);
+  assert.ok(rechazo > 0, "la ruta tiene que contestar 400 a todo lo que no sea la guía");
+  assert.ok(rechazo < ruta.indexOf("lecturaIADisponible()"), "el tipo se revisa antes que la clave");
+  assert.ok(rechazo < ruta.indexOf("leerFotos("), "el tipo se revisa antes de llamar a Anthropic");
+
+  const contrato = readFileSync(join(RAIZ, "src", "lib", "encomiendas", "lectura", "contrato.ts"), "utf8");
+  assert.doesNotMatch(contrato, /tipo:\s*"etiqueta"/, "la respuesta de /api/lectura no tiene variante de etiqueta");
+  const servidor = readFileSync(join(RAIZ, "src", "lib", "encomiendas", "lectura", "servidor.ts"), "utf8");
+  assert.doesNotMatch(servidor, /EtiquetaIA|LECTURA_MODELO\b/, "el servidor no tiene cómo pedirle una etiqueta a Claude");
+});

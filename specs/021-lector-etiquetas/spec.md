@@ -1,7 +1,7 @@
 # Spec 021 · Lector de etiquetas en el teléfono
 
-**Creada**: 2026-11-05 · **Estado**: definida, sin empezar · **Rama**: `021-lector-etiquetas`
-(desde `main`) · **Pedido del dueño**: "en el escáner de pedidos, cuando obtenemos la info
+**Creada**: 2026-11-05 · **Estado**: en curso (US1 hecha en la rama, 2026-11-07) · **Rama**:
+`021-lector-etiquetas` (desde `main`) · **Pedido del dueño**: "en el escáner de pedidos, cuando obtenemos la info
 personal de cada persona, que sea simplemente un escáner especializado en etiquetas de pedidos de
 Starken (que no son las mismas siempre), para saltarnos el problema de la privacidad".
 
@@ -18,6 +18,8 @@ Decidido con el dueño (2026-11-05):
 - Solo texto, sin tocar `android/`: sirve la APK instalada. Si un formato mezcla columnas, ver
   `plan.md` §5.
 - El dueño tiene ejemplos anonimizados de los formatos; se convierten en pruebas (T002).
+- (2026-11-07) La guía sigue con la IA: «en la guía de despacho no sale datos personales de
+  nada». El escáner en vivo, que sí toca `android/`, va en la [028](../028-escaner-en-vivo/spec.md).
 
 ## US1 (P1) · La foto de la etiqueta no sale del teléfono
 

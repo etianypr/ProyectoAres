@@ -4,7 +4,7 @@ Spec: [spec.md](spec.md) · Plan: [plan.md](plan.md). En orden; [P] = se puede h
 la anterior.
 
 ## Preparación
-- [ ] T001 Crear la rama `021-lector-etiquetas` desde `main`
+- [x] T001 Crear la rama `021-lector-etiquetas` desde `main`
 - [ ] T002 Pasar los ejemplos anonimizados del dueño a
   `pruebas/fixtures/lectura/etiqueta-<formato>.txt`:
   - revisar uno por uno que no quede ningún dato real;
@@ -19,14 +19,16 @@ la anterior.
   etiqueta de `pruebas/lectura.test.mjs`
 
 ## US1 · Sin red y sin IA
-- [ ] T005 `local/lectura-cliente.ts`: `leerFotoEtiqueta` solo con `textoDeFoto` y el lector, sin
+- [x] T005 `local/lectura-cliente.ts`: `leerFotoEtiqueta` solo con `textoDeFoto` y el lector, sin
   `/api/lectura` ni `/api/texto`. Agregar la prueba estática de privacidad (SC-001)
-- [ ] T006 Pantalla:
+  - Hecho 2026-11-07. Además de la estática, `etiqueta-en-el-telefono.test.mjs` corre el lector real
+    en una APK simulada con el `fetch` reemplazado (falla si la etiqueta vuelve a la nube).
+- [~] T006 Pantalla (hecho 2026-11-07, salvo la maqueta):
   - sacar `lecturaIA` de `escanear-etiqueta`, `resultado-escaneo` y `ventanas-pantalla`;
   - foto solo en la APK;
   - **maqueta primero**: ¿el selector de tres toques se abre solo después de la foto?;
   - Ayuda, si cambia el nombre de un botón
-- [ ] T007 Servidor:
+- [x] T007 Servidor (hecho 2026-11-07; el dueño aprobó borrar `descripcion-etiqueta.test.mjs`):
   - `/api/lectura` solo acepta la guía;
   - borrar `EtiquetaIA`, `etiquetaDesdeIA`, `conDescripcion` y `MODELO_POR_DEFECTO`;
   - adaptar `lectura-servidor.test.mjs`;
@@ -38,7 +40,9 @@ la anterior.
   «Copiar anonimizado». No guarda nada
 
 ## Cierre
-- [ ] T010 Docs, en el mismo cambio:
+- [~] T010 Docs, en el mismo cambio (hechos 2026-11-07: `AGENTS.md`, `PRIVACIDAD.md` §2–§3,
+  `ARQUITECTURA.md` §1, `CLASES.md` §4, `HOJA-DE-RUTA.md` y `.env.example`; falta la spec 005
+  y quitar el *Pendiente* cuando esté el lector):
   - `AGENTS.md` («Foto de la etiqueta»: sin IA, ML Kit + lector Starken; descripción con tres
     toques; quitar el *Pendiente* de la 021);
   - `docs/PRIVACIDAD.md` §3 (Anthropic y Cloud Vision ya no reciben etiquetas);

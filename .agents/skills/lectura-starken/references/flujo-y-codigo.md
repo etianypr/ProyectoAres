@@ -77,14 +77,12 @@ número repetido («… 56 NO. 56»).
    - «POR PAGAR $…», o «POR PAGAR · monto por revisar».
    - El nombre y el teléfono, o «Destinatario sin leer» / «Teléfono sin leer».
 5. **Completar.**
-   - **«Foto de la etiqueta»** (si faltan datos y `lecturaIA || esApp()`; con los datos ya puestos,
-     «Leer la etiqueta de nuevo») llama a `leerImagen("etiqueta", foto, { ia })`:
+   - **«Foto de la etiqueta»** (solo con `esApp()` y si faltan datos; con los datos ya puestos,
+     «Leer la etiqueta de nuevo») llama a `leerFotoEtiqueta(foto)` (spec 021, 2026-11-07):
      - Comprime a `LADO_MAXIMO.etiqueta` (1280 px).
-     - Sin IA: saca el texto (`/api/texto` y, si no, ML Kit) y lo pasa por `leerEtiqueta`. Cualquier
-       texto sirve, aunque esté incompleto; sin texto, 422.
-     - Con IA: **siempre** se pregunta a la IA (Haiku), y en paralelo se lee el texto.
-       `conDescripcion` decide: si el texto está completo (`etiquetaCompleta`), mandan sus datos y la
-       IA solo pone la descripción; si no, manda la IA. Si la IA falla, queda el texto.
+     - Saca el texto **solo con ML Kit** (`textoDeFoto`) y lo pasa por `leerEtiqueta`. Cualquier
+       texto sirve, aunque esté incompleto; sin texto, 422. Ni IA ni `/api/texto`: no hay red.
+     - La descripción del paquete va siempre con tres toques.
      - Si `ofImpresa` es distinta de la OF del código, no se aplica: «La foto es de la OF … no se
        usó». Si es igual, la lectura va con `ofConfirmada`.
      - El bulto es el del código y, si la OF se escribió, el del texto.

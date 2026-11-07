@@ -3,9 +3,10 @@
 // Escanear la etiqueta de cada paquete (spec 005, US2–US3): el código de barras
 // dice a qué parada va —"PARADA n de N" en lo más grande— y completa el pedido.
 //
-// Sin IA, la OF y la parada salen del código igual (sin señal también); el
-// destinatario, el teléfono y el pago se completan pegando el texto de la
-// etiqueta (Google Lens), y la descripción con tres toques.
+// La OF y la parada salen del código (sin señal también). El destinatario, el
+// teléfono y el pago, de la foto de la etiqueta leída en el teléfono —nunca por
+// la IA (spec 021)— o pegando su texto (Google Lens); la descripción, con tres
+// toques.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -29,15 +30,12 @@ const BOTON =
 
 export function EscanearEtiqueta({
   fecha,
-  lecturaIA,
   avance,
   onCerrar,
   onCambio,
   onAgregarPedido,
 }: {
   fecha: string;
-  /** Con IA, una foto de la etiqueta completa el pedido. */
-  lecturaIA: boolean;
   /** Paquetes de la guía escaneados sobre el total: el contador de la carga. */
   avance: { escaneados: number; total: number };
   onCerrar: () => void;
@@ -177,7 +175,6 @@ export function EscanearEtiqueta({
         {fase.tipo === "resultado" ? (
           <Resultado
             fecha={fecha}
-            lecturaIA={lecturaIA}
             inicial={fase.r}
             codigo={fase.codigo}
             onCambio={(r) => {

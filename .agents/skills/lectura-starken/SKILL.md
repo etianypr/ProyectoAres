@@ -79,7 +79,7 @@ romper lo que ya se aprendió en terreno. Las reglas vienen de `AGENTS.md` y de 
 | Código de barras → `{ of, bulto }` | `lib/encomiendas/lectura/codigo-barras.ts` |
 | OF y paquete: `ofValida`, `ofDistinta`, `formatoOf`, `buscarPorOf`, `nombreVisible`, `textoReferencia` | `lib/encomiendas/paquete.ts` |
 | Texto de la guía: `leerGuia`, `armarGuia`, `limpiarDestino`, `guiaDesdeIA`, `faltanEnLaPrimera` | `lectura/guia.ts` |
-| Texto de la etiqueta: `leerEtiqueta`, `pagoDe`, `etiquetaCompleta`, `etiquetaDesdeIA`, `conDescripcion` | `lectura/etiqueta.ts` |
+| Texto de la etiqueta: `leerEtiqueta`, `pagoDe`, `etiquetaCompleta` | `lectura/etiqueta.ts` |
 | Contrato y salida de la IA: `LADO_MAXIMO`, `MAX_FOTOS_GUIA`, `BYTES_MAXIMOS_FOTO` · `GuiaIA`, `EtiquetaIA` (zod) | `lectura/contrato.ts`, `lectura/esquemas.ts` |
 | Claude (`server-only`): modelos, instrucciones, `leerFotos` | `lectura/servidor.ts` → `app/api/lectura/route.ts` |
 | Cloud Vision (`server-only`) | `lectura/vision.ts` → `app/api/texto/route.ts` |
@@ -113,8 +113,8 @@ romper lo que ya se aprendió en terreno. Las reglas vienen de `AGENTS.md` y de 
 ## Plata y cupos
 - **Anthropic** (`lecturaIA` = hay `ANTHROPIC_API_KEY` en el servidor):
   - Guía: Opus, ~US$0,03 por foto (~US$3 al mes). Releer es otra consulta.
-  - Etiqueta: Haiku, ~US$0,003 cada una. Con la IA encendida se manda **cada** etiqueta (~US$5–9 al
-    mes); la 021 lo baja a US$0.
+  - Etiqueta: US$0 desde la 021 (rama `021-lector-etiquetas`, 2026-11-07): ya no va a la IA. En
+    `main`, hasta el merge, se sigue mandando cada una a Haiku (~US$5–9 al mes).
   - Además, después de crear los pedidos, «corregir con IA» (spec 018) también gasta.
 - **El modo prueba no apaga la IA.** Con la clave en `.env.local`, recorrer con fotos gasta. Antes de
   hacerlo, pregunta y di cuántas fotos son y cuánto cuestan. Sin gastar: deja la clave vacía o usa
@@ -127,7 +127,7 @@ romper lo que ya se aprendió en terreno. Las reglas vienen de `AGENTS.md` y de 
 ## Pruebas
 - Siempre: `npm test`, `npm run lint` y `npm run build`.
 - Las de este tema corren sin red en ~10 s (65 pruebas el 2026-11-05):
-  `node --import ./pruebas/registrar.mjs --test pruebas/lectura.test.mjs pruebas/lectura-servidor.test.mjs pruebas/descripcion-etiqueta.test.mjs pruebas/carga.test.mjs pruebas/paquete.test.mjs pruebas/vision.test.mjs pruebas/listo-para-terreno.test.mjs`
+  `node --import ./pruebas/registrar.mjs --test pruebas/lectura.test.mjs pruebas/lectura-servidor.test.mjs pruebas/etiqueta-en-el-telefono.test.mjs pruebas/carga.test.mjs pruebas/paquete.test.mjs pruebas/vision.test.mjs pruebas/listo-para-terreno.test.mjs`
 - Los cambios de lectura, pago o privacidad llevan una prueba enfocada nueva (constitución III). Cómo
   escribirla, sus patrones y los fixtures: `references/pruebas.md`.
 - Datos inventados (`+56912345678`, OF `200000002`, calles reales con números inventados). Una
@@ -135,8 +135,10 @@ romper lo que ya se aprendió en terreno. Las reglas vienen de `AGENTS.md` y de 
 - La pantalla no tiene pruebas de React: se recorre con `recorrer-conductor`.
 
 ## Pendientes
-- **021** (definida, 0/13): todo, empezando por los ejemplos anonimizados del dueño (T002). Incluye
-  Diagnóstico → «Probar etiqueta» (US3). Hoy el Diagnóstico solo tiene «Probar escáner».
+- **021** (en curso): US1 hecha en la rama (2026-11-07: la etiqueta solo con ML Kit, `/api/lectura`
+  solo la guía). Falta el lector especializado, que espera los ejemplos del dueño (T002), y
+  Diagnóstico → «Probar etiqueta» (US3).
+- **028** (borrador): el escáner en vivo y continuo al cargar el auto. Toca `android/`.
 - **005**: probar con ≥ 50 etiquetas reales (T030, junto con la T012 de la 021) y correr el quickstart
   (T031).
 - **022** (borrador): el ⚠ en el pedido y el aviso dos paradas antes. Hoy el ⚠ solo marca la OF
@@ -151,13 +153,12 @@ Detalle y cómo reproducirlos: `references/flujo-y-codigo.md` §5.
   x/N no avanza y la OF sigue en «Sin etiqueta escaneada», salvo que después se lea el bulto del texto.
 - `leerEtiqueta` toma el primer «Tel.». Si el remitente va antes, toma su teléfono (la 021, US2, lo
   resuelve).
-- `/api/texto` se llama en cada foto si existe `GOOGLE_VISION_KEY` o `GOOGLE_MAPS_KEY`. Si la API está
+- `/api/texto` se llama en cada foto **de la guía** (la etiqueta ya no, desde la 021) si existe
+  `GOOGLE_VISION_KEY` o `GOOGLE_MAPS_KEY`. Si la API está
   apagada, Google rechaza la foto (502) y el teléfono vuelve a intentar con la siguiente, porque solo
   deja de preguntar con un 503. La foto sale del teléfono igual.
 
 ## Docs que hoy no calzan con el código
-- `.env.example` dice que `LECTURA_MODELO` es para las etiquetas que el teléfono no pudo leer, y que
-  vacío es `claude-opus-5`. En el código es `claude-haiku-4-5` y se manda cada etiqueta.
 - `docs/ARQUITECTURA.md` §1 («foto que el teléfono no pudo leer»), `docs/CLASES.md` §4 («si no
   alcanza, la IA») y `docs/HOJA-DE-RUTA.md` (fila 005, «solo si el teléfono no pudo leer») dicen
   otra cosa: en el código la IA lee toda guía y toda etiqueta cuando está encendida. `CLASES.md` §4
@@ -168,6 +169,5 @@ Detalle y cómo reproducirlos: `references/flujo-y-codigo.md` §5.
   `etiqueta` que nunca se asigna («Agregarlo como pedido» crea `manual`), y `lib/whatsapp/telefono.ts`
   en T021 (hoy es `lib/comun/telefono.ts`).
 - `pruebas/paquete.test.mjs`: la prueba se llama «exige 9 dígitos», pero comprueba lo contrario.
-  `pruebas/README.md` no lista `descripcion-etiqueta.test.mjs`.
 - `ayuda.tsx` nombra «Leer las fotos juntas» y «Crear pedidos». Los botones dicen «Leer las N fotos
   juntas» y «Crear N pedidos».
