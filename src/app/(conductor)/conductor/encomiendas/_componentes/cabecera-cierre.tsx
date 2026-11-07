@@ -5,7 +5,6 @@
 // antes, una vez aplazada, no había cómo volver a ella sin recargar la app.
 
 import { Check, PackageCheck, X } from "lucide-react";
-import { BarraPasos } from "./barra-pasos";
 import { BOTON_PRINCIPAL } from "./parada-activa";
 
 export function CabeceraCierre({
@@ -22,7 +21,6 @@ export function CabeceraCierre({
 }) {
   return (
     <div className="space-y-2.5">
-      <BarraPasos paso="cierre" />
       <div className="space-y-1">
         <p className="text-[21px] font-extrabold leading-tight tracking-tight">Ruta completa</p>
         <p className="flex gap-4 text-sm font-semibold">

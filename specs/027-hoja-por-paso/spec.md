@@ -11,8 +11,8 @@ que toca, con su botón. **Adentro** va solo lo de ese paso, con los ⚠ primero
 flujo del conductor de `AGENTS.md` (1 guía · 2 ⚠ · 3 ruta · 4 auto · 5 recorrer · 6 cerrar).
 
 Decidido con el dueño (2026-11-06):
-- Barra de pasos («Paso n de 6 · …») en la cabecera, en todos los pasos menos el 5 (manejando, la
-  cabecera es solo la parada).
+- Sin barra de pasos: estuvo («Paso n de 6 · …») y el dueño la quitó al verla en el teléfono
+  (2026-11-06). La cabecera igual cambia con el paso.
 - «Cargar el auto» termina al escanear todo o al tocar «Salir a repartir», y se recuerda aunque
   Android recargue ARES: campo nuevo y opcional `Ruta.inicioReparto` (store `rutas`, sin subir la
   versión de `idb.ts`, no sale del teléfono).
@@ -89,7 +89,7 @@ Decidido con el dueño (2026-11-06):
 ## Requisitos
 
 - **FR-001** El paso del día se decide en una función pura (`pasoDelDia`), con una prueba por paso.
-- **FR-002** La barra de pasos lleva el número y el nombre del paso en texto (no solo color).
+- **FR-002** ~~Barra de pasos~~: se quitó (dueño, 2026-11-06).
 - **FR-003** Un ⚠ se muestra con ícono y palabras; ningún estado depende solo del color.
 - **FR-004** `Ruta.inicioReparto` se escribe una vez (al salir o al escanear todo) y rehacer la ruta
   no lo borra ni lo mueve. Una ruta guardada antes no lo tiene y se lee como `null`.

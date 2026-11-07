@@ -44,7 +44,7 @@ test("cifrasPantalla: fuera de la ruta, sin ubicar y avance de la ruta", () => {
 });
 
 // ------------------------------------------------- spec 027: el paso del día
-const { pasoDelDia, cargaTerminada, PASOS } = await import(
+const { pasoDelDia, cargaTerminada } = await import(
   "@/app/(conductor)/conductor/encomiendas/_hooks/paso-del-dia"
 );
 
@@ -71,13 +71,6 @@ test("pasoDelDia: con ruta, cargar el auto → recorrer → cerrar el día", () 
   assert.equal(
     pasoDelDia(dia({ hayRuta: true, hayActiva: true, cargaTerminada: true, pendientesFuera: 1, conProblema: 1 })),
     "reparto",
-  );
-});
-
-test("PASOS: seis, en el orden del flujo de AGENTS.md", () => {
-  assert.deepEqual(
-    PASOS.map((p) => p.paso),
-    ["guia", "resolver", "ruta", "carga", "reparto", "cierre"],
   );
 });
 

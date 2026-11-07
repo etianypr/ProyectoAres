@@ -8,7 +8,6 @@
 
 import { ScanLine, Truck } from "lucide-react";
 import type { CargaAuto } from "../_hooks/use-carga-auto";
-import { BarraPasos } from "./barra-pasos";
 import { BOTON_PRINCIPAL } from "./parada-activa";
 
 export function CabeceraCarga({
@@ -25,7 +24,6 @@ export function CabeceraCarga({
   const { escaneados, total } = carga;
   return (
     <div className="space-y-2.5">
-      <BarraPasos paso="carga" />
       <div className="space-y-2">
         <p className="flex items-baseline gap-2">
           <span className="font-mono text-[30px] font-semibold leading-none tracking-tight tabular-nums">{escaneados}</span>

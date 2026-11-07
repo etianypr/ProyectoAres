@@ -9,7 +9,7 @@ ni migraciones, sin tocar `android/`.
 flowchart LR
   P["pantalla.tsx"] --> PASO["_hooks/paso-del-dia.ts<br/>(puro)"]
   P --> CARGA["_hooks/use-carga-auto.ts"]
-  P --> CAB["_componentes/cabecera-hoja.tsx<br/>barra-pasos · cabecera-*"]
+  P --> CAB["_componentes/cabecera-hoja.tsx<br/>cabecera-*"]
   P --> CONT["_componentes/contenido-hoja.tsx<br/>(una rama por paso)"]
   CONT --> PROB["lib/encomiendas/problemas.ts<br/>(puro; la 022 lo extiende)"]
   CARGA --> ALM["lib/encomiendas/local/almacen/ruta.ts<br/>marcarInicioReparto"]

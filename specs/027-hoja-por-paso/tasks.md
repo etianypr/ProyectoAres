@@ -15,4 +15,5 @@
 - [x] T013 Bultos: la OF escrita a mano suma uno (primer número libre) y su etiqueta lo reemplaza (`contarBulto`, `LecturaParaAplicar.escaneo`/`reemplazaBulto`) + pruebas
 - [x] T014 Fin de la guía con ⚠: «Resolver los N ⚠» + «Armar la ruta igual»; «Por resolver» en la hoja con la ruta armada
 - [x] T015 Cabecera de cierre con las cifras de todo el día (`cierreDelDia`) + prueba
+- [x] T017 Sin barra de pasos en la cabecera (dueño, 2026-11-06): fuera `barra-pasos.tsx` y `PASOS`
 - [ ] T016 Día real en el teléfono (APK): escáner, «Salir a repartir» y volver de Google Maps
