@@ -259,9 +259,11 @@ y un agente no debe "corregir".
     (nunca se supone $0) y la descripción del paquete. La lee un lector de texto y, con la IA
     encendida, también la IA, que es la única que describe el paquete. Si no se puede leer, se pega
     el texto o se eligen tipo, tamaño y color con tres toques.
-    *Pendiente (spec 021, definida):* la foto se va a leer solo en el teléfono (ML Kit + un lector
+    *Pendiente (spec 021, en curso):* la foto se va a leer solo en el teléfono (ML Kit + un lector
     especializado en los formatos de Starken), sin IA ni Cloud Vision, y la descripción va a ser con
     tres toques. Sale US$0 y los datos de los destinatarios no salen del teléfono.
+    *Pendiente (spec 028, borrador):* después, al cargar el auto, una cámara de ARES que queda
+    abierta y lee el código y el texto de cada etiqueta en vivo, sin toques ni fotos.
   - Si la foto trae una OF distinta de la del código, no se usa: es la etiqueta de otro paquete. Lo
     ya cargado no se pisa, salvo con una foto cuya OF coincide con la del código.
   - Si la dirección de la etiqueta no coincide con la de la guía, no se cambia sola: se avisa y el
