@@ -7,16 +7,6 @@ import { bultosIncompletos, sinEtiquetaEscaneada, type Pedido, type Ruta } from 
 
 export type Paso = "guia" | "resolver" | "ruta" | "carga" | "reparto" | "cierre";
 
-/** En orden: la barra de pasos los numera así. */
-export const PASOS: { paso: Paso; nombre: string }[] = [
-  { paso: "guia", nombre: "Cargar la guía" },
-  { paso: "resolver", nombre: "Resolver ⚠" },
-  { paso: "ruta", nombre: "Armar la ruta" },
-  { paso: "carga", nombre: "Cargar el auto" },
-  { paso: "reparto", nombre: "Recorrer" },
-  { paso: "cierre", nombre: "Cerrar el día" },
-];
-
 export function pasoDelDia({
   hayRuta,
   hayActiva,

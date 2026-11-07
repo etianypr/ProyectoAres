@@ -10,7 +10,6 @@
 
 import { AlertTriangle, Camera, Check, Plus } from "lucide-react";
 import type { Paso } from "../_hooks/paso-del-dia";
-import { BarraPasos } from "./barra-pasos";
 import { BOTON_PRINCIPAL } from "./parada-activa";
 
 /** "Viernes 6 de noviembre", de "YYYY-MM-DD" (a mediodía: sin correrse de día). */
@@ -73,7 +72,6 @@ export function CabeceraSinParada({
   if (paso === "guia") {
     return (
       <div className="space-y-2.5">
-        <BarraPasos paso="guia" />
         <div>
           <p className={TITULO}>Hola, {nombreConductor.split(" ")[0]}</p>
           <p className="text-sm text-muted">{diaEscrito(fecha)} · sin pedidos</p>
@@ -99,7 +97,6 @@ export function CabeceraSinParada({
   if (paso === "resolver") {
     return (
       <div className="space-y-2.5">
-        <BarraPasos paso="resolver" />
         <div className="flex items-center justify-between gap-2">
           <p className={TITULO}>{pendientes === 1 ? "1 pedido" : `${pendientes} pedidos`}</p>
           <span className="flex shrink-0 items-center gap-1 rounded-full bg-warn-bg px-2.5 py-1 text-xs font-semibold text-warn">
@@ -118,7 +115,6 @@ export function CabeceraSinParada({
 
   return (
     <div className="space-y-2.5">
-      <BarraPasos paso="ruta" />
       <div>
         <p className={TITULO}>{pendientes === 1 ? "1 pedido listo" : `${pendientes} pedidos listos`}</p>
         <p className="flex items-center gap-1 text-sm text-muted">
