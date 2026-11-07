@@ -21,6 +21,20 @@ import { useMarcadorConductor } from "./use-marcador-conductor";
 // (spec 002 T038), capa-paradas.ts (las paradas, dibujadas por el mapa).
 export type { PreviaRuta, PuntoMapa, Ubicacion } from "./tipos";
 
+/** Margen del encuadre de la propuesta: arriba, el botón del menú y la cinta del
+ *  modo prueba; abajo, lo que tapa el panel de la propuesta. */
+const RELLENO_ARRIBA = 76;
+const RELLENO = 28;
+/** Alto mínimo que queda para dibujar la ruta, aunque el panel sea alto. */
+const ALTO_MINIMO_RUTA = 160;
+
+function rellenoConPanel(contenedor: HTMLElement) {
+  const panel = document.querySelector<HTMLElement>("[data-propuesta-ruta]");
+  // offsetHeight y no el rectángulo: el panel entra deslizándose (transform).
+  const tapa = panel ? contenedor.getBoundingClientRect().bottom - (window.innerHeight - panel.offsetHeight) : 0;
+  const tope = contenedor.clientHeight - RELLENO_ARRIBA - ALTO_MINIMO_RUTA;
+  return { top: RELLENO_ARRIBA, left: RELLENO, right: RELLENO, bottom: Math.max(RELLENO, Math.min(tapa + RELLENO, tope)) };
+}
 
 export function RutaMapa({
   puntos,
@@ -88,6 +102,8 @@ export function RutaMapa({
    *  ninguna, así que en cuanto se conozca el rumbo hay que acomodarse. */
   const claveOrientadaRef = useRef<string | null>(null);
   const encuadreInicialRef = useRef(false);
+  /** Las paradas de la propuesta ya encuadrada (ver el encuadre de la propuesta). */
+  const previaEncuadradaRef = useRef<string | null>(null);
   /** Ya se centró en la ubicación del conductor por no haber nada más que mostrar.
    *  Es un ref aparte del de arriba a propósito: centrarse en el punto NO gasta
    *  el encuadre de la ruta, así que cuando aparezcan las paradas el mapa las
@@ -261,15 +277,22 @@ export function RutaMapa({
   // Al aparecer una ruta propuesta se encuadra COMPLETA, de norte y sin
   // inclinación: es el momento de mirarla entera, no de manejar.
   //
-  // El relleno es parejo y chico. Antes se reservaba el 48% de abajo porque el
-  // mapa iba a pantalla completa y el panel de la propuesta le tapaba la mitad;
-  // ahora la propuesta se mira en el día, donde el mapa es una tarjeta de
-  // 224 px y el panel está fuera de él (ver pantalla.tsx). Con aquel relleno, en
-  // una tarjeta de ese alto quedaban 70 px para dibujar y la ruta salía
-  // ilegible de lo alejada.
+  // El panel de la propuesta va encima del mapa, abajo, y le tapa casi la mitad:
+  // se mide cuánto tapa y la ruta se encuadra en lo que queda visible arriba
+  // (dueño, 2026-11-07: «tiene que verse toda la ruta»; antes el sur de la ruta
+  // quedaba debajo del panel). Se mide y no se supone: el panel cambia de alto
+  // con la comparación y los avisos.
+  //
+  // Una vez por juego de paradas: invertir el orden o elegir otra alternativa no
+  // mueve la cámara, para que se vea cambiar la ruta donde se estaba mirando
+  // (dueño, 2026-11-07, spec 024). Eliminar o devolver una parada sí encuadra.
   useEffect(() => {
     const mapa = mapaRef.current;
+    if (!previa) previaEncuadradaRef.current = null;
     if (!mapa || !mapaListo || !previa) return;
+    const paradas = previa.puntos.map((p) => `${p.lat},${p.lng}`).sort().join("|");
+    if (paradas === previaEncuadradaRef.current) return;
+    previaEncuadradaRef.current = paradas;
 
     const limites = new LngLatBounds();
     for (const c of previa.trazado ?? []) limites.extend(c);
@@ -281,7 +304,7 @@ export function RutaMapa({
     encuadreInicialRef.current = true;
 
     mapa.fitBounds(limites, {
-      padding: 28,
+      padding: rellenoConPanel(mapa.getContainer()),
       bearing: 0,
       pitch: 0,
       duration: 700,

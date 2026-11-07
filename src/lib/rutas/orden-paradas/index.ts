@@ -5,6 +5,7 @@
 // estándar de la industria para este tamaño de problema sin pagar un solver.
 import { distanciaMetros, type Coordenada } from "@/lib/geo/coordenada";
 import { conFinal, distanciaOrden, type Costo, type Penalizacion } from "./costo";
+import { adelantarBultos, type Descarga } from "./descarga";
 import { exacto } from "./exacto";
 import { insercionMasBarata, vecinoMasCercano } from "./construccion";
 import { mejorarLocal } from "./mejora";
@@ -71,8 +72,10 @@ export function ordenarParadas(
   aFondo = false,
   /** Lo que cuesta pasar por cada parada según de dónde se llega y adónde se
    *  sigue (calles donde no se da la vuelta, ver generar-ruta/sentido.ts), y un
-   *  orden de arranque: con él, el resultado nunca sale peor que ese orden. */
-  extra: { penalizacion?: Penalizacion; arranque?: number[] } = {},
+   *  orden de arranque: con él, el resultado nunca sale peor que ese orden. Con
+   *  `descarga`, los bultos de cada punto: el orden más corto se retoca para
+   *  sacarlos antes, sin pasarse de la tolerancia (descarga.ts). */
+  extra: { penalizacion?: Penalizacion; arranque?: number[]; descarga?: DescargaPorMatriz } = {},
 ): number[] {
   const n = puntos.length;
   if (n <= 2) return puntos.map((_, i) => i);
@@ -81,13 +84,22 @@ export function ordenarParadas(
   // Un tramo sin dato (dos puntos sin camino entre ellos) no puede valer 0 o la
   // mejora local lo elegiría siempre; se lo trata como imposible.
   const costo: Costo = matriz ? conFinal((a, b) => matriz[a]?.[b] ?? Infinity, vuelta) : enLineaRecta;
+  // El orden más corto, y encima los bultos adelantados donde sale casi gratis
+  // (spec 024, descarga.ts).
+  const terminar = (orden: number[]) => {
+    const corto = desempatarSentido(orden, costo, vuelta != null);
+    if (!extra.descarga) return corto;
+    const { matrizReal, ...descarga } = extra.descarga;
+    const metros = matrizReal ? conFinal((a, b) => matrizReal[a]?.[b] ?? Infinity, vuelta) : costo;
+    return adelantarBultos(corto, costo, { ...descarga, metros }, extra.penalizacion);
+  };
 
   // Día chico: el óptimo exacto sale en milisegundos, así que no hay razón para
   // conformarse con una aproximación.
   // El exacto mide solo tramos: con penalización se usa la búsqueda.
   if (n <= MAX_EXACTO && !extra.penalizacion) {
     const optimo = exacto(n, costo);
-    if (optimo) return desempatarSentido(optimo, costo, vuelta != null);
+    if (optimo) return terminar(optimo);
   }
 
   const arranques = [vecinoMasCercano(n, costo), insercionMasBarata(n, costo)];
@@ -108,8 +120,15 @@ export function ordenarParadas(
   if (matriz) arranques.push(mejorarLocal(vecinoMasCercano(n, enLineaRecta), enLineaRecta));
 
   if (extra.arranque) arranques.unshift(extra.arranque);
-  return desempatarSentido(mejorDeVariosArranques(arranques, costo, aFondo, extra.penalizacion), costo, vuelta != null);
+  return terminar(mejorDeVariosArranques(arranques, costo, aFondo, extra.penalizacion));
 }
+
+/** Adelantar bultos con una matriz (ver descarga.ts). */
+export type DescargaPorMatriz = Omit<Descarga, "metros"> & {
+  /** Metros de verdad, con los mismos índices que los puntos: la matriz del orden
+   *  cobra además cada cambio de zona. null: la misma del orden. */
+  matrizReal: number[][] | null;
+};
 
 /** Una ruta cerrada se puede recorrer en los dos sentidos. Si al revés mide lo
  *  mismo (calles de doble sentido), se arranca por la parada más cercana, como

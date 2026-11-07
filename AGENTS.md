@@ -13,7 +13,8 @@ Es lo más importante del proyecto: todo cambio en la app del conductor se mide 
    armar la ruta: el conductor elige el lugar o llama al receptor (el teléfono se consulta en
    Infologistic). Si no se resuelve, por ejemplo porque no contesta, la ruta se arma igual y el
    pedido sigue con ⚠ (ver "Pedidos con problemas").
-3. **Armar la ruta,** con los criterios de "Rutas" (km, tiempo, éxito por parada y ganancia).
+3. **Armar la ruta,** con los criterios de "Rutas" (bultos, km, tiempo, éxito por parada y
+   ganancia).
 4. **Cargar el auto.** Para ordenar los paquetes en el auto según la ruta, el conductor pasa por
    todas las etiquetas, así que ahí se escanea cada paquete. El código de barras dice en qué parada
    va («PARADA n de N»), y la etiqueta completa el nombre, el teléfono y el POR PAGAR. Los ⚠ del
@@ -270,9 +271,14 @@ y un agente no debe "corregir".
 - **Pago.** Se calcula en Postgres (`private.encomienda_congelar_dia()`), y `lib/encomiendas/pago.ts`
   es una copia para la vista previa. Las dos se tocan juntas y se corre `npm run test:base`. Cada
   día guarda su tarifa, así que cambiar la regla no mueve los días anteriores.
-- **Rutas.** Se evalúan por cuatro criterios: km, tiempo, porcentaje de éxito por parada y
-  ganancia. *Pendiente (spec 024):* hoy el optimizador ordena por km (con zonas y horarios); falta
-  definir cómo pesan los otros tres.
+- **Rutas.** Se evalúan por cinco criterios: sacar los bultos del móvil lo más rápido posible,
+  kilómetros recorridos, tiempo de ruta, porcentaje de éxito por parada y ganancia en la logística.
+  - Manda km (con zonas y horarios). Encima, los bultos salen antes solo si cuesta ≤ 1 % de km y
+    cada metro de más los saca, en promedio, al menos un metro antes (dueño, 2026-11-07;
+    `orden-paradas/descarga.ts`). Medido: la más corta ya descarga casi lo más rápido posible, y
+    sin tope de km se gana ≤ 10–15 % por +10–15 % de km. Los bultos salen del código de barras
+    (o se van contando por OF); sin escanear, cada pedido vale uno.
+  - *Pendiente (spec 024):* cómo pesan tiempo, éxito por parada y ganancia.
   - La ruta es cerrada: vuelve a la central.
   - Cada zona se recorre una sola vez (`generar-ruta/zonas.ts`, zonas de 900 m).
   - No se da la vuelta en pasajes ni en calles residenciales.
@@ -280,6 +286,8 @@ y un agente no debe "corregir".
     ya está en el óptimo práctico: no proponer ALNS, Tabu ni colonias de hormigas. Lo que mejora la
     ruta es ubicar bien las direcciones.
   - Se muestra una propuesta por defecto, y hasta tres solo si difieren de verdad.
+  - El conductor puede hacer la propuesta al revés («Invertir orden de ruta», spec 024). Al revés
+    suele medir más (sentidos únicos): la pantalla dice cuánto, y no se vuelve a optimizar.
   - Antes de tocar la ruta: skill `rutas-ares` (qué se midió, dónde está cada cosa, cómo medir).
 - **Navegación (spec 020).** ARES muestra la ruta, es importante que en cada parada tambien te muestre que paradas tienes cerca (esto por si tenemos un pedido pendiente o agendamos una entrega que la aplicacion no sabe; *pendiente*, spec 023) y maneja las paradas, pero **no guía**. Guía la
   app Google Maps, con la burbuja de ARES encima, ligada al pedido abierto y siempre con el botón

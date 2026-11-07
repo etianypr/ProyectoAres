@@ -28,6 +28,8 @@
 //   ubicar-pedidos.ts   reintentar los pedidos sin punto
 //   estrategias.ts      las tres maneras de ordenar y cuáles mostrar
 //   horarios.ts         "respeta horarios" con el optimizador con horarios (spec 017)
+//   bultos.ts           los bultos fuera antes, casi sin km de más (spec 024)
+//   invertir.ts         «Invertir orden de ruta» (spec 024)
 //   index.ts            calcular, elegir y confirmar la propuesta
 
 import { distanciaMetros, type Coordenada } from "@/lib/geo/coordenada";
@@ -39,7 +41,18 @@ import { minutoDelDia } from "../planificar";
 import { leerPedidos, leerRuta, pedidosEnOrden, tramosConPedidos } from "../almacen";
 import { resolverInicio } from "./partida";
 import { corregirAccesos, reintentarUbicar, tieneCoordenadas } from "./ubicar-pedidos";
-import { coord, elegirUtiles, medir, metrosPorMatriz, ordenPorEstrategia, TITULOS, vueltaPorMatriz } from "./estrategias";
+import {
+  avisoDeHorario,
+  coord,
+  elegirUtiles,
+  medir,
+  metrosPorMatriz,
+  MINUTO_SALIDA_MAS_TEMPRANA,
+  ordenPorEstrategia,
+  TITULOS,
+  vueltaPorMatriz,
+} from "./estrategias";
+import { TOLERANCIA_DESCARGA } from "./bultos";
 import { paradasLejanas } from "./lejanas";
 import { ordenConHorarios } from "./horarios";
 import { ordenarConSentido } from "./sentido";
@@ -49,8 +62,8 @@ import type { Alternativa, EstrategiaRuta, PedidoUbicado, PropuestaRuta, PuntoIn
 export type { Alternativa, EstrategiaRuta, PedidoUbicado, PropuestaRuta, PuntoInicio, ResultadoRuta } from "./tipos";
 
 /** Huella de TODO lo que entra en el cálculo de una ruta. Si no cambió ni un
- *  pedido, ni su ubicación, ni su horario, ni quién confirmó, ni de dónde y a
- *  qué hora se parte, la ruta que saldría es la misma y no hay nada que
+ *  pedido, ni su ubicación, ni su horario, ni quién confirmó, ni sus bultos
+ *  (spec 024), ni de dónde y a qué hora se parte, la ruta que saldría es la misma y no hay nada que
  *  preguntarle a OpenRouteService. Antes no miraba los horarios: un cliente que eligió
  *  bloque seguía recibiendo la propuesta vieja (spec 017, R3). */
 /** Partida y llegada a menos de esto son el mismo punto: la ruta es cerrada. */
@@ -69,7 +82,7 @@ const MS_PARA_MEJORAS = 25_000;
 
 function huella(fecha: string, base: Coordenada, llegada: Coordenada, ubicados: PedidoUbicado[], minutosDeInicio: number): string {
   const paradas = ubicados
-    .map((p) => `${p.id}:${p.lat.toFixed(5)},${p.lng.toFixed(5)}:${p.bloqueHorarioId ?? ""}:${p.disponibilidad}`)
+    .map((p) => `${p.id}:${p.lat.toFixed(5)},${p.lng.toFixed(5)}:${p.bloqueHorarioId ?? ""}:${p.disponibilidad}:${p.bultos ?? ""}`)
     .sort()
     .join("|");
   // La partida se redondea a ~10 m: partiendo del GPS, un metro de diferencia
@@ -77,10 +90,6 @@ function huella(fecha: string, base: Coordenada, llegada: Coordenada, ubicados: 
   // de hora: cambia qué bloques se alcanzan.
   return `${fecha}|${base.lat.toFixed(4)},${base.lng.toFixed(4)}>${llegada.lat.toFixed(4)},${llegada.lng.toFixed(4)}|${Math.floor(minutosDeInicio / 15)}|${paradas}`;
 }
-
-/** Antes de esta hora no se reparte: armar la ruta a las 7:00 no puede suponer
- *  que la primera parada se atiende a las 7:10 (spec 017, R3). */
-const MINUTO_SALIDA_MAS_TEMPRANA = 8 * 60;
 
 /** Deja pintar la pantalla ("Armando la ruta…") entre dos cálculos largos. */
 const cederTurno = () => new Promise<void>((listo) => setTimeout(listo, 0));
@@ -215,10 +224,14 @@ export async function calcularRutaLocal(
   // Cada zona una sola vez (zonas.ts): el ORDEN se decide cobrando cada cambio
   // de zona; los km, los tiempos y los avisos siguen con la matriz real.
   const matrizOrden = matriz ? conZonas(matriz) : null;
+  // Y sobre el orden de menos km, los bultos fuera del auto lo antes posible,
+  // casi sin manejar de más (spec 024): con los metros de verdad, no con los que
+  // cobran el cambio de zona.
+  const descarga = { matriz, tolerancia: TOLERANCIA_DESCARGA };
 
   // Los tres órdenes. Ninguno consulta nada: todos reusan la matriz de arriba.
   const orden = (estrategia: EstrategiaRuta) =>
-    ordenPorEstrategia(estrategia, base, ubicados, indiceEnMatriz, matrizOrden, minutosDeInicio, llegada);
+    ordenPorEstrategia(estrategia, base, ubicados, indiceEnMatriz, matrizOrden, minutosDeInicio, llegada, descarga);
   const corta = orden("corta");
   const ordenes: Record<EstrategiaRuta, PedidoUbicado[]> = {
     corta,
@@ -252,7 +265,7 @@ export async function calcularRutaLocal(
   // Es una mejora: si falla, o el armado ya tomó más de MS_PARA_MEJORAS (mala
   // señal), se queda la ruta que ya está.
   if (calles && recomendada.estrategia === "corta" && Date.now() - empezo < MS_PARA_MEJORAS) {
-    const conSentido = await ordenarConSentido(base, paradas, indiceEnMatriz, matrizOrden, calles, llegada).catch(() => null);
+    const conSentido = await ordenarConSentido(base, paradas, indiceEnMatriz, matrizOrden, calles, llegada, descarga).catch(() => null);
     if (conSentido) {
       paradas = conSentido.paradas;
       calles = conSentido.calles;
@@ -269,13 +282,8 @@ export async function calcularRutaLocal(
     );
   }
 
-  if (recomendada.bloquesIncumplidos > 0) {
-    advertencias.push(
-      recomendada.fueraDeHorario.length === 1
-        ? `Con este orden se llegaría fuera del horario que eligió ${recomendada.fueraDeHorario[0]}. Conviene llamarlo.`
-        : `Con este orden se llegaría fuera de horario a ${recomendada.fueraDeHorario.length} clientes: ${recomendada.fueraDeHorario.join(", ")}.`,
-    );
-  }
+  const fueraDeHorario = avisoDeHorario(recomendada);
+  if (fueraDeHorario) advertencias.push(fueraDeHorario);
 
   const propuesta: PropuestaRuta = {
     fecha,
@@ -337,6 +345,8 @@ export async function elegirAlternativa(
     ...propuesta,
     paradas: alternativa.paradas,
     elegida: estrategia,
+    deAres: undefined,
+    alReves: undefined,
     trazado: calles?.trazado ?? null,
     tramos: tramosConPedidos(calles?.tramos, [null, ...alternativa.paradas.map((p) => p.id), null]),
     distanciaM: calles?.distanciaM ?? null,
@@ -352,7 +362,7 @@ export async function elegirAlternativa(
  *  llegue el nuevo (ver retrazar). */
 function conParadas(propuesta: PropuestaRuta, paradas: PedidoUbicado[]): PropuestaRuta {
   const actual = propuesta.alternativas.find((a) => a.estrategia === propuesta.elegida) ?? propuesta.alternativas[0];
-  return { ...propuesta, paradas, alternativas: actual ? [{ ...actual, paradas }] : [] };
+  return { ...propuesta, paradas, alternativas: actual ? [{ ...actual, paradas }] : [], deAres: undefined, alReves: undefined };
 }
 
 export function quitarParada(propuesta: PropuestaRuta, pedidoId: string): PropuestaRuta {
@@ -382,7 +392,9 @@ export async function retrazar(propuesta: PropuestaRuta): Promise<PropuestaRuta>
     distanciaM: calles?.distanciaM ?? null,
     duracionS: calles?.duracionS ?? null,
     sinTrazado: calles == null && propuesta.paradas.length > 0,
+    esperaTrazado: undefined,
   };
 }
 
 export { confirmarRutaLocal, problemasDelArmado } from "./confirmar";
+export { invertirOrden } from "./invertir";

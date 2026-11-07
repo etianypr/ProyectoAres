@@ -19,11 +19,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 const almacen = await import("@/lib/encomiendas/local/almacen");
-const { guardarPedido, registrarDisponibilidad, marcarResultado, guardarRuta, leerRuta, leerPedidos } =
+const { guardarPedido, registrarDisponibilidad, marcarResultado, guardarRuta, leerRuta, leerPedidos, aplicarLecturaEtiqueta } =
   almacen;
 
 const generar = await import("@/lib/encomiendas/local/generar-ruta");
-const { calcularRutaLocal, confirmarRutaLocal, devolverParada, elegirAlternativa, quitarParada, retrazar } = generar;
+const { calcularRutaLocal, confirmarRutaLocal, devolverParada, elegirAlternativa, invertirOrden, quitarParada, retrazar } = generar;
 
 const idb = await import("@/lib/encomiendas/local/idb");
 const { olvidarMatriz } = await import("@/lib/geo/matriz");
@@ -816,4 +816,110 @@ test("rehacer la ruta conserva lo que ya se cerró hoy", async () => {
 
 test("no hay ruta que armar sin pedidos pendientes", async () => {
   await assert.rejects(() => calcularRutaLocal(HOY, inicioDe()), /No hay pedidos pendientes/i);
+});
+
+// ===========================================================================
+// Spec 024: los bultos fuera del auto lo antes posible
+// ===========================================================================
+
+test("spec 024: a igual km, la ruta pasa primero por el barrio y deja la parada suelta al final", async (t) => {
+  aLaHora(9, 30);
+  t.after(reloj.descongelar);
+  // Una suelta a 900 m al este y cinco pedidos juntos a 1 km al oeste. Ida y
+  // vuelta miden lo mismo en los dos sentidos; antes se arrancaba por la más
+  // cercana (la suelta) y los cinco bultos cruzaban la ciudad en el auto.
+  await pedidoAKm("Suelta", 0, { este: 0.9 });
+  for (const k of [0, 1, 2, 3, 4]) await pedidoAKm(`Barrio ${k}`, k * 0.03, { este: -1 });
+
+  const p = await calcularRutaLocal(HOY, { tipo: "gps", ...BASE });
+  assert.match(p.paradas[0].nombre, /^Barrio/, nombres(p.paradas).join(", "));
+  assert.equal(p.paradas.at(-1).nombre, "Suelta");
+  assert.equal(p.alternativas.length, 1, "es la misma ruta: no hay nada que comparar");
+});
+
+test("spec 024: un bulto más escaneado vuelve a calcular la propuesta en vez de sacarla del caché", async (t) => {
+  aLaHora(9, 30);
+  t.after(reloj.descongelar);
+  const of = "275300001";
+  await guardarPedido({ nombre: "Con OF", telefono: null, direccion: "Calle Uno 100, Arica", lat: BASE.lat - 0.004, lng: BASE.lng, notas: null, of }, HOY);
+  await pedidoA(2);
+  await pedidoA(3);
+  const inicio = inicioDe();
+
+  await calcularRutaLocal(HOY, inicio);
+  await calcularRutaLocal(HOY, inicio);
+  assert.equal(consultasDeTrazado(), 1, "la misma propuesta sale del caché");
+
+  await aplicarLecturaEtiqueta(HOY, { of, bulto: 2, bultosTotal: 3, escaneo: true });
+  await calcularRutaLocal(HOY, inicio);
+  assert.equal(consultasDeTrazado(), 2, "con tres bultos el orden puede cambiar: se vuelve a calcular");
+});
+
+test("spec 024: «Invertir orden de ruta» da vuelta las paradas y otro toque devuelve la de ARES sin consultar", async (t) => {
+  aLaHora(9, 30);
+  t.after(reloj.descongelar);
+  for (const n of [1, 2, 3]) await pedidoA(n);
+  const deAres = await calcularRutaLocal(HOY, inicioDe());
+  assert.deepEqual(nombres(deAres.paradas), ["Cliente 1", "Cliente 2", "Cliente 3"]);
+
+  const invertida = invertirOrden(deAres);
+  assert.deepEqual(nombres(invertida.paradas), ["Cliente 3", "Cliente 2", "Cliente 1"], "la última pasa a ser la primera");
+  assert.equal(invertida.deAres, deAres);
+  assert.equal(invertida.esperaTrazado, true);
+  assert.equal(invertirOrden(invertida), invertida, "mientras llega su trazado, otro toque no hace nada");
+  const antes = consultasDeTrazado();
+  const conTrazado = await retrazar(invertida);
+  assert.equal(consultasDeTrazado(), antes + 1, "el orden nuevo pide su trazado");
+  assert.equal(conTrazado.deAres, deAres, "y no pierde la de ARES");
+
+  const devuelta = invertirOrden(conTrazado);
+  assert.deepEqual(nombres(devuelta.paradas), nombres(deAres.paradas), "otro toque: la de ARES");
+  assert.equal(devuelta.distanciaM, deAres.distanciaM, "con su trazado");
+  assert.equal(devuelta.esperaTrazado, undefined);
+  const otraVez = invertirOrden(devuelta);
+  assert.equal(otraVez, conTrazado, "y la invertida vuelve ya dibujada");
+  let p = otraVez;
+  for (let i = 0; i < 6; i++) p = invertirOrden(p);
+  assert.equal(consultasDeTrazado(), antes + 1, "una propuesta paga una sola inversión");
+
+  await confirmarRutaLocal(conTrazado);
+  assert.deepEqual((await leerRuta(HOY)).orden, conTrazado.paradas.map((p) => p.id), "se guarda el orden invertido");
+});
+
+test("spec 024: si al revés se llega tarde a un horario, la propuesta lo avisa (y deja de avisarlo al volver)", async (t) => {
+  aLaHora(9, 30);
+  t.after(reloj.descongelar);
+  // Al derecho se llega a «Temprano» a las 9:33; al revés, pasadas las 10:30.
+  await pedidoAKm("Temprano", 1, { bloque: "08-10" });
+  await pedidoAKm("Lejos A", 12);
+  await pedidoAKm("Lejos B", 13);
+  const deAres = await calcularRutaLocal(HOY, inicioDe());
+  assert.equal(deAres.paradas[0].nombre, "Temprano");
+  const tarde = (p) => p.advertencias.filter((a) => /fuera del horario/.test(a));
+  assert.equal(tarde(deAres).length, 0);
+
+  const invertida = invertirOrden(deAres);
+  assert.equal(tarde(invertida).length, 1, invertida.advertencias.join(" | "));
+  const elegida = invertida.alternativas.find((a) => a.estrategia === invertida.elegida);
+  assert.deepEqual(elegida.fueraDeHorarioIds, [deAres.paradas[0].id], "queda como ⚠ en el pedido al usarla");
+  assert.equal(tarde(invertirOrden(await retrazar(invertida))).length, 0, "con su trazado, otro toque vuelve sin el aviso");
+});
+
+test("spec 024: eliminar una parada olvida la de ARES (ya no es la misma lista)", async () => {
+  for (const n of [1, 2, 3]) await pedidoA(n);
+  const invertida = invertirOrden(await calcularRutaLocal(HOY, inicioDe()));
+  assert.equal(quitarParada(invertida, invertida.paradas[0].id).deAres, undefined);
+});
+
+test("spec 024: si el trazado del invertido falla, ir y volver no lo vuelve a pedir", async () => {
+  for (const n of [1, 2, 3]) await pedidoA(n);
+  const deAres = await calcularRutaLocal(HOY, inicioDe());
+  respondeTrazado = false;
+  const antes = consultasDeTrazado();
+  const fallida = await retrazar(invertirOrden(deAres));
+  assert.equal(fallida.sinTrazado, true);
+  assert.equal(fallida.esperaTrazado, undefined, "no queda esperando: el panel no se traba");
+  let p = fallida;
+  for (let i = 0; i < 5; i++) p = invertirOrden(p);
+  assert.equal(consultasDeTrazado(), antes + 1, "un solo intento");
 });

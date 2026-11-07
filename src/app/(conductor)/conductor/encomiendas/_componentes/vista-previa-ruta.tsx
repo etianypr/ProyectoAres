@@ -35,11 +35,12 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { formatDistancia, formatDuracion } from "@/lib/comun/format";
+import { formatDistancia } from "@/lib/comun/format";
 import { nombreVisible } from "@/lib/encomiendas/paquete";
 import { bloquePorId } from "@/lib/encomiendas/config";
 import type { EstrategiaRuta, PropuestaRuta } from "@/lib/encomiendas/local/generar-ruta";
 import type { QuitadoDeLaPropuesta } from "../_hooks/use-propuesta";
+import { CifrasRuta } from "./cifras-ruta";
 
 // Mismas medidas que los botones de la tarjeta de la parada activa (ver
 // parada-activa.tsx): 48 px de alto, para el pulgar y sin mirar mucho.
@@ -63,6 +64,7 @@ export function VistaPreviaRuta({
   quitado,
   onQuitar,
   onDeshacerQuitar,
+  onInvertir,
 }: {
   propuesta: PropuestaRuta;
   /** Guarda la ruta en el teléfono (ver confirmarRutaLocal). */
@@ -75,6 +77,8 @@ export function VistaPreviaRuta({
   /** Elimina el pedido (del teléfono y de la propuesta). */
   onQuitar: (pedidoId: string) => Promise<void>;
   onDeshacerQuitar: () => Promise<void>;
+  /** «Invertir orden de ruta»: al revés, u otra vez como la propuso ARES (spec 024). */
+  onInvertir: () => Promise<void>;
 }) {
   const [guardando, setGuardando] = useState(false);
   const [cambiando, setCambiando] = useState<EstrategiaRuta | null>(null);
@@ -118,6 +122,10 @@ export function VistaPreviaRuta({
   } = propuesta;
 
   const actual = alternativas.find((a) => a.estrategia === elegida) ?? alternativas[0];
+  // Mientras llega el trazado del orden invertido no se toca nada: usarla
+  // guardaría el trazado viejo, y otra inversión volvería a consultar (spec 024).
+  const invirtiendo = propuesta.esperaTrazado === true;
+  const ocupada = guardando || invirtiendo;
   // Con una sola no hay nada que comparar, y es el caso normal: si nadie eligió
   // horario, las tres estrategias dan el mismo orden.
   const hayQueComparar = alternativas.length > 1;
@@ -137,7 +145,7 @@ export function VistaPreviaRuta({
     // donde el mapa que dibuja la ruta propuesta es una tarjeta que queda ARRIBA
     // (ver pantalla.tsx). Con el tope viejo el panel la tapaba entera, así que
     // se veían los kilómetros y el tiempo de una ruta que no se podía mirar.
-    <div className="sube-y-frena flex max-h-[52vh] flex-col rounded-t-[26px] bg-card px-4 pb-5 pt-4 shadow-[0_-8px_30px_rgba(34,26,21,0.16)]">
+    <div data-propuesta-ruta className="sube-y-frena flex max-h-[52vh] flex-col rounded-t-[26px] bg-card px-4 pb-5 pt-4 shadow-[0_-8px_30px_rgba(34,26,21,0.16)]">
       <div className="flex shrink-0 items-center gap-2">
         <Route className="h-4 w-4 shrink-0 text-brand" />
         <p className="flex-1 text-sm font-semibold">Ruta propuesta</p>
@@ -146,27 +154,15 @@ export function VistaPreviaRuta({
         </span>
       </div>
 
-      {distanciaM != null && duracionS != null ? (
-        <div className="mt-2.5 flex shrink-0 items-stretch gap-2">
-          <span className="rounded-2xl bg-background px-3.5 py-2">
-            <span className="block font-mono text-[22px] font-semibold leading-tight tracking-tight">
-              {formatDistancia(distanciaM)}
-            </span>
-            <span className="text-xs text-muted">con la vuelta</span>
-          </span>
-          {/* El tiempo de ruta, con su reloj (terreno 2026-10-28). Es manejando,
-              sin las entregas: lo dice la Ayuda, no la pantalla. */}
-          <span className="rounded-2xl bg-background px-3.5 py-2">
-            <span className="block font-mono text-[22px] font-semibold leading-tight tracking-tight">
-              {formatDuracion(duracionS)}
-            </span>
-            <span className="flex items-center gap-1 text-xs text-muted">
-              <Clock className="h-3 w-3" aria-hidden />
-              tiempo de ruta
-            </span>
-          </span>
-        </div>
-      ) : null}
+      <CifrasRuta
+        distanciaM={distanciaM}
+        duracionS={duracionS}
+        invertida={propuesta.deAres != null}
+        invirtiendo={invirtiendo}
+        bloqueado={guardando}
+        distanciaDeAresM={propuesta.deAres?.distanciaM ?? null}
+        onInvertir={onInvertir}
+      />
 
       {/* La comparación. Cada botón dice lo que el conductor necesita para decidir:
           cuánto se maneja, cuántos clientes ya confirmaron y a cuántos se les
@@ -181,7 +177,7 @@ export function VistaPreviaRuta({
                   key={a.estrategia}
                   type="button"
                   onClick={() => void elegir(a.estrategia)}
-                  disabled={guardando || cambiando != null}
+                  disabled={ocupada || cambiando != null}
                   aria-pressed={puesta}
                   className={[
                     "flex items-start gap-2 rounded-xl border px-3 py-2 text-left transition-colors disabled:opacity-60",
@@ -256,6 +252,7 @@ export function VistaPreviaRuta({
           <button
             type="button"
             onClick={() => void onDeshacerQuitar()}
+            disabled={invirtiendo}
             className="shrink-0 rounded-full px-2 py-1 font-semibold text-brand active:bg-card"
           >
             Deshacer
@@ -305,7 +302,7 @@ export function VistaPreviaRuta({
             <button
               type="button"
               onClick={() => void onQuitar(p.id)}
-              disabled={guardando}
+              disabled={ocupada}
               aria-label={`Eliminar ${nombreVisible(p)}`}
               className="-mr-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted active:bg-card disabled:opacity-50"
             >
@@ -372,13 +369,13 @@ export function VistaPreviaRuta({
         <button
           type="button"
           onClick={onDescartar}
-          disabled={guardando}
+          disabled={ocupada}
           aria-label="Descartar esta ruta"
           className="flex h-12 w-12 items-center justify-center rounded-full border border-separator bg-card text-muted transition-transform active:scale-[0.97] disabled:opacity-50"
         >
           <X className="h-5 w-5" />
         </button>
-        <button type="button" onClick={() => void usar()} disabled={guardando} className={BOTON_PRINCIPAL}>
+        <button type="button" onClick={() => void usar()} disabled={ocupada} className={BOTON_PRINCIPAL}>
           <Check className="h-4 w-4" />
           {guardando ? "Guardando…" : "Usar esta ruta"}
         </button>

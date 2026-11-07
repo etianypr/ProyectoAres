@@ -6,6 +6,7 @@ import { bloquePorId } from "@/lib/encomiendas/config";
 import { nombreVisible } from "@/lib/encomiendas/paquete";
 import { estaConfirmado } from "@/lib/encomiendas/estados";
 import { FACTOR_CALLES, fueraDeHorario, metrosDelOrden, metrosEstimados, ubicarConHorario, type MetrosEntre } from "../planificar";
+import { descargaDelGrupo, type DescargaDelDia } from "./bultos";
 import type { Alternativa, EstrategiaRuta, PedidoUbicado } from "./tipos";
 
 // ----------------------------------------------------------------------------
@@ -24,7 +25,9 @@ import type { Alternativa, EstrategiaRuta, PedidoUbicado } from "./tipos";
 //    que comprueban que da el óptimo exacto hasta 14 paradas, y meterle pesos de
 //    disponibilidad adentro convertiría esas pruebas en algo que ya no se puede
 //    afirmar. En vez de eso se lo usa como pieza: se arman tres ÓRDENES distintos
-//    llamándolo sobre subconjuntos distintos.
+//    llamándolo sobre subconjuntos distintos. Los bultos (spec 024) tampoco
+//    entran al optimizador: son una pasada aparte, encima del orden más corto,
+//    que no maneja más de TOLERANCIA_DESCARGA (orden-paradas/descarga.ts).
 //
 //  · Los tres órdenes salen GRATIS. Se calculan con la matriz que ya se pidió,
 //    sin una sola consulta más. Lo que cuesta plata y segundos es el TRAZADO por
@@ -87,6 +90,18 @@ export function vueltaPorMatriz(
   };
 }
 
+/** Antes de esta hora no se reparte: armar la ruta a las 7:00 no puede suponer
+ *  que la primera parada se atiende a las 7:10 (spec 017, R3). */
+export const MINUTO_SALIDA_MAS_TEMPRANA = 8 * 60;
+
+/** El aviso de la propuesta si con este orden se llega fuera del horario de alguien. */
+export function avisoDeHorario(a: Alternativa): string | null {
+  if (a.bloquesIncumplidos === 0) return null;
+  return a.fueraDeHorario.length === 1
+    ? `Con este orden se llegaría fuera del horario que eligió ${a.fueraDeHorario[0]}. Conviene llamarlo.`
+    : `Con este orden se llegaría fuera de horario a ${a.fueraDeHorario.length} clientes: ${a.fueraDeHorario.join(", ")}.`;
+}
+
 /** Metros del orden completo, volviendo a la base al final. */
 export function metrosConVuelta(orden: PedidoUbicado[], metros: MetrosEntre, vuelta: VueltaABase): number {
   return metrosDelOrden(orden, metros) + (orden.length > 0 ? vuelta(orden[orden.length - 1]) : 0);
@@ -113,10 +128,11 @@ function ordenarGrupo(
   matriz: number[][] | null,
   indiceDesde: number,
   volverA?: Coordenada,
+  descarga?: DescargaDelDia,
 ): PedidoUbicado[] {
   if (grupo.length <= 1) return grupo;
 
-  const clave = `${desde.lat},${desde.lng}|${volverA ? `${volverA.lat},${volverA.lng}` : ""}|${grupo.map((p) => p.id).sort().join(",")}`;
+  const clave = `${desde.lat},${desde.lng}|${volverA ? `${volverA.lat},${volverA.lng}` : ""}|${descarga ? "bultos" : ""}|${grupo.map((p) => p.id).sort().join(",")}`;
   let memoria = yaOrdenados.get(indiceEnMatriz);
   if (!memoria) yaOrdenados.set(indiceEnMatriz, (memoria = new Map()));
   const guardado = memoria.get(clave);
@@ -142,7 +158,7 @@ function ordenarGrupo(
     : undefined;
   // A fondo: la propuesta busca la ruta con menos kilómetros aunque tarde unos
   // segundos, con pantalla de carga (terreno 2026-10-29).
-  const orden = ordenarParadas(puntos, sub, vuelta, true);
+  const orden = ordenarParadas(puntos, sub, vuelta, true, descarga ? { descarga: descargaDelGrupo(descarga, grupo, indices) } : {});
   // El índice 0 es el punto de partida; el resto mapea a grupo[i - 1].
   const resultado = orden.slice(1).map((i) => grupo[i - 1]);
   memoria.set(clave, resultado);
@@ -158,6 +174,7 @@ function encadenar(
   indiceEnMatriz: Map<string, number>,
   matriz: number[][] | null,
   llegada: Coordenada = base,
+  descarga?: DescargaDelDia,
 ): PedidoUbicado[] {
   const salida: PedidoUbicado[] = [];
   let desde = base;
@@ -166,7 +183,7 @@ function encadenar(
 
   for (const [k, grupo] of grupos.entries()) {
     if (grupo.length === 0) continue;
-    const ordenado = ordenarGrupo(desde, grupo, indiceEnMatriz, matriz, indiceDesde, k === ultimo ? llegada : undefined);
+    const ordenado = ordenarGrupo(desde, grupo, indiceEnMatriz, matriz, indiceDesde, k === ultimo ? llegada : undefined, descarga);
     salida.push(...ordenado);
     const ultima = ordenado[ordenado.length - 1];
     desde = coord(ultima);
@@ -186,9 +203,11 @@ export function ordenPorEstrategia(
   /** Donde termina: la central aunque se parta de otro lado (terreno 2026-10-29).
    *  La columna 0 de la matriz son las distancias HASTA acá. */
   llegada: Coordenada = base,
+  /** Sacar los bultos antes en cada orden, sin manejar de más (spec 024). */
+  descarga?: DescargaDelDia,
 ): PedidoUbicado[] {
   if (estrategia === "corta") {
-    return ordenarGrupo(base, ubicados, indiceEnMatriz, matriz, 0, llegada);
+    return ordenarGrupo(base, ubicados, indiceEnMatriz, matriz, 0, llegada, descarga);
   }
 
   if (estrategia === "confirmados") {
@@ -204,6 +223,7 @@ export function ordenPorEstrategia(
       indiceEnMatriz,
       matriz,
       llegada,
+      descarga,
     );
   }
 
@@ -217,7 +237,7 @@ export function ordenPorEstrategia(
   const metros = metrosPorMatriz(base, indiceEnMatriz, matriz);
   const vuelta = vueltaPorMatriz(llegada, indiceEnMatriz, matriz);
   const insertado = ubicarConHorario(
-    ordenarGrupo(base, sinBloque, indiceEnMatriz, matriz, 0, llegada),
+    ordenarGrupo(base, sinBloque, indiceEnMatriz, matriz, 0, llegada, descarga),
     conBloque,
     minutosDeInicio,
     metros,
@@ -230,7 +250,7 @@ export function ordenPorEstrategia(
   //
   // Es el ARRANQUE de "respeta horarios": el optimizador con horarios
   // (horarios.ts) parte de este orden y de la más corta, y se queda con lo mejor.
-  const tramos = reordenarTramos(base, insertado, indiceEnMatriz, matriz, llegada);
+  const tramos = reordenarTramos(base, insertado, indiceEnMatriz, matriz, llegada, descarga);
   const fuera = (orden: PedidoUbicado[]) => fueraDeHorario(orden, minutosDeInicio, metros).length;
   // A igual cumplimiento manda la distancia: antes el reordenado ganaba aunque
   // saliera más largo (spec 017, R3).
@@ -249,6 +269,7 @@ function reordenarTramos(
   indiceEnMatriz: Map<string, number>,
   matriz: number[][] | null,
   llegada: Coordenada = base,
+  descarga?: DescargaDelDia,
 ): PedidoUbicado[] {
   const salida: PedidoUbicado[] = [];
   let tramo: PedidoUbicado[] = [];
@@ -256,7 +277,7 @@ function reordenarTramos(
     const anterior = salida[salida.length - 1];
     const desde = anterior ? coord(anterior) : base;
     const indiceDesde = anterior ? (indiceEnMatriz.get(anterior.id) ?? 0) : 0;
-    salida.push(...ordenarGrupo(desde, tramo, indiceEnMatriz, matriz, indiceDesde, ultimo ? llegada : undefined));
+    salida.push(...ordenarGrupo(desde, tramo, indiceEnMatriz, matriz, indiceDesde, ultimo ? llegada : undefined, descarga));
     tramo = [];
   };
   for (const p of orden) {

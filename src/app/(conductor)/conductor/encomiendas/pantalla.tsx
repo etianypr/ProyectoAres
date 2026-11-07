@@ -135,7 +135,8 @@ export function PantallaEncomiendas({
   const ventanas = useVentanas();
   const { setCargandoGuia, setEscaneando } = ventanas;
   // La ruta propuesta a la vista, elegir otra alternativa y usarla.
-  const { propuesta, setPropuesta, onElegirAlternativa, onUsarPropuesta, quitado, onQuitar, onDeshacerQuitar } = usePropuesta({ dia });
+  const { propuesta, setPropuesta, onElegirAlternativa, onUsarPropuesta, quitado, onQuitar, onDeshacerQuitar, onInvertir } =
+    usePropuesta({ dia });
   const carga = useCargaAuto({ dia, fecha });
   const [ofParaNuevo, setOfParaNuevo] = useState<string | undefined>(undefined);
   const nuevoPedido = (of?: string) => {
@@ -389,6 +390,7 @@ export function PantallaEncomiendas({
             quitado={quitado}
             onQuitar={onQuitar}
             onDeshacerQuitar={onDeshacerQuitar}
+            onInvertir={onInvertir}
           />
         </div>
       ) : null}

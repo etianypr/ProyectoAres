@@ -9,6 +9,7 @@ import {
   confirmarRutaLocal,
   devolverParada,
   elegirAlternativa,
+  invertirOrden,
   quitarParada,
   retrazar,
   type EstrategiaRuta,
@@ -88,6 +89,34 @@ export function usePropuesta({ dia }: { dia: DiaEnCurso }) {
     if (actual) ponerParadas(devolverParada(actual, quitado.parada, quitado.indice));
   }, [quitado, dia, ponerParadas]);
 
+  /** «Invertir orden de ruta» (spec 024): la primera vez pide el trazado del
+   *  orden al revés; después, ir y volver no consulta (las dos quedan guardadas).
+   *  Mientras llega, la propuesta queda `esperaTrazado` y el panel no deja tocar
+   *  nada. Lo eliminado se deshace en su mismo lugar, contado desde el otro extremo. */
+  const onInvertir = useCallback(async () => {
+    const actual = actualRef.current;
+    if (!actual) return;
+    const nueva = invertirOrden(actual);
+    if (nueva === actual) return;
+    setQuitado((q) => (q ? { ...q, indice: actual.paradas.length - q.indice } : q));
+    actualRef.current = nueva;
+    setPropuestaEstado(nueva);
+    if (!nueva.esperaTrazado) return;
+    // Si falla, queda sin trazado (y sin esperarlo): no se traba el panel ni se reintenta.
+    const conTrazado = await retrazar(nueva).catch(() => ({
+      ...nueva,
+      trazado: null,
+      tramos: null,
+      distanciaM: null,
+      duracionS: null,
+      sinTrazado: true,
+      esperaTrazado: undefined,
+    }));
+    if (actualRef.current !== nueva) return;
+    actualRef.current = conTrazado;
+    setPropuestaEstado(conTrazado);
+  }, []);
+
   const onUsarPropuesta = useCallback(async () => {
     if (!propuesta) return;
     const enLaRuta = propuesta.paradas.map((p) => p.id);
@@ -108,5 +137,5 @@ export function usePropuesta({ dia }: { dia: DiaEnCurso }) {
     void dia.avisarPedidos(enLaRuta);
   }, [propuesta, dia, setPropuesta]);
 
-  return { propuesta, setPropuesta, onElegirAlternativa, onUsarPropuesta, quitado, onQuitar, onDeshacerQuitar };
+  return { propuesta, setPropuesta, onElegirAlternativa, onUsarPropuesta, quitado, onQuitar, onDeshacerQuitar, onInvertir };
 }

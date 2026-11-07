@@ -149,6 +149,18 @@ Segunda tanda de la misma revisión (citas del dueño, no verificadas), y qué s
 - **Casilleros o depósitos compartidos.** Decisión de negocio con Starken, fuera de la app.
 - **Construcción aleatoria en milisegundos.** No hace falta: la búsqueda tarda 1-2 s.
 
+Bultos primero (2026-11-07, spec 024; días simulados de 60–100 paradas, sin consultas):
+
+- **La más corta ya descarga casi lo más rápido posible.** Con 4 min por parada, dos tercios del
+  día se van en las paradas: manejar menos es hacer más paradas por hora. Aunque los km no
+  importaran, la espera de los bultos baja como mucho 10–15 %, por +10–15 % de km.
+- **El dueño eligió «solo si es casi gratis»:** ≤ 1 % de km, cada zona una vez y cada metro de más
+  tiene que sacar los bultos en promedio un metro antes. 3 de 16 días bajan 5–10 % (~5 bultos menos
+  a las 2 h) por +0,3 a +0,6 % de km; los demás quedan igual. Sin el precio por metro, la pasada
+  gastaba casi 1 % de km por 0,03 % de espera.
+- **En el día real de 53 paradas** (teléfono, matriz de ORS): +0,1 % de km y −0,4 % de espera. Y la
+  misma ruta al revés midió +2,8 km (+7,8 %): la matriz por calles no es simétrica.
+
 ## Fuera de alcance
 
 Varios conductores o mandantes · seguir paquetes entre días · prueba de entrega con
