@@ -12,9 +12,9 @@ romper lo que ya se aprendió en terreno. Las reglas vienen de `AGENTS.md` y de 
 ## Antes de tocar nada
 1. `AGENTS.md`: «El flujo del conductor» (pasos 1 y 4), «OF», «Pedidos con problemas (⚠)» y
    «Escaneo de la etiqueta de Starken».
-2. ¿Toca la foto o el texto de la etiqueta? La spec 021 está **definida** (`specs/021-lector-etiquetas/`):
-   la etiqueta se va a leer solo en el teléfono, sin IA ni Cloud Vision. Se trabaja en la rama
-   `021-lector-etiquetas`. No sumes IA ni proveedores a la etiqueta. Guía: `references/spec-021.md`.
+2. ¿Toca la foto o el texto de la etiqueta? Las specs 021 y 028 están **hechas** (resumen en
+   `docs/HOJA-DE-RUTA.md`): la etiqueta se lee solo en el teléfono, con ML Kit, sin IA ni Cloud
+   Vision. No sumes IA ni proveedores a la etiqueta.
 3. Por qué la lectura es como es: `specs/005-carga-rapida-pedidos/tasks.md` (T032–T034) y
    `research.md` (formato del código y de la guía). Para el ⚠ en el pedido: `specs/022-pedidos-con-problemas/spec.md`.
 4. El recorrido función por función y botón por botón está en `references/flujo-y-codigo.md`.
@@ -104,8 +104,6 @@ romper lo que ya se aprendió en terreno. Las reglas vienen de `AGENTS.md` y de 
 - **Una pantalla de carga o de escaneo**: botón renombrado → también en `_componentes/ayuda.tsx`;
   `cargar-guia.tsx` (362 líneas) y `resultado-escaneo.tsx` (316) se dividen si pasan de ~400. Se
   recorre con `recorrer-conductor`; el escáner y ML Kit solo existen en la APK (`apk-local`).
-- **Implementar la 021**: sigue `tasks.md` en orden. En `references/spec-021.md` está qué se borra,
-  quién lo usa y las trampas.
 - **Un dato nuevo de la etiqueta en el pedido**: cambia el formato de datos, así que se pregunta
   antes.
   - Se toca `Pedido` (`almacen/tipos.ts`), `alDia` (`almacen/migrar.ts`), `crearDesdeGuia`,
@@ -138,12 +136,8 @@ romper lo que ya se aprendió en terreno. Las reglas vienen de `AGENTS.md` y de 
 - La pantalla no tiene pruebas de React: se recorre con `recorrer-conductor`.
 
 ## Pendientes
-- **021** (en curso): US1 hecha en la rama (2026-11-07: la etiqueta solo con ML Kit, `/api/lectura`
-  solo la guía). Falta el lector especializado, que espera los ejemplos del dueño (T002), y
-  Diagnóstico → «Probar etiqueta» (US3).
-- **028** (hecha en su rama, 2026-11-08): el escáner en vivo. Falta la APK 1.6.0 firmada y pasar a
-  `main` junto con la 021.
-- **005**: probar con ≥ 50 etiquetas reales (T030, junto con la T012 de la 021) y correr el quickstart
+- **021 y 028**: hechas (2026-11-08); falta terreno.
+- **005**: probar con ≥ 50 etiquetas reales (T030) y correr el quickstart
   (T031).
 - **022** (borrador): el ⚠ en el pedido y el aviso dos paradas antes. Hoy el ⚠ solo marca la OF
   distinta (`lineas-guia.tsx`, `tarjeta-parada.tsx`, `pedido-form-local.tsx`).

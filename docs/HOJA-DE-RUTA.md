@@ -8,17 +8,10 @@ Qué se construye y en qué orden. Detalle de cada feature en `specs/` (índice:
 La ruta pasa a evaluarse por km, tiempo, éxito por parada y ganancia (antes, solo km), y los ⚠ de
 la guía se resuelven antes de armarla (`AGENTS.md`, "El flujo del conductor").
 Anotadas el 2026-11-05, sin orden decidido todavía:
-- 021, lector de etiquetas: hecha (2026-11-08, falta terreno). La etiqueta se lee solo en el
-  teléfono (ML Kit), sin IA ni Cloud Vision: US$0 y los datos de los destinatarios no salen del
-  teléfono. Lector por zonas que no cruza renglones, probado con texto real anonimizado de los tres
-  formatos (Lion, Starken normal, EXPRES). La guía sigue con la IA (el dueño: no trae datos
-  personales).
-- 028, escáner en vivo: hecha (2026-11-08, falta APK 1.6.0). Al cargar el auto la cámara de ARES
-  queda abierta y lee cada etiqueta sin toques; un dato vale cuando sale igual en ≥ 2 cuadros, y
-  suena un tic que sube por dato y otro al quedar leída (sonidos elegidos por el dueño). Manda la
-  precisión sobre la rapidez.
-- 022 a 025, en borrador: pedidos con ⚠, paradas cercanas, criterios de ruta y referencias en
-  direcciones.
+- 021 (lector de etiquetas) y 028 (escáner en vivo): hechas y cerradas el 2026-11-08 (resumen
+  abajo). Falta terreno: ~50 etiquetas reales (spec 005, T030).
+- 023, 025 y 026, en borrador: paradas cercanas, referencias en direcciones y guardado persistente.
+  024 a medias (bultos e «Invertir» hechos; faltan tiempo, éxito y ganancia).
 
 ## Contexto del negocio
 
@@ -94,6 +87,38 @@ desplegar y plantilla en Meta (`docs/WHATSAPP.md`); la migración 0004 ya está 
 Glosario único (`docs/CLASES.md` §0) en código, pantalla y docs: `DiaTrabajo`, `Pedido`, `Ruta`,
 `ActividadPorEnviar`/`Actividad`, `PagoDelDia`… El aviso es uno por pedido (`Pedido.aviso`). La
 parte 2 —tablas y columnas de la base— va en la spec 002 (T049–T050).
+
+## Spec 021 · la etiqueta se lee en el teléfono (hecha, 2026-11-08)
+
+El dueño: «no quiero que se envíen fotos a anthropic por temas legales de privacidad».
+- La foto de la etiqueta la lee solo ML Kit en el teléfono, sin IA ni Cloud Vision: US$0 y el
+  nombre y el teléfono no salen del teléfono. `/api/lectura` acepta solo la guía, que sigue con la
+  IA (el dueño: no trae datos personales).
+- Lector por zonas (`lectura/etiqueta/`): nunca el teléfono del remitente, no cruza renglones (el
+  «0 de más»), junta valores partidos con guion, anclas tolerantes a palabras gastadas, bulto suelto
+  («001/001»), OF de los dígitos 15–23 del código impreso, «CTA. CTE.» vacía no es pago y «$0»
+  impreso sin POR PAGAR es «no se cobra» (dueño). La foto se lee dos veces (2400 y 1600 px) y lo que
+  no coincide queda por revisar: manda la precisión sobre la rapidez (dueño).
+- Diagnóstico → «Probar etiqueta» y «Copiar anonimizado»: los textos reales de Lion, Starken normal
+  y EXPRES son pruebas sin datos de nadie (`pruebas/fixtures/lectura/`).
+- El pago, el monto y los bultos ya no los pisa una lectura sin OF confirmada.
+- Pendiente: ~50 etiquetas reales en terreno (005 T030); el dueño borra `LECTURA_MODELO` en Vercel.
+
+## Spec 028 · escáner de etiquetas en vivo (hecha, 2026-11-08)
+
+Al cargar el auto, la cámara de ARES queda abierta y cada etiqueta se lee sola (APK 1.6.0).
+- Plugin `EscanerVivo`: CameraX debajo de la WebView y ML Kit por cuadro (códigos + renglones con
+  caja), sin red ni librerías nuevas. Permisos `CAMERA` y `VIBRATE`.
+- Un dato vale cuando sale igual en ≥ 2 cuadros (`votos.ts`; nombres parecidos cuentan juntos) y al
+  pedido va solo lo firme. Un cuadro con dos códigos de Starken no cuenta (la caja del lado).
+- Sonidos «Marimba» elegidos por el dueño: un tic que sube por dato firme, el de pedido leído y dos
+  notas que bajan con un ⚠, que pausa la lectura ahí mismo. Sin racha (la descartó el dueño).
+- Captura en alta sin toque como foto del paquete, y linterna. Desde la parada sigue la foto.
+- Medido en el V2430 con las tres etiquetas reales: alcanza en vivo; el lector por posición queda
+  para cuando una etiqueta lo pida.
+- La APK de prueba (`cl.dashund.ares.debug`) entra siempre en modo prueba.
+- Pendiente: `APK_VERSION_MINIMA=1.6.0` y `APK_URL` en Vercel (dueño); probar uno por uno linterna,
+  ⚠, modo avión y sin permiso de cámara; terreno.
 
 ## Spec 012 · entregado o no (hecha, 2026-10-21)
 

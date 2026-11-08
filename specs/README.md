@@ -22,8 +22,6 @@ Estados: borrador → definida → en curso → hecha (falta día real) · poste
 |---|---|---|---|---|---|
 | [020](020-burbuja-google-maps/spec.md) burbuja de Google Maps | la ruta en ARES, la guía en Google Maps con la burbuja encima | hecha (falta APK 1.5.0 y día real) | — (en `main` desde 2026-11-06) | 16/19 | APK 1.5.0 firmada (tag `apk-v1.5.0`) e instalada con el día cerrado; el dueño sube `APK_VERSION_MINIMA`; día real (T019) |
 | [019](019-sin-mapbox/spec.md) sin Mapbox | ORS, MapLibre y OpenFreeMap (Liberty); Google da el número de casa | hecha (falta día real) | — (en `main` desde 2026-11-06) | 13/16 | el dueño borra el token de Mapbox en Vercel (T013); sin tope de Google, decisión del dueño (T012); día real (T014) |
-| [021](021-lector-etiquetas/spec.md) lector de etiquetas | la foto de la etiqueta se lee solo en el teléfono (ML Kit + lector Starken), sin IA: US$0 y ningún dato sale del teléfono | hecha (falta terreno) | — (en `main` desde 2026-11-08, merge `4dc9a55`) | 11/13 | ~50 etiquetas reales en terreno (T012); el dueño borra `LECTURA_MODELO` en Vercel (T013) |
-| [028](028-escaner-en-vivo/spec.md) escáner en vivo | al cargar el auto, la cámara queda abierta: cada etiqueta vibra y muestra su parada, sin toques; código y texto con ML Kit en el teléfono | hecha (falta terreno) | — (en `main` desde 2026-11-08, merge `95a7e22`) | 11/13 | APK 1.6.0 firmada instalada en el V2430; el dueño pone `APK_VERSION_MINIMA=1.6.0` y `APK_URL` en Vercel (T013); probar uno por uno linterna, ⚠, modo avión y sin permiso de cámara (T012) |
 | [027](027-hoja-por-paso/spec.md) la hoja paso por paso | la cabecera de la hoja dice el paso del día que toca (guía, ⚠, ruta, cargar el auto, recorrer, cerrar) y adentro va solo lo de ese paso | hecha (falta día real) | — (en `main` desde 2026-11-06) | 15/16 | día real en la APK (T016); usa `Ruta.inicioReparto` (campo opcional, sin subir idb) |
 | [022](022-pedidos-con-problemas/spec.md) pedidos con ⚠ | el ⚠ queda en el pedido (`Pedido.problemas`), la dirección en duda entra a la ruta con su primera opción y se avisa dos paradas antes; la OF de otro largo deja de ser ⚠ | hecha (falta día real) | — (en `main` desde 2026-11-06) | 11/12 | la línea de la burbuja y un día real en la APK (T012) |
 | [023](023-paradas-cercanas/spec.md) paradas cercanas | en cada parada, las paradas que quedan cerca | borrador | — | — | ¿va dentro de la 020? qué es «cerca» |
@@ -52,7 +50,7 @@ Estados: borrador → definida → en curso → hecha (falta día real) · poste
 | [004](004-menos-visitas-fallidas/spec.md) menos visitas fallidas | WhatsApp propio, «voy llegando» | postergada | — | 0/21 | — |
 | [014](014-horario-conveniente/spec.md) ¿conviene ir al pedido con horario? | al tocarle el turno, ir, dejar para después o descartar | borrador | — | — | — |
 
-**Hechas:** 001 (asistencia de ruta) y 008 a 013. Lo que decidieron está en `docs/` (resumen en
+**Hechas:** 001 (asistencia de ruta), 008 a 013, 021 y 028. Lo que decidieron está en `docs/` (resumen en
 `docs/HOJA-DE-RUTA.md`, modelo en `docs/CLASES.md`, WhatsApp en `docs/WHATSAPP.md`). Sus carpetas se
 borraron y siguen en el historial de git.
 
@@ -103,5 +101,5 @@ así que se puede deshacer entera sin tocar las demás: `git revert -m 1 <commit
   - Borrado y lista «No entregados» → 007.
   - Teléfono del receptor → 005 (lo usa la 004).
   - Asignados del día → 005 (lo usa la 006).
-  - Etiqueta leída en el teléfono → 021 (cambia la 005). Escáner en vivo → 028 (usa el lector de
-    la 021).
+  - Etiqueta leída en el teléfono y escáner en vivo → 021 y 028, hechas (resumen en
+    `docs/HOJA-DE-RUTA.md`).

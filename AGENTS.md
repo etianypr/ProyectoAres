@@ -274,7 +274,7 @@ y un agente no debe "corregir".
     El lector (`lectura/etiqueta/`) separa la zona del destinatario de la del remitente y no cruza
     renglones; un formato nuevo se suma en `formatos.ts` con su caso de prueba, sacado con
     Diagnóstico → «Probar etiqueta» → «Copiar anonimizado».
-    *Pendiente (specs 021 y 028):* ~50 etiquetas reales en terreno (021 T012) y la APK 1.6.0.
+    *Pendiente:* ~50 etiquetas reales en terreno (spec 005, T030).
   - Si la foto trae una OF distinta de la del código, no se usa: es la etiqueta de otro paquete. Lo
     ya cargado no se pisa, salvo con una foto cuya OF coincide con la del código.
   - Si la dirección de la etiqueta no coincide con la de la guía, no se cambia sola: se avisa y el
