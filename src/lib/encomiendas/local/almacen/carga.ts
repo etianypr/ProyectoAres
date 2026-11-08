@@ -134,10 +134,6 @@ export function sinEtiquetaEscaneada(pedidos: Pedido[]): Pedido[] {
   );
 }
 
-/** Enlaza la etiqueta con su pedido del día por la OF y completa lo que falte.
- *  Lo ya cargado no se pisa, salvo con una etiqueta de OF confirmada (es la
- *  fuente); la dirección distinta no se cambia sola (se avisa). null = la OF
- *  no está en el día. */
 /** Paquetes de la guía escaneados sobre el total de los que siguen por visitar:
  *  el contador de "cargar el auto" (terreno 2026-10-27). */
 export function avanceCarga(pedidos: Pedido[]): { escaneados: number; total: number } {
@@ -158,6 +154,10 @@ export function bultosIncompletos(pedidos: Pedido[]): Pedido[] {
   );
 }
 
+/** Enlaza la etiqueta con su pedido del día por la OF y completa lo que falte.
+ *  Lo ya cargado no se pisa, salvo con una etiqueta de OF confirmada (es la
+ *  fuente); la dirección distinta no se cambia sola (se avisa). null = la OF
+ *  no está en el día. */
 export function aplicarLecturaEtiqueta(fecha: string, lectura: LecturaParaAplicar): Promise<ResultadoEscaneo | null> {
   return enFila(async () => {
     const [pedidos, ruta] = await Promise.all([leerPedidos(fecha), leerRuta(fecha)]);
@@ -176,16 +176,24 @@ export function aplicarLecturaEtiqueta(fecha: string, lectura: LecturaParaAplica
             ...pedido.problemas.filter((x) => x.tipo !== "etiqueta_otra_direccion"),
             ...(distinta ? [{ tipo: "etiqueta_otra_direccion" as const, direccion: distinta }] : []),
           ];
+    // El pago, el monto y los bultos siguen la misma regla que el nombre y el
+    // teléfono: lo que falta se completa; lo ya cargado solo lo corrige una OF
+    // confirmada. Antes cualquier lectura los pisaba, y un «no se cobra» dejaba
+    // el monto viejo guardado (es plata del conductor; hueco de lectura-starken).
+    const manda = (actual: unknown) => actual == null || lectura.ofConfirmada === true;
+    const porPagar = lectura.porPagar != null && manda(pedido.porPagar) ? lectura.porPagar : pedido.porPagar;
+    const montoNuevo = lectura.porPagar === true ? lectura.montoPorPagar : null;
+    const montoPorPagar = porPagar !== true ? null : (montoNuevo != null && manda(pedido.montoPorPagar) ? montoNuevo : pedido.montoPorPagar) ?? montoNuevo ?? null;
     // Más bultos escaneados que los que se sabían: el envío tiene uno más.
-    const conocidos = lectura.bultosTotal ?? pedido.bultos;
+    const conocidos = lectura.bultosTotal != null && manda(pedido.bultos) ? lectura.bultosTotal : pedido.bultos;
     const actualizado: Pedido = {
       ...pedido,
       nombre: (lectura.ofConfirmada && lectura.destinatario) || pedido.nombre || lectura.destinatario || "",
       telefono: (lectura.ofConfirmada && lectura.telefono) || pedido.telefono || lectura.telefono || "",
       bultos: escaneados.length > (conocidos ?? 1) ? escaneados.length : conocidos,
       bultosEscaneados: escaneados,
-      porPagar: lectura.porPagar !== undefined && lectura.porPagar !== null ? lectura.porPagar : pedido.porPagar,
-      montoPorPagar: lectura.montoPorPagar ?? pedido.montoPorPagar,
+      porPagar,
+      montoPorPagar,
       referencia: lectura.referencia ?? pedido.referencia,
       problemas,
     };

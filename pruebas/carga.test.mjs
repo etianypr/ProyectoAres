@@ -162,6 +162,51 @@ test("lo que el conductor ya escribió no lo pisa la etiqueta", async () => {
   assert.deepEqual([r.pedido.id, r.pedido.nombre, r.pedido.telefono], [p.id, "Juan", "+56911111111"]);
 });
 
+// El pago, el monto y los bultos siguen la misma regla que el nombre y el
+// teléfono: lo ya cargado solo lo corrige una etiqueta de OF confirmada (es plata
+// del conductor). Antes cualquier lectura los pisaba (hueco de la skill
+// lectura-starken, 2026-11-08).
+async function pedidoCobrando() {
+  await almacen.guardarPedido(
+    { nombre: "Ana", telefono: "+56911111111", direccion: "Calle 1", lat: null, lng: null, notas: null, of: "200000009" },
+    HOY,
+  );
+  return almacen.aplicarLecturaEtiqueta(HOY, {
+    of: "200000009",
+    bulto: 1,
+    porPagar: true,
+    montoPorPagar: 12990,
+    bultosTotal: 2,
+    ofConfirmada: true,
+  });
+}
+
+test("una lectura sin OF confirmada no pisa el POR PAGAR, el monto ni los bultos", async () => {
+  await pedidoCobrando();
+  const r = await almacen.aplicarLecturaEtiqueta(HOY, { of: "200000009", bulto: null, porPagar: false, montoPorPagar: null, bultosTotal: 5 });
+  assert.deepEqual([r.pedido.porPagar, r.pedido.montoPorPagar, r.pedido.bultos], [true, 12990, 2]);
+  const otro = await almacen.aplicarLecturaEtiqueta(HOY, { of: "200000009", bulto: null, porPagar: true, montoPorPagar: 9990 });
+  assert.equal(otro.pedido.montoPorPagar, 12990, "otro monto sin OF confirmada no reemplaza el que había");
+});
+
+test("con OF confirmada sí se corrige; si pasa a «no se cobra», no queda un monto viejo", async () => {
+  await pedidoCobrando();
+  const r = await almacen.aplicarLecturaEtiqueta(HOY, { of: "200000009", bulto: null, porPagar: false, montoPorPagar: null, ofConfirmada: true });
+  assert.deepEqual([r.pedido.porPagar, r.pedido.montoPorPagar], [false, null]);
+});
+
+test("una lectura sin OF confirmada completa lo que faltaba (el monto por revisar)", async () => {
+  await almacen.guardarPedido(
+    { nombre: "Ana", telefono: "+56911111111", direccion: "Calle 1", lat: null, lng: null, notas: null, of: "200000009" },
+    HOY,
+  );
+  await almacen.aplicarLecturaEtiqueta(HOY, { of: "200000009", bulto: 1, porPagar: true, montoPorPagar: null });
+  const r = await almacen.aplicarLecturaEtiqueta(HOY, { of: "200000009", bulto: null, porPagar: true, montoPorPagar: 7500 });
+  assert.deepEqual([r.pedido.porPagar, r.pedido.montoPorPagar], [true, 7500]);
+  const sinMonto = await almacen.aplicarLecturaEtiqueta(HOY, { of: "200000009", bulto: null, porPagar: true, montoPorPagar: null, ofConfirmada: true });
+  assert.equal(sinMonto.pedido.montoPorPagar, 7500, "una lectura que no vio el monto no lo borra");
+});
+
 // ---------------------------------------------------------------------------
 // Cobros del día, origen, paquetes sin etiqueta y cambio de dirección
 // (spec 005: T022, T026, T027, T028)

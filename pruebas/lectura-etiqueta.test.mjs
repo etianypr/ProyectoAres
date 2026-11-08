@@ -172,6 +172,23 @@ test("«$0» impreso: sin POR PAGAR no se cobra; con POR PAGAR, monto por revisa
   assert.equal(vacio.porPagar, null, "sin número impreso no se supone nada");
 });
 
+// La Lion real (terreno 2026-11-08, «Copiar anonimizado»; la OF, el código y la
+// cuenta corriente, cambiados por inventados). En esta foto ML Kit no leyó ni
+// «LION» ni «DESTINATARIO», y el bulto salió ilegible: lo que no se lee no se
+// inventa (el bulto lo da el código al escanear). Es el caso que la 028 quiere
+// mejorar con varios cuadros y posiciones.
+test("Lion real: OF, teléfono, «no se cobra» y la dirección de tres renglones; el nombre sin leer", () => {
+  const texto = fixture("etiqueta-lion-real.txt");
+  const e = leerEtiqueta(texto);
+  assert.equal(e.ofImpresa, "200000123");
+  assert.equal(e.telefono, "+56912345678");
+  assert.equal(e.porPagar, false, "CTA CTE con su número");
+  assert.equal(e.direccion, "PASAJE 8252 DOQBI XAWSI G+ UWO ARICA-ARICA");
+  assert.equal(e.destinatario, null);
+  assert.ok(e.dudosos.includes("destinatario"));
+  assert.equal(e.bulto, null, "«Bulto N Z97855» no se adivina");
+});
+
 test("el remitente con su propia dirección y teléfono: nunca se toman", () => {
   const e = leerEtiqueta(
     "REMITENTE : TIENDA DE PRUEBA SPA\nDIRECCIÓN : CALLE UNO 100 - LOS ANGELES\nTELÉFONO : 988887777\nCTA. CTE.\nR.U.T.\n92000022561234200000456001\nDIRECCIÓN : AV DIEGO PORTALES 1111-ARICA-ARICA\nDESTINATARIO : ANA ROJAS\nCONTADO",

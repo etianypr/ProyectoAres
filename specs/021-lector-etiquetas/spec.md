@@ -48,6 +48,7 @@ datos inventados.
 | Starken | "starken" | CONTADO (trae monto, pero no se cobra) | `etiqueta-contado.txt` |
 | Lion × Starken | "LION x starken" | CTA CTE | `etiqueta-lion.txt` |
 | Lion × Starken en renglones (terreno 2026-11-07) | «LION», nombre y dirección partidos con guion, «Tel:» del remitente arriba, «OF» sola | CTA CTE | `etiqueta-lion-renglones.txt` |
+| Lion × Starken (real, anonimizada, 2026-11-08) | en esa foto ML Kit no leyó «LION» ni «DESTINATARIO» (formato desconocido, nombre sin leer); dirección en tres renglones; «Bulto N» ilegible | CTA CTE con número | `etiqueta-lion-real.txt` |
 | Starken EXPRES (real, anonimizada, 2026-11-08) | «EXPRES», código con 9210…; sin POR PAGAR ni CONTADO; «Totai Monto oF» y «$0» abajo | «$0» impreso → no se cobra (dueño) | `etiqueta-expres.txt` |
 | Starken normal (real, anonimizada, 2026-11-08) | «starken», «NORMAL»; ML Kit mezcla los renglones: «DIRECCIÓN» sola y su valor abajo, «001/001» suelto; el remitente trae su dirección y teléfono; «CTA. CTE.» casilla vacía; la OF con comas | CONTADO | `etiqueta-starken-normal.txt` |
 | *Por completar con los ejemplos del dueño (T002)* | | | |

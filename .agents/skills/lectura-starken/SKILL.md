@@ -148,9 +148,9 @@ romper lo que ya se aprendió en terreno. Las reglas vienen de `AGENTS.md` y de 
 
 ## Huecos del código (verificados; se avisan, no se arreglan sin pedido)
 Detalle y cómo reproducirlos: `references/flujo-y-codigo.md` §5.
-- `aplicarLecturaEtiqueta` protege el nombre y el teléfono, pero **el pago, el monto, los bultos y la
-  descripción los pisa cualquier lectura** que los traiga, aunque no tenga la OF confirmada. Puede
-  quedar `porPagar: false` con un `montoPorPagar` viejo.
+- ~~`aplicarLecturaEtiqueta` pisaba el pago, el monto y los bultos sin OF confirmada~~: arreglado en la
+  rama 021 (2026-11-08, `carga.test.mjs`). Siguen la regla del nombre y el teléfono, y «no se cobra»
+  borra el monto. La `referencia` todavía la pisa cualquier lectura (hoy solo viene de los tres toques).
 - Una OF escrita a mano (sin bulto) muestra la parada pero no suma a `bultosEscaneados`. El contador
   x/N no avanza y la OF sigue en «Sin etiqueta escaneada», salvo que después se lea el bulto del texto.
 - `leerEtiqueta` toma el primer «Tel.». Si el remitente va antes, toma su teléfono (la 021, US2, lo
