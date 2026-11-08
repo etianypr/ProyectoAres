@@ -33,6 +33,8 @@ Spec: [spec.md](spec.md) · Plan: [plan.md](plan.md). En orden; [P] = en paralel
   768 pruebas, lint y build en 0. El dueño recorrió el escaneo completo en el V2430 y quedó conforme;
   ninguna foto ni texto salió a la red (vigilante). Sin confirmar uno por uno: linterna, ⚠ en pausa,
   modo avión y sin permiso de cámara
-- [ ] T013 El dueño: el escaneo completo en el teléfono (la T011 de la 021 va aquí); después, la
+- [~] T013 El dueño: el escaneo completo en el teléfono (la T011 de la 021 va aquí); después, la
   APK 1.6.0 firmada (tag `apk-v1.6.0`), `APK_VERSION_MINIMA=1.6.0` en Vercel y la 021 y la 028 a
-  `main`
+  `main` — 2026-11-08: escaneo completo probado; 021 y 028 en `main`; APK 1.6.0 firmada (código 10,
+  Release de GitHub) instalada en el V2430. Falta `APK_VERSION_MINIMA=1.6.0` y `APK_URL` en Vercel
+  (el dueño)
