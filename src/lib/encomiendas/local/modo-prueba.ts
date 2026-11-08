@@ -10,6 +10,11 @@
 //     la cola—, sin enviarlo y sin dejarlo en "Tus días".
 //
 // Se guarda solo en el teléfono (localStorage): es un estado de ESTE teléfono.
+//
+// La APK de prueba (cl.dashund.ares.debug, versión «…-prueba», spec 028) entra
+// siempre en modo prueba: el 2026-11-08 se usó con el modo apagado y los conteos
+// del día de prueba subieron a la base. Ahí no se puede salir, porque salir borra
+// (el dueño: «no elimines nada porque estamos en prueba»).
 
 import { useSyncExternalStore } from "react";
 import { olvidarConsultasGoogle } from "@/lib/geo/geocoding/google";
@@ -34,6 +39,17 @@ function fijar(si: boolean): void {
   globalThis.dispatchEvent?.(new Event(EVENTO));
 }
 
+/** ¿Es la APK de prueba? La de depuración lleva «-prueba» en la versión. */
+export function esApkDePrueba(version: string | null | undefined): boolean {
+  return Boolean(version?.endsWith("-prueba"));
+}
+
+/** En la APK de prueba, prende el modo prueba. Solo prende la marca: no borra
+ *  nada, aunque haya cola (en esa app no hay trabajo de verdad que cuidar). */
+export async function asegurarModoPrueba(version: string | null): Promise<void> {
+  if (esApkDePrueba(version) && !enModoPrueba()) fijar(true);
+}
+
 /** Solo con la cola vacía: lo que queda sin enviar es trabajo de verdad, y al
  *  salir del modo prueba se borra todo. */
 export async function entrarAlModoPrueba(): Promise<void> {
@@ -44,8 +60,9 @@ export async function entrarAlModoPrueba(): Promise<void> {
   fijar(true);
 }
 
-export function salirDelModoPrueba(): Promise<void> {
+export function salirDelModoPrueba(version: string | null = null): Promise<void> {
   return enFila(async () => {
+    if (esApkDePrueba(version)) throw new Error("La app de prueba siempre está en modo prueba.");
     const stores = [...STORES_DEL_DIA, STORES.cola];
     await escribir(stores, ({ vaciar }) => {
       for (const store of stores) vaciar(store);

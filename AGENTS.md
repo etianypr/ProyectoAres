@@ -37,8 +37,8 @@ comparten layout: el panel del jefe (escritorio) y la app del conductor (APK And
 - Teléfono: IndexedDB `dashund-encomiendas` v5 (la siguiente versión libre es la v6). Mapa:
   MapLibre + OpenFreeMap.
 - APK: Capacitor 8, paquete `cl.dashund.ares`. Abre `https://proyecto-ares-five.vercel.app/conductor`,
-  así que cada deploy le llega solo. Lo nativo está en `android/` (plugins `Telefono` y `Burbuja`,
-  ML Kit) y la web lo usa solo a través de `src/lib/nativo/`.
+  así que cada deploy le llega solo. Lo nativo está en `android/` (plugins `Telefono`, `Burbuja` y
+  `EscanerVivo`, ML Kit) y la web lo usa solo a través de `src/lib/nativo/`.
 - Proveedores: OpenRouteService (matriz y trazado), Google Geocoding (número de casa) y OSM/Nominatim
   (calles y lugares),
   ML Kit en el teléfono (la etiqueta) y Google Cloud Vision (texto de la guía), Anthropic (guía y
@@ -243,8 +243,14 @@ y un agente no debe "corregir".
 - **Escaneo de la etiqueta de Starken (spec 005).** Tiene dos partes que no se mezclan: el código
   de barras dice *qué paquete es* y la foto de la etiqueta dice *a quién va*. Se escanea al cargar
   el auto y también desde la parada, cuando le falta el teléfono.
-  - **Código de barras.** En la APK lo lee el escáner de Google, que se abre solo al entrar; fuera
-    de la APK se escribe la OF. Es un Code 128 de 26 dígitos que empieza con 92: los dígitos 15 a
+  - **Escáner en vivo (spec 028, APK 1.6.0).** Al cargar el auto, la cámara de ARES queda abierta
+    debajo de la pantalla y lee el código y el texto de cada etiqueta con ML Kit, sin toques ni red.
+    Un dato vale cuando sale igual en ≥ 2 cuadros (`votos.ts`) y al pedido va solo lo firme. Suena
+    un tic que sube por cada dato firme, el de pedido leído al quedar completa y dos notas que bajan
+    con un ⚠, que pausa la lectura ahí mismo (sonidos «Marimba», elegidos por el dueño). Desde la
+    parada sigue la foto.
+  - **Código de barras.** Con una APK anterior, o sin permiso de cámara, lo lee el escáner de
+    Google, que se abre solo al entrar; fuera de la APK se escribe la OF. Es un Code 128 de 26 dígitos que empieza con 92: los dígitos 15 a
     23 son la OF y los 24 a 26, el bulto. Cualquier otro número se toma como una OF escrita a mano.
   - La OF sale solo del código o de lo que escribe el conductor, nunca del texto ni de la IA: es la
     llave que une la etiqueta, el pedido y la parada, y un dígito mal leído enlazaría otro paquete.
@@ -268,9 +274,7 @@ y un agente no debe "corregir".
     El lector (`lectura/etiqueta/`) separa la zona del destinatario de la del remitente y no cruza
     renglones; un formato nuevo se suma en `formatos.ts` con su caso de prueba, sacado con
     Diagnóstico → «Probar etiqueta» → «Copiar anonimizado».
-    *Pendiente (spec 021, en curso):* probarlo con etiquetas reales de cada formato (T002, T012).
-    *Pendiente (spec 028, borrador):* después, al cargar el auto, una cámara de ARES que queda
-    abierta y lee el código y el texto de cada etiqueta en vivo, sin toques ni fotos.
+    *Pendiente (specs 021 y 028):* ~50 etiquetas reales en terreno (021 T012) y la APK 1.6.0.
   - Si la foto trae una OF distinta de la del código, no se usa: es la etiqueta de otro paquete. Lo
     ya cargado no se pisa, salvo con una foto cuya OF coincide con la del código.
   - Si la dirección de la etiqueta no coincide con la de la guía, no se cambia sola: se avisa y el

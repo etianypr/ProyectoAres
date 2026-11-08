@@ -27,6 +27,10 @@ $env:JAVA_HOME="$env:LOCALAPPDATA\Java\jdk-21.0.12.1+1"; cd android
 $adb="$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
 & $adb reverse tcp:3000 tcp:3000; & $adb install -r app\build\outputs\apk\debug\app-debug.apk
 ```
+- La APK de depuración se llama `cl.dashund.ares.debug` (versión «…-prueba») y se instala **al lado**
+  de la firmada: no hay que desinstalar nada (dueño, 2026-11-07). Entra **siempre en modo prueba** y
+  no deja salir (salir borra): el 2026-11-08 se usó con el modo apagado y los conteos del día de prueba
+  subieron a `encomienda_jornadas` (`modo-prueba.ts`, `asegurarModoPrueba`).
 - **Sin `CAP_SERVER_URL`, la APK apunta a producción.** Después de probar, vuelve a correr
   `npx cap sync android` sin la variable, para no dejar `android/` apuntando al PC.
 - `adb reverse` se pierde al desconectar el cable: repítelo.

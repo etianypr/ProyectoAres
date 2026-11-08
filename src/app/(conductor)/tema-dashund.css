@@ -39,6 +39,16 @@
 /* Los puntos del mapa ya no son elementos de la página: los dibuja el mapa
    (ver _mapa/capa-paradas.ts), con estos mismos colores. */
 
+/* Escáner en vivo (spec 028): la cámara va DEBAJO de la WebView, así que mientras
+   está prendida la página se vuelve transparente y solo queda su capa. */
+html.camara-viva,
+html.camara-viva body {
+  background: transparent !important;
+}
+html.camara-viva body > :not(.capa-camara) {
+  visibility: hidden;
+}
+
 /* La hoja de la ruta propuesta sube y frena despacio. */
 .sube-y-frena {
   animation: sube-y-frena 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;

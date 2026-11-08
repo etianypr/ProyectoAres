@@ -21,6 +21,7 @@ antes de las autorizaciones (el contrato con Starken aplica desde ya; la ley des
 |---|---|---|
 | OF, destino, nombre, teléfono, por pagar, monto | teléfono | cierre del día |
 | Descripción y foto del paquete, ruta | teléfono | cierre del día |
+| Cuadros del escáner en vivo (spec 028, APK 1.6.0): la etiqueta en cámara y su texto | memoria del teléfono, mientras está abierto; la captura en alta queda como foto del paquete | se olvidan al pasar a la siguiente; la foto, con el día |
 | Coordinación WhatsApp | teléfono · servidor (correlación sin datos personales) | cierre del día (servidor: máx. 72 h) |
 | Burbuja sobre Google Maps (OF, nombre, dirección de la parada activa), APK | memoria del teléfono; su aviso fijo dice solo «ARES · Parada N», porque se ve con el teléfono bloqueado. Para abrirse al llegar compara en el teléfono la ubicación del auto (la que ya pide Google Maps) con el punto de la parada; no la guarda ni la envía | mientras haya una parada activa (spec 020) |
 | Actividad (entrega/no entrega, hora) | servidor | sin datos del destinatario |
@@ -63,7 +64,11 @@ la autorización para dejarlo explícito.
 - Día cerrado → la app muestra "No entregados" y borra pedidos y ruta; un día anterior con datos
   se borra al abrir · cerrar sesión borra todo (con aviso) · cuenta sin ficha o desactivada → la
   app borra al abrir con señal (spec 007) · teléfono con bloqueo.
-- APK firmada con una clave que no entra al repositorio · permisos: llamar y ubicación con la app
+- La APK de **depuración** (solo para probar contra el PC) registra en el log de Android lo que pasa
+  por el puente de Capacitor, incluido el texto de una etiqueta; la firmada no. Se usa solo en el
+  teléfono del dueño (spec 028).
+- APK firmada con una clave que no entra al repositorio · permisos: cámara para el escáner en vivo
+  (desde la 1.6.0, spec 028; se pide al abrirlo) · llamar y ubicación con la app
   abierta; sin registro de llamadas desde el 2026-11-06 (spec 020). La burbuja escucha la ubicación
   pasiva solo mientras navega, para abrirse al llegar.
 

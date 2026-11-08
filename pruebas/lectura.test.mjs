@@ -23,6 +23,16 @@ test("la OF escrita a mano (9 dígitos) también sirve, sin bulto", () => {
   assert.deepEqual(leerCodigoEtiqueta("7000123"), { of: "7000123", bulto: null }, "OF corta a mano");
 });
 
+test("de los códigos que ve la cámara, solo el de Starken da la OF (spec 028)", async () => {
+  const { codigoEnLaFoto } = await import("@/lib/encomiendas/lectura/codigo-barras");
+  assert.deepEqual(codigoEnLaFoto(["https://ejemplo.cl/qr", "7801234567890", "92000022560000200000002001"]), {
+    of: "200000002",
+    bulto: 1,
+  });
+  assert.equal(codigoEnLaFoto(["200000002", "7801234567890"]), null, "un número suelto no es una OF de la cámara");
+  assert.equal(codigoEnLaFoto([]), null);
+});
+
 test("lo que no es un código de etiqueta no se enlaza", () => {
   assert.deepEqual(leerCodigoEtiqueta("1234567890"), { of: "1234567890", bulto: null }, "sin regla de largo");
   assert.deepEqual(leerCodigoEtiqueta("12000022560000200000002001").bulto, null, "sin el prefijo 92 no es etiqueta");

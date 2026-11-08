@@ -10,6 +10,7 @@ import { logout } from "@/lib/auth/acciones";
 import { avanceCarga, leerDias, type Pedido, type ResumenDia } from "@/lib/encomiendas/local/almacen";
 import type { PropuestaRuta } from "@/lib/encomiendas/local/generar-ruta";
 import { problemasDelPedido } from "@/lib/encomiendas/problemas";
+import { escanerVivoDisponible } from "@/lib/nativo/escaner-vivo";
 import type { DiaEnCurso } from "../_hooks/use-dia-trabajo";
 import type { useCierreDia } from "../_hooks/use-cierre-dia";
 import { Ayuda } from "./ayuda";
@@ -17,6 +18,7 @@ import { BuscarOf } from "./buscar-of";
 import { CargarGuia } from "./cargar-guia";
 import { CierreDia } from "./cierre-dia";
 import { EscanearEtiqueta } from "./escanear-etiqueta";
+import { EscanerVivo } from "./escaner-vivo";
 import { GenerarRutaLocal } from "./generar-ruta-local";
 import { MenuLateral } from "./menu-lateral";
 
@@ -32,6 +34,8 @@ export function useVentanas() {
   /** La carga de la guía está ubicando direcciones: no se puede cerrar. */
   const [guiaOcupada, setGuiaOcupada] = useState(false);
   const [escaneando, setEscaneando] = useState(false);
+  /** Sin cámara (permiso negado): el escáner de siempre hasta cerrar (spec 028). */
+  const [escanerClasico, setEscanerClasico] = useState(false);
   /** Cómo se usa la app (ver ayuda.tsx). */
   const [ayudaAbierta, setAyudaAbierta] = useState(false);
 
@@ -51,6 +55,8 @@ export function useVentanas() {
     setGuiaOcupada,
     escaneando,
     setEscaneando,
+    escanerClasico,
+    setEscanerClasico,
     ayudaAbierta,
     setAyudaAbierta,
   };
@@ -137,11 +143,29 @@ export function VentanasPantalla({
         />
       ) : null}
 
-      {v.escaneando ? (
-        <EscanearEtiqueta
+      {/* Spec 028: con la APK 1.6.0, la cámara de ARES en vivo; sin ella o sin
+          permiso de cámara, el escáner de siempre. */}
+      {v.escaneando && escanerVivoDisponible() && !v.escanerClasico ? (
+        <EscanerVivo
           fecha={fecha}
           avance={avanceCarga(dia.pedidos)}
           onCerrar={() => v.setEscaneando(false)}
+          onCambio={() => void dia.recargar()}
+          onAgregarPedido={(of) => {
+            v.setEscaneando(false);
+            onNuevoConOf(of);
+          }}
+          onClasico={() => v.setEscanerClasico(true)}
+        />
+      ) : null}
+      {v.escaneando && (!escanerVivoDisponible() || v.escanerClasico) ? (
+        <EscanearEtiqueta
+          fecha={fecha}
+          avance={avanceCarga(dia.pedidos)}
+          onCerrar={() => {
+            v.setEscaneando(false);
+            v.setEscanerClasico(false);
+          }}
           onCambio={() => void dia.recargar()}
           onAgregarPedido={(of) => {
             v.setEscaneando(false);

@@ -89,7 +89,8 @@ romper lo que ya se aprendió en terreno. Las reglas vienen de `AGENTS.md` y de 
 | Almacén: `crearDesdeGuia`, `aplicarLecturaEtiqueta`, `avanceCarga`, `sinEtiquetaEscaneada` | `local/almacen/carga.ts` (`cambiarDireccion` en `pedidos.ts`, `guardarPaquete`/`guardarFoto` en `paquete.ts`) |
 | Escáner (`escanearCodigo`) y texto de una foto (`textoDeFoto` → `Telefono.leerTexto`) | `lib/nativo/escaner.ts`, `lib/nativo/telefono.ts`; Java en `android/…/TelefonoPlugin.java` (solo leer) |
 | Pantallas de la guía | `_componentes/cargar-guia.tsx`, `fotos-guia.tsx`, `lineas-guia.tsx`, `fin-guia.tsx` |
-| Pantallas del escaneo | `escanear-etiqueta.tsx`, `resultado-escaneo.tsx`, `campos-paquete.tsx`, `progreso-carga.tsx`, `aviso-cargar-auto.tsx`, `buscar-of.tsx` |
+| Escáner en vivo (spec 028): cámara, votos por cuadro, pantalla y sonidos | `lib/nativo/escaner-vivo.ts` (+ `android/…/EscanerVivoPlugin.java`), `lectura/etiqueta/votos.ts`, `_hooks/use-escaner-vivo.ts`, `_componentes/escaner-vivo.tsx`, `lib/comun/sonidos-escaner.ts` |
+| Pantallas del escaneo (APK anterior a la 1.6.0, sin cámara o desde la parada) | `escanear-etiqueta.tsx`, `resultado-escaneo.tsx`, `campos-paquete.tsx`, `progreso-carga.tsx`, `aviso-cargar-auto.tsx`, `buscar-of.tsx` |
 | Quién las abre · de dónde sale `lecturaIA` | `ventanas-pantalla.tsx` · `conductor/encomiendas/page.tsx` (`lecturaIADisponible()`) |
 
 ## Cómo hacer los cambios típicos
@@ -140,7 +141,8 @@ romper lo que ya se aprendió en terreno. Las reglas vienen de `AGENTS.md` y de 
 - **021** (en curso): US1 hecha en la rama (2026-11-07: la etiqueta solo con ML Kit, `/api/lectura`
   solo la guía). Falta el lector especializado, que espera los ejemplos del dueño (T002), y
   Diagnóstico → «Probar etiqueta» (US3).
-- **028** (borrador): el escáner en vivo y continuo al cargar el auto. Toca `android/`.
+- **028** (hecha en su rama, 2026-11-08): el escáner en vivo. Falta la APK 1.6.0 firmada y pasar a
+  `main` junto con la 021.
 - **005**: probar con ≥ 50 etiquetas reales (T030, junto con la T012 de la 021) y correr el quickstart
   (T031).
 - **022** (borrador): el ⚠ en el pedido y el aviso dos paradas antes. Hoy el ⚠ solo marca la OF

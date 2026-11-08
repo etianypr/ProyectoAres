@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { exigirConductor } from "@/lib/auth/sesion";
+import { ModoPruebaApk } from "./modo-prueba-apk";
 import { RegistrarSW } from "./registrar-sw";
 import { TemaDashund } from "./tema-dashund";
 
@@ -43,6 +44,7 @@ export default async function ConductorLayout({ children }: { children: React.Re
     <div className="min-h-screen bg-background">
       <TemaDashund />
       <RegistrarSW />
+      <ModoPruebaApk />
       {children}
     </div>
   );
