@@ -1,8 +1,9 @@
 "use client";
 
-// Diagnóstico de la APK (spec 015): qué funciones nativas tiene este teléfono y un
-// botón para probar el escáner. Se llega desde el menú lateral, solo en la APK.
-// No guarda nada: lo que muestra se lee al abrir la pantalla.
+// Diagnóstico de la APK (spec 015): qué funciones nativas tiene este teléfono, un
+// botón para probar el escáner y otro para probar la lectura de una etiqueta
+// (spec 021, US3). Se llega desde el menú lateral, solo en la APK. No guarda
+// nada: lo que muestra se lee al abrir la pantalla.
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -13,6 +14,7 @@ import { permisosTelefono } from "@/lib/nativo/telefono";
 import { escanearCodigo } from "@/lib/nativo/escaner";
 import { entrarAlModoPrueba, salirDelModoPrueba, useModoPrueba } from "@/lib/encomiendas/local/modo-prueba";
 import { fijarConfigGps, useConfigGps, VELOCIDADES } from "@/lib/encomiendas/local/gps-simulado";
+import { ProbarEtiqueta } from "./_componentes/probar-etiqueta";
 
 type Estado = "si" | "no" | "pendiente";
 
@@ -130,6 +132,8 @@ export default function DiagnosticoPage() {
       {lectura ? (
         <p className="break-all rounded-2xl bg-card px-4 py-3 font-mono text-sm shadow-soft">{lectura}</p>
       ) : null}
+
+      <ProbarEtiqueta enApp={info?.app ?? false} />
 
       {/* Modo prueba (terreno 2026-10-28): ver lib/encomiendas/local/modo-prueba.ts. */}
       <section className="space-y-2 rounded-2xl bg-card p-4 shadow-soft">

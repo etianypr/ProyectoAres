@@ -8,9 +8,11 @@ Qué se construye y en qué orden. Detalle de cada feature en `specs/` (índice:
 La ruta pasa a evaluarse por km, tiempo, éxito por parada y ganancia (antes, solo km), y los ⚠ de
 la guía se resuelven antes de armarla (`AGENTS.md`, "El flujo del conductor").
 Anotadas el 2026-11-05, sin orden decidido todavía:
-- 021, lector de etiquetas: definida. La foto de la etiqueta se lee solo en el teléfono, sin IA ni
-  Cloud Vision. Ahorra unos US$5–9 al mes, y los datos de los destinatarios dejan de salir del
-  teléfono.
+- 021, lector de etiquetas: en curso. La foto de la etiqueta se lee solo en el teléfono, sin IA ni
+  Cloud Vision (hecho en la rama, 2026-11-07). Ahorra unos US$5–9 al mes, y los datos de los
+  destinatarios dejan de salir del teléfono. Falta el lector especializado (ejemplos del dueño).
+- 028, escáner en vivo (2026-11-07, borrador): al cargar el auto, la cámara queda abierta y lee
+  cada etiqueta sin toques. Va después de la 021.
 - 022 a 025, en borrador: pedidos con ⚠, paradas cercanas, criterios de ruta y referencias en
   direcciones.
 

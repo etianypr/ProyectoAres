@@ -140,7 +140,6 @@ export function VentanasPantalla({
       {v.escaneando ? (
         <EscanearEtiqueta
           fecha={fecha}
-          lecturaIA={lecturaIA}
           avance={avanceCarga(dia.pedidos)}
           onCerrar={() => v.setEscaneando(false)}
           onCambio={() => void dia.recargar()}

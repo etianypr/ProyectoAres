@@ -8,7 +8,7 @@ Las reglas generales están en `pruebas/README.md`. Aquí va solo lo de este tem
 | `lectura.test.mjs` | `leerCodigoEtiqueta` (26 dígitos, EXPRES, OF corta con ceros, OF a mano), `leerGuia` / `limpiarDestino` (fixture `guia.txt`, repetidas, total, «0F»), `leerEtiqueta` (los tres fixtures, POR PAGAR sin monto, valor en el renglón siguiente, «0.F.», sin RUT, remitente ni correo), `etiquetaCompleta` y `faltanEnLaPrimera` |
 | `lectura-servidor.test.mjs` | `lectura/servidor.ts` contra un doble del `fetch`: modelo, foto, salida estructurada, sin pensamiento, `effort` (nunca con Haiku), workspace, varias fotos en una consulta, rechazo = ilegible |
 | `vision.test.mjs` | `lectura/vision.ts`: sin clave, la clave de Vision o la de Maps, y el error de Google |
-| `descripcion-etiqueta.test.mjs` | `conDescripcion` (la 021 lo borra; se pregunta antes) |
+| `etiqueta-en-el-telefono.test.mjs` | `leerFotoEtiqueta` real en una APK simulada (puente de Capacitor como ML Kit, `fetch` que anota): la etiqueta se lee sin red y sin ML Kit no cae a la nube (spec 021) |
 | `carga.test.mjs` | almacén real (`fake-indexeddb`): `crearDesdeGuia` sin duplicar, «PARADA n de N», bultos sin duplicar, OF fuera del día, dirección distinta, no pisar lo escrito, cobros, `sinEtiquetaEscaneada`, `cambiarDireccion` |
 | `listo-para-terreno.test.mjs` | spec 017: E4 (la OF confirmada corrige), `avanceCarga`, E11 (mejor lectura de una OF repetida) |
 | `paquete.test.mjs` | `ofValida` / `ofDistinta` / `formatoOf`, la referencia, `buscarPorOf` y las fotos del paquete |

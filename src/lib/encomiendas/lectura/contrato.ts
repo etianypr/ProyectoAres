@@ -1,16 +1,15 @@
 // Contrato teléfono ↔ POST /api/lectura (spec 005). Lo comparten las dos puntas.
+// Solo la guía: la etiqueta se lee en el teléfono y no pasa por el servidor
+// (spec 021).
 
-import type { ReferenciaPaquete } from "../paquete";
-import type { EtiquetaIA, GuiaIA } from "./esquemas";
-import type { LecturaEtiqueta } from "./etiqueta";
+import type { GuiaIA } from "./esquemas";
 
+/** Qué foto es. Con ella se elige cuánto se achica en el teléfono. */
 export type TipoLectura = "guia" | "etiqueta";
 
-/** Lo que devuelve el servidor. La guía va cruda (se juntan varias fotos en el
- *  teléfono); la etiqueta, ya con las reglas aplicadas. */
-export type RespuestaLectura =
-  | { tipo: "guia"; guia: GuiaIA }
-  | { tipo: "etiqueta"; etiqueta: LecturaEtiqueta & { referencia: ReferenciaPaquete | null } };
+/** Lo que devuelve el servidor: la guía cruda (se juntan varias fotos en el
+ *  teléfono). */
+export type RespuestaLectura = { tipo: "guia"; guia: GuiaIA };
 
 export type ErrorLecturaApi = { error: string };
 
@@ -23,7 +22,12 @@ export const MAX_FOTOS_GUIA = 6;
 
 /** Lado mayor de la foto reducida en el teléfono. La guía tiene letra chica,
  *  pero 2000 px alcanzan (Haiku la reduce a ~1568 igual, y para el modelo fino
- *  cuesta un tercio menos que 2576; medido 2026-10-25). */
-export const LADO_MAXIMO: Record<TipoLectura, number> = { guia: 2000, etiqueta: 1280 };
+ *  cuesta un tercio menos que 2576; medido 2026-10-25). La etiqueta la lee solo
+ *  ML Kit (spec 021), gratis: 2400 px, porque manda la precisión sobre la
+ *  rapidez (el dueño, 2026-11-08) y hay letra chica y gastada. */
+export const LADO_MAXIMO: Record<TipoLectura, number> = { guia: 2000, etiqueta: 2400 };
 
-export type { EtiquetaIA, GuiaIA };
+/** La segunda lectura de la etiqueta, más chica, para confirmar la primera. */
+export const LADO_CONFIRMAR_ETIQUETA = 1600;
+
+export type { GuiaIA };

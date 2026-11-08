@@ -27,17 +27,25 @@ antes de las autorizaciones (el contrato con Starken aplica desde ya; la ley des
 
 Solo sobreviven conteos (asignados, entregados, no entregados).
 
+**Qué sale del teléfono** (dueño, 2026-11-07):
+- La etiqueta, nunca: el nombre, el teléfono y su foto se leen con ML Kit dentro de la APK, sin red
+  (spec 021). `/api/lectura` rechaza la etiqueta antes de mirar la clave (prueba en
+  `privacidad.test.mjs` y `etiqueta-en-el-telefono.test.mjs`).
+- La guía sí va a la IA y a Cloud Vision para leerla: el dueño la considera sin datos personales,
+  porque trae solo la OF y el destino, sin nombre ni teléfono. Igual figura en §3, para que Starken
+  la autorice junto con los demás proveedores (§6.2).
+
 ## 3. Subencargados
 
 | Proveedor | Recibe | Desde | País | Retención | Autorización Starken |
 |---|---|---|---|---|---|
 | OpenRouteService (HeiGIT, en uso desde 2026-10-30; la matriz de distancias por calle con que se ordena la ruta, y el trazado del día (spec 019). Desde la spec 020 ya no recibe la posición del auto tramo a tramo: los km a la parada se miden en el teléfono sobre la línea del día; lo que contesta queda en memoria del teléfono y se olvida al cerrar el día, spec 017) | coordenadas de las paradas y de la partida (sin nombre, teléfono ni dirección) | teléfono | Alemania (UE) | a verificar | pendiente |
 | OpenStreetMap/Nominatim (en uso) | dirección | teléfono | UK/UE | a verificar | pendiente |
-| Google Cloud Vision (en uso; spec 005; lee el texto de las fotos) | fotos de guía y etiquetas (OF, destino, destinatario, teléfono, dirección, pago) | servidor (tránsito, `/api/texto`) | EE.UU. | según términos de Google Cloud | pendiente |
+| Google Cloud Vision (en uso; spec 005; lee el texto de la foto de la guía. Desde la spec 021 ya no recibe etiquetas) | fotos de la guía (OF y destino, sin nombre ni teléfono) | servidor (tránsito, `/api/texto`) | EE.UU. | según términos de Google Cloud | pendiente |
 | Google Maps (app) (en uso desde 2026-10-29; desde la spec 020 es la navegación: los km de la parada, «Navegar» en la burbuja de ARES y, con la burbuja en curso, cada parada nueva abren Google Maps navegando. La burbuja, con la OF y a quién, es una ventana de ARES en el teléfono: Google no la ve) | coordenadas de ESA parada (sin nombre, teléfono ni dirección) | teléfono (abre la app de Google Maps o su enlace en el navegador) | EE.UU. | según términos de Google Maps | pendiente |
 | Google Geocoding (en uso; spec 016; desde la spec 019, toda dirección con número: es el que da el número de casa) | dirección (sin nombre ni teléfono) | servidor (tránsito, `/api/geocodificar`) | EE.UU. | según términos de Google Maps Platform | pendiente |
 | Meta WhatsApp Cloud API (inactivo) | teléfono, nombre, id correlación | servidor | EE.UU. | según Meta | pendiente |
-| Anthropic (en uso, piloto; spec 005: las fotos de la guía y, desde 2026-10-28, TODAS las de etiquetas, para describir el paquete; spec 018: las direcciones que no se ubicaron) | fotos de guía y etiquetas (OF, destino, destinatario, teléfono, dirección, pago); direcciones y lo que devolvieron los buscadores (sin nombre ni teléfono) | servidor (tránsito, `/api/lectura`, `/api/direccion-ia`) | EE.UU. | ≤30 días API; cero retención a solicitar | pendiente |
+| Anthropic (en uso, piloto; spec 005: las fotos de la guía; spec 018: las direcciones que no se ubicaron. Desde la spec 021 ya no recibe etiquetas; antes, desde 2026-10-28, recibía todas para describir el paquete) | fotos de la guía (OF y destino, sin nombre ni teléfono); direcciones y lo que devolvieron los buscadores (sin nombre ni teléfono) | servidor (tránsito, `/api/lectura`, `/api/direccion-ia`) | EE.UU. | ≤30 días API; cero retención a solicitar | pendiente |
 
 No reciben datos de destinatarios: Supabase (solo actividad y fichas de conductores),
 OpenFreeMap (el mapa del conductor desde la spec 019: recibe solo los pedidos de los trozos de

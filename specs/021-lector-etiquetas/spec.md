@@ -1,7 +1,7 @@
 # Spec 021 · Lector de etiquetas en el teléfono
 
-**Creada**: 2026-11-05 · **Estado**: definida, sin empezar · **Rama**: `021-lector-etiquetas`
-(desde `main`) · **Pedido del dueño**: "en el escáner de pedidos, cuando obtenemos la info
+**Creada**: 2026-11-05 · **Estado**: en curso (US1 hecha en la rama, 2026-11-07) · **Rama**:
+`021-lector-etiquetas` (desde `main`) · **Pedido del dueño**: "en el escáner de pedidos, cuando obtenemos la info
 personal de cada persona, que sea simplemente un escáner especializado en etiquetas de pedidos de
 Starken (que no son las mismas siempre), para saltarnos el problema de la privacidad".
 
@@ -18,6 +18,8 @@ Decidido con el dueño (2026-11-05):
 - Solo texto, sin tocar `android/`: sirve la APK instalada. Si un formato mezcla columnas, ver
   `plan.md` §5.
 - El dueño tiene ejemplos anonimizados de los formatos; se convierten en pruebas (T002).
+- (2026-11-07) La guía sigue con la IA: «en la guía de despacho no sale datos personales de
+  nada». El escáner en vivo, que sí toca `android/`, va en la [028](../028-escaner-en-vivo/spec.md).
 
 ## US1 (P1) · La foto de la etiqueta no sale del teléfono
 
@@ -45,6 +47,10 @@ datos inventados.
 | Starken EXPRES | "starken", "EXPRES", O.F. impresa | POR PAGAR + "Total Monto O.F." | `etiqueta-por-pagar.txt` |
 | Starken | "starken" | CONTADO (trae monto, pero no se cobra) | `etiqueta-contado.txt` |
 | Lion × Starken | "LION x starken" | CTA CTE | `etiqueta-lion.txt` |
+| Lion × Starken en renglones (terreno 2026-11-07) | «LION», nombre y dirección partidos con guion, «Tel:» del remitente arriba, «OF» sola | CTA CTE | `etiqueta-lion-renglones.txt` |
+| Lion × Starken (real, anonimizada, 2026-11-08) | en esa foto ML Kit no leyó «LION» ni «DESTINATARIO» (formato desconocido, nombre sin leer); dirección en tres renglones; «Bulto N» ilegible | CTA CTE con número | `etiqueta-lion-real.txt` |
+| Starken EXPRES (real, anonimizada, 2026-11-08) | «EXPRES», código con 9210…; sin POR PAGAR ni CONTADO; «Totai Monto oF» y «$0» abajo | «$0» impreso → no se cobra (dueño) | `etiqueta-expres.txt` |
+| Starken normal (real, anonimizada, 2026-11-08) | «starken», «NORMAL»; ML Kit mezcla los renglones: «DIRECCIÓN» sola y su valor abajo, «001/001» suelto; el remitente trae su dirección y teléfono; «CTA. CTE.» casilla vacía; la OF con comas | CONTADO | `etiqueta-starken-normal.txt` |
 | *Por completar con los ejemplos del dueño (T002)* | | | |
 
 ## US3 (P2) · Ver qué leyó, sin mandar nada
@@ -79,8 +85,10 @@ Las de `AGENTS.md`, «Escaneo de la etiqueta de Starken», siguen igual. Lo nuev
   toma el teléfono del remitente.
 - **SC-004**: en terreno, ≥ 90 % de ~50 etiquetas reales quedan con nombre, teléfono y pago sin
   pegar ni escribir (el mismo umbral que el SC-005 de la 005; se mide junto con su T030).
-- **SC-005**: en la APK, la lectura de una etiqueta tarda ≤ 2 s (ML Kit midió 1,2 s en la 005,
-  T032).
+- **SC-005**: en la APK, la lectura de una etiqueta tarda ≤ 4 s. Antes decía ≤ 2 s; el dueño
+  (2026-11-08): «es más importante que se demore más en procesar y que todos los datos importantes
+  estén bien». Por eso la foto se lee dos veces (2400 y 1600 px) y lo que no coincide queda por
+  revisar.
 
 ## Supuestos
 

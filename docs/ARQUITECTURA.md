@@ -39,11 +39,11 @@ flowchart LR
   LOCAL -- "coordenadas de paradas" --> ORS
   LOCAL -- "dirección" --> OSM
   LOCAL -- "dirección con número (tránsito)" --> GEO --> GOOGLE
-  LOCAL -- "foto de etiqueta o guía (tránsito)" --> TXT --> VISION
+  LOCAL -- "foto de la guía (tránsito)" --> TXT --> VISION
   LOCAL -- "actividad / día (RLS)" --> PG
   LOCAL -- "nombre + teléfono en tránsito" --> API --> META
   META -- "respuesta" --> API --> PG
-  LOCAL -- "foto que el teléfono no pudo leer (tránsito)" --> LECT --> CLAUDE
+  LOCAL -- "foto de la guía, sin nombre ni teléfono (tránsito)" --> LECT --> CLAUDE
   LOCAL -- "dirección sin ubicar + candidatos, sin nombre (tránsito)" --> DIA --> CLAUDE
   PANEL --> PG
   CRON --> PG
@@ -51,7 +51,8 @@ flowchart LR
 ```
 
 Regla: datos de destinatarios solo en el teléfono; al servidor sube el hecho
-(`encomienda_actividad`). Ver `docs/PRIVACIDAD.md`.
+(`encomienda_actividad`). La foto de la etiqueta (nombre y teléfono) se lee con ML Kit en el
+teléfono y no tiene flecha hacia afuera (spec 021). Ver `docs/PRIVACIDAD.md`.
 
 **Direcciones (spec 016 y 019).** `ubicarDireccion` limpia el texto, consulta Google (solo con
 número, por `/api/geocodificar`) y Nominatim y, sin puerta, vuelve a preguntar a Google con el
@@ -204,7 +205,7 @@ src/
 ├── app/(conductor)/tema-dashund  el tema de la app del conductor (diseño "Plano" con el naranja de Dashund, Manrope + IBM Plex Mono); solo lo carga el layout del conductor
 ├── components/marca/logo-dashund  el logo de Dashund (cara de perro salchicha): inicio de sesión, menú, pantalla de carga; public/dashund.svg es el mismo dibujo y de ahí salen los íconos (scripts/generar-iconos.mjs)
 ├── components/ui/campo           la caja de texto del conductor: la etiqueta va adentro (52 px, 44 la compacta) y el estado en un renglón debajo; DireccionInput la usa cuando recibe `etiqueta`
-├── app/api/                      whatsapp (send · status · webhook) · lectura (IA, spec 005) · geocodificar (Google, spec 016) · texto (Cloud Vision, spec 005)
+├── app/api/                      whatsapp (send · status · webhook) · lectura (IA, solo la guía, spec 005 y 021) · geocodificar (Google, spec 016) · texto (Cloud Vision, la guía, spec 005)
 ├── components/                   ui (primitivas) · direccion (campo y vista previa: estampilla-mapa saca la foto del mapa y lo destruye, spec 019) · panel (marco del panel)
 ├── lib/                          una carpeta por dominio, sin archivos sueltos
 │   ├── auth/                     sesion · roles · acciones (login/logout) · api-conductor · conductor-de-usuario

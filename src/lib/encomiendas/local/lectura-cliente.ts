@@ -2,77 +2,77 @@
 
 // El teléfono lee la foto de la guía o de la etiqueta (spec 005).
 //
-//   · El TEXTO de la foto sale de Google Cloud Vision (/api/texto: el lector de
-//     Google Lens, sin salir de la app) y, sin señal o sin clave, del lector
-//     del teléfono (ML Kit). Pasa por las mismas reglas que el texto pegado
-//     (leerGuia, leerEtiqueta).
-//   · Etiqueta: con ese texto alcanza si trae nombre, teléfono y pago; si no, y
-//     la IA está encendida, la foto va a /api/lectura (Haiku).
-//   · Guía: manda la IA (Opus, ~US$3 al mes); el texto sirve de control
-//     gratis: si trae una OF que la IA no leyó, la foto se relee. Con un lector
-//     solo, cada foto a la pantalla daba una cantidad distinta de líneas (14,
-//     6…; terreno 2026-10-25).
+//   · Etiqueta (spec 021): la lee SOLO el lector del teléfono (ML Kit), y el
+//     texto pasa por las mismas reglas que el texto pegado (leerEtiqueta). Ni la
+//     foto ni su texto salen del teléfono: traen el nombre y el teléfono del
+//     destinatario. El dueño: "no quiero que se envíen fotos a anthropic por
+//     temas legales de privacidad" (2026-11-07).
+//   · Guía: manda la IA (Opus, ~US$3 al mes) y el texto (Cloud Vision por
+//     /api/texto o, sin señal o sin clave, ML Kit) sirve de control gratis: si
+//     trae una OF que la IA no leyó, la foto se relee. Con un lector solo, cada
+//     foto a la pantalla daba una cantidad distinta de líneas (14, 6…; terreno
+//     2026-10-25). La guía no trae nombre ni teléfono.
 //
 // Sin nada que leer lanza ErrorLectura y la pantalla ofrece pegar el texto; la
 // parada ya se sabe por el código de barras.
 
-import { BYTES_MAXIMOS_FOTO, LADO_MAXIMO, type RespuestaLectura, type TipoLectura } from "@/lib/encomiendas/lectura/contrato";
-import { conDescripcion, etiquetaCompleta, leerEtiqueta, type LecturaEtiqueta } from "@/lib/encomiendas/lectura/etiqueta";
+import { BYTES_MAXIMOS_FOTO, LADO_CONFIRMAR_ETIQUETA, LADO_MAXIMO, type RespuestaLectura } from "@/lib/encomiendas/lectura/contrato";
+import { leerEtiqueta, type LecturaEtiqueta } from "@/lib/encomiendas/lectura/etiqueta";
+import { combinarLecturas } from "@/lib/encomiendas/lectura/etiqueta/combinar";
 import { faltanEnLaPrimera, guiaDesdeIA, leerGuia, type GuiaLeida } from "@/lib/encomiendas/lectura/guia";
-import type { ReferenciaPaquete } from "@/lib/encomiendas/paquete";
 import { textoDeFoto } from "@/lib/nativo/telefono";
 import { tope } from "@/lib/comun/tope";
 import { comprimirFoto } from "./foto";
 
+// Sin propiedades en el constructor: Node las rechaza al quitar los tipos, y las
+// pruebas importan este archivo tal cual (etiqueta-en-el-telefono.test.mjs).
 export class ErrorLectura extends Error {
-  constructor(
-    message: string,
-    /** HTTP, o 0 si no hubo respuesta (sin señal). */
-    readonly estado: number,
-  ) {
+  /** HTTP, o 0 si no hubo respuesta (sin señal). */
+  readonly estado: number;
+
+  constructor(message: string, estado: number) {
     super(message);
+    this.estado = estado;
   }
 }
 
-/** Quién leyó la foto: un lector de texto (Cloud Vision o el del teléfono) o
- *  la IA. */
+/** Quién leyó la foto de la guía: un lector de texto (Cloud Vision o el del
+ *  teléfono) o la IA. */
 export type FuenteLectura = "texto" | "ia";
 
-export type LecturaFoto =
-  | { tipo: "guia"; guia: GuiaLeida; fuente: FuenteLectura }
-  | { tipo: "etiqueta"; etiqueta: LecturaEtiqueta & { referencia: ReferenciaPaquete | null }; fuente: FuenteLectura };
+export type LecturaFoto = { tipo: "guia"; guia: GuiaLeida; fuente: FuenteLectura };
 
-/** Lee la foto (ver la cabecera). Si la IA falla pero hubo texto, se devuelve
- *  lo que dio el texto. */
-export async function leerImagen(tipo: TipoLectura, foto: Blob, { ia }: { ia: boolean }): Promise<LecturaFoto> {
-  if (tipo === "guia") return leerFotosGuia([foto], { ia });
-  const reducida = await comprimirFoto(foto, LADO_MAXIMO[tipo]);
-
-  if (!ia) {
-    const texto = await textoDeLaFoto(reducida);
-    const local = texto ? desdeTexto(tipo, texto) : null;
-    if (local) return local;
+/** La foto de la etiqueta, leída SOLO en el teléfono (ver la cabecera). Fuera
+ *  de la APK no hay lector: la pantalla no ofrece la foto y se pega el texto. */
+export async function leerFotoEtiqueta(foto: Blob): Promise<LecturaEtiqueta> {
+  const leida = await leerFotoEtiquetaDoble(foto);
+  if (!leida) {
     throw new ErrorLectura("No se pudo leer el texto de la foto. Saca otra más derecha y con luz, o pega el texto.", 422);
   }
+  return leida.lectura;
+}
 
-  // Con IA se le pregunta SIEMPRE, junto con el texto: la descripción del
-  // paquete (tipo, color, tamaño) solo la hace ella. Antes, si el texto traía
-  // nombre, teléfono y pago, no se le preguntaba y el paquete quedaba sin
-  // descripción (terreno 2026-10-28: "funcionó una vez de 3").
-  const [lectura, texto] = await Promise.all([
-    pedirIA(tipo, reducida)
-      .then(desdeIA)
-      .catch((e: unknown) => (e instanceof Error ? e : new ErrorLectura("No se pudo leer la foto.", 0))),
-    textoDeLaFoto(reducida),
-  ]);
-  const local = texto ? desdeTexto(tipo, texto) : null;
-  if (lectura instanceof Error) {
-    if (local) return local;
-    throw lectura;
+/** Lo que dieron las dos lecturas de la etiqueta: el resultado, el texto de la
+ *  grande (Diagnóstico → «Probar etiqueta» lo muestra) y los campos en que no
+ *  coincidieron. */
+export type LecturaDoble = { lectura: LecturaEtiqueta; texto: string; distintos: string[] };
+
+/** ML Kit lee la foto dos veces, a 2400 y a 1600 px, y se juntan
+ *  (`combinarLecturas`): manda la precisión sobre la rapidez (el dueño,
+ *  2026-11-08). Tarda ~3 s en vez de ~1,5. Las fotos se achican de a una: un
+ *  teléfono barato se queda sin memoria (spec 017, E10). null si no salió texto. */
+export async function leerFotoEtiquetaDoble(foto: Blob): Promise<LecturaDoble | null> {
+  const conTexto = (t: string | null) => (t?.trim() ? t : null);
+  const grande = await comprimirFoto(foto, LADO_MAXIMO.etiqueta);
+  const alto = conTexto(await textoDeFoto(grande));
+  const chica = await comprimirFoto(grande, LADO_CONFIRMAR_ETIQUETA);
+  const bajo = conTexto(await textoDeFoto(chica));
+  if (alto && bajo) {
+    const { lectura, distintos } = combinarLecturas(leerEtiqueta(alto), leerEtiqueta(bajo));
+    return { lectura, texto: alto, distintos };
   }
-  if (local?.tipo !== "etiqueta" || lectura.tipo !== "etiqueta") return lectura;
-  const etiqueta = conDescripcion(local.etiqueta, lectura.etiqueta);
-  return etiqueta === lectura.etiqueta ? lectura : { ...local, etiqueta };
+  const uno = alto ?? bajo;
+  return uno ? { lectura: leerEtiqueta(uno), texto: uno, distintos: [] } : null;
 }
 
 /** Las fotos de la guía del día (suelen ser 3), TODAS en una sola consulta a la
@@ -101,25 +101,25 @@ export async function leerFotosGuia(fotos: Blob[], { ia }: { ia: boolean }): Pro
 
   if (!ia) {
     const texto = await textos();
-    const local = texto ? desdeTexto("guia", texto) : null;
+    const local = texto ? desdeTexto(texto) : null;
     if (local && suficiente(local)) return local;
     throw new ErrorLectura("No se pudo leer el texto de las fotos. Sácalas más derechas y con luz, o pega el texto.", 422);
   }
 
   const [lectura, texto] = await Promise.all([
-    pedirIA("guia", reducidas)
+    pedirIA(reducidas)
       .then(desdeIA)
       .catch((e: unknown) => (e instanceof Error ? e : new ErrorLectura("No se pudo leer la foto.", 0))),
     textos(),
   ]);
-  const local = texto ? desdeTexto("guia", texto) : null;
+  const local = texto ? desdeTexto(texto) : null;
   if (lectura instanceof Error) {
     if (local && suficiente(local)) return local;
     throw lectura;
   }
-  if (lectura.tipo === "guia" && local?.tipo === "guia" && faltanEnLaPrimera(lectura.guia, local.guia)) {
+  if (local && faltanEnLaPrimera(lectura.guia, local.guia)) {
     try {
-      return desdeIA(await pedirIA("guia", reducidas, { revisar: true }));
+      return desdeIA(await pedirIA(reducidas, { revisar: true }));
     } catch {
       return lectura;
     }
@@ -127,8 +127,8 @@ export async function leerFotosGuia(fotos: Blob[], { ia }: { ia: boolean }): Pro
   return lectura;
 }
 
-/** El texto de la foto: Cloud Vision y, si no está o no hay señal, el lector
- *  del teléfono. */
+/** El texto de la foto de la guía: Cloud Vision y, si no está o no hay señal, el
+ *  lector del teléfono. La etiqueta no pasa por aquí (spec 021). */
 async function textoDeLaFoto(reducida: Blob): Promise<string | null> {
   return (await textoEnLaNube(reducida)) ?? (await textoDeFoto(reducida));
 }
@@ -151,27 +151,24 @@ async function textoEnLaNube(reducida: Blob): Promise<string | null> {
   }
 }
 
-function desdeTexto(tipo: TipoLectura, texto: string): LecturaFoto {
-  if (tipo === "guia") return { tipo, guia: leerGuia(texto), fuente: "texto" };
-  return { tipo, etiqueta: { ...leerEtiqueta(texto), referencia: null }, fuente: "texto" };
+function desdeTexto(texto: string): LecturaFoto {
+  return { tipo: "guia", guia: leerGuia(texto), fuente: "texto" };
 }
 
-/** La guía sirve con una línea leída (el conductor revisa la lista y agrega otra
- *  foto); la etiqueta, con nombre, teléfono y pago. */
+/** La guía sirve con una línea leída: el conductor revisa la lista y agrega
+ *  otra foto. */
 function suficiente(l: LecturaFoto): boolean {
-  return l.tipo === "guia" ? l.guia.lineas.length > 0 : etiquetaCompleta(l.etiqueta);
+  return l.guia.lineas.length > 0;
 }
 
 function desdeIA(r: RespuestaLectura): LecturaFoto {
-  return r.tipo === "guia"
-    ? { tipo: "guia", guia: guiaDesdeIA([r.guia]), fuente: "ia" }
-    : { tipo: "etiqueta", etiqueta: r.etiqueta, fuente: "ia" };
+  return { tipo: "guia", guia: guiaDesdeIA([r.guia]), fuente: "ia" };
 }
 
-async function pedirIA(tipo: TipoLectura, fotos: Blob | Blob[], { revisar = false } = {}): Promise<RespuestaLectura> {
+async function pedirIA(fotos: Blob[], { revisar = false } = {}): Promise<RespuestaLectura> {
   const datos = new FormData();
-  datos.set("tipo", tipo);
-  for (const [i, f] of (Array.isArray(fotos) ? fotos : [fotos]).entries()) datos.append("imagen", f, `foto-${i + 1}.jpg`);
+  datos.set("tipo", "guia");
+  for (const [i, f] of fotos.entries()) datos.append("imagen", f, `foto-${i + 1}.jpg`);
   if (revisar) datos.set("revisar", "1");
 
   let respuesta: Response;

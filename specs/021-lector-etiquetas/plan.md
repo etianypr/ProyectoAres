@@ -128,6 +128,15 @@ La prueba es un fixture de ML Kit que falla aunque el diccionario esté completo
 Esto cambia `android/`, así que se pregunta antes: obliga a recompilar la APK y a subir
 `APK_VERSION_MINIMA`. Una APK vieja, que no trae `lineas`, sigue con el texto.
 
+**Lo que mostraron las etiquetas reales (2026-11-08), para la [028](../028-escaner-en-vivo/spec.md):**
+- ML Kit sí desordena los renglones: en la Starken normal «DIRECCIÓN» queda sola y su valor diez
+  renglones más abajo, y «001/001» queda lejos de «BULTO N°». El plan B (posiciones) arregla eso de
+  raíz y conviene hacerlo junto con el escáner en vivo, que ya toca `android/`.
+- Las palabras clave gastadas salen mal leídas («DESTINATAR?O», «Totai Monto oF»): hoy se toleran con
+  anclas difusas (`formatos.ts`).
+- El dueño prefiere precisión a rapidez: hoy se lee dos veces la misma foto (`combinar.ts`); en vivo,
+  lo natural es confirmar con varios cuadros.
+
 ## 6. Pruebas (constitución III)
 
 - **`pruebas/lectura-etiqueta.test.mjs`** (nueva, sin red). Cubre:

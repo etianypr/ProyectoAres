@@ -121,7 +121,6 @@ export function CargarGuia({
     setError(null);
     try {
       const r = await leerFotosGuia(archivos, { ia: lecturaIA });
-      if (r.tipo !== "guia") throw new Error("Respuesta inesperada.");
       const totalGuia = r.guia.totalDeclarado ?? total;
       const unida = armarGuia([...lineas, ...r.guia.lineas], folio ?? r.guia.folio, totalGuia);
       setLineas(unida.lineas);

@@ -41,7 +41,7 @@ comparten layout: el panel del jefe (escritorio) y la app del conductor (APK And
   ML Kit) y la web lo usa solo a través de `src/lib/nativo/`.
 - Proveedores: OpenRouteService (matriz y trazado), Google Geocoding (número de casa) y OSM/Nominatim
   (calles y lugares),
-  ML Kit en el teléfono y Google Cloud Vision (texto de fotos), Anthropic (guía, etiquetas,
+  ML Kit en el teléfono (la etiqueta) y Google Cloud Vision (texto de la guía), Anthropic (guía y
   direcciones sin ubicar) y Meta WhatsApp (en pausa). Mapbox salió en la spec 019. Las variables
   están en `.env.example`.
 - Pruebas con `node:test`, sin framework (`pruebas/`). Servidor MCP de datos geo en `mcp/`
@@ -205,6 +205,10 @@ y un agente no debe "corregir".
   se borran al cerrar el día. Al servidor sube solo el hecho (`encomienda_actividad`).
   - Nunca van al servidor, a los logs ni al repo (comentarios, commits, docs o pruebas). Las
     pruebas usan calles reales con números y nombres inventados.
+  - **Lo que identifica a la persona no sale del teléfono** (dueño, 2026-11-07): el nombre, el
+    teléfono y la foto de la etiqueta se leen con ML Kit, sin IA ni Cloud Vision (spec 021). La
+    guía sí va a la IA, porque no trae datos personales: solo la OF y el destino, sin nombre ni
+    teléfono. No se le suman campos de la etiqueta a nada que salga del teléfono.
   - Un store nuevo con esos datos se registra en `STORES_DEL_DIA`.
   - Un error de red nunca borra, y la `cola` no se toca.
 - **Proveedores y ley.** Todo proveedor que reciba datos de destinatarios figura en
@@ -256,12 +260,15 @@ y un agente no debe "corregir".
   - Al cargar el auto, un contador muestra los escaneados sobre el total. Los de la guía que quedan
     sin escanear son los que faltan, y hay que avisarle a Starken.
   - **Foto de la etiqueta.** Completa el destinatario, el teléfono (+569), el POR PAGAR con su monto
-    (nunca se supone $0) y la descripción del paquete. La lee un lector de texto y, con la IA
-    encendida, también la IA, que es la única que describe el paquete. Si no se puede leer, se pega
-    el texto o se eligen tipo, tamaño y color con tres toques.
-    *Pendiente (spec 021, en curso):* la foto se va a leer solo en el teléfono (ML Kit + un lector
-    especializado en los formatos de Starken), sin IA ni Cloud Vision, y la descripción va a ser con
-    tres toques. Sale US$0 y los datos de los destinatarios no salen del teléfono.
+    (nunca se supone $0; un «$0» impreso sin POR PAGAR sí es «no se cobra», dueño 2026-11-08). La lee ML Kit en el teléfono, sin IA ni red (spec 021), así que el botón
+    está solo en la APK; fuera de ella se pega el texto. **Manda la precisión sobre la rapidez**
+    (dueño, 2026-11-08): se lee dos veces, a 2400 y 1600 px; lo que no coincide queda por revisar, y
+    la dirección se compara con la guía solo si se lee clara («DIRECCIÓN: …» en su renglón). La descripción del paquete se elige con
+    tres toques (tipo, tamaño y color).
+    El lector (`lectura/etiqueta/`) separa la zona del destinatario de la del remitente y no cruza
+    renglones; un formato nuevo se suma en `formatos.ts` con su caso de prueba, sacado con
+    Diagnóstico → «Probar etiqueta» → «Copiar anonimizado».
+    *Pendiente (spec 021, en curso):* probarlo con etiquetas reales de cada formato (T002, T012).
     *Pendiente (spec 028, borrador):* después, al cargar el auto, una cámara de ARES que queda
     abierta y lee el código y el texto de cada etiqueta en vivo, sin toques ni fotos.
   - Si la foto trae una OF distinta de la del código, no se usa: es la etiqueta de otro paquete. Lo

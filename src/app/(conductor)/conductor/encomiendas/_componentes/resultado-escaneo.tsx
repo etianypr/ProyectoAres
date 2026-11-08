@@ -2,8 +2,8 @@
 
 // El resultado de escanear una etiqueta (spec 005): "PARADA n de N" y la
 // descripción en lo más grande, y lo que falta completar del pedido —con la foto
-// de la etiqueta (leída en el teléfono y, si no alcanza, con IA), pegando su
-// texto o con tres toques—.
+// de la etiqueta, pegando su texto o con tres toques—. La foto se lee solo en el
+// teléfono (spec 021), así que el botón está solo en la APK.
 
 import { useRef, useState } from "react";
 import { AlertTriangle, Camera, ClipboardPaste, Loader2 } from "lucide-react";
@@ -18,7 +18,7 @@ import {
   guardarPaquete,
   type ResultadoEscaneo,
 } from "@/lib/encomiendas/local/almacen";
-import { leerImagen } from "@/lib/encomiendas/local/lectura-cliente";
+import { leerFotoEtiqueta } from "@/lib/encomiendas/local/lectura-cliente";
 import { usarDireccionDeEtiqueta } from "@/lib/encomiendas/local/direccion-etiqueta";
 import { esApp } from "@/lib/nativo/entorno";
 import { comprimirFoto } from "@/lib/encomiendas/local/foto";
@@ -27,13 +27,11 @@ import { CamposPaquete, paqueteDe, type EstadoPaquete } from "./campos-paquete";
 /** Lo que se leyó y lo que falta completar del pedido escaneado. */
 export function Resultado({
   fecha,
-  lecturaIA,
   inicial: r,
   codigo,
   onCambio,
 }: {
   fecha: string;
-  lecturaIA: boolean;
   inicial: ResultadoEscaneo;
   codigo: CodigoEtiqueta;
   onCambio: (r: ResultadoEscaneo) => void;
@@ -58,16 +56,14 @@ export function Resultado({
   const faltanDatos = !p.nombre || !p.telefono || p.porPagar === null;
   const faltanBultos = p.bultos != null ? p.bultos - p.bultosEscaneados.length : 0;
 
-  /** La foto de la etiqueta → destinatario, teléfono, pago (y, si la leyó la IA,
-   *  la descripción). La foto queda como foto del paquete, solo en el teléfono. */
+  /** La foto de la etiqueta → destinatario, teléfono y pago, leídos en el
+   *  teléfono. La foto queda como foto del paquete, solo en el teléfono. */
   async function completarConFoto(archivo: File | undefined) {
     if (!archivo) return;
     setLeyendo(true);
     setErrorIA(null);
     try {
-      const respuesta = await leerImagen("etiqueta", archivo, { ia: lecturaIA });
-      if (respuesta.tipo !== "etiqueta") throw new Error("Respuesta inesperada.");
-      const { etiqueta } = respuesta;
+      const etiqueta = await leerFotoEtiqueta(archivo);
       // La OF manda la del código. Si la foto dice otra, es la etiqueta de otro
       // paquete: no se aplica (si no, este se llevaba el nombre y el teléfono de
       // otra persona; spec 017, E4).
@@ -88,7 +84,11 @@ export function Resultado({
         if (!nuevo.pedido.fotoId) await guardarFoto(nuevo.pedido.id, await comprimirFoto(archivo));
         const refrescado = await aplicarLecturaEtiqueta(fecha, { of: codigo.of, bulto: null });
         // El refresco no trae la dirección de la etiqueta: el aviso se conserva (E5).
-        onCambio(refrescado ? { ...refrescado, direccionDistinta: nuevo.direccionDistinta } : nuevo);
+        const final = refrescado ? { ...refrescado, direccionDistinta: nuevo.direccionDistinta } : nuevo;
+        onCambio(final);
+        // Sin IA nadie describe el paquete (spec 021): si no tiene descripción, el
+        // selector de tres toques queda abierto. Un toque menos (dueño, 2026-11-07).
+        if (!textoReferencia(final.pedido.referencia)) setDescribiendo(true);
       }
     } catch (e) {
       setErrorIA(e instanceof Error ? e.message : "No se pudo leer la foto.");
@@ -234,7 +234,7 @@ export function Resultado({
         className="hidden"
         onChange={(e) => void completarConFoto(e.target.files?.[0])}
       />
-      {(lecturaIA || esApp()) && faltanDatos ? (
+      {esApp() && faltanDatos ? (
         <button
           type="button"
           disabled={leyendo}
@@ -247,7 +247,7 @@ export function Resultado({
       ) : null}
       {/* Con los datos ya cargados se puede volver a leer: si la primera lectura
           salió mal, una foto de ESTA etiqueta la corrige (spec 017, E4). */}
-      {(lecturaIA || esApp()) && !faltanDatos ? (
+      {esApp() && !faltanDatos ? (
         <button
           type="button"
           disabled={leyendo}

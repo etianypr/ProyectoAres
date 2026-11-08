@@ -1,7 +1,8 @@
-// La lectura con IA (spec 005) contra un doble del fetch global: corre el
-// adaptador REAL (lib/encomiendas/lectura/servidor.ts) con el SDK de Anthropic, así
-// que se comprueba lo que de verdad sale —modelo, foto, salida estructurada,
+// La lectura con IA de la guía (spec 005) contra un doble del fetch global: corre
+// el adaptador REAL (lib/encomiendas/lectura/servidor.ts) con el SDK de Anthropic,
+// así que se comprueba lo que de verdad sale —modelo, foto, salida estructurada,
 // encabezados— y cómo se interpreta lo que vuelve. No gasta nada en la API.
+// La etiqueta ya no va a la IA (spec 021): ver etiqueta-en-el-telefono.test.mjs.
 import test from "node:test";
 import assert from "node:assert/strict";
 
@@ -36,105 +37,65 @@ function instalar(texto, { stop_reason = "end_turn" } = {}) {
 test.beforeEach(() => {
   process.env.ANTHROPIC_API_KEY = "sk-ant-api03-de-prueba";
   delete process.env.ANTHROPIC_WORKSPACE_ID;
-  delete process.env.LECTURA_MODELO;
+  delete process.env.LECTURA_MODELO_GUIA;
+  delete process.env.LECTURA_MODELO_GUIA_ALTA;
 });
 test.after(() => {
   globalThis.fetch = fetchOriginal;
 });
 
-const ETIQUETA = {
-  of: "200000002",
-  bulto: 1,
-  bultosTotal: 2,
-  destinatario: "JUAN PEREZ SOTO",
-  telefono: "9 1234 5678",
-  direccion: "PASAJE LOS PINOS 56, ARICA",
-  pago: "POR_PAGAR",
-  montoPorPagar: 12990,
-  descripcion: { tipo: "bolsa", tamano: "grande", color: "gris", nota: "cinta roja" },
-  dudosos: [],
-};
+const GUIA_VACIA = JSON.stringify({ folio: null, totalDeclarado: null, lineas: [] });
 
 test("sin clave, la lectura con IA está apagada", () => {
   delete process.env.ANTHROPIC_API_KEY;
   assert.equal(lecturaIADisponible(), false);
 });
 
-test("la etiqueta sale con la foto, el modelo y la salida estructurada", async () => {
-  instalar(JSON.stringify(ETIQUETA));
-  const r = await leerFoto("etiqueta", FOTO, "image/jpeg");
+test("la guía sale con la foto, el modelo y la salida estructurada", async () => {
+  instalar(GUIA_VACIA);
+  const r = await leerFoto(FOTO, "image/jpeg");
 
   assert.equal(pedidos.length, 1);
   const { url, headers, cuerpo } = pedidos[0];
   assert.match(url, /\/v1\/messages/);
   assert.equal(headers.authorization, "Bearer sk-ant-api03-de-prueba", "el SDK 1.x manda la clave como Bearer");
   assert.equal(headers["anthropic-workspace-id"], undefined, "sin workspace no se manda");
-  // Recibe todas las etiquetas (la descripción solo la hace la IA): va el barato.
-  assert.equal(cuerpo.model, "claude-haiku-4-5");
+  // El dueño eligió Opus para la guía (~US$3 al mes, 2026-10-25).
+  assert.equal(cuerpo.model, "claude-opus-5");
   assert.deepEqual(cuerpo.thinking, { type: "disabled" });
-  assert.equal(cuerpo.output_config.effort, undefined, "Haiku no acepta effort");
+  assert.equal(cuerpo.output_config.effort, "medium");
   assert.equal(cuerpo.output_config.format.type, "json_schema");
   const [imagen, texto] = cuerpo.messages[0].content;
   assert.deepEqual(imagen.source, { type: "base64", media_type: "image/jpeg", data: Buffer.from(FOTO).toString("base64") });
-  assert.match(texto.text, /No extraigas RUT, remitente, correo/);
-
-  assert.equal(r.tipo, "etiqueta");
-  assert.equal(r.etiqueta.telefono, "+56912345678", "el teléfono sale normalizado");
-  assert.deepEqual([r.etiqueta.porPagar, r.etiqueta.montoPorPagar], [true, 12990]);
-  assert.deepEqual(r.etiqueta.referencia, { tipo: "bolsa", tamano: "grande", color: "gris", nota: "cinta roja" });
-  assert.equal(r.etiqueta.ofImpresa, "200000002");
+  assert.match(texto.text, /CADA fila/);
+  // La guía no trae nombre ni teléfono, y no se le piden (spec 021).
+  assert.doesNotMatch(texto.text, /destinatario|tel[eé]fono/i);
+  assert.equal(r.tipo, "guia");
 });
 
-test("una clave de usuario manda el workspace; el modelo se cambia por variable", async () => {
+test("una clave de usuario manda el workspace", async () => {
   process.env.ANTHROPIC_WORKSPACE_ID = "wrkspc_prueba";
-  process.env.LECTURA_MODELO = "claude-sonnet-5";
-  instalar(JSON.stringify(ETIQUETA));
-  await leerFoto("etiqueta", FOTO, "image/jpeg");
+  instalar(GUIA_VACIA);
+  await leerFoto(FOTO, "image/jpeg");
   assert.equal(pedidos[0].headers["anthropic-workspace-id"], "wrkspc_prueba");
-  assert.equal(pedidos[0].cuerpo.model, "claude-sonnet-5");
 });
 
-test("con Haiku no se manda 'effort' (no lo acepta)", async () => {
-  process.env.LECTURA_MODELO = "claude-haiku-4-5";
-  instalar(JSON.stringify(ETIQUETA));
-  await leerFoto("etiqueta", FOTO, "image/jpeg");
-  assert.equal(pedidos[0].cuerpo.model, "claude-haiku-4-5");
-  assert.equal(pedidos[0].cuerpo.output_config.effort, undefined);
-  assert.equal(pedidos[0].cuerpo.output_config.format.type, "json_schema");
-});
-
-test("POR PAGAR sin monto queda por revisar, nunca en 0", async () => {
-  instalar(JSON.stringify({ ...ETIQUETA, montoPorPagar: 0 }));
-  const { etiqueta } = await leerFoto("etiqueta", FOTO, "image/jpeg");
-  assert.equal(etiqueta.montoPorPagar, null);
-  assert.ok(etiqueta.dudosos.includes("montoPorPagar"));
-});
-
-test("la guía va a Opus aunque las etiquetas usen Haiku; los dos modelos se cambian por variable", async () => {
-  // El dueño eligió Opus para la guía (~US$3 al mes, 2026-10-25).
-  process.env.LECTURA_MODELO = "claude-haiku-4-5";
-  instalar(JSON.stringify({ folio: null, totalDeclarado: null, lineas: [] }));
-  await leerFoto("guia", FOTO, "image/jpeg");
-  assert.equal(pedidos[0].cuerpo.model, "claude-opus-5");
-  assert.equal(pedidos[0].cuerpo.output_config.effort, "medium");
-  assert.match(pedidos[0].cuerpo.messages[0].content[1].text, /CADA fila/);
-
+test("los dos modelos de la guía se cambian por variable; con Haiku no se manda 'effort'", async () => {
   process.env.LECTURA_MODELO_GUIA = "claude-haiku-4-5";
   process.env.LECTURA_MODELO_GUIA_ALTA = "claude-sonnet-5";
-  instalar(JSON.stringify({ folio: null, totalDeclarado: null, lineas: [] }));
-  await leerFoto("guia", FOTO, "image/jpeg");
+  instalar(GUIA_VACIA);
+  await leerFoto(FOTO, "image/jpeg");
   assert.equal(pedidos[0].cuerpo.model, "claude-haiku-4-5");
   assert.equal(pedidos[0].cuerpo.output_config.effort, undefined, "Haiku no acepta effort");
-  instalar(JSON.stringify({ folio: null, totalDeclarado: null, lineas: [] }));
-  await leerFoto("guia", FOTO, "image/jpeg", { alta: true });
+  assert.equal(pedidos[0].cuerpo.output_config.format.type, "json_schema");
+  instalar(GUIA_VACIA);
+  await leerFoto(FOTO, "image/jpeg", { alta: true });
   assert.equal(pedidos[0].cuerpo.model, "claude-sonnet-5");
-  delete process.env.LECTURA_MODELO_GUIA;
-  delete process.env.LECTURA_MODELO_GUIA_ALTA;
 });
 
 test("la guía vuelve con sus líneas para juntarlas en el teléfono", async () => {
   instalar(JSON.stringify({ folio: "1000001", totalDeclarado: 2, lineas: [{ of: "200000001", destino: "CALLE 1 ." }] }));
-  const r = await leerFoto("guia", FOTO, "image/jpeg");
+  const r = await leerFoto(FOTO, "image/jpeg");
   assert.equal(r.tipo, "guia");
   assert.equal(r.guia.lineas.length, 1);
   assert.equal(pedidos[0].cuerpo.output_config.format.type, "json_schema");
@@ -142,16 +103,16 @@ test("la guía vuelve con sus líneas para juntarlas en el teléfono", async () 
 
 test("un rechazo o una respuesta sin forma es foto ilegible", async () => {
   instalar("", { stop_reason: "refusal" });
-  await assert.rejects(() => leerFoto("etiqueta", FOTO, "image/jpeg"), LecturaIlegible);
-  instalar(JSON.stringify(ETIQUETA), { stop_reason: "max_tokens" });
-  await assert.rejects(() => leerFoto("etiqueta", FOTO, "image/jpeg"), LecturaIlegible);
+  await assert.rejects(() => leerFoto(FOTO, "image/jpeg"), LecturaIlegible);
+  instalar(GUIA_VACIA, { stop_reason: "max_tokens" });
+  await assert.rejects(() => leerFoto(FOTO, "image/jpeg"), LecturaIlegible);
 });
 
 test("varias fotos de la guía van en UNA consulta, con la instrucción una sola vez", async () => {
   // Terreno 2026-10-27: las 3 fotos del día juntas; la IA une las filas
   // repetidas donde las fotos se superponen.
   instalar(JSON.stringify({ folio: "1000001", totalDeclarado: 3, lineas: [] }));
-  await leerFotos("guia", [1, 2, 3].map(() => ({ datos: FOTO, mediaType: "image/jpeg" })));
+  await leerFotos([1, 2, 3].map(() => ({ datos: FOTO, mediaType: "image/jpeg" })));
   assert.equal(pedidos.length, 1);
   const contenido = pedidos[0].cuerpo.messages[0].content;
   assert.deepEqual(contenido.map((c) => c.type), ["image", "image", "image", "text"]);
