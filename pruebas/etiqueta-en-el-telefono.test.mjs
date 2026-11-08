@@ -16,14 +16,17 @@ const TEXTO_ML_KIT = readFileSync(new URL("./fixtures/lectura/etiqueta-por-pagar
 // --- La APK simulada: Capacitor la reconoce por `androidBridge` al importarse.
 const alPlugin = [];
 let respuestaMlKit = { texto: TEXTO_ML_KIT };
+/** Si está, la segunda lectura (la foto chica) contesta esto. */
+let segundaLectura = null;
 globalThis.window = globalThis;
 globalThis.androidBridge = {};
+const mlKit = async (plugin, metodo, opciones) => {
+  alPlugin.push({ plugin, metodo, opciones });
+  return alPlugin.length === 2 && segundaLectura ? segundaLectura : respuestaMlKit;
+};
 globalThis.Capacitor = {
   PluginHeaders: [{ name: "Telefono", methods: [{ name: "leerTexto", rtype: "promise" }] }],
-  nativePromise: async (plugin, metodo, opciones) => {
-    alPlugin.push({ plugin, metodo, opciones });
-    return respuestaMlKit;
-  },
+  nativePromise: mlKit,
 };
 
 // --- Lo del navegador que usa la compresión de la foto (foto.ts).
@@ -59,6 +62,8 @@ test.beforeEach(() => {
   alPlugin.length = 0;
   salidas.length = 0;
   respuestaMlKit = { texto: TEXTO_ML_KIT };
+  segundaLectura = null;
+  globalThis.Capacitor.nativePromise = mlKit;
 });
 
 test("la APK simulada se reconoce como APK", () => {
@@ -69,8 +74,9 @@ test("la etiqueta se lee con ML Kit en el teléfono, sin ninguna consulta de red
   const e = await leerFotoEtiqueta(FOTO);
 
   assert.deepEqual(salidas, [], "la foto o su texto salieron a la red");
-  assert.equal(alPlugin.length, 1);
-  assert.deepEqual([alPlugin[0].plugin, alPlugin[0].metodo], ["Telefono", "leerTexto"]);
+  // Dos lecturas (la foto a 2400 y a 1600 px): manda la precisión (el dueño, 2026-11-08).
+  assert.equal(alPlugin.length, 2);
+  assert.ok(alPlugin.every((l) => l.plugin === "Telefono" && l.metodo === "leerTexto"));
 
   assert.equal(e.destinatario, "JUAN PEREZ SOTO");
   assert.equal(e.telefono, "+56912345678");
@@ -93,4 +99,12 @@ test("si el lector del teléfono falla, no hay respaldo en la nube", async () =>
   };
   await assert.rejects(() => leerFotoEtiqueta(FOTO), ErrorLectura);
   assert.deepEqual(salidas, [], "sin ML Kit, la foto no puede ir a Cloud Vision ni a la IA");
+});
+
+test("si las dos lecturas no coinciden en el teléfono, queda por revisar (sin red)", async () => {
+  segundaLectura = { texto: TEXTO_ML_KIT.replace("9 1234 5678", "9 1234 5679") };
+  const e = await leerFotoEtiqueta(FOTO);
+  assert.equal(e.telefono, "+56912345678", "manda la foto grande");
+  assert.ok(e.dudosos.includes("telefono"));
+  assert.deepEqual(salidas, []);
 });

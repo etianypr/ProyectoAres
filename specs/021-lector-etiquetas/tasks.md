@@ -5,16 +5,21 @@ la anterior.
 
 ## Preparación
 - [x] T001 Crear la rama `021-lector-etiquetas` desde `main`
-- [ ] T002 Pasar los ejemplos anonimizados del dueño a
+- [~] T002 Pasar los ejemplos anonimizados del dueño a
   `pruebas/fixtures/lectura/etiqueta-<formato>.txt`:
   - revisar uno por uno que no quede ningún dato real;
   - completar la tabla «Formatos conocidos» de `spec.md` y el diccionario de `formatos.ts`;
   - si los ejemplos son fotos, el texto sale de US3 (T009), así que hacer T009 antes.
+  - 2026-11-07: una Lion real (vista en una foto, sin copiar datos) → `etiqueta-lion-renglones.txt`,
+    armado a mano con valores inventados. Falta confirmar el orden real de ML Kit con «Copiar
+    anonimizado» y sumar los demás formatos.
+  - 2026-11-08: Starken normal real con «Copiar anonimizado» → `etiqueta-starken-normal.txt` (la OF, el
+    código, el teléfono y el RUT, cambiados por inventados). Falta el texto real de la Lion y una EXPRES.
 
 ## US2 · El lector (primero las pruebas)
-- [ ] T003 `pruebas/lectura-etiqueta.test.mjs` con los casos de `plan.md` §6: tienen que fallar
+- [x] T003 `pruebas/lectura-etiqueta.test.mjs` con los casos de `plan.md` §6: tienen que fallar
   contra el `leerEtiqueta` actual
-- [ ] T004 Escribir `src/lib/encomiendas/lectura/etiqueta/` (`index`, `formatos`, `normalizar`,
+- [x] T004 Escribir `src/lib/encomiendas/lectura/etiqueta/` (`index`, `formatos`, `normalizar`,
   `zonas`, `campos`) y borrar `etiqueta.ts`. T003 tiene que quedar en verde. Mover la sección de
   etiqueta de `pruebas/lectura.test.mjs`
 
@@ -35,8 +40,8 @@ la anterior.
   - **preguntar** antes de borrar `descripcion-etiqueta.test.mjs`
 
 ## US3 · Probar etiqueta (Diagnóstico)
-- [ ] T008 [P] `etiqueta/anonimizar.ts` y sus pruebas
-- [ ] T009 Diagnóstico → «Probar etiqueta»: foto → texto de ML Kit + lo que entendió el lector +
+- [x] T008 [P] `etiqueta/anonimizar.ts` y sus pruebas (`anonimizar-etiqueta.test.mjs`)
+- [x] T009 Diagnóstico → «Probar etiqueta»: foto → texto de ML Kit + lo que entendió el lector +
   «Copiar anonimizado». No guarda nada
 
 ## Cierre

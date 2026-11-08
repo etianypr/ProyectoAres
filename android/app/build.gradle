@@ -46,6 +46,13 @@ android {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
+        // La APK de prueba (contra el PC, skill apk-local) se instala AL LADO de la
+        // firmada: otro paquete, así no hay que desinstalar la del conductor ni
+        // perder su día ni su cola (dueño, 2026-11-07). La firmada no cambia.
+        debug {
+            applicationIdSuffix ".debug"
+            versionNameSuffix "-prueba"
+        }
     }
 }
 

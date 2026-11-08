@@ -16,8 +16,9 @@
 // Sin nada que leer lanza ErrorLectura y la pantalla ofrece pegar el texto; la
 // parada ya se sabe por el código de barras.
 
-import { BYTES_MAXIMOS_FOTO, LADO_MAXIMO, type RespuestaLectura } from "@/lib/encomiendas/lectura/contrato";
+import { BYTES_MAXIMOS_FOTO, LADO_CONFIRMAR_ETIQUETA, LADO_MAXIMO, type RespuestaLectura } from "@/lib/encomiendas/lectura/contrato";
 import { leerEtiqueta, type LecturaEtiqueta } from "@/lib/encomiendas/lectura/etiqueta";
+import { combinarLecturas } from "@/lib/encomiendas/lectura/etiqueta/combinar";
 import { faltanEnLaPrimera, guiaDesdeIA, leerGuia, type GuiaLeida } from "@/lib/encomiendas/lectura/guia";
 import { textoDeFoto } from "@/lib/nativo/telefono";
 import { tope } from "@/lib/comun/tope";
@@ -44,11 +45,34 @@ export type LecturaFoto = { tipo: "guia"; guia: GuiaLeida; fuente: FuenteLectura
 /** La foto de la etiqueta, leída SOLO en el teléfono (ver la cabecera). Fuera
  *  de la APK no hay lector: la pantalla no ofrece la foto y se pega el texto. */
 export async function leerFotoEtiqueta(foto: Blob): Promise<LecturaEtiqueta> {
-  const texto = await textoDeFoto(await comprimirFoto(foto, LADO_MAXIMO.etiqueta));
-  if (!texto?.trim()) {
+  const leida = await leerFotoEtiquetaDoble(foto);
+  if (!leida) {
     throw new ErrorLectura("No se pudo leer el texto de la foto. Saca otra más derecha y con luz, o pega el texto.", 422);
   }
-  return leerEtiqueta(texto);
+  return leida.lectura;
+}
+
+/** Lo que dieron las dos lecturas de la etiqueta: el resultado, el texto de la
+ *  grande (Diagnóstico → «Probar etiqueta» lo muestra) y los campos en que no
+ *  coincidieron. */
+export type LecturaDoble = { lectura: LecturaEtiqueta; texto: string; distintos: string[] };
+
+/** ML Kit lee la foto dos veces, a 2400 y a 1600 px, y se juntan
+ *  (`combinarLecturas`): manda la precisión sobre la rapidez (el dueño,
+ *  2026-11-08). Tarda ~3 s en vez de ~1,5. Las fotos se achican de a una: un
+ *  teléfono barato se queda sin memoria (spec 017, E10). null si no salió texto. */
+export async function leerFotoEtiquetaDoble(foto: Blob): Promise<LecturaDoble | null> {
+  const conTexto = (t: string | null) => (t?.trim() ? t : null);
+  const grande = await comprimirFoto(foto, LADO_MAXIMO.etiqueta);
+  const alto = conTexto(await textoDeFoto(grande));
+  const chica = await comprimirFoto(grande, LADO_CONFIRMAR_ETIQUETA);
+  const bajo = conTexto(await textoDeFoto(chica));
+  if (alto && bajo) {
+    const { lectura, distintos } = combinarLecturas(leerEtiqueta(alto), leerEtiqueta(bajo));
+    return { lectura, texto: alto, distintos };
+  }
+  const uno = alto ?? bajo;
+  return uno ? { lectura: leerEtiqueta(uno), texto: uno, distintos: [] } : null;
 }
 
 /** Las fotos de la guía del día (suelen ser 3), TODAS en una sola consulta a la

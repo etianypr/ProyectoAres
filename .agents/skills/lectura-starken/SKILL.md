@@ -35,7 +35,9 @@ romper lo que ya se aprendió en terreno. Las reglas vienen de `AGENTS.md` y de 
   - Una OF de 7 dígitos bloqueó la guía (terreno 2026-10-28), y "máximo 9" tampoco era la solución.
   - La de otro largo lleva ⚠ (`ofDistinta`, `LARGO_OF = 9`) y **nunca bloquea**.
   - Solo frena «Crear N pedidos» una línea sin dígitos de OF o sin destino.
-- **POR PAGAR nunca se supone $0** (FR-015, SC-006: es plata del conductor).
+- **POR PAGAR nunca se supone $0** (FR-015, SC-006: es plata del conductor). Otra cosa es un «$0»
+  impreso en «Total Monto O.F.» sin POR PAGAR: es «no se cobra» (dueño, 2026-11-08; la EXPRES no trae
+  CONTADO). `totalImpreso` (0 incluido) y `monto` (nunca 0) están separados en `etiqueta/campos.ts`.
   - `porPagar` es `true` solo si dice POR PAGAR. CONTADO y CTA CTE dan `false`, aunque traigan monto.
   - Sin la palabra de pago queda `null` y se marca como dudoso.
   - El monto sale de «Total Monto O.F.» (también «0.F.», como lo lee ML Kit). Si es 0 o no está, queda

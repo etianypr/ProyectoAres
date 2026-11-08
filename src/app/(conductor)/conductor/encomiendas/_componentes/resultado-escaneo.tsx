@@ -84,7 +84,11 @@ export function Resultado({
         if (!nuevo.pedido.fotoId) await guardarFoto(nuevo.pedido.id, await comprimirFoto(archivo));
         const refrescado = await aplicarLecturaEtiqueta(fecha, { of: codigo.of, bulto: null });
         // El refresco no trae la dirección de la etiqueta: el aviso se conserva (E5).
-        onCambio(refrescado ? { ...refrescado, direccionDistinta: nuevo.direccionDistinta } : nuevo);
+        const final = refrescado ? { ...refrescado, direccionDistinta: nuevo.direccionDistinta } : nuevo;
+        onCambio(final);
+        // Sin IA nadie describe el paquete (spec 021): si no tiene descripción, el
+        // selector de tres toques queda abierto. Un toque menos (dueño, 2026-11-07).
+        if (!textoReferencia(final.pedido.referencia)) setDescribiendo(true);
       }
     } catch (e) {
       setErrorIA(e instanceof Error ? e.message : "No se pudo leer la foto.");

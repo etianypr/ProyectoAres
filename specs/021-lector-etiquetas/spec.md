@@ -47,6 +47,9 @@ datos inventados.
 | Starken EXPRES | "starken", "EXPRES", O.F. impresa | POR PAGAR + "Total Monto O.F." | `etiqueta-por-pagar.txt` |
 | Starken | "starken" | CONTADO (trae monto, pero no se cobra) | `etiqueta-contado.txt` |
 | Lion × Starken | "LION x starken" | CTA CTE | `etiqueta-lion.txt` |
+| Lion × Starken en renglones (terreno 2026-11-07) | «LION», nombre y dirección partidos con guion, «Tel:» del remitente arriba, «OF» sola | CTA CTE | `etiqueta-lion-renglones.txt` |
+| Starken EXPRES (real, anonimizada, 2026-11-08) | «EXPRES», código con 9210…; sin POR PAGAR ni CONTADO; «Totai Monto oF» y «$0» abajo | «$0» impreso → no se cobra (dueño) | `etiqueta-expres.txt` |
+| Starken normal (real, anonimizada, 2026-11-08) | «starken», «NORMAL»; ML Kit mezcla los renglones: «DIRECCIÓN» sola y su valor abajo, «001/001» suelto; el remitente trae su dirección y teléfono; «CTA. CTE.» casilla vacía; la OF con comas | CONTADO | `etiqueta-starken-normal.txt` |
 | *Por completar con los ejemplos del dueño (T002)* | | | |
 
 ## US3 (P2) · Ver qué leyó, sin mandar nada
@@ -81,8 +84,10 @@ Las de `AGENTS.md`, «Escaneo de la etiqueta de Starken», siguen igual. Lo nuev
   toma el teléfono del remitente.
 - **SC-004**: en terreno, ≥ 90 % de ~50 etiquetas reales quedan con nombre, teléfono y pago sin
   pegar ni escribir (el mismo umbral que el SC-005 de la 005; se mide junto con su T030).
-- **SC-005**: en la APK, la lectura de una etiqueta tarda ≤ 2 s (ML Kit midió 1,2 s en la 005,
-  T032).
+- **SC-005**: en la APK, la lectura de una etiqueta tarda ≤ 4 s. Antes decía ≤ 2 s; el dueño
+  (2026-11-08): «es más importante que se demore más en procesar y que todos los datos importantes
+  estén bien». Por eso la foto se lee dos veces (2400 y 1600 px) y lo que no coincide queda por
+  revisar.
 
 ## Supuestos
 

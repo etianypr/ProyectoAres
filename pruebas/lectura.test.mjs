@@ -6,7 +6,6 @@ import { readFileSync } from "node:fs";
 
 const { leerCodigoEtiqueta } = await import("@/lib/encomiendas/lectura/codigo-barras");
 const { leerGuia, limpiarDestino } = await import("@/lib/encomiendas/lectura/guia");
-const { etiquetaCompleta, leerEtiqueta, pagoDe } = await import("@/lib/encomiendas/lectura/etiqueta");
 
 const fixture = (n) => readFileSync(new URL(`./fixtures/lectura/${n}`, import.meta.url), "utf8");
 
@@ -83,100 +82,10 @@ test("la basura del destino se va", () => {
   assert.equal(limpiarDestino("CALLE 5 NO. 12"), "CALLE 5 NO. 12", "un número distinto no se toca");
 });
 
-// ------------------------------------------------------------------ etiqueta
+// La etiqueta tiene su archivo: pruebas/lectura-etiqueta.test.mjs (spec 021).
 
-test("etiqueta POR PAGAR: destinatario, teléfono +569, monto y bultos", () => {
-  const e = leerEtiqueta(fixture("etiqueta-por-pagar.txt"));
-  assert.deepEqual(
-    {
-      ofImpresa: e.ofImpresa,
-      destinatario: e.destinatario,
-      telefono: e.telefono,
-      direccion: e.direccion,
-      porPagar: e.porPagar,
-      montoPorPagar: e.montoPorPagar,
-      bulto: e.bulto,
-      bultosTotal: e.bultosTotal,
-    },
-    {
-      ofImpresa: "200000002",
-      destinatario: "JUAN PEREZ SOTO",
-      telefono: "+56912345678",
-      direccion: "PASAJE LOS PINOS 56, ARICA",
-      porPagar: true,
-      montoPorPagar: 12990,
-      bulto: 1,
-      bultosTotal: 2,
-    },
-  );
-  assert.deepEqual(e.dudosos, []);
-});
-
-test("etiqueta CONTADO queda pagada aunque traiga monto", () => {
-  const e = leerEtiqueta(fixture("etiqueta-contado.txt"));
-  assert.equal(e.porPagar, false);
-  assert.equal(e.montoPorPagar, null, "no hay nada que cobrar");
-  assert.equal(e.telefono, "+56987654321");
-});
-
-test("Lion × Starken con cuenta corriente queda pagada", () => {
-  const e = leerEtiqueta(fixture("etiqueta-lion.txt"));
-  assert.equal(e.porPagar, false);
-  assert.equal(e.telefono, "+56987654321");
-  assert.equal(e.destinatario, "PEDRO ROJAS");
-});
-
-test("POR PAGAR sin monto queda por revisar, nunca en 0", () => {
-  const e = leerEtiqueta("DESTINATARIO: ANA\nTel. 912345678\nDIRECCIÓN: CALLE 1\nPOR PAGAR\nBulto N° 001/001");
-  assert.equal(e.porPagar, true);
-  assert.equal(e.montoPorPagar, null);
-  assert.ok(e.dudosos.includes("montoPorPagar"));
-});
-
-test("sin palabra de pago, el pago queda por revisar", () => {
-  assert.equal(pagoDe("DESTINATARIO: ANA"), "DESCONOCIDO");
-  const e = leerEtiqueta("DESTINATARIO: ANA");
-  assert.equal(e.porPagar, null);
-  assert.ok(e.dudosos.includes("pago"));
-  assert.ok(e.dudosos.includes("telefono"));
-});
-
-test("no se extrae nada que no haga falta para repartir", () => {
-  const e = leerEtiqueta(fixture("etiqueta-por-pagar.txt"));
-  const texto = JSON.stringify(e);
-  for (const sobra of ["11.111.111-1", "TIENDA DE PRUEBA", "tienda@ejemplo.cl"]) {
-    assert.equal(texto.includes(sobra), false, sobra);
-  }
-});
-
-// El teléfono lee el texto de la foto (ML Kit) y solo si no alcanza se paga la IA.
-test("con nombre, teléfono y pago la etiqueta está completa: no hace falta la IA", () => {
-  assert.equal(etiquetaCompleta(leerEtiqueta(fixture("etiqueta-por-pagar.txt"))), true);
-  assert.equal(etiquetaCompleta(leerEtiqueta(fixture("etiqueta-contado.txt"))), true);
-});
-
-test("sin teléfono, sin pago o POR PAGAR sin monto, la etiqueta no está completa", () => {
-  assert.equal(etiquetaCompleta(leerEtiqueta("DESTINATARIO: ANA\nDIRECCIÓN: CALLE 1\nCONTADO")), false);
-  assert.equal(etiquetaCompleta(leerEtiqueta("DESTINATARIO: ANA\nTel. 912345678")), false);
-  assert.equal(etiquetaCompleta(leerEtiqueta("DESTINATARIO: ANA\nTel. 912345678\nPOR PAGAR")), false);
-});
-
-test("el texto leído en el teléfono, con cada valor en el renglón siguiente, también sirve", () => {
-  // ML Kit separa en bloques: la palabra clave y su valor pueden quedar en
-  // renglones distintos.
-  const e = leerEtiqueta("DESTINATARIO:\nJUAN PEREZ SOTO\nTel.\n9 1234 5678\nPOR PAGAR\nTotal Monto O.F. $\n12.990");
-  assert.equal(e.destinatario, "JUAN PEREZ SOTO");
-  assert.equal(e.telefono, "+56912345678");
-  assert.equal(e.montoPorPagar, 12990);
-  assert.equal(etiquetaCompleta(e), true);
-});
-
-test("la O de 'O.F.' leída como cero no pierde la OF ni el monto", () => {
-  // Así lo leyó ML Kit en el teléfono (2026-10-24, etiqueta inventada).
-  const e = leerEtiqueta("DESTINATARIO: JUAN PEREZ SOTO\nTel. 9 1234 5678\nPOR PAGAR\n0.F. 200000002\nTotal Monto 0.F. $ 12.990");
-  assert.equal(e.ofImpresa, "200000002");
-  assert.equal(e.montoPorPagar, 12990);
-  assert.equal(etiquetaCompleta(e), true);
+test("la O de 'OF' leída como cero no pierde las líneas de la guía", () => {
+  // Así lo leyó ML Kit en el teléfono (2026-10-24, guía inventada).
   const g = leerGuia("0F:200000001 DESTINO: CALLE UNO 100\nOF:200000002 DESTINO : CALLE DOS 200\nMONTO NETO: 2");
   assert.deepEqual(g.lineas.map((l) => l.of), ["200000001", "200000002"]);
 });

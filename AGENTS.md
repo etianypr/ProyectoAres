@@ -260,11 +260,15 @@ y un agente no debe "corregir".
   - Al cargar el auto, un contador muestra los escaneados sobre el total. Los de la guía que quedan
     sin escanear son los que faltan, y hay que avisarle a Starken.
   - **Foto de la etiqueta.** Completa el destinatario, el teléfono (+569), el POR PAGAR con su monto
-    (nunca se supone $0). La lee ML Kit en el teléfono, sin IA ni red (spec 021), así que el botón
-    está solo en la APK; fuera de ella se pega el texto. La descripción del paquete se elige con
+    (nunca se supone $0; un «$0» impreso sin POR PAGAR sí es «no se cobra», dueño 2026-11-08). La lee ML Kit en el teléfono, sin IA ni red (spec 021), así que el botón
+    está solo en la APK; fuera de ella se pega el texto. **Manda la precisión sobre la rapidez**
+    (dueño, 2026-11-08): se lee dos veces, a 2400 y 1600 px; lo que no coincide queda por revisar, y
+    la dirección se compara con la guía solo si se lee clara («DIRECCIÓN: …» en su renglón). La descripción del paquete se elige con
     tres toques (tipo, tamaño y color).
-    *Pendiente (spec 021, en curso):* un lector especializado en los formatos de Starken, que
-    separe al destinatario del remitente (hoy toma el primer «Tel.»).
+    El lector (`lectura/etiqueta/`) separa la zona del destinatario de la del remitente y no cruza
+    renglones; un formato nuevo se suma en `formatos.ts` con su caso de prueba, sacado con
+    Diagnóstico → «Probar etiqueta» → «Copiar anonimizado».
+    *Pendiente (spec 021, en curso):* probarlo con etiquetas reales de cada formato (T002, T012).
     *Pendiente (spec 028, borrador):* después, al cargar el auto, una cámara de ARES que queda
     abierta y lee el código y el texto de cada etiqueta en vivo, sin toques ni fotos.
   - Si la foto trae una OF distinta de la del código, no se usa: es la etiqueta de otro paquete. Lo
