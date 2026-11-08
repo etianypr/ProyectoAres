@@ -98,3 +98,29 @@ test("el GPS simulado es solo del modo prueba, y parte en la central", async () 
   const lectura = await new Promise((ok) => gps.fuenteUbicacion().getCurrentPosition(ok));
   assert.deepEqual([lectura.coords.latitude, lectura.coords.longitude], [-18.46734, -70.30377]);
 });
+
+// La APK de prueba (versión «…-prueba», al lado de la firmada) entra siempre en
+// modo prueba: el 2026-11-08 se usó con el modo apagado y los conteos del día de
+// prueba subieron a la base. Entrar solo prende la marca; no borra nada, y salir
+// (lo único que borra) queda bloqueado ahí (el dueño: «no elimines nada porque
+// estamos en prueba»).
+test("la APK de prueba prende el modo prueba sola, sin borrar nada, aunque haya cola", async () => {
+  await idb.escribir([idb.STORES.cola], ({ guardar }) => guardar(idb.STORES.cola, evento("e-1")));
+  await prueba.asegurarModoPrueba("1.6.0-prueba");
+  assert.equal(prueba.enModoPrueba(), true);
+  assert.equal((await idb.leerTodos(idb.STORES.cola)).length, 1, "la cola queda como estaba");
+});
+
+test("la APK firmada no cambia: el modo prueba lo decide el conductor", async () => {
+  await prueba.asegurarModoPrueba("1.6.0");
+  await prueba.asegurarModoPrueba(null);
+  assert.equal(prueba.enModoPrueba(), false);
+});
+
+test("en la APK de prueba no se puede salir del modo prueba (salir borra)", async () => {
+  await prueba.asegurarModoPrueba("1.6.0-prueba");
+  await almacen.guardarPedido({ nombre: "Ana", telefono: "", direccion: "Calle 1", lat: null, lng: null, notas: null, of: "1" }, HOY);
+  await assert.rejects(() => prueba.salirDelModoPrueba("1.6.0-prueba"), /siempre está en modo prueba/);
+  assert.equal(prueba.enModoPrueba(), true);
+  assert.equal((await idb.leerTodos(idb.STORES.pedidos)).length, 1, "no se borró nada");
+});

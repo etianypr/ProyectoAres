@@ -1,0 +1,15 @@
+// Una APK anterior a la 1.6.0 no trae el plugin `EscanerVivo` (spec 028): el
+// escáner en vivo no se ofrece y queda el escaneo de siempre. Va en su propio
+// archivo porque Capacitor decide qué plugins hay una sola vez, al cargar.
+import test from "node:test";
+import assert from "node:assert/strict";
+
+globalThis.window = globalThis;
+globalThis.androidBridge = {};
+globalThis.Capacitor = { PluginHeaders: [{ name: "Telefono", methods: [] }] };
+
+const { escanerVivoDisponible } = await import("@/lib/nativo/escaner-vivo");
+
+test("con una APK sin el plugin, el escáner en vivo no se ofrece", () => {
+  assert.equal(escanerVivoDisponible(), false);
+});

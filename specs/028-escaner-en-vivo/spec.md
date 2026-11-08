@@ -1,7 +1,7 @@
 # Spec 028 · Escáner de etiquetas en vivo
 
-**Creada**: 2026-11-07 · **Estado**: borrador · **Rama**: `028-escaner-en-vivo` (desde `main`,
-después de la 021) · **Pedido del dueño**: "que no sean fotos sino un escáner especializado […]
+**Creada**: 2026-11-07 · **Estado**: en curso · **Rama**: `028-escaner-en-vivo` (sale de la 021;
+pasan juntas a `main`) · **Pedido del dueño**: "que no sean fotos sino un escáner especializado […]
 porque no quiero que se envíen fotos a anthropic por temas legales de privacidad".
 
 Monedas: **toques** y **privacidad**.
@@ -104,6 +104,9 @@ para medir:
 - si la letra chica se lee con la resolución de análisis (1280×720 o 1920×1080);
 - cuánto tarda cada cuadro.
 
+**Medido (2026-11-08):** en el V2430 con las tres etiquetas reales, el dueño: «quedó muy bueno».
+En vivo alcanza; el plan B queda de respaldo.
+
 Si el texto no se lee en vivo, hay un **plan B**: el código en vivo y, apenas aparece, una captura
 en alta resolución automática para el texto. Sigue sin toques y en el teléfono.
 
@@ -117,13 +120,19 @@ en alta resolución automática para el texto. Sigue sin toques y en el teléfon
   una prueba estática).
 - **SC-005**: un bulto suma una vez aunque se vea en 30 cuadros.
 
-## Abierto
+## Decidido (2026-11-08)
 
-- ¿Se guarda un cuadro como foto del paquete, solo en el teléfono? Hoy la foto de la etiqueta queda
-  como foto del paquete.
-- ¿Linterna, para el galpón o la noche?
-- ¿Sonido además de vibrar?
-- Desde la parada (cuando falta el teléfono), ¿el mismo escáner de a una etiqueta?
+- Se guarda una foto del paquete: una captura en alta, automática y sin toques, cuando la etiqueta
+  queda leída (solo en el teléfono; se borra con el día).
+- Botón de linterna y vibración corta. Sonidos «Marimba» (el dueño, 2026-11-08, elegida en
+  https://claude.ai/artifact/UUubHvpkZGVhv1PmJKkPAb): un tic que sube por cada dato firme (do6 · mi6
+  · sol6), el de pedido leído al quedar completa (llega a do7) y dos notas que bajan con un ⚠. Sin
+  racha: la descartó el dueño. Enfocado en que escanear dé gusto.
+- Desde la parada (cuando falta el teléfono) sigue la foto de hoy; el escáner en vivo es para
+  cargar el auto.
+- Manda la precisión sobre la rapidez (el dueño, 2026-11-08): mejor tardar más y que los datos
+  estén bien.
+- El dueño prueba el escaneo completo con esta feature; la 021 pasa a `main` junto con ella.
 
 ## Fuera de alcance
 

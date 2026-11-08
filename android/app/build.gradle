@@ -71,6 +71,13 @@ dependencies {
     // Texto de la foto de la guía y de la etiqueta, en el teléfono (spec 005).
     // Modelo latino incluido en la APK (~4 MB): funciona sin señal desde el primer uso.
     implementation "com.google.mlkit:text-recognition:16.0.1"
+    // Spec 028: el escáner en vivo. Las mismas versiones que ya trae
+    // @capacitor-mlkit/barcode-scanning: la APK no suma librerías nuevas.
+    implementation "com.google.mlkit:barcode-scanning:17.3.0"
+    implementation "androidx.camera:camera-core:1.5.2"
+    implementation "androidx.camera:camera-camera2:1.5.2"
+    implementation "androidx.camera:camera-lifecycle:1.5.2"
+    implementation "androidx.camera:camera-view:1.5.2"
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"

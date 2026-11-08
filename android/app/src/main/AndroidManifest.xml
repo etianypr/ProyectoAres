@@ -74,4 +74,11 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <!-- El escáner de etiquetas en vivo (spec 028): la cámara de ARES al cargar el
+         auto. Se pide la primera vez que se abre. El escáner de Google y la cámara
+         del sistema no lo necesitaban. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Una vibración corta cuando la etiqueta queda leída (spec 028). -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
 </manifest>

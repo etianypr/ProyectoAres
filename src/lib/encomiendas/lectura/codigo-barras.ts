@@ -22,6 +22,21 @@ export type CodigoEtiqueta = {
 const LARGO_CODIGO = 26;
 const PREFIJO = "92";
 
+/** De los códigos que ve la cámara (spec 028), el de Starken: 26 dígitos que
+ *  empiezan con 92. Otro código de la caja (un QR, el de Mercado Libre) no se toma
+ *  como OF: la OF solo sale del código de Starken o de lo que escribe el conductor,
+ *  y un número cualquiera enlazaría otro paquete. */
+export function codigoEnLaFoto(codigos: string[]): CodigoEtiqueta | null {
+  for (const valor of codigos) {
+    const d = valor.replace(/\D/g, "");
+    if (d.length === LARGO_CODIGO && d.startsWith(PREFIJO)) {
+      const codigo = leerCodigoEtiqueta(d);
+      if (codigo) return codigo;
+    }
+  }
+  return null;
+}
+
 /** Lo que leyó el escáner (o escribió el conductor) → OF y bulto, o null si no
  *  es un código de etiqueta. Acepta también la OF escrita a mano. */
 export function leerCodigoEtiqueta(texto: string): CodigoEtiqueta | null {

@@ -9,7 +9,7 @@ módulos en detalle: `docs/CLASES.md`; producto y reglas: `AGENTS.md`. Estado: c
 flowchart LR
   subgraph TEL["Teléfono · APK Android o navegador · /conductor"]
     UI["pantalla.tsx + hooks"] --> LOCAL["lib/encomiendas/local"] --> IDB[("IndexedDB<br/>pedidos · rutas · cola · dias · fotos")]
-    UI --> NAT["lib/nativo"] --> PLUG["android/ · plugin Telefono<br/>llamar · pantalla<br/>texto de fotos (ML Kit) · escáner de Google<br/>plugin Burbuja: la parada sobre Google Maps (spec 020)"]
+    UI --> NAT["lib/nativo"] --> PLUG["android/ · plugin Telefono<br/>llamar · pantalla<br/>texto de fotos (ML Kit) · escáner de Google<br/>plugin Burbuja: la parada sobre Google Maps (spec 020)<br/>plugin EscanerVivo: cámara debajo de la WebView + ML Kit por cuadro (spec 028)"]
     PLUG -- "intent: solo el punto" --> GMAPS["app Google Maps (guía)"]
     SW["sw.js · caché de /conductor"]
   end
@@ -63,7 +63,7 @@ de OpenStreetMap con `npm run calles`; Overpass solo recibe el recuadro). Flujo:
 
 **APK (spec 015).** Capacitor abre la web publicada (`capacitor.config.ts`, `server.url` =
 `…vercel.app/conductor`): cada deploy le llega solo. Lo nativo está en `android/` (plugin propio
-`Telefono` y `Burbuja` en Java, y el escáner de Google, ML Kit) y la web lo usa solo a través de
+`Telefono`, `Burbuja` y `EscanerVivo` en Java, y el escáner de Google, ML Kit) y la web lo usa solo a través de
 `src/lib/nativo/`, que fuera de la APK cae a lo de la web (`tel:`,
 Screen Wake Lock, Google Maps por enlace). ARES no guía (spec 020): los km de la parada abren la
 app Google Maps y encima queda la burbuja (`BurbujaServicio`, servicio en primer plano
@@ -217,7 +217,7 @@ src/
 │   ├── rutas/orden-paradas/      exacto · construccion · mejora · perturbacion · descarga · con-horarios · sin-congelar
 │   ├── whatsapp/                 meta · correlacion
 │   ├── conductores/              vencimientos
-│   └── nativo/                   entorno · telefono · llamada · escaner · version (APK) · mapas · burbuja (la parada sobre Google Maps, spec 020)
+│   └── nativo/                   entorno · telefono · llamada · escaner · escaner-vivo (cámara en vivo, spec 028) · version (APK) · mapas · burbuja (la parada sobre Google Maps, spec 020)
 └── types/db.ts                   tablas + `Database` para supabase-js (valida pruebas/esquema.mjs)
 public/sw.js                      caché de /conductor para abrir sin señal
 capacitor.config.ts · capacitor/www/   APK: URL que abre · página sin señal

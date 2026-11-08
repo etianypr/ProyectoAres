@@ -12,8 +12,9 @@ import { cn } from "@/lib/comun/utils";
 import { esApp, versionInstalada } from "@/lib/nativo/entorno";
 import { permisosTelefono } from "@/lib/nativo/telefono";
 import { escanearCodigo } from "@/lib/nativo/escaner";
-import { entrarAlModoPrueba, salirDelModoPrueba, useModoPrueba } from "@/lib/encomiendas/local/modo-prueba";
+import { entrarAlModoPrueba, esApkDePrueba, salirDelModoPrueba, useModoPrueba } from "@/lib/encomiendas/local/modo-prueba";
 import { fijarConfigGps, useConfigGps, VELOCIDADES } from "@/lib/encomiendas/local/gps-simulado";
+import { ProbarEscanerVivo } from "./_componentes/probar-escaner-vivo";
 import { ProbarEtiqueta } from "./_componentes/probar-etiqueta";
 
 type Estado = "si" | "no" | "pendiente";
@@ -79,7 +80,7 @@ export default function DiagnosticoPage() {
   async function cambiarModoPrueba() {
     setErrorPrueba(null);
     try {
-      if (modoPrueba) await salirDelModoPrueba();
+      if (modoPrueba) await salirDelModoPrueba(info?.version ?? null);
       else await entrarAlModoPrueba();
     } catch (e) {
       setErrorPrueba(e instanceof Error ? e.message : "No se pudo cambiar el modo prueba.");
@@ -135,6 +136,8 @@ export default function DiagnosticoPage() {
 
       <ProbarEtiqueta enApp={info?.app ?? false} />
 
+      <ProbarEscanerVivo enApp={info?.app ?? false} />
+
       {/* Modo prueba (terreno 2026-10-28): ver lib/encomiendas/local/modo-prueba.ts. */}
       <section className="space-y-2 rounded-2xl bg-card p-4 shadow-soft">
         <div className="flex items-center gap-2">
@@ -186,7 +189,9 @@ export default function DiagnosticoPage() {
             ) : null}
           </div>
         ) : null}
-        {confirmando ? (
+        {esApkDePrueba(info?.version) ? (
+          <p className="text-xs font-semibold text-warn">La app de prueba siempre está en modo prueba.</p>
+        ) : confirmando ? (
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
