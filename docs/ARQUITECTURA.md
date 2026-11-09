@@ -8,7 +8,7 @@ módulos en detalle: `docs/CLASES.md`; producto y reglas: `AGENTS.md`. Estado: c
 ```mermaid
 flowchart LR
   subgraph TEL["Teléfono · APK Android o navegador · /conductor"]
-    UI["pantalla.tsx + hooks"] --> LOCAL["lib/encomiendas/local"] --> IDB[("IndexedDB<br/>pedidos · rutas · cola · dias · fotos")]
+    UI["pantalla.tsx + hooks"] --> LOCAL["lib/encomiendas/local"] --> IDB[("IndexedDB<br/>pedidos · rutas · cola · dias · fotos · propuestas")]
     UI --> NAT["lib/nativo"] --> PLUG["android/ · plugin Telefono<br/>llamar · pantalla<br/>texto de fotos (ML Kit) · escáner de Google<br/>plugin Burbuja: la parada sobre Google Maps (spec 020)<br/>plugin EscanerVivo: cámara debajo de la WebView + ML Kit por cuadro (spec 028)"]
     PLUG -- "intent: solo el punto" --> GMAPS["app Google Maps (guía)"]
     SW["sw.js · caché de /conductor"]
@@ -139,7 +139,7 @@ es solo para `admin`/`operador` y la app solo para `conductor`; RLS repite la re
 | Conteos de entregadas y no entregadas | los suyos | de todos |
 | Reglas de pago, bonos y bloques horarios | los lee | los configura |
 
-### Teléfono (IndexedDB `dashund-encomiendas` v5)
+### Teléfono (IndexedDB `dashund-encomiendas` v6)
 
 | Store | Clave | Contenido | Relación |
 |---|---|---|---|
@@ -147,6 +147,7 @@ es solo para `admin`/`operador` y la app solo para `conductor`; RLS repite la re
 | `rutas` | `fecha` | `Ruta`: `orden` de visita + trazado (cerrado: vuelve a `partida`) + `tramos` (dónde empieza y termina cada parada en el trazado; opcional, spec 020) + `inicioReparto` (cuándo salió a repartir; opcional, spec 027, no sale del teléfono) | `orden[]` → pedidos |
 | `cola` | `id` | `ActividadPorEnviar` | `id` = `encomienda_actividad.id` (sin duplicados) |
 | `fotos` | `id` (índice `por_fecha`) | `Foto` del paquete, JPEG ≤ 1280 px (spec 003) | `Pedido.fotoId`; se borra al cerrarse el pedido y con el día |
+| `propuestas` | `fecha` | `PropuestaGuardada`: la ruta propuesta a la vista y sin aceptar (v6, dueño 2026-11-09), con las paradas como id y punto, el trazado y los avisos; vuelve sola al abrir si los pendientes no cambiaron (`generar-ruta/propuesta-guardada.ts`) | paradas → pedidos; se borra al usarla o descartarla y con el día |
 | `dias` | `fecha` | `ResumenDia`: solo cifras de un día ya borrado (spec 007): entregas, cobros sumados y pedidos por origen de carga (005), sin datos de destinatarios | inicio y cierre → `encomienda_jornadas` si la ruta ya no está |
 
 Formas en `local/almacen/tipos.ts`; `idb.ts` (`FilaDe`) tipa cada store y solo `almacen/` lo usa.

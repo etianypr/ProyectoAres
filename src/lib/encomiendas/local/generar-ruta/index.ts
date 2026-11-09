@@ -32,6 +32,7 @@
 //   pesos.ts            el orden cobra km y tiempo en plata (spec 024)
 //   invertir.ts         «Invertir orden de ruta» (spec 024)
 //   cambiar-propuesta.ts elegir otra alternativa, quitar o devolver una parada, retrazar
+//   propuesta-guardada.ts la propuesta a la vista sobrevive a cerrar la app
 //   index.ts            calcular la propuesta
 
 import { distanciaMetros, type Coordenada } from "@/lib/geo/coordenada";
@@ -331,3 +332,4 @@ export async function calcularRutaLocal(
 export { devolverParada, elegirAlternativa, quitarParada, retrazar } from "./cambiar-propuesta";
 export { confirmarRutaLocal, problemasDelArmado } from "./confirmar";
 export { invertirOrden } from "./invertir";
+export { guardarPropuestaVista, olvidarPropuesta, propuestaGuardada } from "./propuesta-guardada";

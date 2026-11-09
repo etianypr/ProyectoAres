@@ -23,7 +23,7 @@ vienen de `AGENTS.md`; si este archivo no coincide con él o con `docs/`, valen 
 - **El nombre `dashund-encomiendas` no cambia.** IndexedDB se encuentra por nombre: otro nombre es
   una base nueva y vacía. El cambio desde `pucarani-encomiendas` (2026-10-30) borró la vieja sin
   copiarla, `cola` incluida. `NOMBRE_ANTERIOR` y su `deleteDatabase` se pueden quitar desde 2027.
-- **La versión solo sube.** Hoy `VERSION = 5`; la libre es la v6. Abrir con una versión menor que
+- **La versión solo sube.** Hoy `VERSION = 6`; la libre es la v7. Abrir con una versión menor que
   la del teléfono da `VersionError` (comprobado con `fake-indexeddb`): volver a un código con v5
   deja al conductor sin su día. Se revierte hacia adelante, con la misma versión.
 - **Cuándo sube:** al agregar o quitar un store o un índice, o al mover datos entre stores. Un
@@ -50,7 +50,7 @@ vienen de `AGENTS.md`; si este archivo no coincide con él o con `docs/`, valen 
 - **Un error de red nunca borra.** `enviarActividadPendiente` lanza y deja la cola intacta.
   `BorradoLocal` se monta solo si el servidor respondió que la cuenta no tiene ficha o está
   desactivada (spec 007, FR-007).
-- **Datos de destinatarios solo en `STORES_DEL_DIA`** (`pedidos`, `rutas`, `fotos`), que se borran
+- **Datos de destinatarios solo en `STORES_DEL_DIA`** (`pedidos`, `rutas`, `fotos`, `propuestas`), que se borran
   con el día (spec 007). `cola` y `dias` no tienen datos de personas y sobreviven. La matriz de
   distancias vive en memoria y se olvida al borrar (`olvidarMatriz`), nunca en IndexedDB.
 - **Un pedido es de un día** (`fecha` «YYYY-MM-DD» en hora de Chile, `hoyChile`): no hay arrastre
@@ -67,6 +67,7 @@ vienen de `AGENTS.md`; si este archivo no coincide con él o con `docs/`, valen 
 | `pedidos` | `id` (UUIDv7) | `Pedido`, con su `aviso` | sí | se borran los de esa fecha | se vacía | se vacía |
 | `rutas` | `fecha` | `Ruta`: orden, trazado, partida | sí (puntos) | se borra la de esa fecha | se vacía | se vacía |
 | `fotos` | `id`, índice `por_fecha` | `Foto` (JPEG ≤ 1280 px) | sí (la etiqueta) | se borran las de esa fecha | se vacía | se vacía |
+| `propuestas` (v6) | `fecha` | `PropuestaGuardada`: la ruta propuesta sin aceptar | sí (puntos, avisos) | se borra la de esa fecha | se vacía | se vacía |
 | `cola` | `id` = `encomienda_actividad.id` | `ActividadPorEnviar` | no | queda | queda | se vacía |
 | `dias` | `fecha` | `ResumenDia`: solo cifras | no | recibe el resumen | recibe uno por día | queda |
 

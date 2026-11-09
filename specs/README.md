@@ -143,7 +143,7 @@ así que se puede deshacer entera sin tocar las demás: `git revert -m 1 <commit
 ## Reglas compartidas entre features
 
 - **Base local (IndexedDB):** cada feature que agrega un store sube a la **siguiente versión libre**
-  de `idb.ts` (hoy v5, la libre es la v6). Si el store tiene datos de destinatarios, se registra en
+  de `idb.ts` (hoy v6, la libre es la v7). Si el store tiene datos de destinatarios, se registra en
   `STORES_DEL_DIA` (lo borra el cierre del día, spec 007).
 - **Migraciones SQL:** cada una toma el **siguiente número libre** de `supabase/migrations/` (hoy
   0008).

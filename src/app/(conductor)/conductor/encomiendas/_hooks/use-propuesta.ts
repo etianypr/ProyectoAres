@@ -9,7 +9,10 @@ import {
   confirmarRutaLocal,
   devolverParada,
   elegirAlternativa,
+  guardarPropuestaVista,
   invertirOrden,
+  olvidarPropuesta,
+  propuestaGuardada,
   quitarParada,
   retrazar,
   type EstrategiaRuta,
@@ -23,7 +26,7 @@ export type QuitadoDeLaPropuesta = { recibo: PedidoEliminado; parada: PedidoUbic
 
 const idsDe = (p: PropuestaRuta) => p.paradas.map((x) => x.id).join();
 
-export function usePropuesta({ dia }: { dia: DiaEnCurso }) {
+export function usePropuesta({ dia, fecha }: { dia: DiaEnCurso; fecha: string }) {
   const [propuesta, setPropuestaEstado] = useState<PropuestaRuta | null>(null);
   const [quitado, setQuitado] = useState<QuitadoDeLaPropuesta | null>(null);
   // La última propuesta, para lo que termina después de un await: dos pedidos
@@ -38,6 +41,34 @@ export function usePropuesta({ dia }: { dia: DiaEnCurso }) {
     setPropuestaEstado(p);
     setQuitado(null);
   }, []);
+
+  // La propuesta a la vista queda guardada en el teléfono: si la app se cierra antes
+  // de usarla, al abrir vuelve sola, sin armarla de nuevo ni consultar a ORS (dueño,
+  // 2026-11-09; generar-ruta/propuesta-guardada.ts). También la de «Rehacer la ruta»
+  // a mitad del día. Se busca una vez por día, con el día ya leído.
+  const revisadaRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (dia.cargando || revisadaRef.current === fecha) return;
+    revisadaRef.current = fecha;
+    void propuestaGuardada(fecha, dia.pedidos)
+      .then((guardada) => {
+        if (guardada && !actualRef.current) setPropuesta(guardada);
+      })
+      .catch(() => {});
+  }, [dia.cargando, dia.pedidos, fecha, setPropuesta]);
+
+  // Cada cambio a la vista se guarda; al usarla o descartarla, se olvida. Solo al
+  // pasar de haber una a no haber ninguna: al abrir todavía no hay y no se borra.
+  const habiaRef = useRef(false);
+  useEffect(() => {
+    if (propuesta) {
+      habiaRef.current = true;
+      void guardarPropuestaVista(fecha, propuesta, dia.pedidos).catch(() => {});
+    } else if (habiaRef.current) {
+      habiaRef.current = false;
+      void olvidarPropuesta(fecha).catch(() => {});
+    }
+  }, [propuesta, dia.pedidos, fecha]);
 
   // Cambiar de alternativa pide el trazado de la nueva (una consulta), así que
   // la propuesta se reemplaza recién cuando llega. Si la consulta falla, la

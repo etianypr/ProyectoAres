@@ -46,7 +46,7 @@ comparten layout: el panel del jefe (escritorio) y la app del conductor (APK And
 - TypeScript estricto, React 19, Tailwind 4 (`cn()` de `lib/comun/utils`), íconos `lucide-react`.
 - Supabase: Postgres + RLS + `pg_cron`, un solo proyecto (gratis; se pausa si queda inactivo).
   Migraciones `supabase/migrations/0001–0007`; la siguiente es la 0008.
-- Teléfono: IndexedDB `dashund-encomiendas` v5 (la siguiente versión libre es la v6). Mapa:
+- Teléfono: IndexedDB `dashund-encomiendas` v6 (la siguiente versión libre es la v7). Mapa:
   MapLibre + OpenFreeMap.
 - APK: Capacitor 8, paquete `cl.dashund.ares`. Abre `https://proyecto-ares-five.vercel.app/conductor`,
   así que cada deploy le llega solo. Lo nativo está en `android/` (plugins `Telefono`, `Burbuja` y

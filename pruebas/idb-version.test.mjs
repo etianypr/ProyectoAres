@@ -95,7 +95,7 @@ test("la v5 conserva pedidos, ruta y cola, y agrega `dias` y `fotos` vacíos", a
 });
 
 test("STORES_DEL_DIA nombra los stores con datos de destinatarios", () => {
-  assert.deepEqual([...idb.STORES_DEL_DIA].sort(), ["fotos", "pedidos", "rutas"]);
+  assert.deepEqual([...idb.STORES_DEL_DIA].sort(), ["fotos", "pedidos", "propuestas", "rutas"]);
   assert.equal(idb.STORES_DEL_DIA.includes("cola"), false, "la cola no se borra con el día");
   assert.equal(idb.STORES_DEL_DIA.includes("dias"), false, "el resumen sobrevive al día");
 });

@@ -21,7 +21,7 @@
 
 import { hoyChile } from "@/lib/comun/fechas";
 import { migrarV2, type AvisoV2, type PedidoV2, type RutaV2 } from "./almacen/migrar";
-import type { ActividadPorEnviar, Foto, Pedido, ResumenDia, Ruta } from "./almacen/tipos";
+import type { ActividadPorEnviar, Foto, Pedido, PropuestaGuardada, ResumenDia, Ruta } from "./almacen/tipos";
 
 const NOMBRE_BASE = "dashund-encomiendas";
 /** El nombre que tuvo hasta 2026-10-30, cuando la empresa pasó a llamarse Dashund.
@@ -41,7 +41,9 @@ const NOMBRE_ANTERIOR = "pucarani-encomiendas";
 //     estado, que ya no existen.
 // v4: store "dias" (spec 007): el resumen que sobrevive al borrado del día.
 // v5: store "fotos" (spec 003), con índice por fecha para borrarlas con el día.
-const VERSION = 5;
+// v6: store "propuestas": la ruta propuesta y sin aceptar, para que cerrar la app no
+//     obligue a armarla otra vez (dueño, 2026-11-09).
+const VERSION = 6;
 
 export const STORES = {
   /** Pedidos cargados por el conductor. Clave: id (UUIDv7 del teléfono). Los ya
@@ -57,15 +59,18 @@ export const STORES = {
   dias: "dias",
   /** Foto de cada paquete (spec 003). Clave: id; índice por fecha. */
   fotos: "fotos",
+  /** La propuesta de ruta a la vista y sin aceptar (generar-ruta/propuesta-guardada.ts).
+   *  Clave: fecha. Una por día; se borra al usarla o descartarla. */
+  propuestas: "propuestas",
 } as const satisfies { [S in Store]: S };
 
 /** Índice de `fotos` por día: las claves de un día sin cargar las imágenes. */
 export const INDICE_FOTOS_POR_FECHA = "por_fecha";
 
 /** Los stores con datos de destinatarios: el cierre del día los vacía para esa
- *  fecha y el cierre de sesión, entero (spec 007). Toda spec que agregue un
- *  store con datos de personas lo suma acá (003: fotos; 005: lecturas). */
-export const STORES_DEL_DIA = [STORES.pedidos, STORES.rutas, STORES.fotos] as const;
+ *  fecha y el cierre de sesión, entero (spec 007). Todo store con datos de
+ *  personas se suma acá (003: fotos; propuestas: puntos y avisos de la ruta). */
+export const STORES_DEL_DIA = [STORES.pedidos, STORES.rutas, STORES.fotos, STORES.propuestas] as const;
 
 /** Qué forma guarda cada store. Leer y escribir quedan tipados por store. */
 export type FilaDe = {
@@ -74,6 +79,7 @@ export type FilaDe = {
   cola: ActividadPorEnviar;
   dias: ResumenDia;
   fotos: Foto;
+  propuestas: PropuestaGuardada;
 };
 
 export type Store = keyof FilaDe;
@@ -129,6 +135,9 @@ function abrir(): Promise<IDBDatabase> {
         base
           .createObjectStore(STORES.fotos, { keyPath: "id" })
           .createIndex(INDICE_FOTOS_POR_FECHA, "fecha");
+      }
+      if (!base.objectStoreNames.contains(STORES.propuestas)) {
+        base.createObjectStore(STORES.propuestas, { keyPath: "fecha" });
       }
 
       // La transacción de versión es atómica: si la migración falla, la base

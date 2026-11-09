@@ -5,7 +5,7 @@
 
 import { olvidarConsultasGoogle } from "@/lib/geo/geocoding/google";
 import { olvidarMatriz } from "@/lib/geo/matriz";
-import { STORES, STORES_DEL_DIA, clavesFotosDe, escribir, leerTodos } from "../idb";
+import { STORES, STORES_DEL_DIA, clavesFotosDe, escribir, leerTodos, leerUno } from "../idb";
 import { enFila } from "./fila";
 import { leerDiaGuardado, leerPedidos, leerRuta, leerTodosLosPedidos, pedidosEnOrden } from "./lecturas";
 import { rutaAlDia } from "./migrar";
@@ -35,13 +35,18 @@ export async function diasPorBorrar(hoy: string): Promise<string[]> {
  *  transacción: o queda el resumen sin los datos, o queda todo como estaba. */
 export function cerrarYBorrarDia(fecha: string): Promise<ResumenDia | null> {
   return enFila(async () => {
-    const [ruta, pedidos, guardado, fotos] = await Promise.all([
+    const [ruta, pedidos, guardado, fotos, propuesta] = await Promise.all([
       leerRuta(fecha),
       leerPedidos(fecha),
       leerDiaGuardado(fecha),
       clavesFotosDe(fecha),
+      leerUno(STORES.propuestas, fecha),
     ]);
-    if (!ruta && pedidos.length === 0 && fotos.length === 0) return guardado;
+    if (!ruta && pedidos.length === 0 && fotos.length === 0) {
+      // Una propuesta suelta no es un día trabajado: se borra sin dejar resumen.
+      if (propuesta) await escribir([STORES.propuestas], ({ borrar }) => borrar(STORES.propuestas, fecha));
+      return guardado;
+    }
 
     const resumen = resumenAlBorrar(fecha, ruta, pedidos, guardado);
     await escribir([STORES.dias, ...STORES_DEL_DIA], ({ guardar, borrar }) => {
@@ -49,6 +54,7 @@ export function cerrarYBorrarDia(fecha: string): Promise<ResumenDia | null> {
       for (const p of pedidos) borrar(STORES.pedidos, p.id);
       for (const id of fotos) borrar(STORES.fotos, id);
       if (ruta) borrar(STORES.rutas, fecha);
+      if (propuesta) borrar(STORES.propuestas, fecha);
     });
     // Las distancias y las respuestas de Google guardan puntos y direcciones de
     // destinatarios (en memoria).

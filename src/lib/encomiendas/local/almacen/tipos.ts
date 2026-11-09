@@ -92,6 +92,21 @@ export type Foto = {
   blob: Blob;
 };
 
+/** La propuesta de ruta a la vista y todavía sin aceptar (store `propuestas`): si
+ *  la app se cierra, al abrir vuelve sola sin armarla otra vez (dueño, 2026-11-09).
+ *  La arma y la lee generar-ruta/propuesta-guardada.ts: las paradas van como id y
+ *  punto, y el resto del pedido se completa con `pedidos` al leer. */
+export type PropuestaGuardada = {
+  /** "YYYY-MM-DD". Es la clave del store: una por día. */
+  fecha: string;
+  /** Los pendientes del día al guardarla (id, punto, bultos, horario): si
+   *  cambió algo, la propuesta ya no vale. */
+  firma: string;
+  /** La propuesta sin los pedidos adentro (forma en propuesta-guardada.ts). */
+  datos: unknown;
+  guardadaEn: string;
+};
+
 export type Ruta = {
   /** "YYYY-MM-DD" en hora de Chile. Es la clave del store. */
   fecha: string;

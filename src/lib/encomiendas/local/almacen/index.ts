@@ -24,6 +24,7 @@ export type {
   Foto,
   OrigenCarga,
   Pedido,
+  PropuestaGuardada,
   ReferenciaPaquete,
   ResumenDia,
   Ruta,
@@ -77,6 +78,7 @@ export {
   reiniciarDisponibilidad,
 } from "./disponibilidad";
 export { apartarRechazado, leerCola, leerRechazados, quitarDeCola, retenerEvento } from "./cola";
+export { borrarPropuestaGuardada, guardarPropuesta, leerPropuestaGuardada } from "./propuesta";
 export {
   aplicarLecturaEtiqueta,
   crearDesdeGuia,

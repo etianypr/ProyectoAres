@@ -71,6 +71,12 @@ classDiagram
       id · pedidoId · fecha
       blob: JPEG
     }
+    class PropuestaGuardada {
+      <<store propuestas>>
+      fecha
+      firma: los pendientes al guardarla
+      datos: la propuesta, paradas como id y punto
+    }
     class ResumenDia {
       <<store dias>>
       fecha: clave del día
@@ -141,6 +147,7 @@ las tablas llevan `empresa_id` y RLS. Tipos de servidor: `src/types/db.ts`; del 
 | Orden de visita y trazado | Teléfono · `rutas` (una fila por día; se borra al cerrarlo) | `Ruta` |
 | Cifras de un día ya borrado | Teléfono · `dias` (sobrevive) | `ResumenDia` |
 | Foto del paquete | Teléfono · `fotos` (se borra al cerrarse el pedido y con el día) | `Foto` |
+| Ruta propuesta sin aceptar | Teléfono · `propuestas` (una por día; se borra al usarla o descartarla y con el día) | `PropuestaGuardada` |
 | Hecho de entregar u omitir | Teléfono · `cola` → Postgres (mismo id) | `ActividadPorEnviar` → `Actividad` |
 | Aviso esperando respuesta | Postgres, máx. 72 h (solo código, estado y respuesta) | `Aviso` |
 | Inicio y cierre del día | Postgres | `DiaTrabajo` |
