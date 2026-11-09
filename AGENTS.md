@@ -324,6 +324,12 @@ y un agente no debe "corregir".
   línea recta, sin las 2 que siguen y hasta 3, marcadas en el mapa; «Ahora» deja una como la próxima. Guía la
   app Google Maps, con la burbuja de ARES encima, ligada al pedido abierto y siempre con el botón
   "Navegar". El Navigation SDK y la navegación propia de ARES (cartel y voz) se fueron.
+  - Al cerrar una parada, Google Maps arranca derecho a la siguiente: se abre limpiando su tarea,
+    porque si no pregunta «¿Salir de la navegación?» y, sin respuesta, sigue a la parada cerrada
+    (`GoogleMaps.java`, APK 1.6.1).
+  - **Llamadas.** Se marcan solas (con el permiso de llamadas; sin él, el marcador) y quedan de
+    fondo: con la llamada en curso vuelve adelante ARES o, desde la burbuja, Google Maps
+    (`TrasLlamar.java`, dueño 2026-11-09).
 - **Plata.** El dueño no puede pagar sorpresas.
   - Mapbox sale entero y no se vuelve a proponer.
   - Todo servicio de pago lleva una cuota que lo deje en US$0. Google Geocoding tiene tope diario,

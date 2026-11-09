@@ -63,8 +63,12 @@ public class TelefonoPlugin extends Plugin {
     private void hacerLlamada(PluginCall call) {
         Intent intent = new Intent(Intent.ACTION_CALL, Uri.parse("tel:" + Uri.encode(call.getString("numero"))));
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        // Llamando desde ARES, ARES vuelve adelante y la llamada queda de fondo (dueño,
+        // 2026-11-09). Desde la burbuja ARES está atrás: vuelve Google Maps (BurbujaServicio).
+        boolean desdeAres = getActivity() != null && getActivity().hasWindowFocus();
         try {
             getContext().startActivity(intent);
+            if (desdeAres) TrasLlamar.alFrente(getContext(), TrasLlamar.ares(getContext()));
             call.resolve();
         } catch (Exception e) {
             call.reject("sin_soporte");

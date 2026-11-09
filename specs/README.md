@@ -24,13 +24,20 @@ tirado al conductor (`AGENTS.md`, «Ahora»). Lo que no sirve para eso está en 
    - Cerrar el día: la lista de no entregados, el borrado (007) y los conteos y el pago en el panel
      del jefe (`npm run test:base`; una migración sin correr ya lo dejó en $0).
 2. **Riesgos conocidos** que pueden dejarlo tirado:
-   - **Escáner en vivo (028), ensayo 2026-11-09:** con la cámara prendida, abrir o cerrar el teclado
-     («Escribir la OF») cuelga ARES y Android la cierra (ANR, reproducido 3 de 3; la GPU de la
-     WebView se traba en `eglCreateImageKHR`). Arreglo provisorio: la cámara se apaga mientras se
-     escribe. Cerrar el escáner (apagar la cámara) traba la pantalla ~4,6 s cada vez, ya
-     en producción. Arreglo de fondo elegido por el dueño: nativo, APK 1.6.1 (que el teclado no
-     achique la ventana y que la WebView no cambie su transparencia). El teclado tapa «Buscar esta
-     OF» (la tecla 🔍 del teclado sí busca).
+   - **Escáner en vivo (028), ensayo 2026-11-09:** en el teléfono del conductor, con la cámara
+     encendida cada redibujo de ARES espera a la GPU 1 a 5 s (con un texto que cambia cada 0,5 s:
+     3 cuadros ≥ 4,9 s en 10 s; sin cámara, ninguno). Pasa con la WebView transparente u opaca, sin
+     ML Kit, sin captura, solo con la vista previa, con TextureView y a 720p/15 cuadros/s: no se
+     arregla ajustando el plugin. Cada etiqueta leída redibuja, así que cargar el auto puede trabarse
+     en cada paquete; si el conductor toca durante una traba de más de 8 s, Android cierra ARES
+     (ANR, ya pasó el 2026-11-08 escaneando). En producción, escribir la OF apaga la cámara (sin ANR)
+     y apagarla traba 2 a 5 s; un teclado propio fue peor (cada tecla redibuja). El dueño decide si
+     el día real carga el auto con el escáner de siempre (el de Google, una etiqueta por toque).
+   - **Google Maps sigue a la parada ya cerrada (020), ensayo 2026-11-09:** al cerrar una parada,
+     ARES manda la siguiente y Maps pregunta «¿Salir de la navegación?»; si nadie toca, la cuenta
+     regresiva elige «No». Arreglo en `GoogleMaps.java` (`FLAG_ACTIVITY_CLEAR_TASK`, verificado en
+     la APK de prueba: arranca derecho a la nueva). Va en la APK 1.6.1, con las llamadas de fondo
+     (`TrasLlamar.java`: con la llamada en curso vuelve ARES o, desde la burbuja, Google Maps).
    - ~~`NetworkError` al abrir~~: era `document.fonts.load` con la cara «Fallback» (Arial no existe
      en Android); arreglado en `ruta-mapa.tsx`.
    - La central en la configuración no tiene el Plus Code: la ruta parte de donde la ubique el
@@ -43,7 +50,9 @@ tirado al conductor (`AGENTS.md`, «Ahora»). Lo que no sirve para eso está en 
    - Textos con consejos obvios, por decidir (dueño): «¿Qué hacemos con esta parada?», «Conviene
      llamarlo(s)», «Devuélvelos a Starken. Revisa…» y «…: revisa la dirección».
 3. **Le toca al dueño:**
-   - Vercel: `APK_VERSION_MINIMA=1.6.0` y `APK_URL` de la 1.6.0; borrar `LECTURA_MODELO` y
+   - Instalar la APK 1.6.1 con el día cerrado y probar una llamada desde ARES y otra desde la
+     burbuja (se marca sola y vuelve ARES o Google Maps).
+   - Vercel: `APK_VERSION_MINIMA=1.6.1` y `APK_URL` de la 1.6.1; borrar `LECTURA_MODELO` y
      `NEXT_PUBLIC_MAPBOX_TOKEN` (y anular el token de Mapbox).
    - Panel → Configuración: la dirección de la central, con el Plus Code al comienzo.
    - Supabase Auth: Site URL y redirect.
@@ -72,7 +81,7 @@ Estados: borrador → definida → en curso → hecha (falta día real) · poste
 | 3 | [017](017-listo-para-terreno/spec.md) listo para terreno | errores del flujo, rutas por calle y con horarios | en curso | — | 25/27 | prueba en terreno (T051) |
 | 4 | [003](003-referencia-paquete/spec.md) OF y referencia del paquete | OF y descripción en cada parada, búsqueda por OF | hecha (falta día real) | — | 15/16 | foto con la cámara y SC-001 en terreno (T016) |
 | todos | [027](027-hoja-por-paso/spec.md) la hoja paso por paso | la cabecera de la hoja dice el paso del día que toca y adentro va solo lo de ese paso | hecha (falta día real) | — | 15/16 | escáner, «Salir a repartir» y volver de Google Maps en la APK (T016) |
-| 5 | [020](020-burbuja-google-maps/spec.md) burbuja de Google Maps | la ruta en ARES, la guía en Google Maps con la burbuja encima | hecha (falta día real) | — | 16/19 | quickstart en el teléfono con la APK 1.6.0 (T018); día real (T019): 8 de cada 10 paradas sin volver a ARES |
+| 5 | [020](020-burbuja-google-maps/spec.md) burbuja de Google Maps | la ruta en ARES, la guía en Google Maps con la burbuja encima | hecha (falta día real) | — | 16/19 | quickstart en el teléfono (T018; ensayo 2026-11-09: navegar, burbuja y entregar desde ella bien; Maps a la parada siguiente, en la APK 1.6.1); día real (T019): 8 de cada 10 paradas sin volver a ARES |
 | 5 | [015](015-app-android/spec.md) app Android (APK) | llamar con un toque, abrir sin señal, pantalla encendida, escáner | en curso | — | 27/30 | llamadas con chip (T019) y quickstart en el teléfono del conductor (T013, T030) |
 | 5 | [023](023-paradas-cercanas/spec.md) paradas cercanas | «N cerca» al lado de «Centrar»: hasta 3 pendientes a ≤ 300 m, marcadas en el mapa; «Ahora» deja una como la próxima | hecha (falta día real) | — (en `main` desde 2026-11-09) | — | día real |
 
