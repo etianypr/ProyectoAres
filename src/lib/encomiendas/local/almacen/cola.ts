@@ -28,6 +28,29 @@ export function retenerEvento(id: string, hasta: string): Promise<void> {
   });
 }
 
+/** Al abrir la app no hay ningún «Deshacer» a la vista (vive en la pantalla), así
+ *  que lo retenido sin plazo ya no se puede deshacer y tiene que salir. Si Android
+ *  cerraba ARES estando atrás con una entrega recién hecha, esa entrega quedaba en
+ *  el teléfono y el servidor no la contaba nunca (ensayo del día real,
+ *  2026-11-09). Una vez por carga de la página, antes del primer envío. */
+let retenidosSueltos: Promise<void> | null = null;
+
+function soltarRetenidosSinPlazo(): Promise<void> {
+  retenidosSueltos ??= leerTodos(STORES.cola)
+    .then((eventos) => {
+      const ids = eventos.filter((e) => e.retenidoHasta?.startsWith("9999")).map((e) => e.id);
+      if (ids.length === 0) return;
+      return escribir([STORES.cola], ({ actualizar }) => {
+        for (const id of ids) actualizar(STORES.cola, id, (evento) => ({ ...evento, retenidoHasta: undefined }));
+      });
+    })
+    .catch(() => {
+      // Sin poder escribir: se intenta en la próxima lectura.
+      retenidosSueltos = null;
+    });
+  return retenidosSueltos;
+}
+
 /** Los eventos que el servidor rechazó (ver ActividadPorEnviar.rechazado). */
 export async function leerRechazados(): Promise<ActividadPorEnviar[]> {
   return (await leerTodos(STORES.cola)).filter((e) => e.rechazado);
@@ -41,6 +64,7 @@ export function apartarRechazado(id: string, motivo: string): Promise<void> {
 }
 
 export async function leerCola(): Promise<ActividadPorEnviar[]> {
+  await soltarRetenidosSinPlazo();
   const eventos = (await leerTodos(STORES.cola)).map((e: EventoGuardado) => {
     if (e.conductorId || !e.choferId) return e;
     const { choferId, ...resto } = e;
