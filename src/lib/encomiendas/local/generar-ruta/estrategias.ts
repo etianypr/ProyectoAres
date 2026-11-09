@@ -40,9 +40,10 @@ import type { Alternativa, EstrategiaRuta, PedidoUbicado } from "./tipos";
 //    horario, y es justamente el caso en que el conductor no tiene que comparar nada.
 
 export const TITULOS: Record<EstrategiaRuta, { titulo: string; motivo: string }> = {
+  // Ya no es solo la de menos km: cobra también el tiempo (spec 024, pesos.ts).
   corta: {
-    titulo: "La más corta",
-    motivo: "Menos kilómetros y menos tiempo al volante.",
+    titulo: "La más económica",
+    motivo: "Menos gasto en kilómetros y en tiempo al volante.",
   },
   horarios: {
     titulo: "Respeta horarios",
@@ -94,14 +95,6 @@ export function vueltaPorMatriz(
  *  que la primera parada se atiende a las 7:10 (spec 017, R3). */
 export const MINUTO_SALIDA_MAS_TEMPRANA = 8 * 60;
 
-/** El aviso de la propuesta si con este orden se llega fuera del horario de alguien. */
-export function avisoDeHorario(a: Alternativa): string | null {
-  if (a.bloquesIncumplidos === 0) return null;
-  return a.fueraDeHorario.length === 1
-    ? `Con este orden se llegaría fuera del horario que eligió ${a.fueraDeHorario[0]}. Conviene llamarlo.`
-    : `Con este orden se llegaría fuera de horario a ${a.fueraDeHorario.length} clientes: ${a.fueraDeHorario.join(", ")}.`;
-}
-
 /** Metros del orden completo, volviendo a la base al final. */
 export function metrosConVuelta(orden: PedidoUbicado[], metros: MetrosEntre, vuelta: VueltaABase): number {
   return metrosDelOrden(orden, metros) + (orden.length > 0 ? vuelta(orden[orden.length - 1]) : 0);
@@ -141,12 +134,11 @@ function ordenarGrupo(
   const puntos = [desde, ...grupo.map(coord)];
   const indices = [indiceDesde, ...grupo.map((p) => indiceEnMatriz.get(p.id) ?? -1)];
 
+  const recortar = (m: number[][] | null | undefined) =>
+    m && indices.every((i) => i >= 0) ? indices.map((fila) => indices.map((col) => m[fila]?.[col] ?? Infinity)) : null;
   // Sin matriz (más de 25 puntos, o la API no respondió) ordenarParadas cae a la
   // línea recta sola, igual que siempre.
-  const sub =
-    matriz && indices.every((i) => i >= 0)
-      ? indices.map((fila) => indices.map((col) => matriz[fila]?.[col] ?? Infinity))
-      : null;
+  const sub = recortar(matriz);
 
   // Volver desde el punto i del grupo: la columna 0 de la matriz (la base) o,
   // sin matriz, la línea recta, igual que el resto del ordenamiento.
@@ -156,9 +148,28 @@ function ordenarGrupo(
         return m != null && Number.isFinite(m) ? m : distanciaMetros(puntos[i], volverA);
       }
     : undefined;
-  // A fondo: la propuesta busca la ruta con menos kilómetros aunque tarde unos
+  // Los bultos miden la tolerancia en km de verdad, también al volver (spec 024).
+  const vueltaReal = volverA
+    ? (i: number) => {
+        const m = sub ? descarga?.matriz?.[indices[i]]?.[0] : undefined;
+        return m != null && Number.isFinite(m) ? m : distanciaMetros(puntos[i], volverA);
+      }
+    : undefined;
+  // Con el tiempo en el costo, el orden de menos km (con sus zonas) es un arranque
+  // más (spec 024, ver ordenarParadas): los metros de verdad más lo que el orden
+  // cobra aparte del costo de cada tramo. Sin tiempos, el costo son los metros.
+  const real = descarga && descarga.base !== descarga.matriz ? recortar(descarga.matriz) : null;
+  const sinZonas = real ? recortar(descarga?.base) : null;
+  const porMetros =
+    sub && real && sinZonas
+      ? sub.map((fila, i) => fila.map((c, j) => (Number.isFinite(c - sinZonas[i][j]) ? real[i][j] + c - sinZonas[i][j] : Infinity)))
+      : null;
+  // A fondo: la propuesta busca la ruta que menos cuesta aunque tarde unos
   // segundos, con pantalla de carga (terreno 2026-10-29).
-  const orden = ordenarParadas(puntos, sub, vuelta, true, descarga ? { descarga: descargaDelGrupo(descarga, grupo, indices) } : {});
+  const orden = ordenarParadas(puntos, sub, vuelta, true, {
+    ...(descarga && { descarga: descargaDelGrupo(descarga, grupo, indices, vueltaReal) }),
+    ...(porMetros && { arranquePorMetros: { matriz: porMetros, vuelta: vueltaReal } }),
+  });
   // El índice 0 es el punto de partida; el resto mapea a grupo[i - 1].
   const resultado = orden.slice(1).map((i) => grupo[i - 1]);
   memoria.set(clave, resultado);
@@ -292,17 +303,25 @@ function reordenarTramos(
   return salida;
 }
 
-/** Mide un orden: cuántos metros, y a qué bloques se llegaría fuera de horario. */
+/** Lo que cuesta cada tramo para el orden (metros con el tiempo, spec 024) y
+ *  volver a la base, con la misma escala que los metros. */
+export type CostoEntre = { entre: MetrosEntre; vuelta: VueltaABase };
+
+/** Mide un orden: cuántos metros, cuánto cuesta y a qué bloques se llegaría
+ *  fuera de horario. Sin `costo`, cuesta lo que mide. */
 export function medir(
   orden: PedidoUbicado[],
   metros: MetrosEntre,
   vuelta: VueltaABase,
   minutosDeInicio: number,
+  costo?: CostoEntre,
 ): Omit<Alternativa, "estrategia" | "titulo" | "motivo" | "paradas"> {
   const fuera = fueraDeHorario(orden, minutosDeInicio, metros);
   const conBloque = orden.filter((p) => bloquePorId(p.bloqueHorarioId)).length;
+  const metrosEstimados = Math.round(metrosConVuelta(orden, metros, vuelta));
   return {
-    metrosEstimados: Math.round(metrosConVuelta(orden, metros, vuelta)),
+    metrosEstimados,
+    costoEstimado: costo ? Math.round(metrosConVuelta(orden, costo.entre, costo.vuelta)) : metrosEstimados,
     confirmados: orden.filter((p) => estaConfirmado(p.disponibilidad)).length,
     pendientesDeContacto: orden.filter((p) => p.disponibilidad === "pendiente_respuesta").length,
     bloquesCumplidos: conBloque - fuera.length,
@@ -319,7 +338,7 @@ function huellaOrden(orden: PedidoUbicado[]): string {
   return orden.map((p) => p.id).join(">");
 }
 
-/** Cuánto más corta tiene que ser una alternativa para que valga compararla.
+/** Cuánto menos tiene que costar una alternativa para que valga compararla.
  *  Por debajo de esto, la diferencia no cambia el día y solo agrega una
  *  decisión más que tomar antes de salir. */
 const MEJORA_UTIL = 0.08;
@@ -340,9 +359,11 @@ export function elegirUtiles(candidatas: Alternativa[]): Alternativa[] {
     return true;
   });
 
+  // Después de los horarios, el costo (km y tiempo, spec 024): con los metros solos,
+  // otra estrategia más corta pero más lenta le quitaría el lugar a la económica.
   const ordenadas = [...distintas].sort(
     (a, b) =>
-      a.bloquesIncumplidos - b.bloquesIncumplidos || a.metrosEstimados - b.metrosEstimados,
+      a.bloquesIncumplidos - b.bloquesIncumplidos || a.costoEstimado - b.costoEstimado,
   );
 
   const mejor = ordenadas[0];
@@ -350,10 +371,10 @@ export function elegirUtiles(candidatas: Alternativa[]): Alternativa[] {
     (c) =>
       // Aporta si consigue algo que la recomendada no: llegar a más bloques...
       c.bloquesCumplidos > mejor.bloquesCumplidos ||
-      // ...o ahorrar una cantidad de camino que se note.
-      c.metrosEstimados < mejor.metrosEstimados * (1 - MEJORA_UTIL) ||
-      // ...o entregarle antes a más gente que ya confirmó, sin manejar más.
-      (c.confirmados > mejor.confirmados && c.metrosEstimados <= mejor.metrosEstimados),
+      // ...o ahorrar una cantidad de camino y tiempo que se note.
+      c.costoEstimado < mejor.costoEstimado * (1 - MEJORA_UTIL) ||
+      // ...o entregarle antes a más gente que ya confirmó, sin costar más.
+      (c.confirmados > mejor.confirmados && c.costoEstimado <= mejor.costoEstimado),
   );
 
   // Máximo tres, contando la recomendada.

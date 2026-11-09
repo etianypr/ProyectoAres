@@ -75,7 +75,14 @@ export function ordenarParadas(
    *  orden de arranque: con él, el resultado nunca sale peor que ese orden. Con
    *  `descarga`, los bultos de cada punto: el orden más corto se retoca para
    *  sacarlos antes, sin pasarse de la tolerancia (descarga.ts). */
-  extra: { penalizacion?: Penalizacion; arranque?: number[]; descarga?: DescargaPorMatriz } = {},
+  extra: {
+    penalizacion?: Penalizacion;
+    arranque?: number[];
+    descarga?: DescargaPorMatriz;
+    /** Una matriz de metros (con lo que cobre aparte, como las zonas) cuyo mejor
+     *  orden entra como un arranque más: ver más abajo (spec 024). */
+    arranquePorMetros?: { matriz: number[][]; vuelta?: (i: number) => number };
+  } = {},
 ): number[] {
   const n = puntos.length;
   if (n <= 2) return puntos.map((_, i) => i);
@@ -89,9 +96,11 @@ export function ordenarParadas(
   const terminar = (orden: number[]) => {
     const corto = desempatarSentido(orden, costo, vuelta != null);
     if (!extra.descarga) return corto;
-    const { matrizReal, ...descarga } = extra.descarga;
-    const metros = matrizReal ? conFinal((a, b) => matrizReal[a]?.[b] ?? Infinity, vuelta) : costo;
-    return adelantarBultos(corto, costo, { ...descarga, metros }, extra.penalizacion);
+    const { matrizReal, matrizBase, vueltaReal, ...descarga } = extra.descarga;
+    const metros = matrizReal ? conFinal((a, b) => matrizReal[a]?.[b] ?? Infinity, vueltaReal ?? vuelta) : costo;
+    // La vuelta a la base no paga zonas: la del orden es la de la base.
+    const base = matrizBase ? conFinal((a, b) => matrizBase[a]?.[b] ?? Infinity, vuelta) : undefined;
+    return adelantarBultos(corto, costo, { ...descarga, metros, base }, extra.penalizacion);
   };
 
   // Día chico: el óptimo exacto sale en milisegundos, así que no hay razón para
@@ -119,15 +128,30 @@ export function ordenarParadas(
   // arranque más en vez de una comparación aparte.
   if (matriz) arranques.push(mejorarLocal(vecinoMasCercano(n, enLineaRecta), enLineaRecta));
 
+  // Con el tiempo en el costo (spec 024), el mejor orden por metros también: el
+  // paisaje con tiempo es más accidentado y la búsqueda sola variaba ±1 % con
+  // cambios de décimas de segundo. Partiendo además de él, en 3 días simulados de
+  // 80 paradas con la matriz real de ORS: −1,5 % de tiempo y −1 % de plata, sin
+  // km de más, y nunca más caro que el orden por metros (2026-11-08).
+  if (extra.arranquePorMetros) {
+    const { matriz: porMetros, vuelta: vueltaPorMetros } = extra.arranquePorMetros;
+    arranques.push(ordenarParadas(puntos, porMetros, vueltaPorMetros ?? vuelta, aFondo));
+  }
+
   if (extra.arranque) arranques.unshift(extra.arranque);
   return terminar(mejorDeVariosArranques(arranques, costo, aFondo, extra.penalizacion));
 }
 
 /** Adelantar bultos con una matriz (ver descarga.ts). */
-export type DescargaPorMatriz = Omit<Descarga, "metros"> & {
+export type DescargaPorMatriz = Omit<Descarga, "metros" | "base"> & {
   /** Metros de verdad, con los mismos índices que los puntos: la matriz del orden
    *  cobra además cada cambio de zona. null: la misma del orden. */
   matrizReal: number[][] | null;
+  /** Volver a la base en metros de verdad; sin esto, la vuelta del orden. */
+  vueltaReal?: (i: number) => number;
+  /** La matriz del orden sin los cambios de zona (metros con tiempo, spec 024).
+   *  null o sin ella: los metros. */
+  matrizBase?: number[][] | null;
 };
 
 /** Una ruta cerrada se puede recorrer en los dos sentidos. Si al revés mide lo

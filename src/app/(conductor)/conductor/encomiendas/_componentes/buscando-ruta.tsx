@@ -17,7 +17,8 @@ export function BuscandoRuta() {
       className="animate-fade-in fixed inset-0 z-[70] flex flex-col items-center justify-center gap-5 bg-background px-8 text-center"
     >
       <LogoDashund animado titulo="" className="h-24 w-24" />
-      <p className="text-lg font-extrabold tracking-tight">Buscando la ruta más corta</p>
+      {/* Ya no es la de menos km sino la que menos cuesta en km y tiempo (spec 024). */}
+      <p className="text-lg font-extrabold tracking-tight">Buscando la mejor ruta</p>
       <div aria-hidden className="h-1.5 w-44 overflow-hidden rounded-full bg-border">
         <div className="barra-buscando h-full w-1/3 rounded-full bg-brand" />
       </div>

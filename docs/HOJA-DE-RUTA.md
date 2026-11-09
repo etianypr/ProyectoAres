@@ -193,6 +193,14 @@ Bultos primero (2026-11-07, spec 024; días simulados de 60–100 paradas, sin c
 - **En el día real de 53 paradas** (teléfono, matriz de ORS): +0,1 % de km y −0,4 % de espera. Y la
   misma ruta al revés midió +2,8 km (+7,8 %): la matriz por calles no es simétrica.
 
+El tiempo en el costo (2026-11-08, spec 024; 3 días simulados de 80 paradas con la matriz real de ORS):
+
+- **El dueño eligió pesos en el orden:** el km a $130 y la hora al volante a $6.000 (1 s ≈ 12,8 m).
+  El éxito por parada no entra: los horarios siguen en su propuesta.
+- **La búsqueda sola es ruidosa con tiempo:** redondear la matriz a décimas de segundo movía el
+  resultado ±1 %, tanto como lo que se gana. Con el mejor orden por metros como arranque: −1,5 % de
+  tiempo (~2 min), −1 % de plata y los mismos km, y nunca más caro que el orden por km.
+
 ## Fuera de alcance
 
 Varios conductores o mandantes · seguir paquetes entre días · prueba de entrega con

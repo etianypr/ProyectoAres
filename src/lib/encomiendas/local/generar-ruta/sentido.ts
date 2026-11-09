@@ -18,6 +18,7 @@ import { permiteDarLaVuelta } from "@/lib/geo/ors/vuelta";
 import { ordenarParadas } from "@/lib/rutas/orden-paradas";
 import { conFinal, distanciaOrden, EPSILON, FIN, type Penalizacion } from "@/lib/rutas/orden-paradas/costo";
 import { descargaDelGrupo, type DescargaDelDia } from "./bultos";
+import { pesosDeManejar } from "./pesos";
 import type { PedidoUbicado } from "./tipos";
 
 /** Una parada vecina "casi de costado" (ni adelante ni atrás a lo largo de la
@@ -88,10 +89,11 @@ export async function ordenarConSentido(
   if (indices.some((i) => i < 0)) return null;
   const sub = indices.map((f) => indices.map((c) => matriz[f]?.[c] ?? Infinity));
   const vuelta = (i: number) => matriz[indices[i]]?.[0] ?? distanciaMetros(puntos[i], llegada);
+  const vueltaReal = (i: number) => descarga?.matriz?.[indices[i]]?.[0] ?? distanciaMetros(puntos[i], llegada);
   const orden = ordenarParadas(puntos, sub, vuelta, false, {
     penalizacion: pen,
     arranque: puntos.map((_, i) => i),
-    ...(descarga && { descarga: descargaDelGrupo(descarga, paradas, indices) }),
+    ...(descarga && { descarga: descargaDelGrupo(descarga, paradas, indices, vueltaReal) }),
   });
 
   const nuevas = orden.slice(1).map((i) => paradas[i - 1]);
@@ -102,6 +104,7 @@ export async function ordenarConSentido(
   const costo = conFinal((a, b) => sub[a]?.[b] ?? Infinity, vuelta);
   if (distanciaOrden(orden, costo, pen) >= distanciaOrden(puntos.map((_, i) => i), costo, pen) - EPSILON) return null;
   const otra = await obtenerRutaCalles([base, ...nuevas.map((p) => ({ lat: p.lat, lng: p.lng })), llegada]);
-  if (!otra || otra.distanciaM >= calles.distanciaM) return null;
+  // Se queda la que menos cuesta en km y tiempo, no la más corta (spec 024).
+  if (!otra || pesosDeManejar(otra.distanciaM, otra.duracionS) >= pesosDeManejar(calles.distanciaM, calles.duracionS)) return null;
   return { paradas: nuevas, calles: otra };
 }

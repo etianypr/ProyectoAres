@@ -1,4 +1,5 @@
-// Distancias por calle entre la partida y TODAS las paradas (spec 017, R1).
+// Distancias por calle entre la partida y TODAS las paradas (spec 017, R1), y
+// lo que se tarda en manejarlas (spec 024: el orden cobra también el tiempo).
 //
 // Con esto se decide el ORDEN de la ruta. Desde 2026-10-30 se piden a
 // OpenRouteService y no a Mapbox: Mapbox cobra por cada par pasado lo gratis y
@@ -16,14 +17,15 @@
 //     mismos pedidos no pide nada, y sumar un pedido pide solo su fila y su
 //     columna;
 //   · no se piden pares que nunca se usan (un punto a sí mismo). Volver a la
-//     partida sí: la ruta termina donde empezó (terreno 2026-10-28).
+//     partida sí: la ruta termina donde empezó (terreno 2026-10-28);
+//   · el tiempo viene en la misma consulta (`metrics`): no cuesta un par más.
 //
 // No se guarda en el teléfono: son puntos de destinatarios y la memoria se va al
 // cerrar la app, que es lo que se quiere. La consulta sale directo del teléfono a
 // ORS (nunca por el servidor), con una clave pública como el token de Mapbox.
 
 import { distanciaMetros, type Coordenada } from "./coordenada";
-import { claveOrs, postOrs } from "./ors/cliente";
+import { claveOrs, postOrs, ultimaFallaOrs } from "./ors/cliente";
 
 const MATRIX = "/v2/matrix/driving-car";
 
@@ -43,6 +45,9 @@ export type MatrizCalles = {
   /** metros[i][j] por calle; el 0 es la partida. Los pares que no llegaron
    *  van estimados en línea recta. */
   metros: number[][];
+  /** segundos[i][j] manejando por calle, según ORS (sin tráfico). null en los
+   *  pares que no llegaron o no tienen camino: el que los usa los estima. */
+  segundos: (number | null)[][];
   /** false si alguna consulta no llegó: esos pares van estimados. */
   completa: boolean;
   /** Cuántos pares se pidieron esta vez (0 = todo salió de memoria). */
@@ -55,6 +60,8 @@ export type SinMatriz = { metros: null; motivo: "sin_token" | "cupo" | "sin_resp
 
 /** Pares ya conocidos, por clave de punto (~1 m). */
 const conocidos = new Map<string, number>();
+/** Los segundos de esos pares, cuando ORS los dio (spec 024). */
+const tiempos = new Map<string, number>();
 
 function clavePunto(p: Coordenada): string {
   return `${p.lat.toFixed(5)},${p.lng.toFixed(5)}`;
@@ -70,6 +77,7 @@ export function metrosEnMemoria(a: Coordenada, b: Coordenada): number | null {
 /** Olvida los pares guardados (al cerrar el día, y en las pruebas). */
 export function olvidarMatriz(): void {
   conocidos.clear();
+  tiempos.clear();
 }
 
 export type Consulta = { origenes: number[]; destinos: number[] };
@@ -140,28 +148,29 @@ async function consultar(puntos: Coordenada[], c: Consulta): Promise<Resultado> 
   // Las coordenadas de la consulta: la unión de orígenes y destinos, sin repetir.
   const indices = [...new Set([...c.origenes, ...c.destinos])];
   const posicion = new Map(indices.map((i, k) => [i, k] as const));
-  const r = await postOrs<{ distances?: (number | null)[][] }>(
+  const r = await postOrs<{ distances?: (number | null)[][]; durations?: (number | null)[][] }>(
     MATRIX,
     {
       locations: indices.map((i) => [puntos[i].lng, puntos[i].lat]),
       sources: c.origenes.map((i) => posicion.get(i)),
       destinations: c.destinos.map((j) => posicion.get(j)),
-      metrics: ["distance"],
+      metrics: ["distance", "duration"],
       units: "m",
     },
     15_000,
   );
-  if (!r) return "fallo";
+  if (!r) return ultimaFallaOrs() === "cupo" ? "cupo" : "fallo";
   if ("cupo" in r) return "cupo";
   const distancias = r.datos.distances;
   if (!Array.isArray(distancias)) return "fallo";
+  const duraciones = r.datos.durations;
   c.origenes.forEach((i, a) =>
     c.destinos.forEach((j, b) => {
       const d = distancias[a]?.[b];
-      conocidos.set(
-        `${clavePunto(puntos[i])}>${clavePunto(puntos[j])}`,
-        d == null ? distanciaMetros(puntos[i], puntos[j]) * FACTOR_CALLES + METROS_SIN_CAMINO : d,
-      );
+      const clave = `${clavePunto(puntos[i])}>${clavePunto(puntos[j])}`;
+      conocidos.set(clave, d == null ? distanciaMetros(puntos[i], puntos[j]) * FACTOR_CALLES + METROS_SIN_CAMINO : d);
+      const s = d == null ? null : duraciones?.[a]?.[b];
+      if (s != null) tiempos.set(clave, s);
     }),
   );
   return "llego";
@@ -211,5 +220,6 @@ export async function matrizCalles(puntos: Coordenada[]): Promise<MatrizCalles |
       return conocidos.get(clavePar(i, j)) ?? distanciaMetros(a, b) * FACTOR_CALLES;
     }),
   );
-  return { metros, completa, pedidos };
+  const segundos = puntos.map((_, i) => puntos.map((__, j) => (claves[i] === claves[j] ? 0 : (tiempos.get(clavePar(i, j)) ?? null))));
+  return { metros, segundos, completa, pedidos };
 }

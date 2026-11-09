@@ -3,7 +3,8 @@
 // Diagnóstico de la APK (spec 015): qué funciones nativas tiene este teléfono, un
 // botón para probar el escáner y otro para probar la lectura de una etiqueta
 // (spec 021, US3). Se llega desde el menú lateral, solo en la APK. No guarda
-// nada: lo que muestra se lee al abrir la pantalla.
+// nada: lo que muestra se lee al abrir la pantalla. Las consultas del día a ORS
+// (spec 024) sirven para ver cuánto gasta un día de ruta.
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -14,6 +15,7 @@ import { permisosTelefono } from "@/lib/nativo/telefono";
 import { escanearCodigo } from "@/lib/nativo/escaner";
 import { entrarAlModoPrueba, esApkDePrueba, salirDelModoPrueba, useModoPrueba } from "@/lib/encomiendas/local/modo-prueba";
 import { fijarConfigGps, useConfigGps, VELOCIDADES } from "@/lib/encomiendas/local/gps-simulado";
+import { consultasOrsDeHoy, type ConsultasOrs } from "@/lib/geo/ors/cliente";
 import { ProbarEscanerVivo } from "./_componentes/probar-escaner-vivo";
 import { ProbarEtiqueta } from "./_componentes/probar-etiqueta";
 
@@ -50,6 +52,7 @@ function Fila({ etiqueta, estado, detalle }: { etiqueta: string; estado: Estado;
 
 export default function DiagnosticoPage() {
   const [info, setInfo] = useState<Info | null>(null);
+  const [ors, setOrs] = useState<ConsultasOrs | null>(null);
   const [lectura, setLectura] = useState<string | null>(null);
   const [escaneando, setEscaneando] = useState(false);
   const modoPrueba = useModoPrueba();
@@ -74,6 +77,7 @@ export default function DiagnosticoPage() {
         llamadas: estadoDe(telefono?.llamadas),
         ubicacion: estadoDe(ubicacion),
       });
+      setOrs(consultasOrsDeHoy());
     })();
   }, []);
 
@@ -113,6 +117,13 @@ export default function DiagnosticoPage() {
       ) : (
         <p className="text-sm text-muted">Revisando…</p>
       )}
+
+      {ors ? (
+        <p className="text-xs text-muted">
+          OpenRouteService hoy, desde este teléfono: <span className="font-mono">{ors.matriz}</span> matrices y{" "}
+          <span className="font-mono">{ors.trazado}</span> trazados.
+        </p>
+      ) : null}
 
       <p className="text-xs text-muted">
         Los permisos sin decidir se piden la primera vez que se usan. Un permiso negado se cambia en

@@ -29,11 +29,14 @@
 //   estrategias.ts      las tres maneras de ordenar y cuáles mostrar
 //   horarios.ts         "respeta horarios" con el optimizador con horarios (spec 017)
 //   bultos.ts           los bultos fuera antes, casi sin km de más (spec 024)
+//   pesos.ts            el orden cobra km y tiempo en plata (spec 024)
 //   invertir.ts         «Invertir orden de ruta» (spec 024)
-//   index.ts            calcular, elegir y confirmar la propuesta
+//   cambiar-propuesta.ts elegir otra alternativa, quitar o devolver una parada, retrazar
+//   index.ts            calcular la propuesta
 
 import { distanciaMetros, type Coordenada } from "@/lib/geo/coordenada";
 import { obtenerRutaCalles } from "@/lib/geo/ors/direcciones";
+import { ultimaFallaOrs } from "@/lib/geo/ors/cliente";
 import { matrizCalles } from "@/lib/geo/matriz";
 import { nombreVisible } from "@/lib/encomiendas/paquete";
 import { resultadoCerrado } from "@/lib/encomiendas/estados";
@@ -41,8 +44,8 @@ import { minutoDelDia } from "../planificar";
 import { leerPedidos, leerRuta, pedidosEnOrden, tramosConPedidos } from "../almacen";
 import { resolverInicio } from "./partida";
 import { corregirAccesos, reintentarUbicar, tieneCoordenadas } from "./ubicar-pedidos";
+import { avisoDeHorario, avisoSinTrazado } from "./avisos";
 import {
-  avisoDeHorario,
   coord,
   elegirUtiles,
   medir,
@@ -53,6 +56,7 @@ import {
   vueltaPorMatriz,
 } from "./estrategias";
 import { TOLERANCIA_DESCARGA } from "./bultos";
+import { matrizDeCosto } from "./pesos";
 import { paradasLejanas } from "./lejanas";
 import { ordenConHorarios } from "./horarios";
 import { ordenarConSentido } from "./sentido";
@@ -60,6 +64,7 @@ import { matrizPorZonas, zonasPorCercania } from "./zonas";
 import type { Alternativa, EstrategiaRuta, PedidoUbicado, PropuestaRuta, PuntoInicio } from "./tipos";
 
 export type { Alternativa, EstrategiaRuta, PedidoUbicado, PropuestaRuta, PuntoInicio, ResultadoRuta } from "./tipos";
+export { avisoSinTrazado } from "./avisos";
 
 /** Huella de TODO lo que entra en el cálculo de una ruta. Si no cambió ni un
  *  pedido, ni su ubicación, ni su horario, ni quién confirmó, ni sus bultos
@@ -68,13 +73,21 @@ export type { Alternativa, EstrategiaRuta, PedidoUbicado, PropuestaRuta, PuntoIn
  *  bloque seguía recibiendo la propuesta vieja (spec 017, R3). */
 /** Partida y llegada a menos de esto son el mismo punto: la ruta es cerrada. */
 const METROS_MISMO_PUNTO = 30;
-/** La matriz para ordenar por zonas (zonas.ts); si algo fallara, la de siempre. */
-function conZonas(matriz: number[][]): number[][] {
+/** La matriz para ordenar por zonas (zonas.ts): el costo de cada tramo más el
+ *  de cambiar de zona. Las zonas salen de los metros, que son el barrio; si algo
+ *  fallara, el costo solo. */
+function conZonas(costo: number[][], metros: number[][]): number[][] {
   try {
-    return matrizPorZonas(matriz, zonasPorCercania(matriz));
+    return matrizPorZonas(costo, zonasPorCercania(metros));
   } catch {
-    return matriz;
+    return costo;
   }
+}
+
+/** Terminando en otro lado, la columna 0 pasa a ser lo que cuesta llegar a la
+ *  central (la última fila/columna, que después se saca). */
+function hastaLaLlegada<T>(m: T[][], cero: T): T[][] {
+  return m.slice(0, -1).map((fila, i) => [i === 0 ? cero : fila[fila.length - 1], ...fila.slice(1, -1)]);
 }
 
 /** Pasado esto armando la ruta, no se piden más mejoras (ver ordenarConSentido). */
@@ -195,13 +208,13 @@ export async function calcularRutaLocal(
   // en memoria el día entero (spec 017, R1). Sin ellas se ordena en línea recta
   // y la propuesta lo dice.
   const calle = await matrizCalles(puntos);
-  // Terminando en otro lado, la columna 0 pasa a ser lo que cuesta llegar a la
-  // central (la última fila/columna, que después se saca): así todo lo que
-  // cuenta "volver a la base" cuenta volver a la central, sin tocar el optimizador.
-  const matriz =
-    calle.metros && terminaEnOtroLado
-      ? calle.metros.slice(0, -1).map((fila, i) => [i === 0 ? 0 : fila[fila.length - 1], ...fila.slice(1, -1)])
-      : calle.metros;
+  // Terminando en otro lado, todo lo que cuenta "volver a la base" cuenta volver
+  // a la central, sin tocar el optimizador (hastaLaLlegada).
+  const matriz = calle.metros && terminaEnOtroLado ? hastaLaLlegada(calle.metros, 0) : calle.metros;
+  const segundos = calle.metros ? (terminaEnOtroLado ? hastaLaLlegada(calle.segundos, 0) : calle.segundos) : null;
+  // El orden cobra km y tiempo, en plata (spec 024, pesos.ts); los km, los
+  // tiempos y los avisos que se muestran siguen con los metros.
+  const costo = matriz ? matrizDeCosto(matriz, segundos) : null;
   if (calle.metros === null && calle.motivo === "cupo") {
     advertencias.push("Hoy ya se usaron las distancias por calle gratuitas: el orden se calculó en línea recta.");
   } else if (calle.metros === null && calle.motivo === "sin_token") {
@@ -221,13 +234,15 @@ export async function calcularRutaLocal(
   // La ruta termina donde empezó (terreno 2026-10-28): cada orden se arma y se
   // mide contando la vuelta a la base.
   const vuelta = vueltaPorMatriz(llegada, indiceEnMatriz, matriz);
+  // Con esto se elige la recomendada entre las estrategias (elegirUtiles).
+  const costoEntre = { entre: metrosPorMatriz(base, indiceEnMatriz, costo), vuelta: vueltaPorMatriz(llegada, indiceEnMatriz, costo) };
   // Cada zona una sola vez (zonas.ts): el ORDEN se decide cobrando cada cambio
   // de zona; los km, los tiempos y los avisos siguen con la matriz real.
-  const matrizOrden = matriz ? conZonas(matriz) : null;
-  // Y sobre el orden de menos km, los bultos fuera del auto lo antes posible,
-  // casi sin manejar de más (spec 024): con los metros de verdad, no con los que
-  // cobran el cambio de zona.
-  const descarga = { matriz, tolerancia: TOLERANCIA_DESCARGA };
+  const matrizOrden = matriz && costo ? conZonas(costo, matriz) : null;
+  // Y sobre el orden que menos cuesta, los bultos fuera del auto lo antes posible,
+  // casi sin manejar de más (spec 024): la tolerancia en metros de verdad y en el
+  // costo sin los cambios de zona.
+  const descarga = { matriz, base: costo, tolerancia: TOLERANCIA_DESCARGA };
 
   // Los tres órdenes. Ninguno consulta nada: todos reusan la matriz de arriba.
   const orden = (estrategia: EstrategiaRuta) =>
@@ -243,7 +258,7 @@ export async function calcularRutaLocal(
     estrategia,
     ...TITULOS[estrategia],
     paradas: ordenes[estrategia],
-    ...medir(ordenes[estrategia], metros, vuelta, minutosDeInicio),
+    ...medir(ordenes[estrategia], metros, vuelta, minutosDeInicio, costoEntre),
   }));
 
   const alternativas = elegirUtiles(candidatas);
@@ -269,7 +284,7 @@ export async function calcularRutaLocal(
     if (conSentido) {
       paradas = conSentido.paradas;
       calles = conSentido.calles;
-      recomendada = { ...recomendada, paradas, ...medir(paradas, metros, vuelta, minutosDeInicio) };
+      recomendada = { ...recomendada, paradas, ...medir(paradas, metros, vuelta, minutosDeInicio, costoEntre) };
       alternativas[0] = recomendada;
     }
   }
@@ -296,17 +311,13 @@ export async function calcularRutaLocal(
     duracionS: calles?.duracionS ?? null,
     sinUbicar,
     sinTrazado: calles == null,
+    motivoSinTrazado: calles == null ? (ultimaFallaOrs() ?? "sin_senal") : null,
     cerradas: cerradas.length,
     alternativas,
     elegida: recomendada.estrategia,
     lejanas,
     advertencias:
-      calles == null
-        ? [
-            ...advertencias,
-            "Sin trazado por calles (no hubo señal o el servicio no respondió). El orden y los puntos sirven igual.",
-          ]
-        : advertencias,
+      calles == null ? [...advertencias, avisoSinTrazado(ultimaFallaOrs())] : advertencias,
   };
 
   // Sin trazado no se guarda: quedó a medias por falta de señal y volver a
@@ -317,84 +328,6 @@ export async function calcularRutaLocal(
   return propuesta;
 }
 
-/** Cambia la alternativa puesta y le pide SU trazado.
- *
- *  El trazado se pide acá y no al calcular las tres porque es la consulta que
- *  cuesta: mostrar una comparación de tres órdenes no puede valer tres veces más
- *  que mostrar uno (Decisión 5). El conductor paga la consulta de la que de verdad
- *  quiere mirar.
- *
- *  Si la estrategia pedida no está entre las útiles, devuelve la propuesta tal
- *  cual: no es un error, es que esa alternativa no aportaba nada. */
-export async function elegirAlternativa(
-  propuesta: PropuestaRuta,
-  estrategia: EstrategiaRuta,
-): Promise<PropuestaRuta> {
-  if (estrategia === propuesta.elegida) return propuesta;
-
-  const alternativa = propuesta.alternativas.find((a) => a.estrategia === estrategia);
-  if (!alternativa) return propuesta;
-
-  const calles = await obtenerRutaCalles([
-    propuesta.partida,
-    ...alternativa.paradas.map(coord),
-    propuesta.llegada ?? propuesta.partida,
-  ]);
-
-  return {
-    ...propuesta,
-    paradas: alternativa.paradas,
-    elegida: estrategia,
-    deAres: undefined,
-    alReves: undefined,
-    trazado: calles?.trazado ?? null,
-    tramos: tramosConPedidos(calles?.tramos, [null, ...alternativa.paradas.map((p) => p.id), null]),
-    distanciaM: calles?.distanciaM ?? null,
-    duracionS: calles?.duracionS ?? null,
-    sinTrazado: calles == null,
-  };
-}
-
-/** La propuesta con otras paradas: sin una que el conductor eliminó al revisarla
- *  (terreno 2026-10-28) o con ella de vuelta. El orden de las demás no cambia:
- *  sacar una parada de una ruta buena deja una ruta buena. La comparación se va
- *  (sus cifras eran de la otra lista) y el trazado queda el de antes hasta que
- *  llegue el nuevo (ver retrazar). */
-function conParadas(propuesta: PropuestaRuta, paradas: PedidoUbicado[]): PropuestaRuta {
-  const actual = propuesta.alternativas.find((a) => a.estrategia === propuesta.elegida) ?? propuesta.alternativas[0];
-  return { ...propuesta, paradas, alternativas: actual ? [{ ...actual, paradas }] : [], deAres: undefined, alReves: undefined };
-}
-
-export function quitarParada(propuesta: PropuestaRuta, pedidoId: string): PropuestaRuta {
-  return conParadas(
-    propuesta,
-    propuesta.paradas.filter((p) => p.id !== pedidoId),
-  );
-}
-
-/** Deshacer quitarParada: vuelve a su lugar. */
-export function devolverParada(propuesta: PropuestaRuta, parada: PedidoUbicado, indice: number): PropuestaRuta {
-  const paradas = propuesta.paradas.filter((p) => p.id !== parada.id);
-  paradas.splice(Math.min(indice, paradas.length), 0, parada);
-  return conParadas(propuesta, paradas);
-}
-
-/** El trazado por calles de las paradas que tiene ahora la propuesta. */
-export async function retrazar(propuesta: PropuestaRuta): Promise<PropuestaRuta> {
-  const calles =
-    propuesta.paradas.length > 0
-      ? await obtenerRutaCalles([propuesta.partida, ...propuesta.paradas.map(coord), propuesta.llegada ?? propuesta.partida])
-      : null;
-  return {
-    ...propuesta,
-    trazado: calles?.trazado ?? null,
-    tramos: tramosConPedidos(calles?.tramos, [null, ...propuesta.paradas.map((p) => p.id), null]),
-    distanciaM: calles?.distanciaM ?? null,
-    duracionS: calles?.duracionS ?? null,
-    sinTrazado: calles == null && propuesta.paradas.length > 0,
-    esperaTrazado: undefined,
-  };
-}
-
+export { devolverParada, elegirAlternativa, quitarParada, retrazar } from "./cambiar-propuesta";
 export { confirmarRutaLocal, problemasDelArmado } from "./confirmar";
 export { invertirOrden } from "./invertir";

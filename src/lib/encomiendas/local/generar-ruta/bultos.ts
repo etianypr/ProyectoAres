@@ -10,6 +10,8 @@ import type { PedidoUbicado } from "./tipos";
 export type DescargaDelDia = {
   /** La matriz de metros de verdad: la del orden cobra además cada cambio de zona. */
   matriz: number[][] | null;
+  /** La del orden sin los cambios de zona: metros con el tiempo (pesos.ts). */
+  base: number[][] | null;
   /** Cuánto más se acepta manejar: casi nada (dueño, 2026-11-07). */
   tolerancia: number;
 };
@@ -29,12 +31,20 @@ export function bultosDe(p: PedidoUbicado): number {
 /** Lo que ordenarParadas necesita para adelantar los bultos de un grupo: los
  *  suyos y su pedazo de la matriz de verdad, con los mismos índices que `indices`
  *  (el 0 es de donde se parte). */
-export function descargaDelGrupo(descarga: DescargaDelDia, grupo: PedidoUbicado[], indices: number[]): DescargaPorMatriz {
-  const real = descarga.matriz;
+export function descargaDelGrupo(
+  descarga: DescargaDelDia,
+  grupo: PedidoUbicado[],
+  indices: number[],
+  /** Volver desde el punto i del grupo, en metros de verdad. */
+  vueltaReal?: (i: number) => number,
+): DescargaPorMatriz {
+  const recortar = (m: number[][] | null) =>
+    m && indices.every((i) => i >= 0) ? indices.map((f) => indices.map((c) => m[f]?.[c] ?? Infinity)) : null;
   return {
     bultos: [0, ...grupo.map(bultosDe)],
-    matrizReal:
-      real && indices.every((i) => i >= 0) ? indices.map((f) => indices.map((c) => real[f]?.[c] ?? Infinity)) : null,
+    matrizReal: recortar(descarga.matriz),
+    matrizBase: recortar(descarga.base),
+    vueltaReal,
     tolerancia: descarga.tolerancia,
     metrosPorParada: METROS_POR_PARADA,
   };

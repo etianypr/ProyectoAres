@@ -1,6 +1,7 @@
 // Tipos del armado de la ruta (spec 002 T032: antes en generar-ruta.ts).
 
 import type { Coordenada, Trazado } from "@/lib/geo/coordenada";
+import type { FallaOrs } from "@/lib/geo/ors/cliente";
 import type { ParadaLejana } from "./lejanas";
 import type { Pedido, Ruta, TramoDelDia } from "../almacen";
 
@@ -40,6 +41,8 @@ export type PropuestaRuta = {
   /** true si el trazado por calles no se pudo pedir (sin señal, o el servicio
    *  no respondió). La ruta sirve igual: están los puntos y el orden. */
   sinTrazado: boolean;
+  /** Por qué no hay trazado (spec 024): el cupo de ORS no es «Sin señal». */
+  motivoSinTrazado?: FallaOrs | null;
   /** Cuántas paradas de hoy ya están cerradas (entregadas u omitidas). No se
    *  reordenan ni se pierden: quedan primero en la ruta guardada. */
   cerradas: number;
@@ -87,6 +90,9 @@ export type Alternativa = {
   /** Metros según la matriz de calles. Es la cifra con la que se comparan las
    *  alternativas entre sí; la definitiva la trae el trazado. */
   metrosEstimados: number;
+  /** Lo que cuesta para el orden: los metros con el tiempo (spec 024, pesos.ts),
+   *  en la escala de los metros. Con esto se elige la recomendada. */
+  costoEstimado: number;
   /** Receptores que confirmaron o eligieron un horario. */
   confirmados: number;
   /** Los que todavía no contestaron: hay que llamarlos al aproximarse. */

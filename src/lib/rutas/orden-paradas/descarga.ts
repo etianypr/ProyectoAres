@@ -5,11 +5,12 @@
 // parada: lo manejado hasta ahí más el tiempo de las paradas anteriores. Se suma
 // por bulto, así que una parada con tres pesa tres veces.
 //
-// No es el objetivo del orden: el orden sigue siendo el de menos km (con zonas y
-// sentido de las calles). Esta pasada parte de ese orden y solo acepta cambios
-// que bajan la espera, no manejan más de `tolerancia` sobre él y no pagan más de
-// lo que el orden cobra aparte de los metros (cambiar de zona, devolverse en una
-// calle estrecha): cada zona se sigue pisando una sola vez. Y cada metro de más
+// No es el objetivo del orden: el orden sigue siendo el de menos costo (km y
+// tiempo, con zonas y sentido de las calles). Esta pasada parte de ese orden y
+// solo acepta cambios que bajan la espera, no manejan más de `tolerancia` sobre él
+// —ni en km ni en costo— y no pagan más de lo que el orden cobra aparte de cada
+// tramo (cambiar de zona, devolverse en una calle estrecha): cada zona se sigue
+// pisando una sola vez. Y cada metro de más
 // tiene que sacar los bultos, en promedio, al menos un metro antes: sin eso la
 // pasada gastaba casi el 1 % de km en días donde la espera bajaba 0,03 %.
 //
@@ -26,7 +27,10 @@ export type Descarga = {
   /** Metros de verdad entre dos puntos (FIN = volver), sin lo que el orden cobra
    *  aparte. Sin esto, el mismo costo del orden. */
   metros?: Costo;
-  /** Cuánto más se acepta manejar sobre el orden recibido: 0,01 = 1 %. */
+  /** Lo que cuesta cada tramo para el orden, sin lo que cobra aparte (zonas): los
+   *  metros con el tiempo (spec 024, generar-ruta/pesos.ts). Sin esto, `metros`. */
+  base?: Costo;
+  /** Cuánto más se acepta manejar sobre el orden recibido, en km y en costo: 0,01 = 1 %. */
   tolerancia: number;
   /** El tiempo de cada parada, en metros de manejo: así la espera se mide en
    *  tiempo, y de dos paradas igual de lejos conviene antes la de más bultos. */
@@ -62,16 +66,19 @@ export function esperaDeLosBultos(orden: number[], metros: Costo, bultos: number
 export function adelantarBultos(orden: number[], costo: Costo, descarga: Descarga, pen?: Penalizacion): number[] {
   if (orden.length <= 2) return orden;
   const metros = descarga.metros ?? costo;
+  const base = descarga.base ?? metros;
   const { bultos, metrosPorParada } = descarga;
   const largo = distanciaOrden(orden, metros);
-  const aparte = (o: number[], m: number) => distanciaOrden(o, costo, pen) - m;
-  const aparteInicial = aparte(orden, largo);
+  const costoBase = distanciaOrden(orden, base);
+  const aparte = (o: number[], b: number) => distanciaOrden(o, costo, pen) - b;
+  const aparteInicial = aparte(orden, costoBase);
   // Un tramo sin dato vale infinito: no hay contra qué medir la tolerancia.
   if (!Number.isFinite(largo) || !Number.isFinite(aparteInicial)) return orden;
   const tope = largo * (1 + descarga.tolerancia);
+  const topeBase = costoBase * (1 + descarga.tolerancia);
   // Dos paradas seguidas son del mismo barrio si el orden no cobra nada por pasar
   // de una a la otra.
-  const mismoBarrio = (a: number, b: number) => costo(a, b) - metros(a, b) <= MARGEN_M;
+  const mismoBarrio = (a: number, b: number) => costo(a, b) - base(a, b) <= MARGEN_M;
   const totalBultos = orden.slice(1).reduce((t, i) => t + (bultos[i] ?? 1), 0);
 
   let actual = orden;
@@ -81,7 +88,9 @@ export function adelantarBultos(orden: number[], costo: Costo, descarga: Descarg
     const e = esperaDeLosBultos(otro, metros, bultos, metrosPorParada);
     if (e > espera - MEJORA_MINIMA) return false;
     const m = distanciaOrden(otro, metros);
-    if (m > tope || aparte(otro, m) > aparteInicial + MARGEN_M) return false;
+    if (m > tope) return false;
+    const b = distanciaOrden(otro, base);
+    if (b > topeBase || aparte(otro, b) > aparteInicial + MARGEN_M) return false;
     if ((espera - e) / totalBultos < (m - manejado) * ESPERA_POR_METRO) return false;
     actual = otro;
     manejado = m;
