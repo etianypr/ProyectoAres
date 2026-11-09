@@ -17,6 +17,7 @@ import { useDiaTrabajo } from "./_hooks/use-dia-trabajo";
 import { useAccionesParada } from "./_hooks/use-acciones-parada";
 import { useApkVieja, useResumenAyer } from "./_hooks/use-avisos-del-dia";
 import { usePuntosMapa } from "./_hooks/use-puntos-mapa";
+import { useVistaCercanas } from "./_hooks/use-vista-cercanas";
 import { PantallaCargando, PantallaError } from "./_componentes/estado-pantalla";
 import { useUbicacionActual } from "./_hooks/use-ubicacion-actual";
 import { useEvento } from "./_hooks/use-evento";
@@ -166,7 +167,7 @@ export function PantallaEncomiendas({
   const fase: Fase = faseDeParada(activa, { dandoResultadoDe });
 
   // El camino a la parada activa (_hooks/use-hacia-parada.ts). ARES no guía (spec 020).
-  const { destinoActivo, faltan, seAproximaSinContacto, rumbo, ubicacionMostrada, trazadoPorDelante, señalDebil } =
+  const { destinoActivo, faltan, rumbo, ubicacionMostrada, trazadoPorDelante, señalDebil } =
     useHaciaParada({ activa, ruta: dia.ruta, miUbicacion, hayRuta });
 
   // Cada botón de la parada, en la tarjeta y en la burbuja (_hooks/use-burbuja.ts).
@@ -201,7 +202,8 @@ export function PantallaEncomiendas({
 
   const apkVieja = useApkVieja(apkMinima);
 
-  const { puntos, previa } = usePuntosMapa(paradas, activa, propuesta);
+  const cerca = useVistaCercanas({ paradas, activa, pedidos, soltarMapa: () => setSiguiendo(false) });
+  const { puntos, previa } = usePuntosMapa(paradas, activa, propuesta, cerca.marcadas);
 
   if (dia.cargando) return <PantallaCargando />;
 
@@ -240,7 +242,7 @@ export function PantallaEncomiendas({
       paso={paso}
       parada={
         activa
-          ? { activa, fase, whatsapp, guardando, seAproximaSinContacto, faltan, onBoton: (id) => atenderBoton(id, acciones), adelante, onLlamarA: onLlamar, onVer: setFormPedido,
+          ? { activa, fase, whatsapp, guardando, faltan, onBoton: (id) => atenderBoton(id, acciones), adelante, onLlamarA: onLlamar, onVer: setFormPedido,
               onNavegar: destinoActivo ? () => void burbuja.navegar() : undefined }
           : null
       }
@@ -278,11 +280,9 @@ export function PantallaEncomiendas({
           previa={previa}
           central={propuesta?.llegada ?? propuesta?.partida ?? dia.ruta?.partida ?? null}
           siguiendo={enNavegacion}
-          onArrastre={() => {
-            // Mover el mapa para mirar bien una ruta propuesta no es "quiero
-            // mirar otra cosa mientras manejo".
-            if (!propuesta) setSiguiendo(false);
-          }}
+          // Mover el mapa para mirar una ruta propuesta no es "quiero mirar otra cosa".
+          onArrastre={() => !propuesta && setSiguiendo(false)}
+          enfoque={cerca.enfoque}
         />
       </div>
 
@@ -318,8 +318,8 @@ export function PantallaEncomiendas({
           abajo={alturaCerrada + 12}
           siguiendo={enNavegacion && miUbicacion != null}
           onCentrar={() => { setSiguiendo(true); pedirUbicacion(); }}
-          izquierda={paso === "reparto" ? (
-            <ParadasCercanas paradas={paradas} activa={activa} pedidos={pedidos} guardando={guardando} onLlamar={onLlamar}
+          alLado={paso === "reparto" ? (
+            <ParadasCercanas {...cerca} guardando={guardando} onLlamar={onLlamar}
               onHacerAhora={(id) => correr(() => dia.hacerAhora(id))} avisar={avisar} />
           ) : null}
         />

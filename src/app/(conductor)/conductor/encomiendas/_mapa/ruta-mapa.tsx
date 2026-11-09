@@ -25,6 +25,8 @@ export type { PreviaRuta, PuntoMapa, Ubicacion } from "./tipos";
  *  modo prueba; abajo, lo que tapa el panel de la propuesta. */
 const RELLENO_ARRIBA = 76;
 const RELLENO = 28;
+/** Zoom mínimo al ir a una parada cercana: se ven la calle y las de al lado. */
+const ZOOM_ENFOQUE = 16.5;
 /** Alto mínimo que queda para dibujar la ruta, aunque el panel sea alto. */
 const ALTO_MINIMO_RUTA = 160;
 
@@ -48,6 +50,7 @@ export function RutaMapa({
   central,
   siguiendo,
   onArrastre,
+  enfoque = null,
 }: {
   puntos: PuntoMapa[];
   /** Posición GPS actual del conductor (ver useUbicacionActual) — mientras
@@ -87,6 +90,9 @@ export function RutaMapa({
   /** El conductor arrastró el mapa a mano: quiere mirar otra cosa, así que hay
    *  que dejar de seguirlo hasta que toque "centrar". */
   onArrastre: () => void;
+  /** Una parada cercana que el conductor tocó en su lista (spec 023): el mapa va
+   *  a ella. `clave` cambia en cada toque, para volver aunque sea la misma. */
+  enfoque?: { lat: number; lng: number; clave: number } | null;
 }) {
   const contenedorRef = useRef<HTMLDivElement>(null);
   const mapaRef = useRef<MapaGL | null>(null);
@@ -249,6 +255,14 @@ export function RutaMapa({
     ponerParadas(mapa, datosParadas(lugares, esPrevia, central ?? null), esPrevia && !eraPreviaRef.current);
     eraPreviaRef.current = esPrevia;
   }, [puntosDibujados, previa, central, mapaListo]);
+
+  // A la parada cercana tocada (spec 023). El seguimiento ya se soltó: si no, la
+  // próxima lectura del GPS traería el mapa de vuelta.
+  useEffect(() => {
+    const mapa = mapaRef.current;
+    if (!mapa || !mapaListo || !enfoque) return;
+    mapa.easeTo({ center: [enfoque.lng, enfoque.lat], zoom: Math.max(mapa.getZoom(), ZOOM_ENFOQUE), duration: 600 });
+  }, [enfoque, mapaListo]);
 
   // Los dos trazados. Actualizar los datos de la fuente es todo lo que hace
   // falta: no hay que crear ni destruir capas en cada cambio.

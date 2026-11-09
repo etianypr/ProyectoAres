@@ -104,7 +104,7 @@ muestra cartel de maniobras.
 
 1. **Given** un día con ruta, **When** el conductor mira ARES, **Then** ve la línea del día, las paradas en orden, las cerradas, la activa, su posición y los km que faltan a la activa.
 2. **Given** cualquier momento del día, **When** ARES está adelante, **Then** no habla ni muestra cartel de maniobras.
-3. **Given** ARES adelante, llegando a una parada sin contactar, **When** faltan ~300 m por la ruta, **Then** sigue el aviso "llámalo antes de bajar" (spec 017).
+3. **Given** ARES adelante, llegando a una parada sin contactar, **When** faltan ~300 m por la ruta, **Then** sigue el aviso "llámalo antes de bajar" (spec 017). *Quitado el 2026-11-09 (dueño: consejo obvio).*
 4. **Given** que Google Maps no está o no abre, **When** toca los km o "Navegar", **Then** se abre Google Maps en el navegador, navegando hacia la parada.
 
 ---
@@ -119,7 +119,7 @@ muestra cartel de maniobras.
   al abrir ARES, el día sigue donde estaba (todo vive en el teléfono) y los km la vuelven a abrir.
 - **Llamada desde la burbuja**: sale directo y Google Maps vuelve adelante; la llamada sigue de
   fondo. No se lee el registro de llamadas.
-- **Aviso "llámalo antes de bajar"**: con ARES atrás no se da (no usa el GPS en segundo plano).
+- **Aviso "llámalo antes de bajar"**: quitado el 2026-11-09 (dueño: consejo obvio; spec 023).
   Lo cubre la burbuja, que en ese paso muestra "Llamar".
 - **Cerrar la parada en ARES con la burbuja en curso** (después de escanear, por ejemplo):
   Google Maps navega a la siguiente, con la burbuja. Antes del primer toque a los km, se sigue

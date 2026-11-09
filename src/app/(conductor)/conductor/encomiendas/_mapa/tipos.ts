@@ -12,6 +12,8 @@ export type PuntoMapa = {
   direccion: string;
   activa: boolean;
   completada: boolean;
+  /** Cercana a la activa con su lista abierta (spec 023): se marca invertida. */
+  resaltada?: boolean;
 };
 
 export type Ubicacion = {

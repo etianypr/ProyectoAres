@@ -45,7 +45,7 @@ const SECCIONES: { titulo: string; pasos: string[] }[] = [
       "«Pedido entregado» (verde) o «No se entrega» (rojo); el botón redondo del medio llama al cliente. Sin teléfono, el redondo escanea la etiqueta y «Teléfono a mano» lo deja escribir.",
       "«No se entrega»: Dejar como pendiente (se reintenta más tarde) o No entregado (se tacha por hoy).",
       "«Deshacer» aparece arriba unos segundos.",
-      "«N cerca», abajo a la izquierda del mapa: las paradas a menos de 300 m. «Hacer ahora» deja una como la próxima.",
+      "«N cerca», al lado de ⌖: las paradas a menos de 300 m, marcadas en el mapa. Toca una para verla; «Ahora» la deja como la próxima.",
     ],
   },
   {
