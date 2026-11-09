@@ -3,15 +3,16 @@
 Qué se construye y en qué orden. Detalle de cada feature en `specs/` (índice:
 `specs/README.md`).
 
-**Prioridad (2026-11-05, dueño):** primero terminar la app del conductor (020, lo que queda de la
-019, 015, 016, 017, 018, 005, 003). El panel y los pagos (006, facturación) van después.
+**Prioridad (2026-11-09, dueño):** dejar la app lista para probarla en un día real, sin que
+ninguna feature deje tirado al conductor (`AGENTS.md`, «Ahora»). Entran las features del flujo del
+conductor (005, 016, 018, 022, 019, 024, 017, 003, 027, 020, 015 y 023); 025, 026, 002, 006, lo
+que queda de la 007 y la fase WhatsApp se postergan hasta después del día real. La lista y lo que
+le toca al dueño están en `specs/README.md`, «Preparar el día real».
+
+Antes (2026-11-05): primero la app del conductor; el panel y los pagos (006, facturación) después.
 La ruta pasa a evaluarse por km, tiempo, éxito por parada y ganancia (antes, solo km), y los ⚠ de
-la guía se resuelven antes de armarla (`AGENTS.md`, "El flujo del conductor").
-Anotadas el 2026-11-05, sin orden decidido todavía:
-- 021 (lector de etiquetas) y 028 (escáner en vivo): hechas y cerradas el 2026-11-08 (resumen
-  abajo). Falta terreno: ~50 etiquetas reales (spec 005, T030).
-- 023, 025 y 026, en borrador: paradas cercanas, referencias en direcciones y guardado persistente.
-  024 a medias (bultos e «Invertir» hechos; faltan tiempo, éxito y ganancia).
+la guía se resuelven antes de armarla (`AGENTS.md`, "El flujo del conductor"). 021 y 028 se
+cerraron el 2026-11-08 (resumen abajo); falta terreno: ~50 etiquetas reales (spec 005, T030).
 
 ## Contexto del negocio
 

@@ -12,43 +12,79 @@ pedido. Un *Pendiente* en `AGENTS.md` apunta a su carpeta.
 
 **Próximo número: 029.**
 
+## Preparar el día real (prioridad, dueño 2026-11-09)
+
+La tarea de ahora es dejar la app lista para probarla en un día real, sin que ninguna feature deje
+tirado al conductor (`AGENTS.md`, «Ahora»). Lo que no sirve para eso está en «Después del día real».
+
+1. **Ensayo completo** en la APK de prueba, en modo prueba y con GPS simulado (skill
+   `recorrer-conductor`): un día inventado de ~60 pedidos con Plus Code, los seis pasos del flujo y
+   un tramo sin señal. Se arregla lo que falle; lo que no quede firme se le muestra al dueño para
+   decidir si se apaga ese día.
+   - Cerrar el día: la lista de no entregados, el borrado (007) y los conteos y el pago en el panel
+     del jefe (`npm run test:base`; una migración sin correr ya lo dejó en $0).
+2. **Riesgos conocidos** que pueden dejarlo tirado:
+   - `NetworkError` al abrir la app (2 veces, sin pila).
+   - Burbuja (020): el permiso `POST_NOTIFICATIONS`, el altavoz al llamar y si ARES vuelve adelante
+     al cerrar la última parada.
+   - Guía: Cloud Vision usa `GOOGLE_MAPS_KEY` y va antes que ML Kit; confirmar que la guía se lee
+     con la clave como está.
+   - Textos con consejos obvios, por decidir (dueño): «¿Qué hacemos con esta parada?», «Conviene
+     llamarlo(s)», «Devuélvelos a Starken. Revisa…» y «…: revisa la dirección».
+   - La 023 y la 024 están en sus ramas, sin unir: el dueño decide si entran antes del día real.
+3. **Le toca al dueño:**
+   - Vercel: `APK_VERSION_MINIMA=1.6.0` y `APK_URL` de la 1.6.0; borrar `LECTURA_MODELO` y
+     `NEXT_PUBLIC_MAPBOX_TOKEN` (y anular el token de Mapbox).
+   - Panel → Configuración: la dirección de la central, con el Plus Code al comienzo.
+   - Supabase Auth: Site URL y redirect.
+   - El chip en el teléfono, para probar las llamadas (015, T019).
+4. **La víspera:**
+   - Revisar los «registros sin enviar» de la vieja `cl.pucarani.ares` 1.3.0 y desinstalarla.
+   - Despertar Supabase si está pausado (~5 min).
+   - Publicar con el día cerrado y la cola enviada.
+   - Usar la APK de producción (`cl.dashund.ares` 1.6.0), no la de prueba.
+5. **El día real:** cada feature anota su resultado en su `tasks.md`; las que pasan se cierran
+   (carpeta borrada, resumen en `docs/HOJA-DE-RUTA.md`).
+
 ## Índice
 
 Estados: borrador → definida → en curso → hecha (falta día real) · postergada.
 
-### App del conductor (prioridad, 2026-11-05)
+### Entran al día real
 
-| Feature | Qué | Estado | Rama | Tareas | Abierto |
-|---|---|---|---|---|---|
-| [020](020-burbuja-google-maps/spec.md) burbuja de Google Maps | la ruta en ARES, la guía en Google Maps con la burbuja encima | hecha (falta APK 1.5.0 y día real) | — (en `main` desde 2026-11-06) | 16/19 | APK 1.5.0 firmada (tag `apk-v1.5.0`) e instalada con el día cerrado; el dueño sube `APK_VERSION_MINIMA`; día real (T019) |
-| [019](019-sin-mapbox/spec.md) sin Mapbox | ORS, MapLibre y OpenFreeMap (Liberty); Google da el número de casa | hecha (falta día real) | — (en `main` desde 2026-11-06) | 13/16 | el dueño borra el token de Mapbox en Vercel (T013); sin tope de Google, decisión del dueño (T012); día real (T014) |
-| [027](027-hoja-por-paso/spec.md) la hoja paso por paso | la cabecera de la hoja dice el paso del día que toca (guía, ⚠, ruta, cargar el auto, recorrer, cerrar) y adentro va solo lo de ese paso | hecha (falta día real) | — (en `main` desde 2026-11-06) | 15/16 | día real en la APK (T016); usa `Ruta.inicioReparto` (campo opcional, sin subir idb) |
-| [022](022-pedidos-con-problemas/spec.md) pedidos con ⚠ | el ⚠ queda en el pedido (`Pedido.problemas`), la dirección en duda entra a la ruta con su primera opción y se avisa dos paradas antes; la OF de otro largo deja de ser ⚠ | hecha (falta día real) | — (en `main` desde 2026-11-06) | 11/12 | la línea de la burbuja y un día real en la APK (T012) |
-| [023](023-paradas-cercanas/spec.md) paradas cercanas | en cada parada, las paradas que quedan cerca | en curso (2026-11-08) | `023-paradas-cercanas` | — | definida por el dueño: ≤ 300 m en línea recta, sin las 2 que siguen, hasta 3; píldora sobre el mapa frente a «Centrar»; 📞 y «Hacer ahora»; sin la burbuja (no toca `android/`) |
-| [024](024-criterios-de-ruta/spec.md) criterios de ruta | bultos fuera antes (≤ 1 % de km) e «Invertir orden de ruta» en `main`; el orden cobra km ($130) y tiempo ($6.000/h) y el cupo de ORS se distingue, en la rama | en curso (2026-11-08: costo y cupo hechos en la rama) | `024-criterios-de-ruta` | 11/14 | en el teléfono: que el armado no tarde de más (T013) y los trazados con cupo (T009); T006 solo si se pide |
-| [025](025-referencias-en-direcciones/spec.md) referencias en direcciones | se ubica por la calle con número; «con…», «frente a…» quedan para el conductor | borrador | — | — | dónde se guarda la referencia |
-| [026](026-guardado-persistente/spec.md) guardado persistente | pedir que el teléfono no borre IndexedDB (el día y la `cola`) por falta de espacio | borrador | — | — | medir en la APK si la WebView desaloja y si `persist()` responde |
-| [015](015-app-android/spec.md) app Android (APK) | llamar con un toque (sin resultado automático desde la 020), abrir sin señal, pantalla encendida, escáner | en curso | — | 27/30 | probar llamadas con chip (T019) |
-| [016](016-ubicar-direcciones/spec.md) ubicar direcciones | tipeo de la guía y calles cortas sin numerar | en curso (Google conectado) | — | 11/13 | clave de Google y prueba de un día real |
-| [017](017-listo-para-terreno/spec.md) listo para terreno | errores del flujo, rutas por calle y con horarios | en curso | — | 25/27 | prueba en terreno (T051) |
-| [018](018-corregir-direcciones-ia/spec.md) corregir direcciones con IA | las «Sin ubicar» se corrigen con los buscadores y el catálogo de calles | hecha (falta día real) | — | 9/10 | probar con una guía real |
-| [005](005-carga-rapida-pedidos/spec.md) carga rápida | guía → ruta → escaneo de etiqueta | en curso (falta terreno) | — | 32/34 | ≥ 50 etiquetas reales (T030, junto con la 021) y quickstart (T031) |
-| [003](003-referencia-paquete/spec.md) OF y referencia del paquete | OF y descripción en cada parada, búsqueda por OF | hecha (falta día real) | — | 15/16 | foto con la cámara y SC-001 en terreno |
+| Paso | Feature | Qué | Estado | Rama | Tareas | Para el día real |
+|---|---|---|---|---|---|---|
+| 1 y 4 | [005](005-carga-rapida-pedidos/spec.md) carga rápida | guía → ruta → escaneo de etiqueta | en curso (falta terreno) | — | 32/34 | ≥ 50 etiquetas reales (T030; mide también la 021 y la 028: linterna, ⚠, modo avión, sin cámara) y quickstart (T031) |
+| 1 | [016](016-ubicar-direcciones/spec.md) ubicar direcciones | tipeo de la guía y calles cortas sin numerar | en curso (Google conectado) | — | 11/13 | ≤ 3 direcciones a corregir en un día real (T013) |
+| 1 | [018](018-corregir-direcciones-ia/spec.md) corregir direcciones con IA | las «Sin ubicar» se corrigen con los buscadores y el catálogo de calles | hecha (falta día real) | — | 9/10 | una guía real (T008) |
+| 2 y 5 | [022](022-pedidos-con-problemas/spec.md) pedidos con ⚠ | el ⚠ queda en el pedido (`Pedido.problemas`), la dirección en duda entra a la ruta con su primera opción y se avisa dos paradas antes; la OF de otro largo deja de ser ⚠ | hecha (falta día real) | — | 11/12 | la línea de la burbuja y un día real en la APK (T012) |
+| 3 | [019](019-sin-mapbox/spec.md) sin Mapbox | ORS, MapLibre y OpenFreeMap (Liberty); Google da el número de casa | hecha (falta día real) | — | 13/16 | el dueño borra el token de Mapbox en Vercel (T013); día real (T014). Google sin tope, decisión del dueño (T012) |
+| 3 | [024](024-criterios-de-ruta/spec.md) criterios de ruta | bultos fuera antes (≤ 1 % de km) e «Invertir orden de ruta» en `main`; el orden cobra km ($130) y tiempo ($6.000/h) y el cupo de ORS se distingue, en la rama | en curso (costo y cupo hechos en la rama) | `024-criterios-de-ruta` | 11/14 | en el teléfono: que el armado no tarde de más (T013) y los trazados con cupo (T009); el dueño decide si entra. Después del día real: T006, éxito por parada y ganancia |
+| 3 | [017](017-listo-para-terreno/spec.md) listo para terreno | errores del flujo, rutas por calle y con horarios | en curso | — | 25/27 | prueba en terreno (T051) |
+| 4 | [003](003-referencia-paquete/spec.md) OF y referencia del paquete | OF y descripción en cada parada, búsqueda por OF | hecha (falta día real) | — | 15/16 | foto con la cámara y SC-001 en terreno (T016) |
+| todos | [027](027-hoja-por-paso/spec.md) la hoja paso por paso | la cabecera de la hoja dice el paso del día que toca y adentro va solo lo de ese paso | hecha (falta día real) | — | 15/16 | escáner, «Salir a repartir» y volver de Google Maps en la APK (T016) |
+| 5 | [020](020-burbuja-google-maps/spec.md) burbuja de Google Maps | la ruta en ARES, la guía en Google Maps con la burbuja encima | hecha (falta día real) | — | 16/19 | quickstart en el teléfono con la APK 1.6.0 (T018); día real (T019): 8 de cada 10 paradas sin volver a ARES |
+| 5 | [015](015-app-android/spec.md) app Android (APK) | llamar con un toque, abrir sin señal, pantalla encendida, escáner | en curso | — | 27/30 | llamadas con chip (T019) y quickstart en el teléfono del conductor (T013, T030) |
+| 5 | [023](023-paradas-cercanas/spec.md) paradas cercanas | «N cerca» al lado de «Centrar»: hasta 3 pendientes a ≤ 300 m, marcadas en el mapa; «Ahora» deja una como la próxima | hecha en la rama (recorrida en la APK de prueba) | `023-paradas-cercanas` | — | el dueño decide si entra; día real |
 
-### Base, cumplimiento, panel y pagos
+### Después del día real (postergadas, dueño 2026-11-09)
 
-| Feature | Qué | Estado | Rama | Tareas | Abierto |
-|---|---|---|---|---|---|
-| [002](002-reestructuracion-codigo/spec.md) reestructuración | `lib/` por dominio, archivos chicos, nombres del glosario | en curso | — | 45/51 | tablas `encomienda_*` (T049–T051, con aprobación); partir `pedido-form-local` (T042); quickstart (T047) |
-| [007](007-cumplimiento-datos/spec.md) cumplimiento | borrado diario, no entregados, modo piloto/oficial | en curso (MVP hecho) | — | 13/20 | modo piloto/oficial (P3) y plantillas (con la 004) |
-| [006](006-indicadores-negocio/spec.md) indicadores | entregas sobre asignado, contactados, rendimiento, margen, bono | hecha (falta quickstart) | — | 14/15 | — |
+No se empiezan ni se retoman sin que el dueño lo pida. Un detalle nuevo que no afecta el día real
+se anota aquí.
 
-### Fase WhatsApp (postergada hasta tener el chip)
+| Feature | Qué | Estado | Tareas | Lo que falta |
+|---|---|---|---|---|
+| [025](025-referencias-en-direcciones/spec.md) referencias en direcciones | se ubica por la calle con número; «con…», «frente a…» quedan para el conductor | postergada (borrador) | — | dónde se guarda la referencia. El día real dirá cuántas direcciones con «con…» se ubican mal |
+| [026](026-guardado-persistente/spec.md) guardado persistente | pedir que el teléfono no borre IndexedDB (el día y la `cola`) por falta de espacio | postergada (borrador) | — | medir en la APK si la WebView desaloja y si `persist()` responde |
+| [002](002-reestructuracion-codigo/spec.md) reestructuración | `lib/` por dominio, archivos chicos, nombres del glosario | postergada (en curso) | 45/51 | partir `pedido-form-local` (T042; antes, si el ensayo obliga a tocarlo); quickstart (T047); tablas `encomienda_*` (T049–T051, con aprobación) |
+| [007](007-cumplimiento-datos/spec.md) cumplimiento | borrado diario, no entregados, modo piloto/oficial | postergada (MVP hecho) | 13/20 | el MVP entra al día real (paso 6); falta modo piloto/oficial (P3) y plantillas (con la 004) |
+| [006](006-indicadores-negocio/spec.md) indicadores | entregas sobre asignado, contactados, rendimiento, margen, bono | postergada (hecha, falta quickstart) | 14/15 | quickstart (T015) |
+| [004](004-menos-visitas-fallidas/spec.md) menos visitas fallidas | WhatsApp propio, «voy llegando» | postergada (fase WhatsApp, sin chip) | 0/21 | — |
+| [014](014-horario-conveniente/spec.md) ¿conviene ir al pedido con horario? | al tocarle el turno, ir, dejar para después o descartar | postergada (fase WhatsApp, borrador) | — | — |
 
-| Feature | Qué | Estado | Rama | Tareas | Abierto |
-|---|---|---|---|---|---|
-| [004](004-menos-visitas-fallidas/spec.md) menos visitas fallidas | WhatsApp propio, «voy llegando» | postergada | — | 0/21 | — |
-| [014](014-horario-conveniente/spec.md) ¿conviene ir al pedido con horario? | al tocarle el turno, ir, dejar para después o descartar | borrador | — | — | — |
+Detalles anotados para después: `allowBackup="true"` (toca `android/`; skill
+`privacidad-destinatarios`), falta `/favicon.ico`, y en modo prueba «Salir y borrar» no vacía
+`dias` ni apaga la IA ni Google.
 
 **Hechas:** 001 (asistencia de ruta), 008 a 013, 021 y 028. Lo que decidieron está en `docs/` (resumen en
 `docs/HOJA-DE-RUTA.md`, modelo en `docs/CLASES.md`, WhatsApp en `docs/WHATSAPP.md`). Sus carpetas se

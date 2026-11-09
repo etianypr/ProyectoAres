@@ -3,6 +3,18 @@ App que suple al pioneta: ayuda a un conductor de Arica a ubicar direcciones, ar
 contactar al receptor y registrar cada entrega, y le deja al jefe los conteos para calcular el pago.
 La prioridad es entregar más en menos tiempo, con pocos toques.
 
+## Ahora: dejar la app lista para un día real (dueño, 2026-11-09)
+**La tarea fundamental de ahora es dejar la aplicación lista para probarla en un día real, sin que
+ninguna feature deje tirado al conductor.**
+- Se pule lo que el conductor usa en los seis pasos del flujo (abajo): que cada paso funcione de
+  punta a punta en la APK, sin señal, sin cupo de un proveedor y con guías y etiquetas reales.
+- Lo que no tiene que ver con el día real está postergado (`specs/README.md`, «Después del día
+  real»). No se empieza ni se retoma sin que el dueño lo pida; un detalle que aparece y no afecta el
+  día real se anota ahí y no se hace.
+- Una feature que no alcanza a quedar firme no va a medias: se le muestra al dueño para decidir si
+  se apaga ese día.
+- Lo que falta, incluido lo que le toca al dueño, está en `specs/README.md`, «Preparar el día real».
+
 ## El flujo del conductor
 Es lo más importante del proyecto: todo cambio en la app del conductor se mide contra este flujo.
 
@@ -48,7 +60,7 @@ comparten layout: el panel del jefe (escritorio) y la app del conductor (APK And
   (registrado en `.mcp.json`).
 - **Todo lo que falta desarrollar** está en `specs/`, una carpeta por feature. El
   índice, el próximo número y cómo se trabaja por ramas están en su `README.md`. Spec Kit: la
-  constitución está en `.specify/memory/constitution.md` (v1.4.0). Prioridad: la app del conductor;
+  constitución está en `.specify/memory/constitution.md` (v1.4.0). Prioridad: el día real (arriba);
   el panel y los pagos van después.
 
 ```text
