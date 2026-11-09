@@ -79,8 +79,8 @@ export function EscanerVivo({
       <div className="flex items-center gap-2 bg-black/60 px-4 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))] text-white">
         <h2 className="min-w-0 flex-1 text-lg font-semibold">Cargar el auto</h2>
         {avance.total > 0 ? (
-          <span className="shrink-0 rounded-full bg-white/20 px-2.5 py-1 font-mono text-sm font-semibold tabular-nums">
-            {avance.escaneados}/{avance.total}
+          <span className="shrink-0 rounded-full bg-white/20 px-2.5 py-1 text-sm font-semibold tabular-nums">
+            {avance.escaneados} de {avance.total}
           </span>
         ) : null}
         {camara?.linterna ? (

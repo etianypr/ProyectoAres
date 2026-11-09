@@ -105,7 +105,7 @@ export function EscanearEtiqueta({
         <h2 className="min-w-0 flex-1 text-lg font-semibold">Escanear etiqueta</h2>
         {avance.total > 0 ? (
           <span className="shrink-0 rounded-full bg-brand-soft px-2.5 py-1 text-sm font-semibold tabular-nums text-brand">
-            {avance.escaneados}/{avance.total}
+            {avance.escaneados} de {avance.total}
           </span>
         ) : null}
         <button
