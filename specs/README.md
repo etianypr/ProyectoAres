@@ -31,7 +31,6 @@ tirado al conductor (`AGENTS.md`, «Ahora»). Lo que no sirve para eso está en 
      con la clave como está.
    - Textos con consejos obvios, por decidir (dueño): «¿Qué hacemos con esta parada?», «Conviene
      llamarlo(s)», «Devuélvelos a Starken. Revisa…» y «…: revisa la dirección».
-   - La 023 y la 024 están en sus ramas, sin unir: el dueño decide si entran antes del día real.
 3. **Le toca al dueño:**
    - Vercel: `APK_VERSION_MINIMA=1.6.0` y `APK_URL` de la 1.6.0; borrar `LECTURA_MODELO` y
      `NEXT_PUBLIC_MAPBOX_TOKEN` (y anular el token de Mapbox).
@@ -59,13 +58,13 @@ Estados: borrador → definida → en curso → hecha (falta día real) · poste
 | 1 | [018](018-corregir-direcciones-ia/spec.md) corregir direcciones con IA | las «Sin ubicar» se corrigen con los buscadores y el catálogo de calles | hecha (falta día real) | — | 9/10 | una guía real (T008) |
 | 2 y 5 | [022](022-pedidos-con-problemas/spec.md) pedidos con ⚠ | el ⚠ queda en el pedido (`Pedido.problemas`), la dirección en duda entra a la ruta con su primera opción y se avisa dos paradas antes; la OF de otro largo deja de ser ⚠ | hecha (falta día real) | — | 11/12 | la línea de la burbuja y un día real en la APK (T012) |
 | 3 | [019](019-sin-mapbox/spec.md) sin Mapbox | ORS, MapLibre y OpenFreeMap (Liberty); Google da el número de casa | hecha (falta día real) | — | 13/16 | el dueño borra el token de Mapbox en Vercel (T013); día real (T014). Google sin tope, decisión del dueño (T012) |
-| 3 | [024](024-criterios-de-ruta/spec.md) criterios de ruta | bultos fuera antes (≤ 1 % de km) e «Invertir orden de ruta» en `main`; el orden cobra km ($130) y tiempo ($6.000/h) y el cupo de ORS se distingue, en la rama | en curso (costo y cupo hechos en la rama) | `024-criterios-de-ruta` | 11/14 | en el teléfono: que el armado no tarde de más (T013) y los trazados con cupo (T009); el dueño decide si entra. Después del día real: T006, éxito por parada y ganancia |
+| 3 | [024](024-criterios-de-ruta/spec.md) criterios de ruta | bultos fuera antes (≤ 1 % de km), «Invertir orden de ruta», el orden cobra km ($130) y tiempo ($6.000/h) y el cupo de ORS no es «Sin señal» | hecha (falta teléfono y día real) | — (en `main` desde 2026-11-09) | 11/14 | en el teléfono: que el armado no tarde de más (T013) y los trazados con cupo (T009). Después del día real: T006, éxito por parada y ganancia |
 | 3 | [017](017-listo-para-terreno/spec.md) listo para terreno | errores del flujo, rutas por calle y con horarios | en curso | — | 25/27 | prueba en terreno (T051) |
 | 4 | [003](003-referencia-paquete/spec.md) OF y referencia del paquete | OF y descripción en cada parada, búsqueda por OF | hecha (falta día real) | — | 15/16 | foto con la cámara y SC-001 en terreno (T016) |
 | todos | [027](027-hoja-por-paso/spec.md) la hoja paso por paso | la cabecera de la hoja dice el paso del día que toca y adentro va solo lo de ese paso | hecha (falta día real) | — | 15/16 | escáner, «Salir a repartir» y volver de Google Maps en la APK (T016) |
 | 5 | [020](020-burbuja-google-maps/spec.md) burbuja de Google Maps | la ruta en ARES, la guía en Google Maps con la burbuja encima | hecha (falta día real) | — | 16/19 | quickstart en el teléfono con la APK 1.6.0 (T018); día real (T019): 8 de cada 10 paradas sin volver a ARES |
 | 5 | [015](015-app-android/spec.md) app Android (APK) | llamar con un toque, abrir sin señal, pantalla encendida, escáner | en curso | — | 27/30 | llamadas con chip (T019) y quickstart en el teléfono del conductor (T013, T030) |
-| 5 | [023](023-paradas-cercanas/spec.md) paradas cercanas | «N cerca» al lado de «Centrar»: hasta 3 pendientes a ≤ 300 m, marcadas en el mapa; «Ahora» deja una como la próxima | hecha en la rama (recorrida en la APK de prueba) | `023-paradas-cercanas` | — | el dueño decide si entra; día real |
+| 5 | [023](023-paradas-cercanas/spec.md) paradas cercanas | «N cerca» al lado de «Centrar»: hasta 3 pendientes a ≤ 300 m, marcadas en el mapa; «Ahora» deja una como la próxima | hecha (falta día real) | — (en `main` desde 2026-11-09) | — | día real |
 
 ### Después del día real (postergadas, dueño 2026-11-09)
 
