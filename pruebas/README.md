@@ -68,6 +68,7 @@ No hay framework de pruebas: `node:test` viene con Node.
 | `renombrado-conductor.test.mjs` | Spec 002: la migración 0006 renombra todo a "conductor" y lo verifica; la cola vieja del teléfono se sigue leyendo. |
 | `listo-para-terreno.test.mjs` | Spec 017, errores del flujo: fecha del día en el teléfono, deshacer solo lo retenido, OF distinta, día que se cierra, envío con un evento rechazado. |
 | `rutas-017.test.mjs` | Spec 017, rutas: la matriz de calles por bloques (caché, cupo mensual, par sin camino) y el optimizador con horarios (cumple los bloques, determinista, por partes). |
+| `paradas-cercanas.test.mjs` | Spec 023: cuáles salen como cercanas (≤ 300 m, sin las 2 que siguen, hasta 3, las de fuera de la ruta con punto, nunca las cerradas) y que «Hacer ahora» deja una como la próxima sin mover lo cerrado ni la activa, y sin consultar nada. |
 | `sumar-a-ruta.test.mjs` | Spec 017, R4: "Dejar como pendiente" donde menos alarga a partir de 30 min, y sumar pedidos tardíos sin mover la parada activa. |
 | `direccion-ia.test.mjs` | Spec 018: la conversación con la IA, que las coordenadas salgan de un buscador y nunca de la IA, y que nada se aplique sin que el conductor confirme. |
 | `pantalla-conductor.test.mjs` | Spec 002: lo puro de la pantalla del conductor (en qué paso está la parada, las cifras de la lista). Spec 027: el paso del día que decide la cabecera de la hoja (guía, ⚠, ruta, cargar el auto, recorrer, cerrar) y cuándo terminó la carga del auto. |

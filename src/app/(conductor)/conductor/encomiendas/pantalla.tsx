@@ -41,6 +41,7 @@ import { avisoAdelante, lineaAvisoAdelante } from "./_hooks/aviso-adelante";
 import { useCargaAuto } from "./_hooks/use-carga-auto";
 import { problemasDelPedido } from "@/lib/encomiendas/problemas";
 import { ControlesMapa } from "./_componentes/controles-mapa";
+import { ParadasCercanas } from "./_componentes/paradas-cercanas";
 import { VistaPedido } from "./_componentes/vista-pedido";
 import { VistaPreviaRuta } from "./_componentes/vista-previa-ruta";
 import { useModoPrueba } from "@/lib/encomiendas/local/modo-prueba";
@@ -311,16 +312,16 @@ export function PantallaEncomiendas({
         señalDebil={señalDebil}
       />
 
-      {/* Controles del mapa, justo encima de la hoja cerrada. La altura la
-          informa la propia hoja: cambia con el paso de la parada. */}
+      {/* Controles del mapa, justo encima de la hoja cerrada (su alto cambia con el paso). */}
       {!propuesta ? (
         <ControlesMapa
           abajo={alturaCerrada + 12}
           siguiendo={enNavegacion && miUbicacion != null}
-          onCentrar={() => {
-            setSiguiendo(true);
-            pedirUbicacion();
-          }}
+          onCentrar={() => { setSiguiendo(true); pedirUbicacion(); }}
+          izquierda={paso === "reparto" ? (
+            <ParadasCercanas paradas={paradas} activa={activa} pedidos={pedidos} guardando={guardando} onLlamar={onLlamar}
+              onHacerAhora={(id) => correr(() => dia.hacerAhora(id))} avisar={avisar} />
+          ) : null}
         />
       ) : null}
 

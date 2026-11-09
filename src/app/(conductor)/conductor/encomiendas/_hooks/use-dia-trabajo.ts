@@ -13,7 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { borrarPedido, cerrarDia, purgarFotosCerradas, deshacerResultado, leerPedidos, leerRuta, marcarResultado, registrarLlamada, pedidosEnOrden, restaurarPedido, rutaTerminada, type PedidoEliminado, type Pedido, type Ruta } from "@/lib/encomiendas/local/almacen";
 import { estaConfirmado, type ResultadoMarcable } from "@/lib/encomiendas/estados";
 
-import { dejarParaMasTarde, sumarALaRuta } from "@/lib/encomiendas/local/sumar-a-ruta";
+import { dejarParaMasTarde, hacerAhora, sumarALaRuta } from "@/lib/encomiendas/local/sumar-a-ruta";
 import { useEnvioActividad } from "@/lib/encomiendas/local/enviar";
 import type { DiaEnCurso, Parada } from "./dia-trabajo-tipos";
 import { useWhatsappDia } from "./use-whatsapp-dia";
@@ -231,6 +231,16 @@ export function useDiaTrabajo({
     [fecha, recargar, unaSolaVez],
   );
 
+  const onHacerAhora = useCallback(
+    async (pedidoId: string) => {
+      await unaSolaVez(`ahora:${pedidoId}`, async () => {
+        await hacerAhora(fecha, pedidoId);
+        await recargar();
+      });
+    },
+    [fecha, recargar, unaSolaVez],
+  );
+
   const onEliminarPedido = useCallback(
     (pedidoId: string) =>
       unaSolaVez(`eliminar:${pedidoId}`, async () => {
@@ -339,6 +349,7 @@ export function useDiaTrabajo({
     deshacer: onDeshacer,
     dejarParaElFinal: onDejarParaElFinal,
     sumarALaRuta: onSumarALaRuta,
+    hacerAhora: onHacerAhora,
     eliminarPedido: onEliminarPedido,
     restaurar: onRestaurar,
     confirmar,

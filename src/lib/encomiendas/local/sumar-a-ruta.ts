@@ -5,6 +5,7 @@
 //     otro lado de la ciudad).
 //   · Un pedido que llegó con la ruta andando: entra donde menos alarga, sin
 //     mover la parada que se está atendiendo (antes había que rehacer todo).
+//   · «Hacer ahora» (spec 023): una parada cercana pasa a ser la próxima.
 //
 // Con distancias estimadas (línea recta × 1,3): corre sin señal y en el acto.
 
@@ -50,6 +51,23 @@ function distanciasDelDia(desde: Coordenada, partida: Coordenada | null): [Metro
   if (!partida) return [metros, undefined];
   const vueltaEstimadaDesde = vueltaEstimada(partida, desde);
   return [metros, (p) => metrosEnMemoria(p ?? desde, partida) ?? vueltaEstimadaDesde(p)];
+}
+
+/** «Hacer ahora» (spec 023): el pedido pasa a ser la próxima parada, justo
+ *  después de la que se está atendiendo; si estaba fuera de la ruta, entra. Como
+ *  «Dejar como pendiente», no vuelve a pedir el trazado: no gasta cupo de ORS y
+ *  la línea del mapa queda la de antes. */
+export async function hacerAhora(fecha: string, pedidoId: string): Promise<void> {
+  const [ruta, pedidos] = await Promise.all([leerRuta(fecha), leerPedidos(fecha)]);
+  if (!ruta) throw new Error("No hay una ruta para ese día.");
+  if (pedidos.find((p) => p.id === pedidoId)?.resultado !== "pendiente") {
+    throw new Error("Ese pedido ya no está pendiente.");
+  }
+  const ids = pedidosEnOrden(ruta, pedidos)
+    .filter((p) => !resultadoCerrado(p.resultado) && p.id !== pedidoId)
+    .map((p) => p.id);
+  ids.splice(Math.min(1, ids.length), 0, pedidoId);
+  await ordenarRuta(fecha, ids);
 }
 
 /** Los pedidos pendientes del día que no están en la ruta y tienen punto. */

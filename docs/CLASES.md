@@ -340,7 +340,8 @@ lo usa.
 | Reglas: `tipoEventoDe`, `resultadoCerrado`, `estaConfirmado`, `respuestaDeAccion` | `encomiendas/estados.ts` |
 | Botones y payload: orden `CONFIRMAR · MANANA · HORARIO`, `leerAccion` (RECHAZAR legado → MANANA) | `encomiendas/catalogos.ts`, `encomiendas/config.ts` |
 | Llegada estimada y lugar de un pedido con horario; dónde menos alarga uno nuevo o uno que se reintenta (`lugarMasBarato`, `lugarParaReintentar`) | `encomiendas/local/planificar.ts` |
-| "Dejar como pendiente" y pedidos tardíos sin rehacer la ruta (`dejarParaMasTarde`, `sumarALaRuta`) | `encomiendas/local/sumar-a-ruta.ts` |
+| "Dejar como pendiente" y pedidos tardíos sin rehacer la ruta (`dejarParaMasTarde`, `sumarALaRuta`) · «Hacer ahora»: una parada cercana pasa a ser la próxima, sin pedir trazado (`hacerAhora`, spec 023) | `encomiendas/local/sumar-a-ruta.ts` |
+| Paradas cercanas (spec 023): las pendientes a ≤ 300 m de la activa, sin las 2 que siguen, hasta 3, y las de fuera de la ruta con punto (`paradasCercanas`, puro); la píldora «N cerca» frente a «Centrar» y su lista (`ParadasCercanas`, en `ControlesMapa`) | `(conductor)/…/_hooks/paradas-cercanas.ts` · `_componentes/paradas-cercanas.tsx` · `_componentes/controles-mapa.tsx` |
 | Modo prueba: nada a la base ni por WhatsApp; al salir se borra lo de la prueba (`enModoPrueba`, `entrarAlModoPrueba`, `salirDelModoPrueba`, `useModoPrueba`; `localStorage` `ares-modo-prueba`) | `encomiendas/local/modo-prueba.ts` |
 | GPS simulado del modo prueba: parte en la central y avanza solo por el tramo de la línea del día hasta la parada activa (en línea recta si no hay tramo; Google Maps no se simula), a ×1, ×5, ×10 o ×20 —sobre ×5 lee cuatro veces por segundo y no pasa por el filtro de velocidad imposible— (`fuenteUbicacion`, `useSimularRecorrido`, `puntoEnCamino`; `localStorage` `ares-gps-simulado`) | `encomiendas/local/gps-simulado.ts` |
 | La ruta en curso se reordena con las respuestas | `encomiendas/local/replanificar.ts` |
