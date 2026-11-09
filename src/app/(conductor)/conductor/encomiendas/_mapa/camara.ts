@@ -8,13 +8,13 @@ import type * as maplibregl from "maplibre-gl";
 // que hace que se vea "hacia adelante" y no desde arriba. Después de eso el
 // zoom queda en manos del conductor.
 //
-// 18.4 es el acercamiento de la foto: la calle se ve del ancho que tiene —unos
-// 12 m— y por delante entran unos 150 m, o sea el cruce que viene y el que le
-// sigue. En 17 la misma pantalla abarcaba cuatro veces más: la calle quedaba
-// como una línea fina entre manzanas y el conductor tenía que buscar dónde estaba
-// el punto en vez de mirar la maniobra.
-export const ZOOM_NAVEGACION = 18.4;
-export const PITCH_NAVEGACION = 55;
+// 16.5, el mismo zoom con que se enfoca una parada: unas cuadras alrededor y las
+// paradas cercanas. Era 18.4 (la calle de su ancho real, para mirar la maniobra)
+// cuando ARES guiaba; desde la spec 020 guía Google Maps, y en ARES «Centrar»
+// quedaba muy cerca y poco estético (dueño, 2026-11-09). Con menos inclinación,
+// por lo mismo.
+export const ZOOM_NAVEGACION = 16.5;
+export const PITCH_NAVEGACION = 40;
 
 // El GPS avisa cada uno o dos segundos, así que animar cerca de un segundo hace
 // que el mapa "fluya" en vez de dar saltos de una posición a la otra.
