@@ -59,8 +59,14 @@ export function CabeceraHoja({
       <CabeceraCierre entregadas={entregadas} noEntregadas={noEntregadas} diaCerrado={diaCerrado} onCerrarDia={onCerrarDia} />
     );
   }
-  const armar = (enlace?: string) => (
-    <GenerarRutaLocal fecha={fecha} direccionEmpresa={direccionEmpresa} enlace={enlace} onPropuesta={onPropuesta} />
+  const armar = () => (
+    <GenerarRutaLocal
+      fecha={fecha}
+      direccionEmpresa={direccionEmpresa}
+      conProblema={conProblema}
+      onResolver={onResolver}
+      onPropuesta={onPropuesta}
+    />
   );
   return (
     <CabeceraSinParada
@@ -74,7 +80,6 @@ export function CabeceraHoja({
       onAgregar={onAgregar}
       onResolver={onResolver}
       armarRuta={armar()}
-      armarIgual={armar("Armar la ruta igual")}
     />
   );
 }

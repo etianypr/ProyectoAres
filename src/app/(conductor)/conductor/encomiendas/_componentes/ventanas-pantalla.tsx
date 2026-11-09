@@ -124,16 +124,15 @@ export function VentanasPantalla({
           onCerrar={() => v.setCargandoGuia(false)}
           onCreados={() => void dia.recargar()}
           onAyuda={() => v.setAyudaAbierta(true)}
-          conProblema={conProblema.length}
-          onResolver={() => {
-            v.setCargandoGuia(false);
-            onResolver(conProblema);
-          }}
-          armar={(enlace) => (
+          armar={() => (
             <GenerarRutaLocal
               fecha={fecha}
               direccionEmpresa={direccionEmpresa}
-              enlace={enlace}
+              conProblema={conProblema.length}
+              onResolver={() => {
+                v.setCargandoGuia(false);
+                onResolver(conProblema);
+              }}
               onPropuesta={(p) => {
                 v.setCargandoGuia(false);
                 onPropuesta(p);

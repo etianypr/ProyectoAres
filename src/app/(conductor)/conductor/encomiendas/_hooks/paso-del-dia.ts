@@ -31,7 +31,7 @@ export function pasoDelDia({
   }
   if (pendientesFuera === 0) return "guia";
   // Un ⚠ que no se arregla deja la cabecera en "resolver" hasta marcarlo («Va
-  // igual», «Es así»), pero nunca bloquea: "Armar la ruta igual" está ahí.
+  // igual», «Es así»), pero nunca bloquea: «Armar la ruta» pregunta y arma igual.
   return conProblema > 0 ? "resolver" : "ruta";
 }
 

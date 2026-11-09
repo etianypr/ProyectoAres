@@ -11,12 +11,13 @@
 // se guardaba de una y la ruta le cambiaba abajo de los pies.
 
 import { useState } from "react";
-import { RefreshCw, ChevronDown } from "lucide-react";
+import { AlertTriangle, RefreshCw, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DireccionInput } from "@/components/direccion/direccion-input";
 import { cn } from "@/lib/comun/utils";
 import { fuenteUbicacion } from "@/lib/encomiendas/local/gps-simulado";
 import { BuscandoRuta, esperarDibujo } from "./buscando-ruta";
+import { BOTON_PRINCIPAL } from "./parada-activa";
 import {
   calcularRutaLocal,
   type PropuestaRuta,
@@ -38,7 +39,8 @@ export function GenerarRutaLocal({
   fecha,
   direccionEmpresa,
   regenerar = false,
-  enlace,
+  conProblema = 0,
+  onResolver,
   onPropuesta,
 }: {
   fecha: string;
@@ -46,9 +48,11 @@ export function GenerarRutaLocal({
    *  página desde la base y lo pasa acá. */
   direccionEmpresa: string | null;
   regenerar?: boolean;
-  /** Un enlace con este texto en vez del botón, y sin elegir desde dónde: es
-   *  «Armar la ruta igual» con pedidos en duda (spec 027, paso 2). */
-  enlace?: string;
+  /** Pedidos con ⚠ sin resolver: antes de armar se pregunta (dueño, 2026-11-09:
+   *  un solo «Armar la ruta» y una confirmación, en vez de dos botones). */
+  conProblema?: number;
+  /** «Resolver primero» en esa confirmación: abre el primer pedido con ⚠. */
+  onResolver?: () => void;
   onPropuesta: (propuesta: PropuestaRuta) => void;
 }) {
   // Desde DONDE arranca la ruta. Por defecto, desde la central de carga de
@@ -65,6 +69,7 @@ export function GenerarRutaLocal({
     lng: number;
   } | null>(null);
   const [armando, setArmando] = useState(false);
+  const [preguntando, setPreguntando] = useState(false);
   const [obteniendoUbicacion, setObteniendoUbicacion] = useState(false);
   const [error, setError] = useState<string | null>(null);
   async function disparar(puntoInicio: PuntoInicio) {
@@ -93,6 +98,11 @@ export function GenerarRutaLocal({
 
   function onClick() {
     setError(null);
+    if (conProblema > 0 && !preguntando) {
+      setPreguntando(true);
+      return;
+    }
+    setPreguntando(false);
 
     if (opcion === "gps") {
       const fuente = fuenteUbicacion();
@@ -134,19 +144,28 @@ export function GenerarRutaLocal({
   const ocupado = armando || obteniendoUbicacion;
   const elegida = OPCIONES.find((o) => o.valor === opcion)!;
 
-  if (enlace) {
+  // Con ⚠ sin resolver: en el mismo lugar del botón, donde está el dedo (y sin una
+  // ventana encima que el «atrás» de Android no sabría cerrar).
+  if (preguntando) {
     return (
-      <div className="space-y-2">
-        {armando ? <BuscandoRuta /> : null}
+      <div className="space-y-2 rounded-2xl bg-warn-bg p-3">
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-warn">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          {conProblema === 1 ? "1 pedido en precaución" : `${conProblema} pedidos en precaución`}
+        </p>
+        <button type="button" onClick={onClick} className={BOTON_PRINCIPAL}>
+          Armar igual
+        </button>
         <button
           type="button"
-          onClick={onClick}
-          disabled={ocupado}
-          className="flex w-full items-center justify-center gap-1.5 py-1 text-sm font-semibold text-brand disabled:opacity-50"
+          onClick={() => {
+            setPreguntando(false);
+            onResolver?.();
+          }}
+          className="flex h-11 w-full items-center justify-center text-sm font-semibold text-brand"
         >
-          {obteniendoUbicacion ? "Obteniendo ubicación…" : armando ? "Armando la ruta…" : enlace}
+          Resolver primero
         </button>
-        {error ? <p className="rounded-lg bg-danger-bg px-3 py-2 text-xs text-danger">{error}</p> : null}
       </div>
     );
   }

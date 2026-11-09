@@ -8,7 +8,7 @@
 // pendientes: los pedidos se cargan en tanda, y armar la ruta a mitad de una tanda
 // deja afuera los que faltaban.
 
-import { AlertTriangle, Camera, Check, Plus } from "lucide-react";
+import { AlertTriangle, Camera, Check, ChevronRight, Plus } from "lucide-react";
 import type { Paso } from "../_hooks/paso-del-dia";
 import { BOTON_PRINCIPAL } from "./parada-activa";
 
@@ -33,7 +33,6 @@ export function CabeceraSinParada({
   onAgregar,
   onResolver,
   armarRuta,
-  armarIgual,
 }: {
   paso: Extract<Paso, "guia" | "resolver" | "ruta">;
   /** Está abierto el formulario de un pedido. */
@@ -48,10 +47,8 @@ export function CabeceraSinParada({
   onAgregar: () => void;
   /** Abre el primer pedido con ⚠ y, al guardarlo, el siguiente. */
   onResolver: () => void;
-  /** El botón para armar la ruta (GenerarRutaLocal). */
+  /** El botón para armar la ruta (GenerarRutaLocal): con ⚠, pregunta antes. */
   armarRuta: React.ReactNode;
-  /** «Armar la ruta igual», con pedidos en duda (GenerarRutaLocal como enlace). */
-  armarIgual: React.ReactNode;
 }) {
   if (cargando) {
     return (
@@ -97,18 +94,21 @@ export function CabeceraSinParada({
   if (paso === "resolver") {
     return (
       <div className="space-y-2.5">
+        {/* Un solo «Armar la ruta» (dueño, 2026-11-09: dos botones grandes se
+            veían toscos). Resolver queda en la pastilla, a un toque. */}
         <div className="flex items-center justify-between gap-2">
           <p className={TITULO}>{pendientes === 1 ? "1 pedido" : `${pendientes} pedidos`}</p>
-          <span className="flex shrink-0 items-center gap-1 rounded-full bg-warn-bg px-2.5 py-1 text-xs font-semibold text-warn">
+          <button
+            type="button"
+            onClick={onResolver}
+            className="flex h-9 shrink-0 items-center gap-1 rounded-full bg-warn-bg px-3 text-xs font-semibold text-warn active:scale-[0.97]"
+          >
             <AlertTriangle className="h-3.5 w-3.5" />
             {conProblema} por resolver
-          </span>
+            <ChevronRight className="h-3.5 w-3.5" />
+          </button>
         </div>
-        <button type="button" onClick={onResolver} className={BOTON_PRINCIPAL}>
-          <AlertTriangle className="h-4 w-4" />
-          {conProblema === 1 ? "Resolver el ⚠" : `Resolver los ${conProblema} ⚠`}
-        </button>
-        {armarIgual}
+        {armarRuta}
       </div>
     );
   }

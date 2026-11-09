@@ -10,7 +10,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { AlertTriangle, ArrowLeft, CircleHelp, ClipboardPaste, Loader2, X } from "lucide-react";
+import { ArrowLeft, CircleHelp, ClipboardPaste, Loader2, X } from "lucide-react";
 import { CampoArea } from "@/components/ui/campo";
 import { armarGuia, leerGuia, limpiarDestino, type LineaGuia } from "@/lib/encomiendas/lectura/guia";
 import { ofValida } from "@/lib/encomiendas/paquete";
@@ -44,8 +44,6 @@ export function CargarGuia({
   onCerrar,
   onCreados,
   onAyuda,
-  conProblema,
-  onResolver,
   armar,
 }: {
   fecha: string;
@@ -61,12 +59,8 @@ export function CargarGuia({
   onCreados: () => void;
   /** Abre la ayuda (cómo sacar las fotos, Google Lens). */
   onAyuda: () => void;
-  /** Pedidos del día con ⚠ (spec 027): al terminar, se resuelven primero. */
-  conProblema: number;
-  /** Cierra y abre el primer pedido con ⚠. */
-  onResolver: () => void;
-  /** Armar la ruta de una (GenerarRutaLocal); con texto, como enlace. */
-  armar: (enlace?: string) => React.ReactNode;
+  /** Armar la ruta de una (GenerarRutaLocal): con ⚠ sin resolver, pregunta antes. */
+  armar: () => React.ReactNode;
 }) {
   // Foto: en la APK siempre (lee el teléfono); en el navegador, solo con IA.
   const conFoto = lecturaIA || esApp();
@@ -363,16 +357,6 @@ export function CargarGuia({
             <button type="button" onClick={onEscanearPaquetes} className={BOTON}>
               Escanear paquete
             </button>
-          ) : conProblema > 0 ? (
-            // Spec 027: lo que sigue es resolver los ⚠, pero el conductor puede
-            // salir igual y resolverlos después desde la hoja.
-            <div className="space-y-1">
-              <button type="button" onClick={onResolver} className={BOTON}>
-                <AlertTriangle className="h-4 w-4" />
-                {conProblema === 1 ? "Resolver el ⚠" : `Resolver los ${conProblema} ⚠`}
-              </button>
-              {armar("Armar la ruta igual")}
-            </div>
           ) : (
             armar()
           )
