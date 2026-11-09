@@ -168,11 +168,11 @@ export function RutaMapa({
 
       agregarLineas(mapa);
       agregarParadas(mapa);
-      // Las pastillas se dibujan con la letra del tema (capa-paradas.ts): se
-      // espera a que esté cargada, con tope, para no quedarse sin puntos.
+      // Letra del tema para las pastillas (capa-paradas.ts), con tope. allSettled: la cara
+      // «… Fallback» de next/font usa Arial, que Android no trae, y rechaza con NetworkError.
       const letras = fuentesDelTema();
       void Promise.race([
-        Promise.all([document.fonts.load(`600 12px ${letras.cifras}`), document.fonts.load(`800 14px ${letras.texto}`)]),
+        Promise.allSettled([document.fonts.load(`600 12px ${letras.cifras}`), document.fonts.load(`800 14px ${letras.texto}`)]),
         new Promise((listo) => setTimeout(listo, 1500)),
       ]).finally(() => setMapaListo(true));
     });

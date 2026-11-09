@@ -41,6 +41,8 @@ import {
 const CONTINUIDAD_MS = 700;
 /** Sin ver el código de la etiqueta este tiempo, salió de la cámara: se cierra. */
 const SALIDA_MS = 1500;
+/** Después de escribir la OF, la cámara vuelve cuando el teclado ya bajó. */
+const ESPERA_TECLADO_MS = 800;
 
 export type EstadoVivo =
   | { tipo: "prendiendo" }
@@ -75,9 +77,20 @@ function soloFirme(v: ResultadoVotos): LecturaEtiqueta {
   };
 }
 
-export function useEscanerVivo({ fecha, onCambio }: { fecha: string; onCambio: () => void }) {
+export function useEscanerVivo({
+  fecha,
+  onCambio,
+  pausada = false,
+}: {
+  fecha: string;
+  onCambio: () => void;
+  /** Se está escribiendo la OF: la cámara se apaga mientras el teclado está arriba. */
+  pausada?: boolean;
+}) {
   const [estado, setEstado] = useState<EstadoVivo>({ tipo: "prendiendo" });
   const [camara, setCamara] = useState<CamaraViva | null>(null);
+  /** La cámara está prendida: el teclado se abre recién cuando se apagó. */
+  const [enVivo, setEnVivo] = useState(false);
   const [linterna, setLinterna] = useState(false);
   const enCurso = useRef<EnCurso | null>(null);
   const pausa = useRef(false);
@@ -225,31 +238,49 @@ export function useEscanerVivo({ fecha, onCambio }: { fecha: string; onCambio: (
     ultimoAlCuadro.current = alCuadro;
   }, [alCuadro]);
 
-  // Prender la cámara al abrir y apagarla al salir.
+  // Prender la cámara al abrir y apagarla al salir. Mientras se escribe la OF queda
+  // apagada: abrir o cerrar el teclado con la cámara viva traba la GPU de la WebView
+  // varios segundos y Android cierra ARES por no responder (ANR medido en el teléfono
+  // del conductor, 2026-11-09; con la cámara sola o el teclado solo, fluido).
+  const yaPrendio = useRef(false);
   useEffect(() => {
-    let apagar: (() => Promise<void>) | null = null;
+    if (pausada) return;
     let vivo = true;
-    document.documentElement.classList.add("camara-viva");
-    prepararSonidos();
-    iniciarEscanerVivo((c) => ultimoAlCuadro.current(c))
-      .then((r) => {
-        if (!vivo) return void r.apagar();
-        apagar = r.apagar;
-        captura.current = r.camara.captura;
-        setCamara(r.camara);
-        setEstado({ tipo: "buscando" });
-      })
-      .catch((e: unknown) => {
-        if (!vivo) return;
-        document.documentElement.classList.remove("camara-viva");
-        setEstado({ tipo: "sinCamara", motivo: e instanceof Error && /permiso/.test(e.message) ? "Sin permiso de cámara." : "La cámara no abrió." });
-      });
+    let prendida: Promise<(() => Promise<void>) | null> = Promise.resolve(null);
+    const prender = () => {
+      document.documentElement.classList.add("camara-viva");
+      prepararSonidos();
+      prendida = iniciarEscanerVivo((c) => ultimoAlCuadro.current(c)).then(
+        (r) => {
+          if (vivo) {
+            yaPrendio.current = true;
+            captura.current = r.camara.captura;
+            setCamara(r.camara);
+            setEnVivo(true);
+            // Al volver de escribir la OF se ve su parada: no se tapa.
+            setEstado((e) => (e.tipo === "prendiendo" ? { tipo: "buscando" } : e));
+          }
+          return r.apagar;
+        },
+        (e: unknown) => {
+          if (vivo) {
+            document.documentElement.classList.remove("camara-viva");
+            setEstado({ tipo: "sinCamara", motivo: e instanceof Error && /permiso/.test(e.message) ? "Sin permiso de cámara." : "La cámara no abrió." });
+          }
+          return null;
+        },
+      );
+    };
+    const espera = yaPrendio.current ? setTimeout(prender, ESPERA_TECLADO_MS) : null;
+    if (!espera) prender();
     return () => {
       vivo = false;
-      void apagar?.();
+      if (espera) clearTimeout(espera);
       document.documentElement.classList.remove("camara-viva");
+      setLinterna(false);
+      void prendida.then((apagar) => apagar?.()).finally(() => setEnVivo(false));
     };
-  }, []);
+  }, [pausada]);
 
   /** Después de un ⚠: la lectura sigue. */
   const seguir = useCallback(() => {
@@ -285,5 +316,5 @@ export function useEscanerVivo({ fecha, onCambio }: { fecha: string; onCambio: (
     if (await linternaViva(!linterna)) setLinterna(!linterna);
   }, [linterna]);
 
-  return { estado, camara, linterna, alternarLinterna, seguir, usarDireccion, escribir };
+  return { estado, camara, enVivo, linterna, alternarLinterna, seguir, usarDireccion, escribir };
 }

@@ -7,7 +7,7 @@
 // estado vive en use-escaner-vivo.ts. Solo en la APK 1.6.0; si no, queda
 // escanear-etiqueta.tsx.
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AlertTriangle, Check, Flashlight, FlashlightOff, Loader2, PackagePlus, X } from "lucide-react";
 import { Campo } from "@/components/ui/campo";
@@ -46,16 +46,27 @@ export function EscanerVivo({
   /** Sin cámara: el escáner de siempre. */
   onClasico: () => void;
 }) {
-  const { estado, camara, linterna, alternarLinterna, seguir, usarDireccion, escribir } = useEscanerVivo({ fecha, onCambio });
   const [escribiendo, setEscribiendo] = useState(false);
+  const { estado, camara, enVivo, linterna, alternarLinterna, seguir, usarDireccion, escribir } = useEscanerVivo({
+    fecha,
+    onCambio,
+    pausada: escribiendo,
+  });
   const [codigoEscrito, setCodigoEscrito] = useState("");
   const [errorCodigo, setErrorCodigo] = useState<string | null>(null);
+  const campoOf = useRef<HTMLInputElement>(null);
+
+  // El teclado sube recién con la cámara apagada (use-escaner-vivo, «pausada»).
+  useEffect(() => {
+    if (escribiendo && !enVivo) campoOf.current?.focus();
+  }, [escribiendo, enVivo]);
 
   function buscar() {
     if (!escribir(codigoEscrito)) {
       setErrorCodigo("Ese código no es de una etiqueta de Starken.");
       return;
     }
+    campoOf.current?.blur();
     setErrorCodigo(null);
     setCodigoEscrito("");
     setEscribiendo(false);
@@ -64,7 +75,7 @@ export function EscanerVivo({
   if (typeof document === "undefined") return null;
 
   return createPortal(
-    <div className="capa-camara fixed inset-0 z-50 flex flex-col" role="dialog" aria-modal="true" aria-label="Cargar el auto">
+    <div className={cn("capa-camara fixed inset-0 z-50 flex flex-col", escribiendo && "bg-black")} role="dialog" aria-modal="true" aria-label="Cargar el auto">
       <div className="flex items-center gap-2 bg-black/60 px-4 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))] text-white">
         <h2 className="min-w-0 flex-1 text-lg font-semibold">Cargar el auto</h2>
         {avance.total > 0 ? (
@@ -204,9 +215,9 @@ export function EscanerVivo({
             <div className="space-y-2 pt-1">
               {errorCodigo ? <p className="text-sm text-danger">{errorCodigo}</p> : null}
               <Campo
+                ref={campoOf}
                 etiqueta="OF"
                 inputMode="numeric"
-                autoFocus
                 value={codigoEscrito}
                 onChange={(e) => setCodigoEscrito(e.target.value)}
                 placeholder="123 456 789"

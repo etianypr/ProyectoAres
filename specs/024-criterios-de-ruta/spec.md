@@ -66,8 +66,8 @@ Pedido del dueño: hacer la ruta propuesta en el orden de ARES o al revés (la �
   —ocupa el resto, centrado: dueño— y el botón), `use-propuesta.ts`, Ayuda. Sin datos guardados nuevos.
 - [x] T007 `invertirOrden` y pruebas («spec 024» en `asistencia-rutas.test.mjs`).
 - [x] T008 Botón, estado y Ayuda.
-- [ ] T009 Recorrerlo en el teléfono con la versión final: el encuadre se vio bien (53 paradas sobre el
-  panel); falta ver la línea invertida con cupo de ORS.
+- [x] T009 Recorrerlo en el teléfono con la versión final: el encuadre se vio bien (53 paradas sobre el
+  panel); la línea invertida con cupo de ORS, también (2026-11-09: +2,4 km, 12 trazados; volver, 0).
 - Al aparecer, la propuesta se encuadra en lo que queda visible sobre su panel (`ruta-mapa.tsx`,
   `rellenoConPanel`: se mide el panel, `data-propuesta-ruta`). Antes el sur de la ruta quedaba debajo.
 
@@ -96,7 +96,9 @@ pesos en el orden.
 - [x] T010 Pedir el tiempo en la matriz y la matriz de costo.
 - [x] T011 Conectarla al orden, a las zonas, a los bultos, a la recomendada y al sentido.
 - [x] T012 Medir con la matriz real y pruebas enfocadas.
-- [ ] T013 Un día en el teléfono: ver que el armado no tarde de más (una búsqueda a fondo más).
+- [x] T013 Un día en el teléfono: ver que el armado no tarde de más (una búsqueda a fondo más). Medido
+  (2026-11-09, 53 paradas, central con su Plus Code): 20,3 s del toque a la propuesta (antes 15 s),
+  1 matriz + 32 trazados. El dueño: 20 s está bien.
 
 ## Cupo de ORS ≠ «Sin señal» (hecho, 2026-11-08)
 - `postOrs` anota por qué falló (`ultimaFallaOrs`): `cupo` si ORS contesta 429 o 403, o si no

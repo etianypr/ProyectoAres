@@ -24,7 +24,18 @@ tirado al conductor (`AGENTS.md`, «Ahora»). Lo que no sirve para eso está en 
    - Cerrar el día: la lista de no entregados, el borrado (007) y los conteos y el pago en el panel
      del jefe (`npm run test:base`; una migración sin correr ya lo dejó en $0).
 2. **Riesgos conocidos** que pueden dejarlo tirado:
-   - `NetworkError` al abrir la app (2 veces, sin pila).
+   - **Escáner en vivo (028), ensayo 2026-11-09:** con la cámara prendida, abrir o cerrar el teclado
+     («Escribir la OF») cuelga ARES y Android la cierra (ANR, reproducido 3 de 3; la GPU de la
+     WebView se traba en `eglCreateImageKHR`). Arreglo provisorio: la cámara se apaga mientras se
+     escribe. Cerrar el escáner (apagar la cámara) traba la pantalla ~4,6 s cada vez, ya
+     en producción. Arreglo de fondo elegido por el dueño: nativo, APK 1.6.1 (que el teclado no
+     achique la ventana y que la WebView no cambie su transparencia). El teclado tapa «Buscar esta
+     OF» (la tecla 🔍 del teclado sí busca).
+   - ~~`NetworkError` al abrir~~: era `document.fonts.load` con la cara «Fallback» (Arial no existe
+     en Android); arreglado en `ruta-mapa.tsx`.
+   - La central en la configuración no tiene el Plus Code: la ruta parte de donde la ubique el
+     buscador (gasta una consulta a Google la primera vez). Los ensayos anteriores partían ~2,7 km
+     al norte.
    - Burbuja (020): el permiso `POST_NOTIFICATIONS`, el altavoz al llamar y si ARES vuelve adelante
      al cerrar la última parada.
    - Guía: Cloud Vision usa `GOOGLE_MAPS_KEY` y va antes que ML Kit; confirmar que la guía se lee
@@ -38,7 +49,6 @@ tirado al conductor (`AGENTS.md`, «Ahora»). Lo que no sirve para eso está en 
    - Supabase Auth: Site URL y redirect.
    - El chip en el teléfono, para probar las llamadas (015, T019).
 4. **La víspera:**
-   - Revisar los «registros sin enviar» de la vieja `cl.pucarani.ares` 1.3.0 y desinstalarla.
    - Despertar Supabase si está pausado (~5 min).
    - Publicar con el día cerrado y la cola enviada.
    - Usar la APK de producción (`cl.dashund.ares` 1.6.0), no la de prueba.
@@ -58,7 +68,7 @@ Estados: borrador → definida → en curso → hecha (falta día real) · poste
 | 1 | [018](018-corregir-direcciones-ia/spec.md) corregir direcciones con IA | las «Sin ubicar» se corrigen con los buscadores y el catálogo de calles | hecha (falta día real) | — | 9/10 | una guía real (T008) |
 | 2 y 5 | [022](022-pedidos-con-problemas/spec.md) pedidos con ⚠ | el ⚠ queda en el pedido (`Pedido.problemas`), la dirección en duda entra a la ruta con su primera opción y se avisa dos paradas antes; la OF de otro largo deja de ser ⚠ | hecha (falta día real) | — | 11/12 | la línea de la burbuja y un día real en la APK (T012) |
 | 3 | [019](019-sin-mapbox/spec.md) sin Mapbox | ORS, MapLibre y OpenFreeMap (Liberty); Google da el número de casa | hecha (falta día real) | — | 13/16 | el dueño borra el token de Mapbox en Vercel (T013); día real (T014). Google sin tope, decisión del dueño (T012) |
-| 3 | [024](024-criterios-de-ruta/spec.md) criterios de ruta | bultos fuera antes (≤ 1 % de km), «Invertir orden de ruta», el orden cobra km ($130) y tiempo ($6.000/h) y el cupo de ORS no es «Sin señal» | hecha (falta teléfono y día real) | — (en `main` desde 2026-11-09) | 11/14 | en el teléfono: que el armado no tarde de más (T013) y los trazados con cupo (T009). Después del día real: T006, éxito por parada y ganancia |
+| 3 | [024](024-criterios-de-ruta/spec.md) criterios de ruta | bultos fuera antes (≤ 1 % de km), «Invertir orden de ruta», el orden cobra km ($130) y tiempo ($6.000/h) y el cupo de ORS no es «Sin señal» | hecha (falta día real) | — (en `main` desde 2026-11-09) | 13/14 | medido en el teléfono (2026-11-09, 53 paradas): armar 20,3 s (antes 15 s), 1 matriz + 32 trazados; invertir +2,4 km y 12 trazados, volver 0 (T009 ok). el dueño acepta los 20 s (T013). Después del día real: T006, éxito por parada y ganancia |
 | 3 | [017](017-listo-para-terreno/spec.md) listo para terreno | errores del flujo, rutas por calle y con horarios | en curso | — | 25/27 | prueba en terreno (T051) |
 | 4 | [003](003-referencia-paquete/spec.md) OF y referencia del paquete | OF y descripción en cada parada, búsqueda por OF | hecha (falta día real) | — | 15/16 | foto con la cámara y SC-001 en terreno (T016) |
 | todos | [027](027-hoja-por-paso/spec.md) la hoja paso por paso | la cabecera de la hoja dice el paso del día que toca y adentro va solo lo de ese paso | hecha (falta día real) | — | 15/16 | escáner, «Salir a repartir» y volver de Google Maps en la APK (T016) |
