@@ -73,6 +73,16 @@ const COMA_TRAS_NUMERO = /(\d)\s*,[^\d]*$/;
 /** "1085 B", "1085B", "406-1", "12/3": la letra o el subnúmero es el depto. */
 const LETRA_O_SUBNUMERO = /(\d)\s*(?:[-/]\s*[a-z\d]{1,3}|[a-z])$/i;
 
+/** "Maracaibo 1472 1472" → "Maracaibo 1472": la guía a veces repite el número tal
+ *  cual, y con dos números el buscador no da con la casa (terreno 2026-11-09). */
+const NUMERO_REPETIDO = /\b(\d+)(?:\s*,?\s+\1\b)+/g;
+
+/** El número de casa repetido seguido queda una vez. Lo usan la consulta y la
+ *  limpieza del destino de la guía (lectura/guia.ts). Pura. */
+export function sinNumeroRepetido(texto: string): string {
+  return texto.replace(NUMERO_REPETIDO, "$1");
+}
+
 /** "0428" → "428". Un cero solo se queda. */
 const CEROS_A_LA_IZQUIERDA = /\b0+(?=\d)/g;
 
@@ -83,7 +93,7 @@ const SIN_NUMERO = /\s*\bs\s*\/?\s*n\.?\s*$/i;
 /** Prepara el texto para consultarlo. NO es lo que se guarda en el pedido: el
  *  pedido conserva lo que se escribió, con el depto y todo. */
 export function normalizarConsulta(texto: string): string {
-  let t = texto.trim().replace(/\s+/g, " ");
+  let t = sinNumeroRepetido(texto.trim().replace(/\s+/g, " "));
   t = t.replace(NUMERO_MARCADO, "$1 $2");
   for (const [de, a] of ABREVIATURAS) t = t.replace(de, a);
   t = t.replace(CIUDAD_TRAS_NUMERO, "$1").replace(CIUDAD_TRAS_COMA, "");

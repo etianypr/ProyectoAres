@@ -198,6 +198,13 @@ test("las abreviaturas se expanden", () => {
   assert.equal(normalizarConsulta("Pob. Nueva Esperanza"), "población Nueva Esperanza");
 });
 
+test("el número repetido seguido se consulta una vez", () => {
+  // Terreno 2026-11-09: la guía trae "calle 500 500" y el buscador no da con la casa.
+  assert.equal(normalizarConsulta("Chacabuco 500 500"), "Chacabuco 500");
+  assert.equal(normalizarConsulta("Chacabuco 500, 500"), "Chacabuco 500");
+  assert.equal(normalizarConsulta("Chacabuco 500 500 500"), "Chacabuco 500");
+});
+
 test("el # y el N° del número se sacan", () => {
   // Nominatim trata el "#" como parte del nombre de la calle y pierde el número.
   assert.equal(normalizarConsulta("Chacabuco #500"), "Chacabuco 500");

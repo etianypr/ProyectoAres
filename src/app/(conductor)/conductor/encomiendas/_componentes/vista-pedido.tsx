@@ -3,6 +3,7 @@
 // El formulario de un pedido dentro de la hoja (sale de pantalla.tsx, spec 002
 // T037).
 
+import { useState } from "react";
 import { ArrowLeft, X } from "lucide-react";
 import type { Pedido } from "@/lib/encomiendas/local/almacen";
 import { PedidoFormLocal } from "./pedido-form-local";
@@ -54,6 +55,7 @@ export function VistaPedido({
    *  TODOS los avisos en un solo lugar (ver PilaNotificaciones). */
   onGuardado: (aviso?: string | null) => void;
 }) {
+  const [escribiendo, setEscribiendo] = useState(false);
   return (
     <>
       {/* Dos controles que hacen lo mismo, a propósito: la flecha de la
@@ -84,13 +86,23 @@ export function VistaPedido({
       </div>
 
       {/* Sus ⚠ guardados, con su salida, arriba del formulario (spec 022).
-          Resolver uno cuenta como guardar: resolviendo los ⚠, abre el siguiente. */}
-      {pedido ? <ProblemasPedido pedido={pedido} onResuelto={() => onGuardado(null)} /> : null}
+          Resolver uno cuenta como guardar: resolviendo los ⚠, abre el siguiente.
+          Escribiendo se esconden: con el teclado arriba tapaban el campo y sus
+          sugerencias (dueño, 2026-11-09). */}
+      {pedido && !escribiendo ? <ProblemasPedido pedido={pedido} onResuelto={() => onGuardado(null)} /> : null}
 
       {/* Sin scroll ni padding propios: los pone el formulario, que necesita
           repartirlos él para dejar el botón de guardar clavado abajo y que solo
           scrollee la parte de los campos. */}
-      <div className="min-h-0 flex-1">
+      <div
+        className="min-h-0 flex-1"
+        onFocus={(e) => {
+          if (e.target.matches("input:not([type=checkbox]):not([type=radio]), textarea")) setEscribiendo(true);
+        }}
+        onBlur={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setEscribiendo(false);
+        }}
+      >
         <PedidoFormLocal pedido={pedido} fecha={fecha} ofInicial={ofInicial} onGuardado={onGuardado} />
       </div>
     </>

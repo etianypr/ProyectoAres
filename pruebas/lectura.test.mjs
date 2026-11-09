@@ -59,6 +59,15 @@ test("la guía se lee línea por línea, con destinos limpios", () => {
   );
 });
 
+test("el número de casa repetido en la guía queda una vez", () => {
+  const g = leerGuia("OF:200000010 DESTINO:MARACAIBO 1472 1472 OF:200000011 DESTINO:CALLE UNO 100, 100 OF:200000012 DESTINO:CALLE UNO 10 100");
+  assert.deepEqual(
+    g.lineas.map((l) => l.destino),
+    ["MARACAIBO 1472", "CALLE UNO 100", "CALLE UNO 10 100"],
+    "dos números distintos no se tocan",
+  );
+});
+
 test("la guía avisa repetidas, dudosas y la diferencia con el total", () => {
   const { avisos } = leerGuia(fixture("guia.txt"));
   assert.ok(avisos.some((a) => /repetida/.test(a)), "repetida por fotos superpuestas");

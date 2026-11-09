@@ -12,8 +12,9 @@
 // esquina: la misma dirección otra vez no vuelve a dibujar nada.
 import { ESTILO, URL_WORKER, ajustarEstilo } from "@/lib/geo/estilo-mapa";
 
-/** El zoom de la estampilla: la cuadra y los nombres de las calles de alrededor. */
-export const ZOOM_PUNTO = 16.5;
+/** El zoom de la estampilla: unas cuadras alrededor, para reconocer el barrio al
+ *  confirmar (el dueño, 2026-11-09: a 16.5 se veía demasiado cerca). */
+export const ZOOM_PUNTO = 15.5;
 
 /** Sin el mapa dibujado en esto (sin señal), la estampilla dice que falló. */
 const MS_TOPE = 12_000;

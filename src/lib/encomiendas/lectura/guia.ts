@@ -5,6 +5,7 @@
 // Google Lens o devuelto por la IA. Sin nombre ni teléfono: esos están solo en
 // la etiqueta de cada paquete.
 
+import { sinNumeroRepetido } from "@/lib/geo/geocoding/consulta";
 import { LARGO_OF, ofValida } from "../paquete";
 import type { GuiaIA } from "./esquemas";
 
@@ -43,6 +44,8 @@ export function limpiarDestino(texto: string): string {
   t = t.replace(/\s+N[OºÚ°]\.?\s*(\d+)\b/gi, (todo, n: string) =>
     new RegExp(`\\b${n}\\b`).test(t.replace(todo, "")) ? "" : todo,
   );
+  // "MARACAIBO 1472 1472": el número repetido es uno solo (consulta.ts).
+  t = sinNumeroRepetido(t);
   return t.replace(/[\s.,]+$/, "").trim();
 }
 
