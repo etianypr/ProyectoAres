@@ -144,7 +144,8 @@ export function useAccionesParada({ dia, activa }: { dia: DiaEnCurso; activa: Pa
   // si contestó ni se pregunta. Dentro de la APK sale directo (spec 015); queda
   // la hora de la primera llamada, que dice que ya se lo llamó.
   const ultimaLlamada = useRef<{ pedidoId: string; ms: number } | null>(null);
-  function onLlamar(parada: Parada) {
+  // Solo usa el pedido: también llama a uno de afuera de la ruta (spec 023).
+  function onLlamar(parada: Pick<Parada, "pedido">) {
     const { id, telefono } = parada.pedido;
     const previa = ultimaLlamada.current;
     if (previa?.pedidoId === id && Date.now() - previa.ms < MS_DOBLE_TOQUE) return;

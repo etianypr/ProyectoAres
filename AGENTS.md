@@ -314,7 +314,10 @@ y un agente no debe "corregir".
   - El conductor puede hacer la propuesta al revés («Invertir orden de ruta», spec 024). Al revés
     suele medir más (sentidos únicos): la pantalla dice cuánto, y no se vuelve a optimizar.
   - Antes de tocar la ruta: skill `rutas-ares` (qué se midió, dónde está cada cosa, cómo medir).
-- **Navegación (spec 020).** ARES muestra la ruta, es importante que en cada parada tambien te muestre que paradas tienes cerca (esto por si tenemos un pedido pendiente o agendamos una entrega que la aplicacion no sabe; *pendiente*, spec 023) y maneja las paradas, pero **no guía**. Guía la
+- **Navegación (spec 020).** ARES muestra la ruta y maneja las paradas, pero **no guía**. En cada
+  parada muestra las que quedan cerca, por si hay un pedido pendiente o una entrega agendada que la
+  app no sabe (spec 023): «N cerca», al lado de «Centrar», con las pendientes a ≤ 300 m en
+  línea recta, sin las 2 que siguen y hasta 3, marcadas en el mapa; «Ahora» deja una como la próxima. Guía la
   app Google Maps, con la burbuja de ARES encima, ligada al pedido abierto y siempre con el botón
   "Navegar". El Navigation SDK y la navegación propia de ARES (cartel y voz) se fueron.
 - **Plata.** El dueño no puede pagar sorpresas.

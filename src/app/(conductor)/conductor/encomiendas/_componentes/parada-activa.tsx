@@ -57,7 +57,6 @@ export function ParadaActiva({
   fase,
   whatsapp,
   guardando,
-  seAproximaSinContacto,
   faltan,
   onNavegar,
   onBoton,
@@ -70,8 +69,6 @@ export function ParadaActiva({
   /** false = sin avisos por WhatsApp: no se muestra "Sin respuesta todavía". */
   whatsapp: boolean;
   guardando: boolean;
-  /** FR-017: llegando a una parada que todavía no se contactó. */
-  seAproximaSinContacto: boolean;
   /** Lo que falta hasta la parada (use-hacia-parada.ts). */
   faltan: { metros: number; segundos: number | null; llegada: number | null } | null;
   /** Navegar con Google Maps y la burbuja (spec 020); sin punto, no hay. */
@@ -130,16 +127,8 @@ export function ParadaActiva({
         }
       />
 
-      {/* FR-017: al aproximarse a un pedido pendiente de respuesta, avisar que
-          hay que contactarlo. Se muestra ACÁ y no como notificación porque el
-          conductor está manejando y esta tarjeta es lo único que mira. */}
-      {seAproximaSinContacto ? (
-        <p className="flex items-start gap-2 rounded-xl bg-warn-bg px-3 py-2 text-sm font-medium text-warn">
-          <Phone className="mt-0.5 h-4 w-4 shrink-0" />
-          <span className="min-w-0 flex-1">Llámalo antes de bajar.</span>
-        </p>
-      ) : null}
-
+      {/* «Llámalo antes de bajar» (FR-017) se fue: consejo obvio, la pantalla
+          no lleva instrucciones (dueño, 2026-11-09). Llamar sigue en el botón. */}
       <div className="space-y-2">
         {/* Las salidas de la parada, en una sola pantalla. */}
         {fase === "salidas" ? <p className="text-xs text-muted">¿Qué hacemos con esta parada?</p> : null}

@@ -1,8 +1,9 @@
 "use client";
 
 // Lo que la pantalla necesita para mostrar el camino a la parada activa (spec 020;
-// antes use-guia-navegacion.ts): cuánto falta, el aviso de llamar antes de bajar,
-// el punto pegado a la calle, hacia dónde mirar y si la señal del GPS quedó vieja.
+// antes use-guia-navegacion.ts): cuánto falta, el punto pegado a la calle, hacia
+// dónde mirar y si la señal del GPS quedó vieja. El aviso «Llámalo antes de bajar»
+// se fue (dueño, 2026-11-09: consejo obvio).
 //
 // ARES ya no guía: no hay cartel ni voz ni rutas tramo a tramo. Guía Google Maps,
 // con la burbuja de ARES encima (use-burbuja.ts). Todo se mide sobre el tramo de
@@ -20,15 +21,6 @@ import { useSimularRecorrido } from "@/lib/encomiendas/local/gps-simulado";
 /** Con la última lectura más vieja que esto, el punto que se ve ya no es dónde
  *  está el conductor. */
 const MS_UBICACION_VIEJA = 12_000;
-
-/** A qué distancia de la parada se avisa que hay que contactar al receptor
- *  (FR-017).
- *
- *  Trescientos metros es más o menos una cuadra y media de Arica: lo suficiente
- *  para que el conductor alcance a llamar y a escuchar la respuesta antes de tener
- *  que estacionar, y no tanto como para que el aviso aparezca cuando todavía
- *  faltan cinco paradas. */
-const METROS_AVISO_CONTACTO = 300;
 
 /** Precisión por encima de la cual el punto ya no ubica ni la manzana. */
 const PRECISION_DUDOSA_M = 40;
@@ -81,17 +73,6 @@ export function useHaciaParada({
       }
     : null;
 
-  // FR-017: llegando a una parada cuyo receptor no contestó el WhatsApp y a la
-  // que todavía no se llamó.
-  //
-  // Se mide por el TRAMO y no en línea recta: lo que importa es cuánto le falta
-  // manejar, y en Arica una parada a doscientos metros en línea recta puede estar
-  // a ochocientos por calle si en el medio hay una quebrada. Fuera del tramo no
-  // se avisa por distancia: adivinarlo con la línea recta sería justo ese error.
-  // El estado del receptor igual se ve en la tarjeta (y en la burbuja, "Llamar").
-  const seAproximaSinContacto =
-    !!activa?.hayQueContactar && !!hacia?.porTramo && hacia.metros <= METROS_AVISO_CONTACTO;
-
   // Hacia dónde orientar la vista: el camino que viene por delante en el tramo.
   // Se prefiere eso al rumbo del GPS —que en iPhone llega null casi siempre— y
   // sobre todo a la brújula, que apunta hacia donde quedó apoyado el teléfono.
@@ -143,7 +124,6 @@ export function useHaciaParada({
   return {
     destinoActivo,
     faltan,
-    seAproximaSinContacto,
     rumbo,
     ubicacionMostrada,
     trazadoPorDelante,

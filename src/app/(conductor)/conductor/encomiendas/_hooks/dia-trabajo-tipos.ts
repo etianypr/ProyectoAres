@@ -70,6 +70,8 @@ export type DiaEnCurso = {
   /** Suma a la ruta en curso los pedidos de afuera que tienen punto, donde
    *  menos alargan (spec 017, R4). Devuelve cuántos entraron. */
   sumarALaRuta: () => Promise<number>;
+  /** «Hacer ahora» (spec 023): una parada cercana pasa a ser la próxima. */
+  hacerAhora: (pedidoId: string) => Promise<void>;
   /** Saca un pedido del teléfono —esté en la ruta o fuera de ella— y devuelve el
    *  recibo para volver a ponerlo, o null si ya no estaba.
    *

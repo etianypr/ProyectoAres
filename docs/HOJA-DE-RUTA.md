@@ -165,7 +165,7 @@ Segunda tanda de la misma revisión (citas del dueño, no verificadas), y qué s
   residenciales (`geo/ors/vuelta.ts`, `generar-ruta/sentido.ts`). El tiempo vendría gratis en
   la misma matriz si algún día sirve de desempate.
 - **Probabilidad de fallo en el primer intento.** Necesita historial por cliente, y los datos de
-  clientes se borran cada día. Ya están "llámalo antes de bajar" y "Dejar como pendiente". Más
+  clientes se borran cada día. Ya está "Dejar como pendiente" ("llámalo antes de bajar" se quitó el 2026-11-09: consejo obvio). Más
   adelante, si sirve, por zona y hora sin datos personales.
 - **Reoptimizar en ruta al llegar pedidos (horizonte rodante).** Decisión del dueño: lo hace el
   conductor a mano (Rehacer la ruta → Desde: Mi ubicación), que ordena solo lo pendiente.

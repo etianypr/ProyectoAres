@@ -26,10 +26,13 @@ const COLORES = {
   previa: "#d4531a",
   activa: "#d4531a",
   central: "#221a15",
+  /** Cercana con la lista abierta (spec 023): blanca con borde y cifra naranjos,
+   *  así no se confunde con la activa ni depende solo del color. */
+  cercana: "#d4531a",
 } as const;
 type Estado = keyof typeof COLORES;
 /** Encima la activa y la central; debajo, las hechas. */
-const ENCIMA: Record<Estado, number> = { hecha: 0, pendiente: 1, previa: 2, activa: 3, central: 4 };
+const ENCIMA: Record<Estado, number> = { hecha: 0, pendiente: 1, previa: 2, cercana: 2, activa: 3, central: 4 };
 
 const ANILLO = "#fdfbf9";
 const SOMBRA = "rgba(34, 26, 21, 0.28)";
@@ -45,6 +48,7 @@ const MS_ENTRADA = 400;
 function estadoDe(l: LugarMapa, previa: boolean): Estado {
   if (previa) return "previa";
   if (l.puntos.some((p) => p.activa)) return "activa";
+  if (l.puntos.some((p) => p.resaltada)) return "cercana";
   if (l.puntos.every((p) => p.completada)) return "hecha";
   return "pendiente";
 }
@@ -133,6 +137,7 @@ function dibujarPin(estado: Estado, cifra: string, escala: number): ImageData {
   const x = MARGEN + anillo;
   const y = MARGEN + anillo;
   const color = COLORES[estado];
+  const invertida = estado === "cercana";
 
   // Con sombra: el anillo y la punta (lo que se apoya en el mapa).
   ctx.shadowColor = SOMBRA;
@@ -140,7 +145,7 @@ function dibujarPin(estado: Estado, cifra: string, escala: number): ImageData {
   ctx.shadowOffsetY = 3 * escala;
   ctx.beginPath();
   ctx.roundRect(x - anillo, y - anillo, ancho + anillo * 2, alto + anillo * 2, alto / 2 + anillo);
-  ctx.fillStyle = ANILLO;
+  ctx.fillStyle = invertida ? color : ANILLO;
   ctx.fill();
   ctx.beginPath();
   ctx.moveTo(x + ancho / 2 - 6, y + alto - 1);
@@ -154,10 +159,10 @@ function dibujarPin(estado: Estado, cifra: string, escala: number): ImageData {
   ctx.shadowColor = "transparent";
   ctx.beginPath();
   ctx.roundRect(x, y, ancho, alto, alto / 2);
-  ctx.fillStyle = color;
+  ctx.fillStyle = invertida ? "#ffffff" : color;
   ctx.fill();
   ctx.font = letra;
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = invertida ? color : "#ffffff";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   if (estado !== "central" && "letterSpacing" in ctx) {
