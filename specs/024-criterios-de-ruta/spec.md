@@ -1,6 +1,6 @@
 # Spec 024 · La ruta por cinco criterios
 
-**Creada**: 2026-11-05 · **Estado**: en curso (bultos e invertir hechos; faltan tiempo, éxito y ganancia) ·
+**Creada**: 2026-11-05 · **Estado**: en curso (bultos, invertir, tiempo y plata, y el cupo de ORS hechos; falta el teléfono) ·
 **Rama**: `024-criterios-de-ruta` · **Pedido del dueño** (`AGENTS.md`, «Rutas»): las rutas se evalúan
 por bultos, km, tiempo, porcentaje de éxito por parada y ganancia.
 
@@ -71,22 +71,49 @@ Pedido del dueño: hacer la ruta propuesta en el orden de ARES o al revés (la �
 - Al aparecer, la propuesta se encuadra en lo que queda visible sobre su panel (`ruta-mapa.tsx`,
   `rellenoConPanel`: se mide el panel, `data-propuesta-ruta`). Antes el sur de la ruta quedaba debajo.
 
-## Por definir
-- Cómo se mide cada criterio con lo que hay en el teléfono:
-  - **tiempo:** la matriz de ORS ya trae duraciones;
-  - **éxito por parada:** ¿disponibilidad, contacto o horario? Un pedido es de un solo día y sus
-    datos se borran al cerrarlo;
-  - **ganancia:** ¿la tarifa del día (`pago.ts`) y el costo del km?
-- Cuánto pesa cada uno, o si se muestran lado a lado y elige el conductor.
-- Lo que ya se midió y se descartó está en `docs/HOJA-DE-RUTA.md`: sectorizar alarga la ruta, y no
-  se proponen ALNS, Tabu ni colonias de hormigas. Leerlo antes de proponer.
+## Tiempo, éxito y ganancia (hecho, 2026-11-08)
+Decisiones del dueño (2026-11-08), entre «se muestran», «el tiempo desempata» y «pesos en el orden»:
+pesos en el orden.
+
+- **Ganancia = el costo en plata del orden:** el km a **$130** (bencina) y la hora al volante a
+  **$6.000**: 1 s pesa como ~12,8 m. Con un conductor que hace todas las paradas, lo que entra es
+  el mismo en cualquier orden, así que ganar más es gastar menos.
+- **Tiempo:** de la matriz de ORS, en la misma consulta (`metrics: distance, duration`): no gasta
+  un par más.
+- **Éxito por parada:** «como hoy» (dueño): no entra al costo; los horarios y los confirmados van
+  en su propuesta («Respeta horarios», «Confirmados primero»).
+- **Dónde:** `generar-ruta/pesos.ts` (`matrizDeCosto`: metros + tiempo, escalado al promedio de los
+  metros para que zonas y vueltas pesen lo mismo). Las zonas salen de los metros. El mejor orden por
+  metros entra como arranque (`arranquePorMetros`): sin él la búsqueda variaba ±1 % con cambios de
+  décimas de segundo, más que lo que se gana. `costoEstimado` elige la recomendada; `ordenarConSentido`
+  se queda con el trazado más barato; los bultos miden la tolerancia en km y en costo
+  (`Descarga.base`). «La más corta» pasó a «La más económica» y la carga dice «Buscando la mejor ruta».
+- **Medido** (3 días simulados de 80 paradas, puntos al azar pegados a la calle con OpenFreeMap,
+  matriz real de ORS: 6 consultas, aprobadas): con el arranque por metros, en promedio de 5
+  variaciones por día, **−1,5 % de tiempo (~2 min), −1 % de plata, −0,06 % de km**, y nunca más caro
+  que el orden por km. La matriz de un día quedó en `pruebas/fixtures/matriz-tiempo-arica.json`.
+- Sin tablas, stores ni versión de IndexedDB nuevas. Pruebas: `pruebas/rutas-024-pesos.test.mjs`.
+- [x] T010 Pedir el tiempo en la matriz y la matriz de costo.
+- [x] T011 Conectarla al orden, a las zonas, a los bultos, a la recomendada y al sentido.
+- [x] T012 Medir con la matriz real y pruebas enfocadas.
+- [ ] T013 Un día en el teléfono: ver que el armado no tarde de más (una búsqueda a fondo más).
+
+## Cupo de ORS ≠ «Sin señal» (hecho, 2026-11-08)
+- `postOrs` anota por qué falló (`ultimaFallaOrs`): `cupo` si ORS contesta 429 o 403, o si no
+  contesta y ARES sí (un HEAD sin datos a `/api/geocodificar`: el 403 llega sin CORS y parece un
+  corte); `sin_senal` si no hay red. La propuesta lo guarda (`motivoSinTrazado`) y lo dice
+  (`avisoSinTrazado`, `generar-ruta/avisos.ts`). Los puntos siguen sin pasar por el servidor.
+- Diagnóstico muestra las consultas del día a ORS desde ese teléfono (`consultasOrsDeHoy`, solo
+  números, en `localStorage`), para medir cuánto gasta un día.
+- Pruebas: `pruebas/ors-cupo.test.mjs`.
+- [x] T014 Distinguir el cupo y contar las consultas.
 
 ## Abierto
 - **Cupo de trazados de ORS** (2026-11-07): en la prueba, ORS contestó 403 «Quota exceeded» a los
   trazados (las matrices seguían). Un armado de 53 paradas pide ~29 trazados (uno por parada en pasaje,
-  y dos dibujos si la mejora por sentido cambia el orden). El navegador no ve el 403 (sin CORS) y la app
-  dice «Sin señal»: hay que pedir el trazado por el servidor para distinguirlo, y medir cuánto gasta un
-  día. El uso real y cuándo se renueva están en el panel de ORS del dueño.
+  y dos dibujos si la mejora por sentido cambia el orden). Ya se distingue del «Sin señal» y se cuenta
+  (arriba); falta ver en Diagnóstico cuánto gasta un día real. El uso real y cuándo se renueva están en
+  el panel de ORS del dueño.
 - La central de carga no se ubica bien: la ruta del día de prueba partía a 2,8 km. El dueño dio la
   coordenada (-18.465889, -70.302556): escribir en Configuración la dirección como Plus Code
   `57HFGMMW+JXW` la resuelve sin red. Es la configuración de producción: lo decide el dueño.

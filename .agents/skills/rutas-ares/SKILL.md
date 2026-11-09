@@ -18,7 +18,11 @@ ellos, y hay que avisar la diferencia.
 3. Tipos y nombres: `docs/CLASES.md` §2 (armado de rutas).
 
 ## Lo que ya está decidido (no se «corrige»)
-- **Objetivo: km.** Encima, una pasada saca los bultos antes solo si cuesta ≤ 1 % de km y cada
+- **Objetivo: el costo en plata** (dueño, 2026-11-08, spec 024): km a $130 y hora al volante a
+  $6.000 (`generar-ruta/pesos.ts`, `matrizDeCosto`), con el tiempo de la misma matriz de ORS. No
+  cambiar los precios sin preguntar. El éxito por parada no entra al costo: los horarios van en su
+  propuesta. El mejor orden por metros es un arranque más (sin él, la búsqueda variaba ±1 %).
+  Encima, una pasada saca los bultos antes solo si cuesta ≤ 1 % de km y de costo, y cada
   metro de más los saca en promedio un metro antes (`descarga.ts`, spec 024): no darle más peso
   sin preguntar (sin tope, ≤ 10–15 % menos espera por +10–15 % de km). La ruta es cerrada (vuelve a la central). Cada zona de ~900 m se recorre una
   sola vez (`zonas.ts`), aunque cueste ~5 % más: lo pidió el dueño.
@@ -47,7 +51,9 @@ ellos, y hay que avisar la diferencia.
 | Reubicar pedidos sin punto y puntos pegados a carretera | `generar-ruta/ubicar-pedidos.ts` |
 | Partida (central guardada) | `generar-ruta/partida.ts` |
 | Orden: construcción, 2-opt/Or-opt, sacudida, exacto (Held-Karp) | `src/lib/rutas/orden-paradas/` |
-| Bultos fuera antes, casi sin km de más (spec 024) | `orden-paradas/descarga.ts`, `DescargaDelDia` en `estrategias.ts` |
+| Bultos fuera antes, casi sin km de más (spec 024) | `orden-paradas/descarga.ts`, `DescargaDelDia` en `bultos.ts` |
+| El costo del orden: km y tiempo en plata (spec 024) | `generar-ruta/pesos.ts`; arranque por metros en `ordenarGrupo` (`estrategias.ts`) |
+| Sin cupo de ORS ≠ sin señal; consultas del día (spec 024) | `geo/ors/cliente.ts` (`ultimaFallaOrs`, `consultasOrsDeHoy`), `generar-ruta/avisos.ts` |
 | Orden con horarios, sin congelar la pantalla | `orden-paradas/con-horarios.ts`, `sin-congelar.ts` |
 | Hora de llegada, replanificar, sumar a la ruta | `local/planificar.ts`, `replanificar.ts`, `sumar-a-ruta.ts` |
 | Matriz y trazado | `src/lib/geo/matriz.ts`, `trazado.ts`, `ors/` |

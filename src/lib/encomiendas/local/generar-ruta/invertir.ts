@@ -8,7 +8,8 @@
 import { distanciaMetros } from "@/lib/geo/coordenada";
 import { metrosEnMemoria } from "@/lib/geo/matriz";
 import { FACTOR_CALLES, metrosEstimados, minutoDelDia, type MetrosEntre } from "../planificar";
-import { avisoDeHorario, medir, MINUTO_SALIDA_MAS_TEMPRANA } from "./estrategias";
+import { avisoDeHorario } from "./avisos";
+import { medir, MINUTO_SALIDA_MAS_TEMPRANA } from "./estrategias";
 import type { PedidoUbicado, PropuestaRuta } from "./tipos";
 
 /** La propuesta con el orden al revés, o la de ARES si ya estaba invertida. Solo

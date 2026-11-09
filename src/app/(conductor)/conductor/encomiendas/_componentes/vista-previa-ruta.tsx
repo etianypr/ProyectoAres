@@ -38,7 +38,7 @@ import {
 import { formatDistancia } from "@/lib/comun/format";
 import { nombreVisible } from "@/lib/encomiendas/paquete";
 import { bloquePorId } from "@/lib/encomiendas/config";
-import type { EstrategiaRuta, PropuestaRuta } from "@/lib/encomiendas/local/generar-ruta";
+import { avisoSinTrazado, type EstrategiaRuta, type PropuestaRuta } from "@/lib/encomiendas/local/generar-ruta";
 import type { QuitadoDeLaPropuesta } from "../_hooks/use-propuesta";
 import { CifrasRuta } from "./cifras-ruta";
 
@@ -115,6 +115,7 @@ export function VistaPreviaRuta({
     duracionS,
     sinUbicar,
     sinTrazado,
+    motivoSinTrazado,
     cerradas,
     alternativas,
     elegida,
@@ -355,10 +356,7 @@ export function VistaPreviaRuta({
       ) : null}
 
       {sinTrazado ? (
-        <Advertencia icono={<CloudOff className="h-3.5 w-3.5" />}>
-          Sin señal no se pudo trazar el camino por calles. El orden de las paradas está
-          listo igual y el mapa lo dibuja en cuanto haya conexión.
-        </Advertencia>
+        <Advertencia icono={<CloudOff className="h-3.5 w-3.5" />}>{avisoSinTrazado(motivoSinTrazado)}</Advertencia>
       ) : null}
 
       {error ? (

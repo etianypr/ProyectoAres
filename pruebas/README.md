@@ -43,6 +43,8 @@ No hay framework de pruebas: `node:test` viene con Node.
 | `asistencia-direcciones.test.mjs` | Normalización de teléfonos chilenos (a quién se le manda el aviso) y de direcciones. Dos casos reales la motivaron: "Los Aromos 120" existe en Arica **y** en Azapa, a nueve kilómetros, y quedarse con el primer resultado mandaba al conductor al lugar equivocado; y "Linderos 3536", donde la calle se llama "Avenida Linderos Poniente" y el número se perdía — ahora se busca en las calles cuyo nombre contiene, **entera**, cada palabra escrita, y si el número existe en dos de ellas elige el conductor. Fija además la **tabla completa de `location_type`** de Google (`ROOFTOP` → exacta, `RANGE_INTERPOLATED` → aproximada, el centro de la calle no entra; spec 019, antes Mapbox: ver abajo). Y el atajo de los **Plus Codes en el campo de dirección**: que un código escrito no consulte a ningún proveedor (cero peticiones, comprobado), que se guarde el código **completo** aunque se haya escrito el corto, y que un código impreciso entre igual pero diciendo cuántos metros cubre. |
 | `estampilla-mapa.test.mjs` | La estampilla de mapa que muestra **dónde** quedó una dirección (`components/direccion/estampilla-mapa.ts`, spec 019): la misma esquina es la misma foto y no se vuelve a dibujar. |
 | `whatsapp-contract.test.mjs` | El contrato con Meta en las dos direcciones: la plantilla que sale, los tres botones y su orden, los reintentos, y que **no se filtre ningún dato del receptor** al cuerpo que sale ni a los mensajes de error. |
+| `rutas-024-pesos.test.mjs` | Spec 024: el orden cobra km y tiempo en plata. Sin tiempos, la matriz de siempre; con la matriz real de un día simulado (`fixtures/matriz-tiempo-arica.json`, puntos al azar pegados a la calle, no direcciones de nadie), menos tiempo y plata sin más de 1 % de km; los bultos miden la tolerancia en km y en costo y siguen viendo los barrios; la recomendada es la más barata; y de punta a punta, que se pide `duration` a ORS y se evita el tramo lento. |
+| `ors-cupo.test.mjs` | Spec 024: un 429/403, o un corte con ARES contestando, es cupo de ORS y no «Sin señal»; el HEAD a ARES va sin datos; el contador de consultas del día; y la propuesta lo dice. |
 | `asistencia-rutas.test.mjs` | Que los bloques horarios pesen en el orden, que un pedido cerrado no vuelva a proponerse, que se muestre **una** ruta cuando comparar no aporta, y que ofrecer tres no cueste tres veces más en consultas. |
 | `asistencia-entrega.test.mjs` | El reparto: entregado o no, el doble toque, la ventana para deshacer y el día sin señal. Usa el reloj controlado (`dobles/reloj.mjs`) para probar plazos sin esperarlos. **Es la que más plata protege.** |
 | `asistencia-resumen.test.mjs` | Que el resumen del jefe coincida con el detalle individual (SC-006) y que las no entregas **no muevan ni un peso** del pago. |
@@ -88,7 +90,8 @@ El fixture de navegación se capturó una vez de la API real. Para renovarlo hac
 falta el token de Mapbox en `.env.local` y volver a pedir el mismo tramo. Los de
 `fixtures/geocoding-osm.json`, `fixtures/ruta-ors-arica.json` y
 `fixtures/whatsapp.json` también son respuestas reales, recortadas a los campos
-que el código lee; `fixtures/geocoding-google.json` sigue el formato de la API
+que el código lee (y `fixtures/matriz-tiempo-arica.json`, una matriz real de ORS con metros y
+segundos, spec 024); `fixtures/geocoding-google.json` sigue el formato de la API
 con calles reales y números de prueba (spec 019). Cada uno lleva en su cabecera cuándo se capturó y contra qué.
 
 ## Un fixture viejo miente y nada falla

@@ -286,12 +286,16 @@ y un agente no debe "corregir".
   día guarda su tarifa, así que cambiar la regla no mueve los días anteriores.
 - **Rutas.** Se evalúan por cinco criterios: sacar los bultos del móvil lo más rápido posible,
   kilómetros recorridos, tiempo de ruta, porcentaje de éxito por parada y ganancia en la logística.
-  - Manda km (con zonas y horarios). Encima, los bultos salen antes solo si cuesta ≤ 1 % de km y
-    cada metro de más los saca, en promedio, al menos un metro antes (dueño, 2026-11-07;
-    `orden-paradas/descarga.ts`). Medido: la más corta ya descarga casi lo más rápido posible, y
-    sin tope de km se gana ≤ 10–15 % por +10–15 % de km. Los bultos salen del código de barras
-    (o se van contando por OF); sin escanear, cada pedido vale uno.
-  - *Pendiente (spec 024):* cómo pesan tiempo, éxito por parada y ganancia.
+  - Manda el costo en plata, con zonas y horarios (dueño, 2026-11-08; `generar-ruta/pesos.ts`): el
+    km a $130 (bencina) y la hora al volante a $6.000. El tiempo viene en la misma matriz de ORS.
+    Medido en 3 días simulados de 80 paradas: −1,5 % de tiempo y −1 % de plata, sin km de más.
+  - Encima, los bultos salen antes solo si cuesta ≤ 1 % de km (y de costo) y cada metro de más los
+    saca, en promedio, al menos un metro antes (dueño, 2026-11-07; `orden-paradas/descarga.ts`).
+    Medido: la más corta ya descarga casi lo más rápido posible, y sin tope de km se gana ≤ 10–15 %
+    por +10–15 % de km. Los bultos salen del código de barras (o se van contando por OF); sin
+    escanear, cada pedido vale uno.
+  - El éxito por parada no entra al costo (dueño, 2026-11-08): los horarios y los confirmados van
+    en su propia propuesta, como antes.
   - La ruta es cerrada: vuelve a la central.
   - Cada zona se recorre una sola vez (`generar-ruta/zonas.ts`, zonas de 900 m).
   - No se da la vuelta en pasajes ni en calles residenciales.
@@ -309,8 +313,9 @@ y un agente no debe "corregir".
   - Mapbox sale entero y no se vuelve a proponer.
   - Todo servicio de pago lleva una cuota que lo deje en US$0. Google Geocoding tiene tope diario,
     y Cloud Vision está apagada en la clave (se usa ML Kit).
-  - ORS es gratis: 500 consultas de matriz al día. Sin cupo contesta 429, y la ruta sigue en línea
-    recta con aviso.
+  - ORS es gratis: 500 consultas de matriz al día. Sin cupo contesta 429, o un 403 que el navegador
+    ve como un corte: si ARES contesta, la app lo toma como cupo y no como «Sin señal» (spec 024).
+    La ruta sigue en línea recta con aviso. Diagnóstico cuenta las consultas del día.
 - **WhatsApp.** Queda en pausa hasta que el dueño tenga el chip y el token de Meta
   (`WHATSAPP_EN_PAUSA`). Sin las variables, la app funciona sin avisos (spec 013); no se empuja
   trabajo de WhatsApp. En Meta, el orden de los botones (Sí, estaré · Mañana · Otro horario) es el
