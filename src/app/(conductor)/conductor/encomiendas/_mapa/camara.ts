@@ -8,25 +8,30 @@ import type * as maplibregl from "maplibre-gl";
 // que hace que se vea "hacia adelante" y no desde arriba. Después de eso el
 // zoom queda en manos del conductor.
 //
-// 16.5, el mismo zoom con que se enfoca una parada: unas cuadras alrededor y las
-// paradas cercanas. Era 18.4 (la calle de su ancho real, para mirar la maniobra)
-// cuando ARES guiaba; desde la spec 020 guía Google Maps, y en ARES «Centrar»
-// quedaba muy cerca y poco estético (dueño, 2026-11-09). Con menos inclinación,
-// por lo mismo.
-export const ZOOM_NAVEGACION = 16.5;
+// En camino, 15: unas cuadras más que al llegar, para ver hacia dónde se va. A
+// 250 m o menos de la parada, el de la llegada, 16.5 —la cuadra y la puerta—, que
+// es el que le gusta al dueño (2026-11-09: «el zoom de la navegación no sea
+// tanto»; era 18.4, la calle de su ancho real, cuando ARES guiaba; desde la spec
+// 020 guía Google Maps). Con menos inclinación, por lo mismo.
+export const ZOOM_NAVEGACION = 15;
+export const ZOOM_LLEGADA = 16.5;
 export const PITCH_NAVEGACION = 40;
+export const METROS_ZOOM_LLEGADA = 250;
+/** Para soltar el zoom de llegada hay que alejarse más: el GPS oscila, y justo en
+ *  los 250 m el mapa se acercaría y alejaría sin parar. */
+export const METROS_SOLTAR_LLEGADA = 300;
 
 // El GPS avisa cada uno o dos segundos, así que animar cerca de un segundo hace
 // que el mapa "fluya" en vez de dar saltos de una posición a la otra.
 export const MS_DESPLAZAMIENTO = 1000;
 
-// Zoom según la velocidad (spec 017, N12): a 30 km/h o menos, la cuadra de
-// cerca; a 60 km/h, un nivel más lejos, para ver el cruce que viene con unos
-// diez segundos de anticipación y no cuando ya está encima. Solo mientras el
-// conductor no haya elegido su zoom con los dedos.
+// Zoom según la velocidad (spec 017, N12): a 30 km/h o menos, el de camino; a 60
+// km/h, medio nivel más lejos, para ver el cruce que viene con unos diez segundos
+// de anticipación y no cuando ya está encima (era un nivel, sobre el 18.4). Solo
+// mientras el conductor no haya elegido su zoom con los dedos.
 export const VELOCIDAD_ZOOM_CERCA_MS = 8;
 export const VELOCIDAD_ZOOM_LEJOS_MS = 17;
-export const ZOOM_MENOS_A_VELOCIDAD = 1;
+export const ZOOM_MENOS_A_VELOCIDAD = 0.5;
 /** Cambios de zoom más chicos que esto no se aplican: la velocidad oscila y el
  *  mapa respiraría todo el viaje. */
 export const ZOOM_MINIMO_PARA_CAMBIAR = 0.3;
@@ -38,6 +43,18 @@ export function zoomPorVelocidad(velocidad: number | null | undefined): number {
     Math.max(0, (velocidad - VELOCIDAD_ZOOM_CERCA_MS) / (VELOCIDAD_ZOOM_LEJOS_MS - VELOCIDAD_ZOOM_CERCA_MS)),
   );
   return ZOOM_NAVEGACION - t * ZOOM_MENOS_A_VELOCIDAD;
+}
+
+/** ¿Llegando a la parada? Entra a ≤ 250 m y sale pasados los 300 m. Pura. */
+export function llegandoAParada(metros: number | null, antes: boolean): boolean {
+  if (metros == null) return false;
+  return metros <= (antes ? METROS_SOLTAR_LLEGADA : METROS_ZOOM_LLEGADA);
+}
+
+/** El zoom del seguimiento: el de la llegada cerca de la parada; si no, el de
+ *  camino según la velocidad. Pura. */
+export function zoomDeSeguimiento(velocidad: number | null | undefined, llegando: boolean): number {
+  return llegando ? ZOOM_LLEGADA : zoomPorVelocidad(velocidad);
 }
 
 // ----------------------------------------------------------------------------

@@ -2,9 +2,9 @@
 
 // La cámara del mapa en modo navegación (sale de ruta-mapa.tsx, spec 002 T038).
 
-import { useEffect, type RefObject } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 import type * as maplibregl from "maplibre-gl";
-import { aLngLat } from "@/lib/geo/coordenada";
+import { aLngLat, distanciaMetros, type Coordenada } from "@/lib/geo/coordenada";
 import {
   GRADOS_MINIMOS_PARA_GIRAR,
   MS_DESPLAZAMIENTO,
@@ -12,7 +12,8 @@ import {
   SIN_RELLENO,
   ZOOM_MINIMO_PARA_CAMBIAR,
   difAngulo,
-  zoomPorVelocidad,
+  llegandoAParada,
+  zoomDeSeguimiento,
 } from "./camara";
 import type { Ubicacion } from "./tipos";
 
@@ -22,6 +23,7 @@ export function useCamaraNavegacion({
   miUbicacion,
   rumbo,
   claveDestino,
+  destino,
   siguiendo,
   refs: { entroModoNavegacionRef, claveOrientadaRef, usuarioMovioRef, gestoRef, zoomManualRef },
 }: {
@@ -30,6 +32,8 @@ export function useCamaraNavegacion({
   miUbicacion?: Ubicacion | null;
   rumbo?: number | null;
   claveDestino?: string | null;
+  /** La parada activa: a 250 m o menos el mapa se acerca para la llegada. */
+  destino?: Coordenada | null;
   siguiendo: boolean;
   /** Estado compartido con el resto del mapa (gestos, encuadre). */
   refs: {
@@ -52,6 +56,7 @@ export function useCamaraNavegacion({
   // Al soltar el seguimiento el mapa se queda como está: no se endereza al
   // norte ni se baja la inclinación. Girarle la vista mientras tiene el dedo
   // apoyado es lo que hacía que la ruta pareciera acomodarse después del gesto.
+  const llegandoRef = useRef(false);
   useEffect(() => {
     const mapa = mapaRef.current;
     if (!mapa || !mapaListo || !miUbicacion || !siguiendo) {
@@ -66,6 +71,8 @@ export function useCamaraNavegacion({
     if (gestoRef.current) return;
 
     const centro = aLngLat(miUbicacion);
+    llegandoRef.current = llegandoAParada(destino ? distanciaMetros(miUbicacion, destino) : null, llegandoRef.current);
+    const zoomDeseado = zoomDeSeguimiento(miUbicacion.velocidad, llegandoRef.current);
 
     // Acomodarse al camino, que pasa en tres momentos y con una sola condición:
     //
@@ -89,7 +96,7 @@ export function useCamaraNavegacion({
       usuarioMovioRef.current = false;
       mapa.easeTo({
         center: centro,
-        zoom: zoomManualRef.current ? mapa.getZoom() : zoomPorVelocidad(miUbicacion.velocidad),
+        zoom: zoomManualRef.current ? mapa.getZoom() : zoomDeseado,
         pitch: PITCH_NAVEGACION,
         bearing: rumbo ?? mapa.getBearing(),
         padding: SIN_RELLENO,
@@ -107,7 +114,7 @@ export function useCamaraNavegacion({
     // estimado, no una curva.
     const actual = mapa.getBearing();
     const girar = rumbo != null && difAngulo(rumbo, actual) >= GRADOS_MINIMOS_PARA_GIRAR;
-    const zoom = zoomPorVelocidad(miUbicacion.velocidad);
+    const zoom = zoomDeseado;
     const acercar = !zoomManualRef.current && Math.abs(zoom - mapa.getZoom()) >= ZOOM_MINIMO_PARA_CAMBIAR;
 
     mapa.easeTo({
@@ -119,5 +126,5 @@ export function useCamaraNavegacion({
       easing: (t) => t, // lineal: el GPS entrega posiciones a ritmo constante
       essential: true,
     });
-  }, [miUbicacion, rumbo, claveDestino, siguiendo, mapaListo, mapaRef, entroModoNavegacionRef, claveOrientadaRef, usuarioMovioRef, gestoRef, zoomManualRef]);
+  }, [miUbicacion, rumbo, claveDestino, destino, siguiendo, mapaListo, mapaRef, entroModoNavegacionRef, claveOrientadaRef, usuarioMovioRef, gestoRef, zoomManualRef]);
 }

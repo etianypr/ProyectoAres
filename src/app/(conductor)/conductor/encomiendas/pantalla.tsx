@@ -124,8 +124,7 @@ export function PantallaEncomiendas({
     onDeshacer,
   } = useAccionesParada({ dia, activa });
 
-  // La vista de formulario abierta dentro de la hoja: "nuevo" o el pedido que se
-  // está corrigiendo. null = cerrada.
+  // El formulario abierto en la hoja: "nuevo", el pedido que se corrige, o null.
   const [formPedido, setFormPedido] = useState<"nuevo" | Pedido | null>(null);
   // «Resolver los ⚠» de a uno (spec 027).
   const resolver = useResolverProblemas(setFormPedido);
@@ -275,6 +274,7 @@ export function PantallaEncomiendas({
           rumbo={rumbo}
           rumboBrujula={rumboBrujula}
           claveDestino={destinoActivo ? `${destinoActivo.lat},${destinoActivo.lng}` : null}
+          destino={destinoActivo}
           trazado={dia.ruta?.trazado ?? null}
           geometriaNavegacion={trazadoPorDelante}
           previa={previa}

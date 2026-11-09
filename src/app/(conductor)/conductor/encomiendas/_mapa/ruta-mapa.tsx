@@ -44,6 +44,7 @@ export function RutaMapa({
   rumbo,
   rumboBrujula,
   claveDestino,
+  destino = null,
   trazado,
   geometriaNavegacion,
   previa,
@@ -70,25 +71,23 @@ export function RutaMapa({
    *  entrega y arrancó el tramo siguiente— el mapa vuelve a acomodarse al
    *  camino nuevo: centro, zoom, inclinación y orientación. */
   claveDestino?: string | null;
-  /** Trazado de la ruta completa del día ([lng, lat] por punto). Se dibuja
-   *  apagado, como referencia. */
+  /** La parada activa: cerca, el mapa se acerca para la llegada (camara.ts). */
+  destino?: { lat: number; lng: number } | null;
+  /** Trazado de la ruta completa del día ([lng, lat]): apagado, de referencia. */
   trazado?: Trazado | null;
   /** Trazado desde la posición actual hasta la parada activa (ver
    *  useNavegacion): esta es la línea que el conductor tiene que seguir ahora,
    *  así que va destacada por encima de la anterior. */
   geometriaNavegacion?: Trazado | null;
-  /** Ruta propuesta a la vista (ver PreviaRuta). Reemplaza los marcadores de la
-   *  ruta del día mientras está puesta. */
+  /** Ruta propuesta a la vista (PreviaRuta): reemplaza los marcadores del día. */
   previa?: PreviaRuta | null;
-  /** La central de carga, de donde sale y adonde vuelve la ruta: se marca
-   *  con una C (terreno 2026-10-28). */
+  /** La central, de donde sale y adonde vuelve la ruta: una C (terreno 2026-10-28). */
   central?: { lat: number; lng: number } | null;
   /** Modo navegación: el mapa sigue y orienta según la ubicación del conductor.
    *  El estado vive en el componente padre porque el botón para retomarlo
    *  también (ver controles-mapa.tsx). */
   siguiendo: boolean;
-  /** El conductor arrastró el mapa a mano: quiere mirar otra cosa, así que hay
-   *  que dejar de seguirlo hasta que toque "centrar". */
+  /** Arrastró el mapa a mano: deja de seguirlo hasta que toque "centrar". */
   onArrastre: () => void;
   /** Una parada cercana que el conductor tocó en su lista (spec 023): el mapa va
    *  a ella. `clave` cambia en cada toque, para volver aunque sea la misma. */
@@ -374,6 +373,7 @@ export function RutaMapa({
     miUbicacion,
     rumbo,
     claveDestino,
+    destino,
     siguiendo,
     refs: { entroModoNavegacionRef, claveOrientadaRef, usuarioMovioRef, gestoRef, zoomManualRef },
   });
