@@ -31,8 +31,12 @@ tirado al conductor (`AGENTS.md`, «Ahora»). Lo que no sirve para eso está en 
      arregla ajustando el plugin. Cada etiqueta leída redibuja, así que cargar el auto puede trabarse
      en cada paquete; si el conductor toca durante una traba de más de 8 s, Android cierra ARES
      (ANR, ya pasó el 2026-11-08 escaneando). En producción, escribir la OF apaga la cámara (sin ANR)
-     y apagarla traba 2 a 5 s; un teclado propio fue peor (cada tecla redibuja). El dueño decide si
-     el día real carga el auto con el escáner de siempre (el de Google, una etiqueta por toque).
+     y apagarla traba 2 a 5 s; un teclado propio fue peor (cada tecla redibuja).
+     - El escáner de Google tampoco es una salida segura (medido el 2026-11-10): mientras está
+       abierto, Android cierra ARES por memoria en 5 de 7 intentos y el código se pierde. La
+       cámara del sistema («Sacar foto») no lo cerró en 2 de 2.
+     - Queda la cámara en vivo, y Diagnóstico → «Cargar el auto con el escáner de Google» es la
+       salida si se traba ese día.
    - **Google Maps sigue a la parada ya cerrada (020), ensayo 2026-11-09:** al cerrar una parada,
      ARES manda la siguiente y Maps pregunta «¿Salir de la navegación?»; si nadie toca, la cuenta
      regresiva elige «No». Arreglo en `GoogleMaps.java` (`FLAG_ACTIVITY_CLEAR_TASK`, verificado en
@@ -45,8 +49,15 @@ tirado al conductor (`AGENTS.md`, «Ahora»). Lo que no sirve para eso está en 
      al norte.
    - Burbuja (020): el permiso `POST_NOTIFICATIONS`, el altavoz al llamar y si ARES vuelve adelante
      al cerrar la última parada.
-   - Guía: Cloud Vision usa `GOOGLE_MAPS_KEY` y va antes que ML Kit; confirmar que la guía se lee
-     con la clave como está.
+   - ~~Guía: Cloud Vision antes que ML Kit~~: con la API apagada en la clave (403), `/api/texto`
+     responde 503 y el teléfono deja de preguntar (2026-11-10).
+   - Auditoría del 2026-11-10, pendiente para después del día real:
+     - Una guía grande en una sola lectura puede pasar el tope de la IA (25 s más un reintento) y
+       caer en silencio al lector del teléfono. Hay que leerla de a 1 o 2 fotos.
+     - No hay «Volver a ubicar» para los «Sin ubicar» cuando la guía se cargó sin señal.
+     - Armar con unas 100 paradas tarda cerca de 1 minuto y no se puede cancelar.
+     - Con el escáner en vivo, la OF escrita a mano suma un bulto si su etiqueta vuelve a la
+       cámara.
    - Textos con consejos obvios, por decidir (dueño): «¿Qué hacemos con esta parada?», «Conviene
      llamarlo(s)», «Devuélvelos a Starken. Revisa…» y «…: revisa la dirección».
 3. **Le toca al dueño:**
@@ -54,7 +65,10 @@ tirado al conductor (`AGENTS.md`, «Ahora»). Lo que no sirve para eso está en 
      burbuja (se marca sola y vuelve ARES o Google Maps).
    - Vercel: `APK_VERSION_MINIMA=1.6.1` y `APK_URL` de la 1.6.1; borrar `LECTURA_MODELO` y
      `NEXT_PUBLIC_MAPBOX_TOKEN` (y anular el token de Mapbox).
-   - Panel → Configuración: la dirección de la central, con el Plus Code al comienzo.
+   - Panel → Configuración: la dirección de la central, con el Plus Code al comienzo (sigue sin él
+     el 2026-11-10).
+   - Panel → Encomiendas → «Configurar la regla de pago»: la tabla está vacía y el pago sale
+     «Sin regla». Al guardarla se valoran los días ya cerrados.
    - Supabase Auth: Site URL y redirect.
    - El chip en el teléfono, para probar las llamadas (015, T019).
 4. **La víspera:**
