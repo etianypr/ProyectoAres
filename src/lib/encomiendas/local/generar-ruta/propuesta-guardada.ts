@@ -16,6 +16,7 @@
 import {
   borrarPropuestaGuardada,
   guardarPropuesta,
+  leerPedidos,
   leerPropuestaGuardada,
   type Pedido,
 } from "../almacen";
@@ -108,12 +109,17 @@ export function propuestaDesdeGuardada(g: PropuestaEnElTelefono, porId: Map<stri
 }
 
 /** Guarda la propuesta a la vista. Una que espera su trazado (recién invertida) no:
- *  se guarda cuando llega, para no dejar un mapa a medias. */
-export async function guardarPropuestaVista(fecha: string, propuesta: PropuestaRuta, pedidos: Pedido[]): Promise<void> {
+ *  se guarda cuando llega, para no dejar un mapa a medias.
+ *
+ *  La firma sale de los pedidos guardados, no de los de la pantalla: el armado
+ *  ubica pedidos y corre paradas a su calle de acceso en el teléfono sin recargar
+ *  la pantalla, y con la firma vieja la propuesta se descartaba al reabrir
+ *  (auditoría del día real, 2026-11-10). */
+export async function guardarPropuestaVista(fecha: string, propuesta: PropuestaRuta): Promise<void> {
   if (propuesta.esperaTrazado) return;
   await guardarPropuesta({
     fecha,
-    firma: firmaDePendientes(pedidos),
+    firma: firmaDePendientes(await leerPedidos(fecha)),
     datos: propuestaParaGuardar(propuesta),
     guardadaEn: new Date().toISOString(),
   });

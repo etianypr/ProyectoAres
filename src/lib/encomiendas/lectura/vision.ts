@@ -24,6 +24,11 @@ export function visionDisponible(): boolean {
  *  el teléfono sigue con su propio lector. */
 export class VisionNoRespondio extends Error {}
 
+/** La clave no tiene la Cloud Vision API (apagada, restringida o sin cobro): no
+ *  es un corte, así que la ruta responde como sin clave (503) y el teléfono deja
+ *  de subir cada foto para nada (auditoría del día real, 2026-11-10). */
+export class VisionApagada extends VisionNoRespondio {}
+
 /** El texto de la foto, en orden de lectura; "" si no hay texto. */
 export async function textoConVision(foto: Uint8Array): Promise<string> {
   const k = clave();
@@ -51,6 +56,7 @@ export async function textoConVision(foto: Uint8Array): Promise<string> {
     responses?: { fullTextAnnotation?: { text?: string }; error?: { message?: string } }[];
   } | null;
   const r = datos?.responses?.[0];
+  if (res.status === 401 || res.status === 403) throw new VisionApagada("Cloud Vision está apagada en la clave.");
   if (!res.ok || !r || r.error) throw new VisionNoRespondio("Cloud Vision no pudo leer la foto.");
   return r.fullTextAnnotation?.text ?? "";
 }

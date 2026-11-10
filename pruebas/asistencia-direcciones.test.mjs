@@ -63,7 +63,8 @@ function instalar() {
       const { direccion } = JSON.parse(opciones.body);
       consultas.push({ cual: "google", q: direccion, url });
       if (respuestas.google === null) return new Response("boom", { status: 503 });
-      return json({ sugerencias: await googleDirecto(direccion, "clave-prueba") });
+      const sugerencias = await googleDirecto(direccion, "clave-prueba");
+      return sugerencias ? json({ sugerencias }) : new Response("{}", { status: 502 });
     }
     if (url.includes("googleapis")) {
       const address = new URL(url).searchParams.get("address") ?? "";

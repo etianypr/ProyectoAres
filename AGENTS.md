@@ -255,7 +255,12 @@ y un agente no debe "corregir".
 - **Escaneo de la etiqueta de Starken (spec 005).** Tiene dos partes que no se mezclan: el código
   de barras dice *qué paquete es* y la foto de la etiqueta dice *a quién va*. Se escanea al cargar
   el auto y también desde la parada, cuando le falta el teléfono.
-  - **Escáner en vivo (spec 028, APK 1.6.0).** Al cargar el auto, la cámara de ARES queda abierta
+  - **Escáner en vivo (spec 028, APK 1.6.0).** Los dos escáneres tienen un riesgo en el teléfono
+    del conductor (auditoría, 2026-11-10). Con la cámara en vivo, ARES se traba 1 a 5 s en cada
+    redibujo y puede cerrarse (ANR). Con el de Google, Android cierra ARES por memoria en 5 de 7
+    escaneos y el código se pierde. Por eso queda en vivo, como lo dejó el dueño, y Diagnóstico
+    → «Cargar el auto con el escáner de Google» es la salida si la cámara se traba
+    (`usarEscanerVivo`). La cámara de ARES queda abierta
     debajo de la pantalla y lee el código y el texto de cada etiqueta con ML Kit, sin toques ni red.
     Un dato vale cuando sale igual en ≥ 2 cuadros (`votos.ts`) y al pedido va solo lo firme. Suena
     un tic que sube por cada dato firme, el de pedido leído al quedar completa y dos notas que bajan

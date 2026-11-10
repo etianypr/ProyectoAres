@@ -33,6 +33,7 @@ const SECCIONES: { titulo: string; pasos: string[] }[] = [
       "Un pedido que no va: 🗑 en la lista de la ruta propuesta («Deshacer» lo devuelve).",
       "La misma ruta al revés (la última parada primero): «Invertir orden de ruta». Otro toque la deja como la propuso ARES.",
       "Cargar el auto: «Escanear paquete» y pasa las etiquetas por la cámara: un tic por dato leído y otro sonido cuando queda leída. «Salir a repartir» muestra la primera parada; lo no escaneado queda en «Faltan».",
+      "Si la cámara se traba: Diagnóstico → «Cargar el auto con el escáner de Google» (una etiqueta por toque).",
       "Código dañado: escribe la OF; cada vez que la escribes suma un bulto. La misma etiqueta escaneada dos veces no suma.",
       "Pedido que llega tarde: «Sumar a la ruta».",
       "Repasar lo que falta desde donde estás: «Rehacer la ruta» (al pie de la hoja) → Desde: Mi ubicación → «Rehacer la ruta». Termina en la central.",

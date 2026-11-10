@@ -73,7 +73,7 @@ function propuesta(pedidos) {
 test("se guarda sin copiar los pedidos y vuelve igual que como estaba a la vista", async () => {
   const pedidos = await tresPedidos();
   const vista = propuesta(pedidos);
-  await guardarPropuestaVista(HOY, vista, pedidos);
+  await guardarPropuestaVista(HOY, vista);
 
   const guardada = await idb.leerUno(idb.STORES.propuestas, HOY);
   assert.deepEqual(Object.keys(guardada.datos.paradas[0]).sort(), ["id", "lat", "lng"], "la parada va como id y punto");
@@ -93,25 +93,35 @@ test("se guarda sin copiar los pedidos y vuelve igual que como estaba a la vista
 
 test("si un pendiente cambió, no vale y se borra", async () => {
   const pedidos = await tresPedidos();
-  await guardarPropuestaVista(HOY, propuesta(pedidos), pedidos);
+  await guardarPropuestaVista(HOY, propuesta(pedidos));
   await almacen.fijarCoordenadas([{ id: pedidos[1].id, lat: -18.48, lng: -70.3 }]);
   assert.equal(await propuestaGuardada(HOY, await almacen.leerPedidos(HOY)), null);
   assert.equal(await idb.leerUno(idb.STORES.propuestas, HOY), null);
 });
 
+test("vale al reabrir aunque el armado haya corrido una parada sin recargar la pantalla", async () => {
+  // Auditoría del día real (2026-11-10): la pantalla todavía tiene los pedidos de
+  // antes de armar, y el armado corrió uno a su calle de acceso en el teléfono.
+  const pantalla = await tresPedidos();
+  await almacen.fijarCoordenadas([{ id: pantalla[2].id, lat: pantalla[2].lat + 0.0003, lng: pantalla[2].lng }]);
+  await guardarPropuestaVista(HOY, propuesta(pantalla));
+  const vuelta = await propuestaGuardada(HOY, await almacen.leerPedidos(HOY));
+  assert.ok(vuelta, "al reabrir, la propuesta sigue ahí");
+});
+
 test("usada o descartada se olvida, y el cierre del día la borra", async () => {
   const pedidos = await tresPedidos();
-  await guardarPropuestaVista(HOY, propuesta(pedidos), pedidos);
+  await guardarPropuestaVista(HOY, propuesta(pedidos));
   await olvidarPropuesta(HOY);
   assert.equal(await idb.leerUno(idb.STORES.propuestas, HOY), null);
 
-  await guardarPropuestaVista(HOY, propuesta(pedidos), pedidos);
+  await guardarPropuestaVista(HOY, propuesta(pedidos));
   await almacen.cerrarYBorrarDia(HOY);
   assert.equal(await idb.leerUno(idb.STORES.propuestas, HOY), null);
 });
 
 test("una que espera su trazado no se guarda", async () => {
   const pedidos = await tresPedidos();
-  await guardarPropuestaVista(HOY, { ...propuesta(pedidos), esperaTrazado: true }, pedidos);
+  await guardarPropuestaVista(HOY, { ...propuesta(pedidos), esperaTrazado: true });
   assert.equal(await idb.leerUno(idb.STORES.propuestas, HOY), null);
 });

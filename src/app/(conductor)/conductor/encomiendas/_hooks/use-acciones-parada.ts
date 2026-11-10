@@ -151,7 +151,9 @@ export function useAccionesParada({ dia, activa }: { dia: DiaEnCurso; activa: Pa
     if (previa?.pedidoId === id && Date.now() - previa.ms < MS_DOBLE_TOQUE) return;
     ultimaLlamada.current = { pedidoId: id, ms: Date.now() };
     void llamar(telefono);
-    void correr(() => dia.registrarLlamada(id));
+    // Uno de afuera de la ruta no tiene parada donde anotar la llamada: se llama
+    // igual, sin el error rojo «no está en la ruta» (auditoría, 2026-11-10).
+    if (dia.ruta?.orden.includes(id)) void correr(() => dia.registrarLlamada(id));
   }
 
   async function onSalida(salida: Salida) {

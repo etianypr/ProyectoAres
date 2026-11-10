@@ -59,11 +59,13 @@ export function usePropuesta({ dia, fecha }: { dia: DiaEnCurso; fecha: string })
 
   // Cada cambio a la vista se guarda; al usarla o descartarla, se olvida. Solo al
   // pasar de haber una a no haber ninguna: al abrir todavía no hay y no se borra.
+  // La firma se calcula con lo guardado en el teléfono; `dia.pedidos` queda en las
+  // dependencias para volver a guardarla cuando un pedido cambia.
   const habiaRef = useRef(false);
   useEffect(() => {
     if (propuesta) {
       habiaRef.current = true;
-      void guardarPropuestaVista(fecha, propuesta, dia.pedidos).catch(() => {});
+      void guardarPropuestaVista(fecha, propuesta).catch(() => {});
     } else if (habiaRef.current) {
       habiaRef.current = false;
       void olvidarPropuesta(fecha).catch(() => {});

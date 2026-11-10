@@ -10,7 +10,7 @@ import { logout } from "@/lib/auth/acciones";
 import { avanceCarga, leerDias, type Pedido, type ResumenDia } from "@/lib/encomiendas/local/almacen";
 import type { PropuestaRuta } from "@/lib/encomiendas/local/generar-ruta";
 import { problemasDelPedido } from "@/lib/encomiendas/problemas";
-import { escanerVivoDisponible } from "@/lib/nativo/escaner-vivo";
+import { usarEscanerVivo } from "@/lib/nativo/escaner-vivo";
 import type { DiaEnCurso } from "../_hooks/use-dia-trabajo";
 import type { useCierreDia } from "../_hooks/use-cierre-dia";
 import { Ayuda } from "./ayuda";
@@ -142,9 +142,10 @@ export function VentanasPantalla({
         />
       ) : null}
 
-      {/* Spec 028: con la APK 1.6.0, la cámara de ARES en vivo; sin ella o sin
-          permiso de cámara, el escáner de siempre. */}
-      {v.escaneando && escanerVivoDisponible() && !v.escanerClasico ? (
+      {/* Spec 028: la cámara de ARES en vivo si la APK la trae, salvo que el
+          conductor haya elegido el escáner de Google en Diagnóstico; sin permiso
+          de cámara, también el de Google (lib/nativo/escaner-vivo.ts). */}
+      {v.escaneando && usarEscanerVivo() && !v.escanerClasico ? (
         <EscanerVivo
           fecha={fecha}
           avance={avanceCarga(dia.pedidos)}
@@ -157,7 +158,7 @@ export function VentanasPantalla({
           onClasico={() => v.setEscanerClasico(true)}
         />
       ) : null}
-      {v.escaneando && (!escanerVivoDisponible() || v.escanerClasico) ? (
+      {v.escaneando && (!usarEscanerVivo() || v.escanerClasico) ? (
         <EscanearEtiqueta
           fecha={fecha}
           avance={avanceCarga(dia.pedidos)}

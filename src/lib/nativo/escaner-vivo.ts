@@ -43,6 +43,39 @@ export function escanerVivoDisponible(): boolean {
   return esApp() && Capacitor.isPluginAvailable("EscanerVivo");
 }
 
+// Los dos escáneres tienen su riesgo en el teléfono del conductor (V2430, 4 GB):
+//   · En vivo: cada redibujo de ARES espera a la GPU 1 a 5 s y un toque durante
+//     una traba de más de 8 s cierra la app (ANR, ensayo 2026-11-09).
+//   · El de Google: mientras está abierto, Android cierra ARES por memoria en 5
+//     de 7 intentos (`am_kill … low memory`, 2026-11-10); el código leído se
+//     pierde y ARES se recarga.
+// Queda en vivo, como lo dejó el dueño, y el de Google se elige en Diagnóstico
+// si la cámara en vivo se traba ese día (auditoría del día real, 2026-11-10).
+const CLAVE_CLASICO = "ares.escaner-clasico";
+
+/** ¿El conductor eligió el escáner de Google en Diagnóstico? Por defecto, no. */
+export function escanerClasicoElegido(): boolean {
+  try {
+    return globalThis.localStorage?.getItem(CLAVE_CLASICO) === "si";
+  } catch {
+    return false;
+  }
+}
+
+export function elegirEscanerClasico(elegido: boolean): void {
+  try {
+    if (elegido) globalThis.localStorage?.setItem(CLAVE_CLASICO, "si");
+    else globalThis.localStorage?.removeItem(CLAVE_CLASICO);
+  } catch {
+    // Sin localStorage queda la cámara en vivo.
+  }
+}
+
+/** ¿«Cargar el auto» y «Escanear la etiqueta» abren la cámara en vivo? */
+export function usarEscanerVivo(): boolean {
+  return escanerVivoDisponible() && !escanerClasicoElegido();
+}
+
 /** Prende la cámara y llama a `alCuadro` con cada cuadro leído. Devuelve qué
  *  tiene la cámara y con qué apagarla. Falla si el conductor no da el permiso de
  *  cámara ("permiso_denegado") o si la cámara no abre ("sin_camara"). */

@@ -14,7 +14,13 @@ import { codigoEnLaFoto } from "@/lib/encomiendas/lectura/codigo-barras";
 import { leerEtiqueta, type LecturaEtiqueta } from "@/lib/encomiendas/lectura/etiqueta";
 import { formatoOf } from "@/lib/encomiendas/paquete";
 import { alBotonAtras } from "@/lib/nativo/entorno";
-import { escanerVivoDisponible, iniciarEscanerVivo, type CuadroVivo } from "@/lib/nativo/escaner-vivo";
+import {
+  elegirEscanerClasico,
+  escanerVivoDisponible,
+  escanerClasicoElegido,
+  iniciarEscanerVivo,
+  type CuadroVivo,
+} from "@/lib/nativo/escaner-vivo";
 
 const CAMPOS = [
   ["codigo", "Código"],
@@ -38,6 +44,9 @@ type Medida = { cuadros: number; conTexto: number; msTotal: number; ultimoMs: nu
 export function ProbarEscanerVivo({ enApp }: { enApp: boolean }) {
   // enApp llega después de abrir la pantalla: en el servidor no hay APK.
   const disponible = enApp && escanerVivoDisponible();
+  // En el servidor da false (sin localStorage), pero la casilla recién se ve con
+  // la APK detectada, después de hidratar: no hay diferencia que corregir.
+  const [elegido, setElegido] = useState(escanerClasicoElegido);
   const [activo, setActivo] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [medida, setMedida] = useState<Medida | null>(null);
@@ -126,6 +135,20 @@ export function ProbarEscanerVivo({ enApp }: { enApp: boolean }) {
         Probar escáner en vivo
       </button>
       {!disponible ? <p className="text-xs text-muted">Esta app no trae el escáner en vivo (APK 1.6.0).</p> : null}
+      {disponible ? (
+        <label className="flex items-center gap-2 px-1 text-sm font-medium">
+          <input
+            type="checkbox"
+            checked={elegido}
+            onChange={(e) => {
+              elegirEscanerClasico(e.target.checked);
+              setElegido(e.target.checked);
+            }}
+            className="h-4 w-4 accent-[var(--brand)]"
+          />
+          Cargar el auto con el escáner de Google
+        </label>
+      ) : null}
       {error ? <p className="text-sm text-danger">{error}</p> : null}
 
       {activo

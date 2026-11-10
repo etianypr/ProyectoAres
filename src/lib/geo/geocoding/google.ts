@@ -63,8 +63,12 @@ export function aSugerenciaGoogle(r: ResultadoGoogle, consulta: string): Sugeren
   };
 }
 
-/** Pregunta a Google con la clave del servidor. Nunca lanza. */
-export async function googleDirecto(consulta: string, clave: string): Promise<SugerenciaDireccion[]> {
+/** Pregunta a Google con la clave del servidor. Nunca lanza: devuelve las
+ *  puertas, lista vacía si Google no la tiene (ZERO_RESULTS) o null si Google no
+ *  contestó bien (sin red, clave, cupo, cobro). Un null no es "no existe": el
+ *  teléfono no lo recuerda y vuelve a preguntar (auditoría del día real,
+ *  2026-11-10; antes un REQUEST_DENIED dejaba todo "Sin ubicar" sin avisar). */
+export async function googleDirecto(consulta: string, clave: string): Promise<SugerenciaDireccion[] | null> {
   const params = new URLSearchParams({
     address: `${consulta}, Arica, Chile`,
     components: "country:CL",
@@ -75,12 +79,13 @@ export async function googleDirecto(consulta: string, clave: string): Promise<Su
   });
   try {
     const res = await fetch(`${GOOGLE_GEOCODE}?${params}`, { signal: tope(8_000) });
-    if (!res.ok) return [];
+    if (!res.ok) return null;
     const datos = (await res.json()) as { status?: string; results?: ResultadoGoogle[] };
-    if (datos.status !== "OK") return [];
+    if (datos.status === "ZERO_RESULTS") return [];
+    if (datos.status !== "OK") return null;
     return (datos.results ?? []).flatMap((r) => aSugerenciaGoogle(r, consulta) ?? []);
   } catch {
-    return [];
+    return null;
   }
 }
 

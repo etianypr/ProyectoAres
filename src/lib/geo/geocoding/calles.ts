@@ -16,14 +16,22 @@ type Calle = { nombre: string; largo: number; nombres: string[] };
 let catalogo: Promise<Calle[]> | null = null;
 
 function cargar(): Promise<Calle[]> {
-  catalogo ??= import("./calles-arica").then(({ CALLES_ARICA }) =>
-    CALLES_ARICA.split("\n")
-      .filter(Boolean)
-      .map((fila) => {
-        const [nombre, largo, otros] = fila.split("|");
-        return { nombre, largo: Number(largo), nombres: [nombre, ...(otros ? otros.split(";") : [])] };
-      }),
-  );
+  catalogo ??= import("./calles-arica")
+    .then(({ CALLES_ARICA }) =>
+      CALLES_ARICA.split("\n")
+        .filter(Boolean)
+        .map((fila) => {
+          const [nombre, largo, otros] = fila.split("|");
+          return { nombre, largo: Number(largo), nombres: [nombre, ...(otros ? otros.split(";") : [])] };
+        }),
+    )
+    // Sin señal la primera vez, el archivo no baja: se busca sin catálogo y se
+    // vuelve a intentar la próxima. Guardar el error rompía ubicar (y «Armar la
+    // ruta») hasta reiniciar la app (auditoría del día real, 2026-11-10).
+    .catch(() => {
+      catalogo = null;
+      return [];
+    });
   return catalogo;
 }
 

@@ -123,6 +123,7 @@ test.before(() => {
     if (url === "/api/geocodificar") {
       const { direccion } = JSON.parse(opciones.body);
       const sugerencias = await googleDirecto(direccion, "clave-prueba");
+      if (!sugerencias) return new Response("{}", { status: 502 });
       return new Response(JSON.stringify({ sugerencias }), { status: 200, headers: { "content-type": "application/json" } });
     }
     const params = new URL(url).searchParams;
@@ -190,6 +191,28 @@ test("con el nombre mal escrito se pregunta por el oficial y se encuentra la pue
   assert.equal(r.tipo, "exacta");
   assert.equal(r.elegida?.direccion, "Braulio Muñoz 903");
   assert.ok(consultas.some((c) => c.cual === "google" && c.q === "Braulio Muñoz 903"));
+});
+
+test("un error de Google (clave, cupo, cobro) no se recuerda como 'no existe'", async () => {
+  // Auditoría del día real (2026-11-10): con REQUEST_DENIED el teléfono guardaba
+  // la lista vacía y no volvía a preguntar en toda la sesión.
+  google = () => ({ status: "REQUEST_DENIED", results: [], error_message: "clave" });
+  const caida = await ubicarDireccion("Braulio Muñoz 906");
+  assert.notEqual(caida.tipo, "exacta");
+
+  google = () => resultadoGoogle("Braulio Muñoz", "906", -18.47, -70.3);
+  consultas = [];
+  const r = await ubicarDireccion("Braulio Muñoz 906");
+  assert.ok(consultas.some((c) => c.cual === "google"), "vuelve a preguntarle a Google");
+  assert.equal(r.tipo, "exacta");
+});
+
+test("ZERO_RESULTS sí es una respuesta: no se vuelve a pagar la misma consulta", async () => {
+  google = () => sinResultados;
+  await ubicarDireccion("Braulio Muñoz 907");
+  consultas = [];
+  await ubicarDireccion("Braulio Muñoz 907");
+  assert.ok(!consultas.some((c) => c.cual === "google"));
 });
 
 test("en una calle corta sin el número, la parada va a la calle con aviso", async () => {
