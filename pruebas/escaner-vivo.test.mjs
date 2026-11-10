@@ -42,7 +42,17 @@ globalThis.fetch = async (url) => {
   throw new Error("el escáner no sale a la red");
 };
 
-const { escanerVivoDisponible, iniciarEscanerVivo } = await import("@/lib/nativo/escaner-vivo");
+// El localStorage del teléfono, en memoria (lo elegido en Diagnóstico).
+const guardado = new Map();
+globalThis.localStorage = {
+  getItem: (k) => guardado.get(k) ?? null,
+  setItem: (k, v) => guardado.set(k, String(v)),
+  removeItem: (k) => guardado.delete(k),
+};
+
+const { elegirEscanerVivo, escanerVivoDisponible, iniciarEscanerVivo, usarEscanerVivo } = await import(
+  "@/lib/nativo/escaner-vivo"
+);
 
 const CUADRO = {
   codigos: ["92000022560000200000002001"],
@@ -60,6 +70,28 @@ test.beforeEach(() => {
 
 test("se ofrece con una APK que trae el plugin (1.6.0); sin él, ver escaner-vivo-sin-plugin", () => {
   assert.equal(escanerVivoDisponible(), true);
+});
+
+test("cargar el auto usa el escáner de siempre hasta que se prende la cámara en vivo en Diagnóstico", () => {
+  // Auditoría del día real (2026-11-10): con la cámara prendida ARES se traba en
+  // el teléfono del conductor; la cámara en vivo queda a elección.
+  guardado.clear();
+  assert.equal(usarEscanerVivo(), false, "por defecto, el de siempre");
+  elegirEscanerVivo(true);
+  assert.equal(usarEscanerVivo(), true);
+  elegirEscanerVivo(false);
+  assert.equal(usarEscanerVivo(), false);
+
+  elegirEscanerVivo(true);
+  const original = globalThis.localStorage;
+  globalThis.localStorage = {
+    getItem: () => {
+      throw new Error("bloqueado");
+    },
+  };
+  assert.equal(usarEscanerVivo(), false, "sin localStorage, el de siempre");
+  globalThis.localStorage = original;
+  guardado.clear();
 });
 
 test("cada cuadro llega a quien escucha; apagarlo suelta la escucha y la cámara", async () => {

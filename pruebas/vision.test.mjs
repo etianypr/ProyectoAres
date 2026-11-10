@@ -3,7 +3,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-const { textoConVision, visionDisponible, VisionNoRespondio } = await import("@/lib/encomiendas/lectura/vision");
+const { textoConVision, visionDisponible, VisionNoRespondio, VisionApagada } = await import(
+  "@/lib/encomiendas/lectura/vision"
+);
 
 const fetchOriginal = globalThis.fetch;
 let pedidos = [];
@@ -51,4 +53,13 @@ test("un error de Google (clave, API apagada) se informa y no devuelve texto", a
   await assert.rejects(textoConVision(FOTO), VisionNoRespondio);
   responder({ responses: [{ error: { message: "Bad image" } }] });
   await assert.rejects(textoConVision(FOTO), VisionNoRespondio);
+});
+
+test("la API apagada en la clave no es un corte: el teléfono deja de preguntar", async () => {
+  process.env.GOOGLE_MAPS_KEY = "clave";
+  responder({ error: { message: "Cloud Vision API has not been used in project" } }, 403);
+  await assert.rejects(textoConVision(FOTO), VisionApagada);
+  // Un 5xx de Google sí es un corte: se vuelve a preguntar con la próxima foto.
+  responder({ error: { message: "backend" } }, 503);
+  await assert.rejects(textoConVision(FOTO), (e) => e instanceof VisionNoRespondio && !(e instanceof VisionApagada));
 });

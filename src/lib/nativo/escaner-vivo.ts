@@ -43,6 +43,36 @@ export function escanerVivoDisponible(): boolean {
   return esApp() && Capacitor.isPluginAvailable("EscanerVivo");
 }
 
+// Con la cámara prendida, cada redibujo de ARES espera a la GPU 1 a 5 s en el
+// teléfono del conductor, y un toque durante una traba de más de 8 s cierra la
+// app (ensayo 2026-11-09). Hasta que eso se resuelva, «Cargar el auto» usa el
+// escáner de siempre (una etiqueta por toque) y la cámara en vivo se prende a
+// mano en Diagnóstico (auditoría del día real, 2026-11-10).
+const CLAVE_ELEGIDO = "ares.escaner-vivo";
+
+/** ¿El conductor prendió la cámara en vivo en Diagnóstico? Por defecto, no. */
+export function escanerVivoElegido(): boolean {
+  try {
+    return globalThis.localStorage?.getItem(CLAVE_ELEGIDO) === "si";
+  } catch {
+    return false;
+  }
+}
+
+export function elegirEscanerVivo(elegido: boolean): void {
+  try {
+    if (elegido) globalThis.localStorage?.setItem(CLAVE_ELEGIDO, "si");
+    else globalThis.localStorage?.removeItem(CLAVE_ELEGIDO);
+  } catch {
+    // Sin localStorage queda el escáner de siempre.
+  }
+}
+
+/** ¿«Cargar el auto» y «Escanear la etiqueta» abren la cámara en vivo? */
+export function usarEscanerVivo(): boolean {
+  return escanerVivoDisponible() && escanerVivoElegido();
+}
+
 /** Prende la cámara y llama a `alCuadro` con cada cuadro leído. Devuelve qué
  *  tiene la cámara y con qué apagarla. Falla si el conductor no da el permiso de
  *  cámara ("permiso_denegado") o si la cámara no abre ("sin_camara"). */

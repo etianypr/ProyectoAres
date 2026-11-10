@@ -7,7 +7,8 @@ import { googleDirecto } from "@/lib/geo/geocoding/google";
 // conductor. La dirección pasa en tránsito: no se guarda ni se registra (sin
 // console.*).
 //
-//   401 sin sesión de conductor · 400 sin dirección · 503 sin GOOGLE_MAPS_KEY
+//   401 sin sesión de conductor · 400 sin dirección · 503 sin GOOGLE_MAPS_KEY ·
+//   502 Google no contestó bien (el teléfono no lo recuerda como "no existe")
 
 export async function POST(request: Request) {
   const quien = await conductorDeLaApi();
@@ -20,5 +21,7 @@ export async function POST(request: Request) {
   const direccion = typeof cuerpo?.direccion === "string" ? cuerpo.direccion.trim().slice(0, 200) : "";
   if (!direccion) return NextResponse.json({ error: "Falta la dirección." }, { status: 400 });
 
-  return NextResponse.json({ sugerencias: await googleDirecto(direccion, clave) });
+  const sugerencias = await googleDirecto(direccion, clave);
+  if (!sugerencias) return NextResponse.json({ error: "Google no respondió." }, { status: 502 });
+  return NextResponse.json({ sugerencias });
 }
