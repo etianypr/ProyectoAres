@@ -8,11 +8,12 @@ globalThis.window = globalThis;
 globalThis.androidBridge = {};
 globalThis.Capacitor = { PluginHeaders: [{ name: "Telefono", methods: [] }] };
 
-globalThis.localStorage = { getItem: () => "si", setItem: () => {}, removeItem: () => {} };
+// Nada elegido en Diagnóstico: aun así, sin el plugin no hay cámara en vivo.
+globalThis.localStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
 
 const { escanerVivoDisponible, usarEscanerVivo } = await import("@/lib/nativo/escaner-vivo");
 
 test("con una APK sin el plugin, el escáner en vivo no se ofrece", () => {
   assert.equal(escanerVivoDisponible(), false);
-  assert.equal(usarEscanerVivo(), false, "aunque se haya prendido en Diagnóstico");
+  assert.equal(usarEscanerVivo(), false);
 });

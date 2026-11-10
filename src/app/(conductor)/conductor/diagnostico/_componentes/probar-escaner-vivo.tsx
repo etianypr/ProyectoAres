@@ -15,9 +15,9 @@ import { leerEtiqueta, type LecturaEtiqueta } from "@/lib/encomiendas/lectura/et
 import { formatoOf } from "@/lib/encomiendas/paquete";
 import { alBotonAtras } from "@/lib/nativo/entorno";
 import {
-  elegirEscanerVivo,
+  elegirEscanerClasico,
   escanerVivoDisponible,
-  escanerVivoElegido,
+  escanerClasicoElegido,
   iniciarEscanerVivo,
   type CuadroVivo,
 } from "@/lib/nativo/escaner-vivo";
@@ -46,7 +46,7 @@ export function ProbarEscanerVivo({ enApp }: { enApp: boolean }) {
   const disponible = enApp && escanerVivoDisponible();
   // En el servidor da false (sin localStorage), pero la casilla recién se ve con
   // la APK detectada, después de hidratar: no hay diferencia que corregir.
-  const [elegido, setElegido] = useState(escanerVivoElegido);
+  const [elegido, setElegido] = useState(escanerClasicoElegido);
   const [activo, setActivo] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [medida, setMedida] = useState<Medida | null>(null);
@@ -141,12 +141,12 @@ export function ProbarEscanerVivo({ enApp }: { enApp: boolean }) {
             type="checkbox"
             checked={elegido}
             onChange={(e) => {
-              elegirEscanerVivo(e.target.checked);
+              elegirEscanerClasico(e.target.checked);
               setElegido(e.target.checked);
             }}
             className="h-4 w-4 accent-[var(--brand)]"
           />
-          Cargar el auto con la cámara en vivo
+          Cargar el auto con el escáner de Google
         </label>
       ) : null}
       {error ? <p className="text-sm text-danger">{error}</p> : null}

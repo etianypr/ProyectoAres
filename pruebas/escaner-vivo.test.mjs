@@ -50,7 +50,7 @@ globalThis.localStorage = {
   removeItem: (k) => guardado.delete(k),
 };
 
-const { elegirEscanerVivo, escanerVivoDisponible, iniciarEscanerVivo, usarEscanerVivo } = await import(
+const { elegirEscanerClasico, escanerVivoDisponible, iniciarEscanerVivo, usarEscanerVivo } = await import(
   "@/lib/nativo/escaner-vivo"
 );
 
@@ -72,24 +72,24 @@ test("se ofrece con una APK que trae el plugin (1.6.0); sin él, ver escaner-viv
   assert.equal(escanerVivoDisponible(), true);
 });
 
-test("cargar el auto usa el escáner de siempre hasta que se prende la cámara en vivo en Diagnóstico", () => {
-  // Auditoría del día real (2026-11-10): con la cámara prendida ARES se traba en
-  // el teléfono del conductor; la cámara en vivo queda a elección.
+test("cargar el auto usa la cámara en vivo hasta que se elige el escáner de Google en Diagnóstico", () => {
+  // Auditoría del día real (2026-11-10): si la cámara en vivo se traba ese día,
+  // el conductor tiene una salida sin reinstalar nada.
   guardado.clear();
-  assert.equal(usarEscanerVivo(), false, "por defecto, el de siempre");
-  elegirEscanerVivo(true);
-  assert.equal(usarEscanerVivo(), true);
-  elegirEscanerVivo(false);
+  assert.equal(usarEscanerVivo(), true, "por defecto, en vivo (como lo dejó el dueño)");
+  elegirEscanerClasico(true);
   assert.equal(usarEscanerVivo(), false);
+  elegirEscanerClasico(false);
+  assert.equal(usarEscanerVivo(), true);
 
-  elegirEscanerVivo(true);
+  elegirEscanerClasico(true);
   const original = globalThis.localStorage;
   globalThis.localStorage = {
     getItem: () => {
       throw new Error("bloqueado");
     },
   };
-  assert.equal(usarEscanerVivo(), false, "sin localStorage, el de siempre");
+  assert.equal(usarEscanerVivo(), true, "sin localStorage, en vivo");
   globalThis.localStorage = original;
   guardado.clear();
 });

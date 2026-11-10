@@ -142,9 +142,9 @@ export function VentanasPantalla({
         />
       ) : null}
 
-      {/* Spec 028: la cámara de ARES en vivo si la APK la trae y el conductor la
-          prendió en Diagnóstico; si no, o sin permiso de cámara, el escáner de
-          siempre (lib/nativo/escaner-vivo.ts, usarEscanerVivo). */}
+      {/* Spec 028: la cámara de ARES en vivo si la APK la trae, salvo que el
+          conductor haya elegido el escáner de Google en Diagnóstico; sin permiso
+          de cámara, también el de Google (lib/nativo/escaner-vivo.ts). */}
       {v.escaneando && usarEscanerVivo() && !v.escanerClasico ? (
         <EscanerVivo
           fecha={fecha}
