@@ -12,6 +12,7 @@ const SECCIONES: { titulo: string; pasos: string[] }[] = [
     titulo: "Cargar la guía",
     pasos: [
       "Sacar foto a cada parte de la guía (que se superpongan un poco) → «Leer las fotos juntas».",
+      "Nómina larga: «Barrer la nómina» y pasa el teléfono despacio de arriba abajo; ✓ es una OF confirmada. Las «Por confirmar» se miran en el papel y se confirman con ✓.",
       "Revisa las líneas: ✏️ para corregir, 🗑 para quitar → «Crear pedidos».",
       "Sin foto: en Google Lens toca Texto → Copiar todo, y usa «Pegar el texto de Google Lens».",
     ],

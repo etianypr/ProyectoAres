@@ -17,6 +17,9 @@ export type LineaGuia = {
   /** Sin OF (ningún dígito) o sin destino: el conductor la revisa antes de
    *  crear. Una OF de otro largo no es dudosa: vale igual, sin ⚠ (dueño, 2026-11-06). */
   dudosa: boolean;
+  /** Barrido de la nómina: el número o la dirección no quedaron firmes, y el
+   *  conductor la confirma con el papel antes de crear (dueño, 2026-11-11). */
+  porConfirmar?: boolean;
 };
 
 export type GuiaLeida = {

@@ -16,6 +16,7 @@ import { escanearCodigo } from "@/lib/nativo/escaner";
 import { entrarAlModoPrueba, esApkDePrueba, salirDelModoPrueba, useModoPrueba } from "@/lib/encomiendas/local/modo-prueba";
 import { fijarConfigGps, useConfigGps, VELOCIDADES } from "@/lib/encomiendas/local/gps-simulado";
 import { consultasOrsDeHoy, type ConsultasOrs } from "@/lib/geo/ors/cliente";
+import { ProbarBarridoNomina } from "./_componentes/probar-barrido-nomina";
 import { ProbarEscanerVivo } from "./_componentes/probar-escaner-vivo";
 import { ProbarEtiqueta } from "./_componentes/probar-etiqueta";
 
@@ -148,6 +149,8 @@ export default function DiagnosticoPage() {
       <ProbarEtiqueta enApp={info?.app ?? false} />
 
       <ProbarEscanerVivo enApp={info?.app ?? false} />
+
+      <ProbarBarridoNomina enApp={info?.app ?? false} />
 
       {/* Modo prueba (terreno 2026-10-28): ver lib/encomiendas/local/modo-prueba.ts. */}
       <section className="space-y-2 rounded-2xl bg-card p-4 shadow-soft">

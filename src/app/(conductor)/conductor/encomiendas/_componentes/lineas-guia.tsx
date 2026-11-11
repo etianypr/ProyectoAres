@@ -2,7 +2,9 @@
 
 // Las líneas leídas de la guía, para revisarlas antes de crear los pedidos. Cada
 // línea se lee como texto, con un lápiz para editarla al lado del basurero
-// (terreno 2026-10-27); las que tienen un problema se abren ya editables.
+// (terreno 2026-10-27); las que tienen un problema se abren ya editables. Las del
+// barrido de la nómina que no quedaron firmes (`porConfirmar`) también, y se confirman
+// con el visto después de mirarlas en el papel (dueño, 2026-11-11).
 
 import { useState } from "react";
 import { AlertTriangle, Check, Pencil, Plus, Trash2 } from "lucide-react";
@@ -55,11 +57,18 @@ export function LineasGuia({
         {lineas.map((l, i) => {
           const of = ofValida(l.of);
           const mala = !of || !l.destino.trim();
-          const editando = mala || abiertas.has(i);
+          const porConfirmar = !mala && l.porConfirmar;
+          const editando = mala || porConfirmar || abiertas.has(i);
           return (
-            <li key={i} className={cn("flex items-start gap-1 px-3 py-2.5", mala && "bg-warn-bg")}>
+            <li key={i} className={cn("flex items-start gap-1 px-3 py-2.5", (mala || porConfirmar) && "bg-warn-bg")}>
               {editando ? (
                 <div className="min-w-0 flex-1 space-y-1.5">
+                  {porConfirmar ? (
+                    <p className="flex items-center gap-1 text-xs font-semibold text-warn">
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                      Por confirmar
+                    </p>
+                  ) : null}
                   <Campo
                     compacto
                     etiqueta="OF"
@@ -91,8 +100,8 @@ export function LineasGuia({
               {!mala ? (
                 <button
                   type="button"
-                  onClick={() => alternar(i)}
-                  aria-label={editando ? "Listo" : "Editar la línea"}
+                  onClick={() => (porConfirmar ? onCambiar(i, { porConfirmar: false }) : alternar(i))}
+                  aria-label={porConfirmar ? "Confirmar la línea" : editando ? "Listo" : "Editar la línea"}
                   className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-brand active:bg-background"
                 >
                   {editando ? <Check className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}

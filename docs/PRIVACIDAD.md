@@ -23,6 +23,7 @@ antes de las autorizaciones (el contrato con Starken aplica desde ya; la ley des
 | Descripción y foto del paquete, ruta | teléfono | cierre del día |
 | Ruta propuesta sin aceptar (paradas como id y punto, trazado y avisos; store `propuestas`) | teléfono | al usarla o descartarla, y al cierre del día |
 | Cuadros del escáner en vivo (spec 028, APK 1.6.0): la etiqueta en cámara y su texto | memoria del teléfono, mientras está abierto; la captura en alta queda como foto del paquete | se olvidan al pasar a la siguiente; la foto, con el día |
+| Cuadros al barrer la nómina («Cargar la guía» → «Barrer la nómina», 2026-11-11): la nómina en cámara, con el nombre del destinatario | memoria del teléfono, mientras está abierto; solo la OF y la dirección pasan a las líneas de la guía (el nombre no se lee) | se olvidan al terminar; las líneas, como las de la guía |
 | Coordinación WhatsApp | teléfono · servidor (correlación sin datos personales) | cierre del día (servidor: máx. 72 h) |
 | Burbuja sobre Google Maps (OF, nombre, dirección de la parada activa), APK | memoria del teléfono; su aviso fijo dice solo «ARES · Parada N», porque se ve con el teléfono bloqueado. Para abrirse al llegar compara en el teléfono la ubicación del auto (la que ya pide Google Maps) con el punto de la parada; no la guarda ni la envía | mientras haya una parada activa (spec 020) |
 | Actividad (entrega/no entrega, hora) | servidor | sin datos del destinatario |

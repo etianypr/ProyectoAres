@@ -92,7 +92,7 @@ function comparable(texto: string): string {
     .trim();
 }
 
-function distancia(a: string, b: string): number {
+export function distancia(a: string, b: string): number {
   let fila = Array.from({ length: b.length + 1 }, (_, j) => j);
   for (let i = 1; i <= a.length; i++) {
     const nueva = [i];
@@ -105,7 +105,7 @@ function distancia(a: string, b: string): number {
 }
 
 /** ¿La misma palabra leída con alguna diferencia? Hasta un 15 % de letras. */
-function parecidos(a: string, b: string): boolean {
+export function parecidos(a: string, b: string): boolean {
   const x = comparable(a);
   const y = comparable(b);
   return distancia(x, y) <= Math.max(1, Math.floor(Math.max(x.length, y.length) * 0.15));
@@ -113,7 +113,7 @@ function parecidos(a: string, b: string): boolean {
 
 /** Como `elegir`, pero las variantes parecidas suman juntas (nombre, dirección).
  *  Gana el grupo con más votos; se muestra la variante más parecida a todas. */
-function elegirTexto(conteo: Record<string, number>): { valor: unknown; firme: boolean } {
+export function elegirTexto(conteo: Record<string, number>): { valor: unknown; firme: boolean } {
   const variantes = Object.entries(conteo).map(([k, n]) => [JSON.parse(k) as string, n] as const);
   const grupos: { variantes: (readonly [string, number])[]; votos: number }[] = [];
   for (const variante of [...variantes].sort((a, b) => b[1] - a[1])) {

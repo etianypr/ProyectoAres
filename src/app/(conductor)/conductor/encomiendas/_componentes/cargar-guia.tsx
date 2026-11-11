@@ -19,10 +19,13 @@ import { lugarProvisorio } from "@/lib/encomiendas/problemas";
 import { ubicarDireccion } from "@/lib/geo/geocoding";
 import { leerFotosGuia, type FuenteLectura } from "@/lib/encomiendas/local/lectura-cliente";
 import { esApp } from "@/lib/nativo/entorno";
-import { BandejaFotos, BotonesFoto, BotonesGrandes, useFotosGuia } from "./fotos-guia";
+import { BandejaFotos, BotonesFoto, InicioFotos, useFotosGuia } from "./fotos-guia";
 import { LineasGuia } from "./lineas-guia";
 import { VistaFinGuia, type FinGuia } from "./fin-guia";
 import { corregirSinUbicar } from "@/lib/encomiendas/local/corregir-direcciones";
+import { conPorConfirmar, lineasDelBarrido } from "@/lib/encomiendas/lectura/barrido-nomina";
+import { CamaraBarrido } from "./camara-barrido";
+import { resultadoDelBarrido, useBarridoDisponible, useBarridoNomina, type Barrido } from "../_hooks/use-barrido-nomina";
 
 type Paso =
   /** Sacar o elegir las fotos de la guía (lo primero que se ve). */
@@ -80,8 +83,11 @@ export function CargarGuia({
   /** Fotos juntadas y todavía sin leer (ver fotos-guia.tsx). */
   const bandeja = useFotosGuia();
   const { fotos } = bandeja;
+  const barrer = useBarridoNomina(agregarBarrido);
+  const onBarrer = useBarridoDisponible() ? () => void barrer.iniciar() : undefined;
 
   const malas = useMemo(() => lineas.filter((l) => !ofValida(l.of) || !l.destino.trim()).length, [lineas]);
+  const porConfirmar = useMemo(() => lineas.filter((l) => l.porConfirmar).length, [lineas]);
   const ocupado = paso.tipo === "ubicando" || paso.tipo === "corrigiendo";
   useEffect(() => {
     onOcupado?.(ocupado);
@@ -117,7 +123,7 @@ export function CargarGuia({
       const r = await leerFotosGuia(archivos, { ia: lecturaIA });
       const totalGuia = r.guia.totalDeclarado ?? total;
       const unida = armarGuia([...lineas, ...r.guia.lineas], folio ?? r.guia.folio, totalGuia);
-      setLineas(unida.lineas);
+      setLineas(conPorConfirmar(unida.lineas, lineas, r.guia.lineas));
       setAvisos(unida.avisos);
       setFolio(unida.folio);
       setTotal(totalGuia);
@@ -129,6 +135,24 @@ export function CargarGuia({
     } finally {
       setLeyendo(false);
     }
+  }
+
+  /** Lo barrido de la nómina se suma a lo que ya hay, como una foto más; lo que no
+   *  quedó firme llega por confirmar. Lo leyó el teléfono: origen `guia_foto`. */
+  function agregarBarrido(b: Barrido) {
+    const leido = lineasDelBarrido(resultadoDelBarrido(b));
+    if (leido.lineas.length === 0) {
+      setError("No se leyó ninguna OF de la nómina.");
+      return;
+    }
+    const totalGuia = leido.total ?? total;
+    const unida = armarGuia([...lineas, ...leido.lineas], folio, totalGuia);
+    setLineas(conPorConfirmar(unida.lineas, lineas, leido.lineas, leido.porConfirmar));
+    setAvisos(unida.avisos);
+    setTotal(totalGuia);
+    setFuente((antes) => (antes === "ia" ? "ia" : "texto"));
+    setError(null);
+    setPaso({ tipo: "revisar" });
   }
 
   function cambiar(i: number, cambio: Partial<LineaGuia>) {
@@ -237,8 +261,8 @@ export function CargarGuia({
             Leyendo la guía…
           </p>
         ) : null}
-        {error && (paso.tipo === "fotos" || paso.tipo === "pegar") ? (
-          <p className="text-sm text-danger">{error}</p>
+        {(error || barrer.error) && (paso.tipo === "fotos" || paso.tipo === "pegar") ? (
+          <p className="text-sm text-danger">{error ?? barrer.error}</p>
         ) : null}
 
         {conFoto ? (
@@ -254,22 +278,14 @@ export function CargarGuia({
         {/* Lo primero: sacar foto o elegir de la galería, grandes y al centro.
             Con fotos ya juntadas, la bandeja arriba y los botones más chicos. */}
         {paso.tipo === "fotos" ? (
-          fotos.length === 0 ? (
-            <div className="flex min-h-[55vh] flex-col items-center justify-center gap-4">
-              <BotonesGrandes
-                deshabilitado={leyendo}
-                onCamara={() => entradaFoto.current?.click()}
-                onGaleria={() => entradaFotos.current?.click()}
-              />
-            </div>
-          ) : (
-            <BotonesFoto
-              camara="Sacar otra foto"
-              deshabilitado={leyendo || bandeja.lleno}
-              onCamara={() => entradaFoto.current?.click()}
-              onGaleria={() => entradaFotos.current?.click()}
-            />
-          )
+          <InicioFotos
+            hayFotos={fotos.length > 0}
+            leyendo={leyendo}
+            lleno={bandeja.lleno}
+            onCamara={() => entradaFoto.current?.click()}
+            onGaleria={() => entradaFotos.current?.click()}
+            onBarrer={onBarrer}
+          />
         ) : null}
 
         {paso.tipo === "pegar" ? (
@@ -310,6 +326,7 @@ export function CargarGuia({
                   deshabilitado={leyendo || bandeja.lleno}
                   onCamara={() => entradaFoto.current?.click()}
                   onGaleria={() => entradaFotos.current?.click()}
+                  onBarrer={onBarrer}
                 />
               ) : null}
             </LineasGuia>
@@ -342,7 +359,7 @@ export function CargarGuia({
         ) : paso.tipo === "revisar" ? (
           <button
             type="button"
-            disabled={lineas.length === 0 || malas > 0 || fotos.length > 0 || leyendo}
+            disabled={lineas.length === 0 || malas > 0 || porConfirmar > 0 || fotos.length > 0 || leyendo}
             onClick={() => void crear()}
             className={BOTON}
           >
@@ -350,6 +367,8 @@ export function CargarGuia({
               ? "Primero lee las fotos de arriba"
               : malas > 0
               ? `Corrige ${malas} ${malas === 1 ? "línea" : "líneas"}`
+              : porConfirmar > 0
+              ? `Confirma ${porConfirmar} ${porConfirmar === 1 ? "línea" : "líneas"}`
               : `Crear ${lineas.length} ${lineas.length === 1 ? "pedido" : "pedidos"}`}
           </button>
         ) : paso.tipo === "listo" ? (
@@ -362,6 +381,9 @@ export function CargarGuia({
           )
         ) : null}
       </div>
+      {barrer.activo ? (
+        <CamaraBarrido vista={barrer.vista} conLinterna={barrer.conLinterna} onDetener={() => void barrer.terminar()} />
+      ) : null}
     </div>,
     document.body,
   );
