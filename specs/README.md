@@ -10,7 +10,7 @@ pedido. Un *Pendiente* en `AGENTS.md` apunta a su carpeta.
 - Spec Kit en Claude Code: `/speckit-specify` (crea la carpeta aquí), `/speckit-clarify`,
   `/speckit-plan`, `/speckit-tasks`, `/speckit-analyze` y `/speckit-implement`.
 
-**Próximo número: 029.**
+**Próximo número: 030.**
 
 ## Preparar el día real (prioridad, dueño 2026-11-09)
 
@@ -32,6 +32,11 @@ tirado al conductor (`AGENTS.md`, «Ahora»). Lo que no sirve para eso está en 
      en cada paquete; si el conductor toca durante una traba de más de 8 s, Android cierra ARES
      (ANR, ya pasó el 2026-11-08 escaneando). En producción, escribir la OF apaga la cámara (sin ANR)
      y apagarla traba 2 a 5 s; un teclado propio fue peor (cada tecla redibuja).
+     - **Probable causa** (2026-11-11, medido en el barrido de la nómina, 029): la pantalla del día
+       queda invisible detrás de la cámara (`visibility: hidden`) y se compone en cada cuadro.
+       Quitándola (`display: none`, clase `camara-sola`) el barrido pasó de 154–194 a 333–358
+       cuadros en 6 s, sin trabas. Además, con la foto en alta abierta los cuadros bajan a
+       720×960. Falta probarlo en la 028 (decide el dueño).
      - El escáner de Google tampoco es una salida segura (medido el 2026-11-10): mientras está
        abierto, Android cierra ARES por memoria en 5 de 7 intentos y el código se pierde. La
        cámara del sistema («Sacar foto») no lo cerró en 2 de 2.
@@ -44,9 +49,8 @@ tirado al conductor (`AGENTS.md`, «Ahora»). Lo que no sirve para eso está en 
      (`TrasLlamar.java`: con la llamada en curso vuelve ARES o, desde la burbuja, Google Maps).
    - ~~`NetworkError` al abrir~~: era `document.fonts.load` con la cara «Fallback» (Arial no existe
      en Android); arreglado en `ruta-mapa.tsx`.
-   - La central en la configuración no tiene el Plus Code: la ruta parte de donde la ubique el
-     buscador (gasta una consulta a Google la primera vez). Los ensayos anteriores partían ~2,7 km
-     al norte.
+   - ~~La central en la configuración no tiene el Plus Code~~: desde el 2026-11-10 lo tiene al
+     comienzo y la app la ubica exacta, sin red.
    - Burbuja (020): el permiso `POST_NOTIFICATIONS`, el altavoz al llamar y si ARES vuelve adelante
      al cerrar la última parada.
    - ~~Guía: Cloud Vision antes que ML Kit~~: con la API apagada en la clave (403), `/api/texto`
@@ -87,6 +91,7 @@ Estados: borrador → definida → en curso → hecha (falta día real) · poste
 | Paso | Feature | Qué | Estado | Rama | Tareas | Para el día real |
 |---|---|---|---|---|---|---|
 | 1 y 4 | [005](005-carga-rapida-pedidos/spec.md) carga rápida | guía → ruta → escaneo de etiqueta | en curso (falta terreno) | — | 32/34 | ≥ 50 etiquetas reales (T030; mide también la 021 y la 028: linterna, ⚠, modo avión, sin cámara) y quickstart (T031) |
+| 1 | [029](029-barrido-nomina/spec.md) barrer la nómina | «Cargar la guía» → «Barrer la nómina»: la cámara en vivo lee la OF y la dirección de cada encargo de la nómina de reparto, la OF dígito por dígito | hecha (falta día real) | — (en `main` desde 2026-11-11) | — | APK 1.7.0 (tag y `APK_VERSION_MINIMA`); barrer una nómina real contra el papel |
 | 1 | [016](016-ubicar-direcciones/spec.md) ubicar direcciones | tipeo de la guía y calles cortas sin numerar | en curso (Google conectado) | — | 11/13 | ≤ 3 direcciones a corregir en un día real (T013) |
 | 1 | [018](018-corregir-direcciones-ia/spec.md) corregir direcciones con IA | las «Sin ubicar» se corrigen con los buscadores y el catálogo de calles | hecha (falta día real) | — | 9/10 | una guía real (T008) |
 | 2 y 5 | [022](022-pedidos-con-problemas/spec.md) pedidos con ⚠ | el ⚠ queda en el pedido (`Pedido.problemas`), la dirección en duda entra a la ruta con su primera opción y se avisa dos paradas antes; la OF de otro largo deja de ser ⚠ | hecha (falta día real) | — | 11/12 | la línea de la burbuja y un día real en la APK (T012) |
