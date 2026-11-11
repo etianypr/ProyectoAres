@@ -48,6 +48,14 @@ html.camara-viva body {
 html.camara-viva body > :not(.capa-camara) {
   visibility: hidden;
 }
+/* Al barrer la nómina, la página de atrás se quita del todo: invisible, la pantalla
+   del día (con el mapa) seguía sumando al componer cada cuadro, y en el V2430 el
+   redibujo esperaba 1 a 5 s y el ✓ no alcanzaba a verse. Medido 2026-11-11, un texto
+   que cambia cada 0,5 s: 154–194 cuadros en 6 s y 1 o 2 trabas invisible; 334–354 y
+   ninguna quitada. El mapa vuelve con su tamaño al apagar la cámara. */
+html.camara-sola body > :not(.capa-camara) {
+  display: none;
+}
 
 /* La hoja de la ruta propuesta sube y frena despacio. */
 .sube-y-frena {

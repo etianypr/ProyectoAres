@@ -6,7 +6,7 @@
 // líneas repetidas de una vez.
 
 import { useEffect, useRef, useState } from "react";
-import { Camera, Images, Loader2, X } from "lucide-react";
+import { Camera, Images, Loader2, ScrollText, X } from "lucide-react";
 import { MAX_FOTOS_GUIA } from "@/lib/encomiendas/lectura/contrato";
 
 export type FotoGuia = { id: string; archivo: File; url: string };
@@ -109,28 +109,65 @@ export function BandejaFotos({
 const SECUNDARIO =
   "flex h-11 flex-1 items-center justify-center gap-2 rounded-full border border-separator bg-card text-sm font-semibold text-brand disabled:opacity-50";
 
-/** Cámara y galería: las dos SUMAN fotos, ninguna lee. */
+/** Cámara y galería: las dos SUMAN fotos, ninguna lee. «Barrer la nómina» (con
+ *  `onBarrer`, solo en una APK que lo trae) suma lo que lee la cámara en vivo. */
 export function BotonesFoto({
   camara,
   deshabilitado,
   onCamara,
   onGaleria,
+  onBarrer,
 }: {
   camara: string;
   deshabilitado: boolean;
   onCamara: () => void;
   onGaleria: () => void;
+  onBarrer?: () => void;
 }) {
   return (
-    <div className="flex gap-2">
-      <button type="button" disabled={deshabilitado} onClick={onCamara} className={SECUNDARIO}>
-        <Camera className="h-4 w-4" />
-        {camara}
-      </button>
-      <button type="button" disabled={deshabilitado} onClick={onGaleria} className={SECUNDARIO}>
-        <Images className="h-4 w-4" />
-        Galería
-      </button>
+    <div className="space-y-2">
+      <div className="flex gap-2">
+        <button type="button" disabled={deshabilitado} onClick={onCamara} className={SECUNDARIO}>
+          <Camera className="h-4 w-4" />
+          {camara}
+        </button>
+        <button type="button" disabled={deshabilitado} onClick={onGaleria} className={SECUNDARIO}>
+          <Images className="h-4 w-4" />
+          Galería
+        </button>
+      </div>
+      {onBarrer ? (
+        <button type="button" onClick={onBarrer} className={`${SECUNDARIO} w-full`}>
+          <ScrollText className="h-4 w-4" />
+          Barrer la nómina
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+/** Lo primero de «Cargar la guía»: sacar foto, galería o barrer la nómina, grandes y al
+ *  centro. Con fotos ya juntadas (la bandeja va arriba), los botones más chicos. */
+export function InicioFotos({
+  hayFotos,
+  leyendo,
+  lleno,
+  onCamara,
+  onGaleria,
+  onBarrer,
+}: {
+  hayFotos: boolean;
+  leyendo: boolean;
+  lleno: boolean;
+  onCamara: () => void;
+  onGaleria: () => void;
+  onBarrer?: () => void;
+}) {
+  return hayFotos ? (
+    <BotonesFoto camara="Sacar otra foto" deshabilitado={leyendo || lleno} onCamara={onCamara} onGaleria={onGaleria} onBarrer={onBarrer} />
+  ) : (
+    <div className="flex min-h-[55vh] flex-col items-center justify-center gap-4">
+      <BotonesGrandes deshabilitado={leyendo} onCamara={onCamara} onGaleria={onGaleria} onBarrer={onBarrer} />
     </div>
   );
 }
@@ -138,15 +175,18 @@ export function BotonesFoto({
 const GRANDE =
   "flex h-28 w-full max-w-xs flex-col items-center justify-center gap-2 rounded-3xl text-base font-semibold shadow-soft transition-transform active:scale-[0.97] disabled:opacity-50";
 
-/** Al abrir "Cargar la guía": los dos caminos, grandes y al centro. */
+/** Al abrir "Cargar la guía": los caminos, grandes y al centro. «Barrer la nómina»
+ *  (dueño, 2026-11-11), solo con `onBarrer`. */
 export function BotonesGrandes({
   deshabilitado,
   onCamara,
   onGaleria,
+  onBarrer,
 }: {
   deshabilitado: boolean;
   onCamara: () => void;
   onGaleria: () => void;
+  onBarrer?: () => void;
 }) {
   return (
     <>
@@ -158,6 +198,12 @@ export function BotonesGrandes({
         <Images className="h-8 w-8" />
         Galería
       </button>
+      {onBarrer ? (
+        <button type="button" disabled={deshabilitado} onClick={onBarrer} className={`${GRANDE} bg-card text-brand`}>
+          <ScrollText className="h-8 w-8" />
+          Barrer la nómina
+        </button>
+      ) : null}
     </>
   );
 }

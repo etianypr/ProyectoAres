@@ -7,8 +7,17 @@
 import { Capacitor, registerPlugin, type PluginListenerHandle } from "@capacitor/core";
 import { esApp } from "./entorno";
 
-/** Un renglón de texto con su caja, en píxeles del cuadro ya derecho. */
-export type RenglonVivo = { texto: string; x: number; y: number; ancho: number; alto: number };
+/** Un renglón de texto con su caja, en píxeles del cuadro ya derecho. `numeros`: sus
+ *  palabras con 7 dígitos o más, con la confianza de ML Kit en cada carácter (desde la
+ *  APK de los recuadros de la nómina; antes no viene). */
+export type RenglonVivo = {
+  texto: string;
+  x: number;
+  y: number;
+  ancho: number;
+  alto: number;
+  numeros?: { texto: string; confianzas: number[] }[];
+};
 
 /** Lo que dio un cuadro de la cámara. */
 export type CuadroVivo = {
@@ -27,12 +36,26 @@ export type CamaraViva = { linterna: boolean; captura: boolean };
 /** La captura en alta, ya leída por ML Kit en el teléfono. */
 export type CapturaViva = { imagen: Blob; codigos: string[]; texto: string };
 
+/** Un recuadro sobre la cámara, en las coordenadas del cuadro (las de `RenglonVivo`):
+ *  confirmada (relleno), leyendo (punteado) o, con línea fina y sin etiqueta, cargada
+ *  (una OF ya confirmada) o texto; con lo que va escrito arriba (la OF). Android dibuja
+ *  cualquier otro tipo como el texto. */
+export type MarcaViva = {
+  x: number;
+  y: number;
+  ancho: number;
+  alto: number;
+  tipo: "confirmada" | "leyendo" | "cargada" | "texto";
+  etiqueta?: string;
+};
+
 type PluginEscanerVivo = {
-  iniciar(): Promise<CamaraViva>;
+  iniciar(opciones?: { captura?: boolean }): Promise<CamaraViva>;
   detener(): Promise<void>;
   linterna(opciones: { encendida: boolean }): Promise<void>;
   avisar(): Promise<void>;
   capturar(): Promise<{ imagen: string; codigos: string[]; texto: string }>;
+  marcar(opciones: { cajas: MarcaViva[] }): Promise<void>;
   addListener(evento: "cuadro", alCuadro: (cuadro: CuadroVivo) => void): Promise<PluginListenerHandle>;
 };
 
@@ -78,14 +101,17 @@ export function usarEscanerVivo(): boolean {
 
 /** Prende la cámara y llama a `alCuadro` con cada cuadro leído. Devuelve qué
  *  tiene la cámara y con qué apagarla. Falla si el conductor no da el permiso de
- *  cámara ("permiso_denegado") o si la cámara no abre ("sin_camara"). */
+ *  cámara ("permiso_denegado") o si la cámara no abre ("sin_camara"). Con
+ *  `captura: false` no abre la foto en alta y los cuadros salen más grandes (la
+ *  nómina; una APK anterior lo ignora). */
 export async function iniciarEscanerVivo(
   alCuadro: (cuadro: CuadroVivo) => void,
+  opciones: { captura?: boolean } = {},
 ): Promise<{ camara: CamaraViva; apagar: () => Promise<void> }> {
   const escucha = await EscanerVivo.addListener("cuadro", alCuadro);
   let camara: CamaraViva;
   try {
-    camara = await EscanerVivo.iniciar();
+    camara = await EscanerVivo.iniciar(opciones);
   } catch (e) {
     await escucha.remove();
     throw e;
@@ -106,6 +132,33 @@ export async function linternaViva(encendida: boolean): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/** Una APK sin los recuadros (anterior a la de la nómina) contesta que no los tiene:
+ *  desde ahí no se le vuelven a mandar. */
+let sinMarcas = false;
+
+/** ¿Esta APK trae el barrido de la nómina entero (recuadros, confianza por dígito y
+ *  cuadros grandes sin la foto en alta)? Una anterior barrería con cuadros de 720×960 y
+ *  sin recuadros: «Barrer la nómina» no se ofrece. Se pregunta mandándole cero recuadros. */
+export async function barridoDisponible(): Promise<boolean> {
+  if (!escanerVivoDisponible()) return false;
+  try {
+    await EscanerVivo.marcar({ cajas: [] });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Dibuja los recuadros de lo que se está leyendo sobre la cámara (nómina, dueño
+ *  2026-11-11). Los dibuja Android, no la web: con la cámara encendida cada redibujo
+ *  de la WebView traba la pantalla. No se espera: va una vez por cuadro. */
+export function marcarEscanerVivo(cajas: MarcaViva[]): void {
+  if (sinMarcas) return;
+  EscanerVivo.marcar({ cajas }).catch((e: unknown) => {
+    if ((e as { code?: string })?.code === "UNIMPLEMENTED") sinMarcas = true;
+  });
 }
 
 /** Vibración corta: la etiqueta quedó leída (el sonido va en sonidos-escaner.ts). Sin soporte, nada. */
