@@ -69,8 +69,8 @@ tirado al conductor (`AGENTS.md`, «Ahora»). Lo que no sirve para eso está en 
      burbuja (se marca sola y vuelve ARES o Google Maps).
    - Vercel: `APK_VERSION_MINIMA=1.6.1` y `APK_URL` de la 1.6.1; borrar `LECTURA_MODELO` y
      `NEXT_PUBLIC_MAPBOX_TOKEN` (y anular el token de Mapbox).
-   - Panel → Configuración: la dirección de la central, con el Plus Code al comienzo (sigue sin él
-     el 2026-11-10).
+   - ~~Panel → Configuración: la dirección de la central, con el Plus Code al comienzo~~: lo tiene
+     desde el 2026-11-10.
    - Panel → Encomiendas → «Configurar la regla de pago»: la tabla está vacía y el pago sale
      «Sin regla». Al guardarla se valoran los días ya cerrados.
    - Supabase Auth: Site URL y redirect.
@@ -93,7 +93,7 @@ Estados: borrador → definida → en curso → hecha (falta día real) · poste
 | 1 y 4 | [005](005-carga-rapida-pedidos/spec.md) carga rápida | guía → ruta → escaneo de etiqueta | en curso (falta terreno) | — | 32/34 | ≥ 50 etiquetas reales (T030; mide también la 021 y la 028: linterna, ⚠, modo avión, sin cámara) y quickstart (T031) |
 | 1 | [029](029-barrido-nomina/spec.md) barrer la nómina | «Cargar la guía» → «Barrer la nómina»: la cámara en vivo lee la OF y la dirección de cada encargo de la nómina de reparto, la OF dígito por dígito | hecha (falta día real) | — (en `main` desde 2026-11-11) | — | APK 1.7.0 (tag y `APK_VERSION_MINIMA`); barrer una nómina real contra el papel |
 | 1 | [016](016-ubicar-direcciones/spec.md) ubicar direcciones | tipeo de la guía y calles cortas sin numerar | en curso (Google conectado) | — | 11/13 | ≤ 3 direcciones a corregir en un día real (T013) |
-| 1 | [018](018-corregir-direcciones-ia/spec.md) corregir direcciones con IA | las «Sin ubicar» se corrigen con los buscadores y el catálogo de calles | hecha (falta día real) | — | 9/10 | una guía real (T008) |
+| 1 | [018](018-corregir-direcciones-ia/spec.md) corregir direcciones con IA | las «Sin ubicar» se corrigen con los buscadores y el catálogo de calles; lápiz en cada propuesta (2026-11-11) | hecha (falta día real) | — | 10/11 | una guía real (T008); abiertos: una «segura» con la calle en dos lugares (SC-002) y los ⚠ calle repetida no le llegan a la IA (`MEMORY.md`) |
 | 2 y 5 | [022](022-pedidos-con-problemas/spec.md) pedidos con ⚠ | el ⚠ queda en el pedido (`Pedido.problemas`), la dirección en duda entra a la ruta con su primera opción y se avisa dos paradas antes; la OF de otro largo deja de ser ⚠ | hecha (falta día real) | — | 11/12 | la línea de la burbuja y un día real en la APK (T012) |
 | 3 | [019](019-sin-mapbox/spec.md) sin Mapbox | ORS, MapLibre y OpenFreeMap (Liberty); Google da el número de casa | hecha (falta día real) | — | 13/16 | el dueño borra el token de Mapbox en Vercel (T013); día real (T014). Google sin tope, decisión del dueño (T012) |
 | 3 | [024](024-criterios-de-ruta/spec.md) criterios de ruta | bultos fuera antes (≤ 1 % de km), «Invertir orden de ruta», el orden cobra km ($130) y tiempo ($6.000/h) y el cupo de ORS no es «Sin señal» | hecha (falta día real) | — (en `main` desde 2026-11-09) | 13/14 | medido en el teléfono (2026-11-09, 53 paradas): armar 20,3 s (antes 15 s), 1 matriz + 32 trazados; invertir +2,4 km y 12 trazados, volver 0 (T009 ok). el dueño acepta los 20 s (T013). Después del día real: T006, éxito por parada y ganancia |
@@ -116,7 +116,7 @@ se anota aquí.
 | [002](002-reestructuracion-codigo/spec.md) reestructuración | `lib/` por dominio, archivos chicos, nombres del glosario | postergada (en curso) | 45/51 | partir `pedido-form-local` (T042; antes, si el ensayo obliga a tocarlo); quickstart (T047); tablas `encomienda_*` (T049–T051, con aprobación) |
 | [007](007-cumplimiento-datos/spec.md) cumplimiento | borrado diario, no entregados, modo piloto/oficial | postergada (MVP hecho) | 13/20 | el MVP entra al día real (paso 6); falta modo piloto/oficial (P3) y plantillas (con la 004) |
 | [006](006-indicadores-negocio/spec.md) indicadores | entregas sobre asignado, contactados, rendimiento, margen, bono | postergada (hecha, falta quickstart) | 14/15 | quickstart (T015) |
-| [004](004-menos-visitas-fallidas/spec.md) menos visitas fallidas | WhatsApp propio, «voy llegando» | postergada (fase WhatsApp, sin chip) | 0/21 | — |
+| [004](004-menos-visitas-fallidas/spec.md) menos visitas fallidas | WhatsApp propio, «voy llegando»; el aviso pide confirmar la dirección | en curso (rama `004-menos-visitas-fallidas`, reserva la 0008) | 9/14 | correr la 0008, Meta (dueño) y recorrer a 360 px |
 | [014](014-horario-conveniente/spec.md) ¿conviene ir al pedido con horario? | al tocarle el turno, ir, dejar para después o descartar | postergada (fase WhatsApp, borrador) | — | — |
 
 Detalles anotados para después: `allowBackup="true"` (toca `android/`; skill
