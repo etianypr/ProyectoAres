@@ -95,9 +95,24 @@ export async function corregirSinUbicar(
   return resumen;
 }
 
+/** Lo que el conductor eligió de la lista después de tocar el lápiz. */
+export type CorreccionEditada = { direccion: string; lat: number; lng: number };
+
 /** El conductor confirmó la corrección: el pedido queda con la dirección y el
- *  punto propuestos, y lo que decía antes en las notas. */
-export async function aplicarCorreccion(p: PropuestaCorreccion): Promise<void> {
+ *  punto propuestos, y lo que decía antes en las notas. Si la corrigió con el
+ *  lápiz (dueño, 2026-11-11), queda la que eligió él. */
+export async function aplicarCorreccion(p: PropuestaCorreccion, editada?: CorreccionEditada): Promise<void> {
+  const otra =
+    editada != null && (editada.direccion !== p.direccion || editada.lat !== p.lat || editada.lng !== p.lng);
+  if (otra) {
+    await cambiarDireccion(
+      p.pedidoId,
+      editada.direccion,
+      { lat: editada.lat, lng: editada.lng },
+      `Dirección corregida a mano sobre la de la IA; decía «${p.original}»`,
+    );
+    return;
+  }
   const cuadra = p.soloCalle
     ? " (solo la calle, sin el número)"
     : p.enLaCuadra

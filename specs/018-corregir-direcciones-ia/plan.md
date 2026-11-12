@@ -17,8 +17,8 @@ sequenceDiagram
   C-->>S: tool_use proponer {candidato: "c3", confianza, motivo}
   S-->>T: propuesta
   T->>T: interpretar(): la coordenada es la del candidato c3; confianza ≤ la del candidato
-  T->>T: el conductor ve lo que decía, la propuesta y el mapa → Confirmar / Descartar
-  T->>T: Confirmar → aplicarCorreccion: cambiarDireccion(id, nueva, punto, nota)
+  T->>T: el conductor ve lo que decía, la propuesta y el mapa → Confirmar, o ✏️ y elige otra de la lista
+  T->>T: Confirmar → aplicarCorreccion: cambiarDireccion(id, la propuesta o la elegida, punto, nota)
 ```
 
 ## Estructuras

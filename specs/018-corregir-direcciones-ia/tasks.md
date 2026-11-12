@@ -9,4 +9,5 @@
 - [x] T007 Pruebas (`pruebas/direccion-ia.test.mjs`) y prueba con la API real (3 direcciones)
 - [x] T009 Lápiz para editar cada línea leída de la guía (`lineas-guia.tsx`)
 - [x] T010 Al confirmar la ruta, aviso "Ahora carga el auto" con "Escanear los N paquetes" (`aviso-cargar-auto.tsx`)
+- [x] T011 Lápiz en cada propuesta: el campo de dirección de siempre con la de la IA escrita; «Confirmar» guarda la elegida después de verla en el mapa; sin «Descartar» (dueño, 2026-11-11; `confirmar-correcciones.tsx`, `aplicarCorreccion`)
 - [ ] T008 Día real: SC-001 y SC-002
