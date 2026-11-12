@@ -37,7 +37,11 @@ fuera de la APK cae al comportamiento de hoy.
 - **Visible** solo si: hay vista, hay permiso, ARES no está adelante (`handleOnStop` la muestra,
   `handleOnResume` la oculta) y `enAres` es `false`.
 - **Fijos** (los dibuja siempre, no vienen en `filas`): título, detalle, estado, aviso con
-  "Deshacer", "Navegar" y "Volver a ARES", y el control para achicar.
+  "Deshacer", "Navegar" y "Volver a ARES", y el control para achicar. Desde la APK 1.8.0
+  (diseño B, dueño 2026-11-12): el número de parada, la OF y los íconos de Navegar, Volver a
+  ARES y Achicar en la cabecera; debajo, `paquete` con `porPagar` y `detalle` en un renglón
+  cada uno. Manrope, IBM Plex Mono para la OF e íconos de lucide (`res/font/`,
+  `res/drawable/ic_burbuja_*`; licencias en `assets/licencias/`).
 - **Abre ARES antes de avisar**: `ares`, `escanear`, `telefono`, y `navegar` si la parada no tiene
   punto. `navegar` con punto abre Google Maps desde lo nativo y además avisa (la web no hace nada).
 - Dos toques en menos de 600 ms al mismo botón: uno solo.

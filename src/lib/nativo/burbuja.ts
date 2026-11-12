@@ -29,6 +29,11 @@ export type VistaBurbuja = {
   secuencia: number;
   titulo: string;
   detalle: string;
+  /** Cómo es el paquete («Caja mediana · café»), para sacarlo sin leer
+   *  etiquetas. Lo dibuja la APK 1.8.0; las anteriores no lo miran. */
+  paquete: string | null;
+  /** «POR PAGAR $12.990», o null si no se cobra. Desde la APK 1.8.0. */
+  porPagar: string | null;
   estado: { texto: string; tono: string } | null;
   /** El punto de la parada; null = sin punto ("Navegar" abre ARES). */
   destino: { lat: number; lng: number } | null;

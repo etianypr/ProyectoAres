@@ -54,6 +54,8 @@ su domicilio", "Sin respuesta todavía" (hoy también en el JSX), compartido igu
 | `secuencia` | `number` | `activa.secuencia` (el círculo achicado) |
 | `titulo` | `string` | `OF 123 456 789` o `Parada N` (como la franja de hoy) |
 | `detalle` | `string` | `nombre · dirección` |
+| `paquete` | `string \| null` | `textoReferencia(pedido.referencia)` («Caja café mediana»). Lo dibuja la APK 1.8.0; las anteriores lo ignoran |
+| `porPagar` | `string \| null` | «POR PAGAR $12.990», o «POR PAGAR · monto por revisar» sin monto; `null` si no se cobra. Desde la APK 1.8.0 |
 | `estado` | `{ texto, tono } \| null` | `estadoDeParada` |
 | `destino` | `{ lat, lng } \| null` | el punto de la parada; `null` = sin punto ("Navegar" abre ARES). Queda en el teléfono: a Google Maps va solo al navegar |
 | `filas` | `BotonParada[][]` | `botonesDeParada` |

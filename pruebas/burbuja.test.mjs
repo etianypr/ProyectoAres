@@ -118,6 +118,29 @@ test("vistaDeBurbuja: la parada, su punto, sus botones y el aviso con Deshacer",
   assert.equal(sinOf.destino, null, "sin punto: Navegar abre ARES para ubicarla");
 });
 
+test("vistaDeBurbuja: el paquete y el POR PAGAR de la tarjeta, para la burbuja compacta (dueño, 2026-11-12)", () => {
+  const opciones = { whatsapp: false, aviso: null, nueva: false };
+  const sinNada = vistaDeBurbuja(parada(), "en_parada", opciones);
+  assert.equal(sinNada.paquete, null);
+  assert.equal(sinNada.porPagar, null, "sin POR PAGAR no se dice nada");
+
+  const conTodo = vistaDeBurbuja(
+    parada({
+      referencia: { tipo: "caja", tamano: "mediano", color: "cafe", nota: null },
+      porPagar: true,
+      montoPorPagar: 12990,
+    }),
+    "en_parada",
+    opciones,
+  );
+  assert.equal(conTodo.paquete, "Caja café mediana");
+  assert.match(conTodo.porPagar, /^POR PAGAR \$\s?12\.990$/);
+
+  // Nunca se supone $0 (spec 005).
+  const sinMonto = vistaDeBurbuja(parada({ porPagar: true, montoPorPagar: null }), "en_parada", opciones);
+  assert.equal(sinMonto.porPagar, "POR PAGAR · monto por revisar");
+});
+
 test("paridad: en cada caso la burbuja muestra los botones de la tarjeta y cada uno hace lo mismo", () => {
   const casos = [
     ["con teléfono", parada(), "en_parada"],
