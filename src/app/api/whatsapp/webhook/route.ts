@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { leerPayloadBoton } from "@/lib/encomiendas/config";
+import { leerFormularioDireccion, leerPayloadBoton } from "@/lib/encomiendas/config";
 import type { EstadoAviso } from "@/lib/encomiendas/catalogos";
 import type { Aviso } from "@/types/db";
 
@@ -35,7 +35,9 @@ import type { Aviso } from "@/types/db";
 // QUÉ SE GUARDA DE LO QUE LLEGA
 //
 // El botón que tocó, el bloque horario si eligió uno, el identificador del
-// mensaje y la hora. NO se guarda el número del receptor —que viene en el evento,
+// mensaje y la hora. Del formulario de la dirección (spec 004), además, lo que
+// escribió en él (`respuesta_texto`) hasta que el teléfono lo baja: la excepción
+// que aceptó el dueño (2026-11-09, docs/PRIVACIDAD.md). NO se guarda el número del receptor —que viene en el evento,
 // en `messages[].from`— ni el texto que haya escrito. Es la misma regla que en el
 // envío: esta base no custodia destinatarios (principio V, Ley 21.719).
 //
@@ -107,11 +109,13 @@ type MensajeMeta = {
   context?: { id?: string };
   /** Respuesta a un botón de PLANTILLA. */
   button?: { payload?: string; text?: string };
-  /** Respuesta a un mensaje interactivo (la lista de horarios). */
+  /** Respuesta a un mensaje interactivo (la lista de horarios) o el envío del
+   *  formulario de la dirección (`nfm_reply`, spec 004). */
   interactive?: {
     type?: string;
     button_reply?: { id?: string };
     list_reply?: { id?: string };
+    nfm_reply?: { response_json?: string };
   };
 };
 
@@ -226,9 +230,17 @@ async function procesarRespuesta(supabase: Cliente, mensaje: MensajeMeta) {
   const wamidRespuesta = mensaje.id;
   if (!wamidRespuesta) return;
 
-  const payload = leerPayloadBoton(payloadDe(mensaje));
+  // El formulario de la dirección trae el código como `flow_token` y lo escrito
+  // en el mismo mensaje; los botones traen el código en el payload.
+  const formulario =
+    mensaje.interactive?.type === "nfm_reply"
+      ? leerFormularioDireccion(mensaje.interactive.nfm_reply?.response_json)
+      : null;
+  const payload = formulario
+    ? { accion: formulario.accion, correlationId: formulario.correlationId, bloqueHorarioId: null }
+    : leerPayloadBoton(payloadDe(mensaje));
 
-  // Texto libre, un audio, una imagen: el producto decidió no depender de
+  // Texto suelto en el chat, un audio, una imagen: el producto decidió no depender de
   // mensajes libres (ver el contrato), así que no se interpreta y no se guarda
   // NADA de su contenido. Se descarta y punto.
   if (!payload) return;
@@ -246,6 +258,7 @@ async function procesarRespuesta(supabase: Cliente, mensaje: MensajeMeta) {
   const campos = {
     respuesta_accion: payload.accion,
     respuesta_bloque_id: payload.bloqueHorarioId,
+    respuesta_texto: formulario?.texto ?? null,
     respuesta_mensaje_id: wamidRespuesta,
     respuesta_recibida_en: recibidoEn,
     estado: "respondido",

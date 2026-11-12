@@ -137,6 +137,51 @@ export function registrarDisponibilidad(
   });
 }
 
+/** Aplica la respuesta al aviso de la dirección (spec 004), con las mismas dos
+ *  reglas que registrarDisponibilidad: una vez por mensaje y sin reabrir lo
+ *  cerrado. «Sí» deja la referencia para el conductor; «No» deja un ⚠ con la
+ *  dirección que escribió, y la de la guía no cambia hasta que el conductor elige.
+ *  La disponibilidad no se toca. Devuelve si cambió algo. */
+export function registrarRespuestaDireccion(
+  pedidoId: string,
+  respuesta: { confirma: boolean; texto: string | null },
+  mensajeId: string,
+): Promise<boolean> {
+  return enFila(async () => {
+    const pedido = await leerPedido(pedidoId);
+    if (!pedido) return false;
+    if (pedido.aviso.respuestasAplicadas.includes(mensajeId)) return false;
+    const aviso: Aviso = {
+      ...pedido.aviso,
+      respuestasAplicadas: [...pedido.aviso.respuestasAplicadas, mensajeId],
+    };
+
+    if (pedido.resultado !== "pendiente") {
+      await escribir([STORES.pedidos], ({ guardar }) => guardar(STORES.pedidos, { ...pedido, aviso }));
+      return false;
+    }
+
+    const sinAnterior = pedido.problemas.filter((x) => x.tipo !== "receptor_otra_direccion");
+    const actualizado: Pedido = respuesta.confirma
+      ? {
+          ...pedido,
+          aviso: { ...aviso, estado: "respondido" },
+          direccionConfirmada: true,
+          referenciaReceptor: respuesta.texto ?? pedido.referenciaReceptor,
+          problemas: sinAnterior,
+        }
+      : {
+          ...pedido,
+          aviso: { ...aviso, estado: "respondido" },
+          direccionConfirmada: false,
+          problemas: [...sinAnterior, { tipo: "receptor_otra_direccion", direccion: respuesta.texto }],
+        };
+
+    await escribir([STORES.pedidos], ({ guardar }) => guardar(STORES.pedidos, actualizado));
+    return true;
+  });
+}
+
 /** Vuelve la disponibilidad y el aviso a cero, para poder volver a avisar.
  *  Existe para un caso concreto: el conductor se dio cuenta de que el teléfono
  *  estaba mal escrito, así que lo que se contestó era de otra persona y no puede
@@ -152,6 +197,10 @@ export function reiniciarDisponibilidad(pedidoId: string): Promise<void> {
         disponibilidad: "pendiente_respuesta",
         bloqueHorarioId: null,
         aviso: avisoVacio(),
+        // Lo que contestó a la dirección también era de otra persona (spec 004).
+        direccionConfirmada: null,
+        referenciaReceptor: null,
+        problemas: pedido.problemas.filter((x) => x.tipo !== "receptor_otra_direccion"),
       }),
     );
   });

@@ -36,10 +36,14 @@ export const DISPONIBILIDADES = {
 } as const;
 export type Disponibilidad = keyof typeof DISPONIBILIDADES;
 
-/** Botones de la plantilla de WhatsApp, EN EL ORDEN de la plantilla de Meta
+/** Botones de la plantilla de disponibilidad, EN EL ORDEN de la plantilla de Meta
  *  ("Sí, estaré" · "Mañana" · "Otro horario"): el payload se manda por índice.
  *  Viajan en el payload del botón. */
-export const ACCIONES_WHATSAPP = ["CONFIRMAR", "MANANA", "HORARIO"] as const;
+export const BOTONES_DISPONIBILIDAD = ["CONFIRMAR", "MANANA", "HORARIO"] as const;
+
+/** Todo lo que puede contestar un receptor: los botones de arriba y lo que manda
+ *  el formulario de la dirección (spec 004), que no son botones. */
+export const ACCIONES_WHATSAPP = [...BOTONES_DISPONIBILIDAD, "DIRECCION_SI", "DIRECCION_NO"] as const;
 export type AccionWhatsApp = (typeof ACCIONES_WHATSAPP)[number];
 
 /** Estado del mensaje de aviso (servidor y teléfono). */

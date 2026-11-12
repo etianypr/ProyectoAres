@@ -23,7 +23,7 @@ antes de las autorizaciones (el contrato con Starken aplica desde ya; la ley des
 | Descripción y foto del paquete, ruta | teléfono | cierre del día |
 | Ruta propuesta sin aceptar (paradas como id y punto, trazado y avisos; store `propuestas`) | teléfono | al usarla o descartarla, y al cierre del día |
 | Cuadros del escáner en vivo (spec 028, APK 1.6.0): la etiqueta en cámara y su texto | memoria del teléfono, mientras está abierto; la captura en alta queda como foto del paquete | se olvidan al pasar a la siguiente; la foto, con el día |
-| Coordinación WhatsApp | teléfono · servidor (correlación sin datos personales) | cierre del día (servidor: máx. 72 h) |
+| Coordinación WhatsApp | teléfono · servidor (correlación sin datos personales; con el aviso de la dirección, spec 004, también lo que el receptor escribe en el formulario: la referencia o la dirección correcta) | cierre del día (servidor: se borra cuando el teléfono la baja, máx. 72 h) |
 | Burbuja sobre Google Maps (OF, nombre, dirección de la parada activa), APK | memoria del teléfono; su aviso fijo dice solo «ARES · Parada N», porque se ve con el teléfono bloqueado. Para abrirse al llegar compara en el teléfono la ubicación del auto (la que ya pide Google Maps) con el punto de la parada; no la guarda ni la envía | mientras haya una parada activa (spec 020) |
 | Actividad (entrega/no entrega, hora) | servidor | sin datos del destinatario |
 
@@ -36,6 +36,11 @@ Solo sobreviven conteos (asignados, entregados, no entregados).
 - La guía sí va a la IA y a Cloud Vision para leerla: el dueño la considera sin datos personales,
   porque trae solo la OF y el destino, sin nombre ni teléfono. Igual figura en §3, para que Starken
   la autorice junto con los demás proveedores (§6.2).
+- **Excepción, el aviso de WhatsApp (spec 004, dueño 2026-11-09):** con WhatsApp activo, el
+  nombre, el teléfono y la dirección de la guía van a Meta para preguntarle al receptor si su
+  dirección está bien. El dueño lo acepta porque el dato se usa para hacer la entrega, igual que
+  al llamarlo. Lo que el receptor contesta pasa por el servidor hasta que el teléfono lo baja. Falta
+  la autorización de Starken (§6.2), antes del lanzamiento oficial.
 
 ## 3. Subencargados
 
@@ -46,10 +51,11 @@ Solo sobreviven conteos (asignados, entregados, no entregados).
 | Google Cloud Vision (en uso; spec 005; lee el texto de la foto de la guía. Desde la spec 021 ya no recibe etiquetas) | fotos de la guía (OF y destino, sin nombre ni teléfono) | servidor (tránsito, `/api/texto`) | EE.UU. | según términos de Google Cloud | pendiente |
 | Google Maps (app) (en uso desde 2026-10-29; desde la spec 020 es la navegación: los km de la parada, «Navegar» en la burbuja de ARES y, con la burbuja en curso, cada parada nueva abren Google Maps navegando. La burbuja, con la OF y a quién, es una ventana de ARES en el teléfono: Google no la ve) | coordenadas de ESA parada (sin nombre, teléfono ni dirección) | teléfono (abre la app de Google Maps o su enlace en el navegador) | EE.UU. | según términos de Google Maps | pendiente |
 | Google Geocoding (en uso; spec 016; desde la spec 019, toda dirección con número: es el que da el número de casa) | dirección (sin nombre ni teléfono) | servidor (tránsito, `/api/geocodificar`) | EE.UU. | según términos de Google Maps Platform | pendiente |
-| Meta WhatsApp Cloud API (inactivo) | teléfono, nombre, id correlación | servidor | EE.UU. | según Meta | pendiente |
+| Meta WhatsApp Cloud API (inactivo; desde la spec 004, el aviso que pide confirmar la dirección) | teléfono, nombre, dirección de la guía (sin coordenadas), id correlación; devuelve lo que el receptor escribe en el formulario | servidor | EE.UU. | según Meta | pendiente |
+| Supabase (solo con WhatsApp activo, spec 004) | la referencia o la dirección correcta que escribió el receptor, sin nombre ni teléfono (`respuesta_texto`) | servidor (webhook) | EE.UU. | hasta que el teléfono la baja; máx. 72 h | pendiente |
 | Anthropic (en uso, piloto; spec 005: las fotos de la guía; spec 018: las direcciones que no se ubicaron. Desde la spec 021 ya no recibe etiquetas; antes, desde 2026-10-28, recibía todas para describir el paquete) | fotos de la guía (OF y destino, sin nombre ni teléfono); direcciones y lo que devolvieron los buscadores (sin nombre ni teléfono) | servidor (tránsito, `/api/lectura`, `/api/direccion-ia`) | EE.UU. | ≤30 días API; cero retención a solicitar | pendiente |
 
-No reciben datos de destinatarios: Supabase (solo actividad y fichas de conductores),
+No reciben datos de destinatarios: Supabase (actividad y fichas de conductores, salvo la fila de arriba),
 OpenFreeMap (el mapa del conductor desde la spec 019: recibe solo los pedidos de los trozos de
 mapa de la zona que se mira y, al armar la ruta, de la zona de cada parada —unos 2 km, para ver
 qué calles tiene alrededor—, sin puntos, nombres ni direcciones). Mapbox ya no recibe nada: salió

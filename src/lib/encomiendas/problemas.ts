@@ -23,6 +23,9 @@ export type ProblemaGuardado =
   | { tipo: "calle_repetida" | "solo_calle"; opciones: OpcionLugar[] }
   | { tipo: "lejana" | "horario"; texto: string; revisado?: boolean }
   | { tipo: "etiqueta_otra_direccion"; direccion: string }
+  /** El receptor contestó «No, es otra» al aviso de WhatsApp (spec 004). null =
+   *  no escribió cuál. */
+  | { tipo: "receptor_otra_direccion"; direccion: string | null }
   | { tipo: "fuera_de_guia"; revisado?: boolean };
 
 export type TipoProblema = "sin_ubicar" | "sin_of" | ProblemaGuardado["tipo"];
@@ -42,6 +45,7 @@ export const PROBLEMAS_DE_LUGAR: ReadonlySet<ProblemaGuardado["tipo"]> = new Set
   "solo_calle",
   "lejana",
   "etiqueta_otra_direccion",
+  "receptor_otra_direccion",
 ]);
 
 function textoGuardado(p: ProblemaGuardado): string {
@@ -55,6 +59,8 @@ function textoGuardado(p: ProblemaGuardado): string {
       return p.texto;
     case "etiqueta_otra_direccion":
       return "La etiqueta dice otra dirección";
+    case "receptor_otra_direccion":
+      return "El receptor dice otra dirección";
     case "fuera_de_guia":
       return "No estaba en la guía";
   }

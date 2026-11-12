@@ -19,6 +19,7 @@ const ACCION: Record<TipoProblema, string> = {
   lejana: "Revisar",
   horario: "Revisar",
   etiqueta_otra_direccion: "Elegir",
+  receptor_otra_direccion: "Elegir",
   fuera_de_guia: "Revisar",
 };
 

@@ -75,6 +75,7 @@ export {
   registrarAvisoEnviado,
   registrarAvisoFallido,
   registrarDisponibilidad,
+  registrarRespuestaDireccion,
   reiniciarDisponibilidad,
 } from "./disponibilidad";
 export { apartarRechazado, leerCola, leerRechazados, quitarDeCola, retenerEvento } from "./cola";

@@ -1,29 +1,32 @@
-# Data Model: Menos visitas fallidas
+# Data Model: Menos visitas fallidas (confirmar la dirección)
 
-Ver modelo completo en `docs/CLASES.md` y `docs/ARQUITECTURA.md` §2.
+Modelo completo en `docs/CLASES.md` y `docs/ARQUITECTURA.md` §2.
 
-## Teléfono (IndexedDB, se borra al cerrar el día — spec 007)
+## Teléfono (IndexedDB v6, store `pedidos`, se borra al cerrar el día)
 
-| Objeto | Cambio | Regla |
+| Campo | Tipo | Qué |
 |---|---|---|
-| `Pedido.mensajes` | nuevo `MensajeEnviado[]` | `alDia()` completa `[]` |
-| `MensajeEnviado` | `{ tipo: "programado" \| "llegando", canal: "whatsapp_propio" \| "automatico" \| "llamada", hora: ISO }` | se agrega con `registrarMensaje()` dentro de `enFila()` |
-| `Ruta.tramos` | nuevo `{ pedidoId, distanciaM, duracionS }[]` opcional | se guarda al trazar la ruta; `rutaAlDia()` completa `[]` |
+| `Pedido.direccionConfirmada` | `boolean \| null` | true = «Sí, es correcta»; false = «No, es otra»; null = sin respuesta. Vuelve a null si el conductor cambia la dirección o reinicia el teléfono |
+| `Pedido.referenciaReceptor` | `string \| null` | Lo que escribió al confirmar (≤ 300). Solo para el conductor, no para ubicar |
+| `ProblemaGuardado` `receptor_otra_direccion` | `{ direccion: string \| null }` | La dirección que dio al decir que no. Es ⚠ de lugar: cambiar la dirección lo quita |
 
-Sin cambio de versión de IndexedDB (solo campos dentro de stores existentes).
+Sin versión nueva de la base: los pedidos de antes reciben los campos en `alDia`.
 
-## Servidor (Postgres)
+## Servidor (Postgres, migración 0008)
 
-| Tabla | Cambio | Regla |
-|---|---|---|
-| `empresa` | `mensaje_aviso text null`, `mensaje_llegando text null` | null = texto por defecto; sin datos de receptores; RLS existente (lectura autenticados, escritura admin/operador) |
+`encomienda_whatsapp_correlaciones`:
 
-Migración: la próxima migración libre (`000N_avisos.sql`), re-ejecutable, con `select` de verificación.
+| Columna | Cambio |
+|---|---|
+| `respuesta_accion` | acepta además `DIRECCION_SI`, `DIRECCION_NO` |
+| `respuesta_texto` | nueva, `text`, ≤ 300. Se borra con la fila: al confirmar el teléfono o a las 72 h |
 
-## Derivados (no se guardan)
+## Contrato (`contrato-whatsapp.ts`)
 
-- **No entregados** = pedidos del día con `resultado = no_entregado`. Muestra OF (spec 005) o, sin OF, número del paquete (003) y dirección.
-- **Ya avisado** = `mensajes` tiene un "programado" o el aviso automático (`Pedido.aviso`) ≠ pendiente.
+- `PedidoEnvio` `{ tipo: "direccion", pedidoId, fecha, nombre, telefono, direccion }`.
+- `RespuestaPendiente.texto: string | null`.
 
-## Lo que NO cambia
-Cola de eventos, actividad, días, pagos. Ningún dato de receptor sale del teléfono.
+## Formulario (Meta)
+
+`response_json` = `{ flow_token, confirma: "si" | "no", texto }`. El JSON del Flow está en
+`docs/WHATSAPP.md`.

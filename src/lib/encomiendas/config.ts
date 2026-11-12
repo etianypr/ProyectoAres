@@ -167,3 +167,63 @@ export function leerAccion(valor: unknown): AccionWhatsApp | null {
   if (valor === "RECHAZAR") return "MANANA";
   return ACCIONES_WHATSAPP.find((a) => a === valor) ?? null;
 }
+
+// ----------------------------------------------------------------------------
+// El formulario de la dirección (spec 004)
+// ----------------------------------------------------------------------------
+//
+// El aviso de la dirección no trae botones: trae un formulario de WhatsApp (un
+// «Flow»). El receptor elige «Sí, es correcta» o «No, es otra» y escribe la
+// referencia o la dirección correcta, y todo vuelve junto en un solo mensaje
+// (`interactive.nfm_reply.response_json`). El `flow_token` es el mismo código de
+// correlación que viaja en los botones: así la respuesta se resuelve sin guardar
+// el teléfono del receptor, como en la spec 010. Los nombres de los campos son
+// los del JSON del formulario (docs/WHATSAPP.md): si cambian allá, cambian acá.
+
+/** Lo más largo que se guarda de lo que escribió el receptor: una referencia o
+ *  una dirección caben de sobra, y un texto pegado no puede llenar la base. */
+export const MAX_TEXTO_RECEPTOR = 300;
+
+export type RespuestaFormulario = {
+  accion: Extract<AccionWhatsApp, "DIRECCION_SI" | "DIRECCION_NO">;
+  correlationId: string;
+  /** La referencia (si dijo que sí) o la dirección correcta (si dijo que no).
+   *  null si no escribió nada. */
+  texto: string | null;
+};
+
+/** Deja el texto del receptor en una línea, sin caracteres de control y con el
+ *  tope de largo. null si no queda nada. */
+export function limpiarTextoReceptor(valor: unknown): string | null {
+  if (typeof valor !== "string") return null;
+  const sinControl = Array.from(valor, (c) => {
+    const codigo = c.charCodeAt(0);
+    return codigo < 32 || codigo === 127 ? " " : c;
+  }).join("");
+  const limpio = sinControl
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, MAX_TEXTO_RECEPTOR)
+    .trim();
+  return limpio || null;
+}
+
+/** Lee el `response_json` del formulario, o null ante cualquier cosa que no
+ *  reconozca (mismo criterio que leerPayloadBoton: el webhook contesta 200 igual). */
+export function leerFormularioDireccion(responseJson: unknown): RespuestaFormulario | null {
+  if (typeof responseJson !== "string") return null;
+  let datos: unknown;
+  try {
+    datos = JSON.parse(responseJson);
+  } catch {
+    return null;
+  }
+  if (typeof datos !== "object" || datos === null) return null;
+  const d = datos as Record<string, unknown>;
+
+  const correlationId = typeof d.flow_token === "string" ? d.flow_token.trim() : "";
+  if (!correlationId) return null;
+  const accion = d.confirma === "si" ? "DIRECCION_SI" : d.confirma === "no" ? "DIRECCION_NO" : null;
+  if (!accion) return null;
+  return { accion, correlationId, texto: limpiarTextoReceptor(d.texto) };
+}

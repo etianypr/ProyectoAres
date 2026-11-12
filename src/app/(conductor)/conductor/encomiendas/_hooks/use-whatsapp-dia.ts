@@ -1,6 +1,7 @@
 "use client";
 
-// WhatsApp en el día del conductor: mandar los avisos al armar la ruta, bajar las
+// WhatsApp en el día del conductor: mandar los avisos (el de la dirección sale en
+// cuanto el pedido tiene su teléfono, spec 004), bajar las
 // respuestas y aplicarlas, y el sondeo que las va a buscar (sale de
 // use-dia-trabajo.ts, spec 002 T041). En pausa mientras no haya chip (spec 013).
 
@@ -116,6 +117,14 @@ export function useWhatsappDia({
         // Un "Mañana" pudo cerrar la última parada pendiente: el día se cierra
         // igual que al marcarla a mano (spec 017, E7).
         await confirmar();
+      }
+
+      // «No, es otra»: el pedido queda con ⚠ y la ruta no cambia hasta que el
+      // conductor elige cuál vale (spec 004).
+      if (r.direccionesNuevas > 0) {
+        const n = r.direccionesNuevas;
+        const aviso = n === 1 ? "Un receptor dio otra dirección" : `${n} receptores dieron otra dirección`;
+        setCambiosRuta((previos) => [...previos, aviso]);
       }
 
       // Los que tocaron "indicar un horario" necesitan el segundo mensaje: la

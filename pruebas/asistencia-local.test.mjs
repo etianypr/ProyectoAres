@@ -677,6 +677,7 @@ test("una respuesta bien formada se valida y se traduce", () => {
     mensajeId: "wamid.R1",
     accion: "CONFIRMAR",
     bloqueHorarioId: null,
+    texto: null,
     recibidoEn: "2026-08-20T12:00:00.000Z",
   });
   assert.deepEqual(respuestaDeAccion(r.accion, r.bloqueHorarioId), { tipo: "confirmado" });
@@ -777,6 +778,7 @@ test("un lote vacío no hace nada", async () => {
     confirmar: [],
     pedirHorarios: [],
     cambios: [],
+    direccionesNuevas: 0,
   });
 });
 

@@ -1,78 +1,56 @@
 # Implementation Plan: Menos visitas fallidas
 
-**Branch**: `004-menos-visitas-fallidas` | **Date**: 2026-10-20 | **Spec**: [spec.md](spec.md)
+**Branch**: `004-menos-visitas-fallidas` | **Date**: 2026-11-09 | **Spec**: [spec.md](spec.md)
 
 ## Summary
 
-Botón "Avisar" que abre el WhatsApp del conductor con mensaje prellenado (y "avisar a todos"), botón "voy llegando" a ≤10 min estimados, lista "No entregados" y estado del aviso automático en el panel. Todo local salvo dos textos de plantilla en `empresa`.
+El aviso de WhatsApp de la 010 pasa a preguntar por la dirección: plantilla con un botón Flow, el
+receptor responde en un formulario y la respuesta baja al teléfono por el mismo buzón de la 010
+(código opaco, el teléfono busca y confirma). Se reutiliza todo lo de la 010; lo nuevo es la
+plantilla, la lectura de `nfm_reply`, una columna temporal y dos campos del pedido.
 
-## Technical Context
+## Cómo viaja
 
-- **Stack**: TypeScript 5, React 19.2, Next.js 16.4 (sin dependencias nuevas).
-- **Storage**: IndexedDB (campos nuevos en `pedidos` y `rutas`); Postgres: 2 columnas en `empresa`.
-- **Testing**: `node:test` + `fake-indexeddb`.
-- **Constraints**: offline salvo plantillas; ningún dato de receptor al servidor; borrado diario (007).
-- **Prerrequisitos**: spec 002 Fase 1–2 + US1; spec 003 (tarjeta `parada-activa.tsx`); spec 005 aporta teléfono y OF (sin 005, se cargan a mano).
-
-## Constitution Check
-
-| Principio | Estado | Evidencia |
-|---|---|---|
-| I Conductor | PASS | un toque por aviso; "llegando" solo cuando sirve |
-| II Verdad | PASS | avisos y disponibilidad separados del resultado de entrega |
-| III Pruebas | PASS | mensaje, enlace, ETA, no doble aviso, devoluciones |
-| IV Externos | PASS | WhatsApp propio sin API; automático con respaldo manual |
-| V Datos | PASS | nada sale del teléfono por el servidor; Meta registrado en `docs/PRIVACIDAD.md` |
-| VI Arquitectura | PASS | diagrama y snapshot abajo |
-
-## Diagrama (límites afectados)
-
-```mermaid
-flowchart LR
-  subgraph TEL["Teléfono"]
-    P["parada-activa · boton-avisar ✱"] --> AV["lib/encomiendas/avisos.ts ✱"]
-    AV --> ALM["almacen: registrarMensaje ✱"]
-    ALM --> IDB[("IndexedDB: pedidos.mensajes ✱ · rutas.tramos ✱")]
-    P -->|"wa.me"| WA["WhatsApp del conductor"]
-  end
-  PANEL["panel: plantillas + estado automático ✱"] --> EMP[("empresa.mensaje_* ✱")]
-  EMP -->|lectura| TEL
-  API["api/whatsapp (001, sin cambios)"] --> META["Meta"]
+```
+Teléfono ──POST /api/whatsapp/send {tipo:"direccion", nombre, teléfono, dirección}──▶ Servidor ──▶ Meta ──▶ receptor
+  (al leer la etiqueta; el sondeo de 30 s manda los que falten)        guarda solo la correlación
+Receptor ──formulario (confirma, texto, flow_token = código)──▶ Meta ──webhook──▶ Servidor
+                                                         respuesta_accion + respuesta_texto (0008)
+Teléfono ◀──GET /api/whatsapp/status── Servidor      → aplica en IndexedDB → POST confirma → fila borrada
 ```
 
-## Data snapshot
+## Estructura de datos
 
-| Dónde | Objeto | Cambio |
-|---|---|---|
-| IndexedDB | `pedidos` | `mensajes[]` |
-| IndexedDB | `rutas` | `tramos[]` (duración por parada) |
-| Postgres | `empresa` | `mensaje_aviso`, `mensaje_llegando` |
-| Postgres | resto | sin cambios |
+- **Postgres** (0008): `encomienda_whatsapp_correlaciones.respuesta_texto text` (≤ 300) y
+  `respuesta_accion` acepta `DIRECCION_SI`/`DIRECCION_NO`. Sin tablas nuevas.
+- **IndexedDB** (sigue en v6, sin store nuevo): `Pedido.direccionConfirmada: boolean | null`,
+  `Pedido.referenciaReceptor: string | null` (los de antes, por `alDia`), y el ⚠
+  `receptor_otra_direccion` en `Pedido.problemas`. `pedidos` ya está en `STORES_DEL_DIA`.
+- Detalle en [data-model.md](data-model.md).
 
-Detalle: [data-model.md](data-model.md). Decisiones: [research.md](research.md).
+## Archivos
 
-## Project Structure
+| Qué | Dónde |
+|---|---|
+| Acciones nuevas; botones de la 010 aparte | `lib/encomiendas/catalogos.ts` (`BOTONES_DISPONIBILIDAD`) |
+| Leer y limpiar el formulario | `lib/encomiendas/config.ts` (`leerFormularioDireccion`, `limpiarTextoReceptor`) |
+| Plantilla a Meta | `lib/whatsapp/confirmar-direccion.ts` (usa `mandar` de `meta.ts`) |
+| Rutas | `api/whatsapp/send` (`tipo: "direccion"`), `webhook` (`nfm_reply`), `status` (`texto`) |
+| Teléfono | `local/sincronizar-whatsapp.ts` (qué se avisa, envío), `local/aplicar-respuestas.ts` (nuevo, sale del anterior por las 400 líneas), `almacen/disponibilidad.ts` (`registrarRespuestaDireccion`) |
+| Pantalla | `_componentes/problemas-pedido.tsx` (⚠), `contenido-hoja.tsx` (referencia en la parada), `_hooks/use-whatsapp-dia.ts` (aviso en pantalla) |
+| Pruebas | `pruebas/confirmar-direccion.test.mjs` |
 
-```text
-src/lib/encomiendas/avisos.ts              ✱ puro: construirMensaje, enlaceWhatsapp, franjaEstimada,
-                                             minutosHastaParada, ofrecerLlegando, yaAvisado
-src/lib/encomiendas/config.ts              ✱ textos por defecto y marcadores
-src/lib/encomiendas/local/almacen/       ✱ MensajeEnviado, mensajes[], registrarMensaje, tramos
-src/lib/geo/mapbox/direcciones.ts          ✱ devolver legs (distancia, duración) por tramo
-src/lib/encomiendas/local/generar-ruta/    ✱ guardar tramos en la ruta
-src/app/(conductor)/conductor/encomiendas/_componentes/
-  boton-avisar.tsx · avisar-todos.tsx · registrar-respuesta.tsx   ✱
-  lista-no-entregados.tsx                   (de la spec 007; aquí solo se abre desde la hoja)
-  parada-activa.tsx                         ✱ botón "voy llegando"
-src/app/(app)/configuracion/
-  plantillas-form.tsx · estado-whatsapp.tsx ✱  actions.ts ✱ guardarPlantillas
-supabase/migrations/000N_avisos.sql         ✱ próxima migración libre
-src/types/db.ts                             ✱ Empresa.mensaje_*
-pruebas/avisos.test.mjs                     ✱ · pruebas/3-almacen.test.mjs ✱
-```
+## Constitución
 
-**Structure Decision**: lógica pura en `lib/encomiendas/avisos.ts`; UI junto a la app del conductor; panel en `configuracion/` siguiendo `bloques-horarios-form.tsx`.
+- II (dimensiones separadas): la confirmación de la dirección no toca `disponibilidad` ni el
+  resultado.
+- V (privacidad): excepción del dueño, registrada en `docs/PRIVACIDAD.md`; el texto vive en el
+  servidor solo hasta que se baja.
+- III (pruebas): Meta se sustituye con el doble del `fetch` (`pruebas/dobles/meta-whatsapp.mjs`).
 
-## Complexity Tracking
+## Docs que no calzaban con el código
 
-No aplica.
+- La versión anterior de esta spec describía el WhatsApp propio del conductor y «voy llegando»;
+  quedó en «Después» de `spec.md`.
+- `docs/PRIVACIDAD.md` decía que Meta recibía solo teléfono y nombre, y que Supabase no recibía
+  datos de destinatarios: actualizado.

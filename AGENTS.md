@@ -45,7 +45,8 @@ comparten layout: el panel del jefe (escritorio) y la app del conductor (APK And
   antes de escribir código. El middleware se llama Proxy (`src/proxy.ts`).
 - TypeScript estricto, React 19, Tailwind 4 (`cn()` de `lib/comun/utils`), íconos `lucide-react`.
 - Supabase: Postgres + RLS + `pg_cron`, un solo proyecto (gratis; se pausa si queda inactivo).
-  Migraciones `supabase/migrations/0001–0007`; la siguiente es la 0008.
+  Migraciones `supabase/migrations/0001–0008` (la 0008, de la spec 004, todavía no corre en
+  Supabase); la siguiente es la 0009.
 - Teléfono: IndexedDB `dashund-encomiendas` v6 (la siguiente versión libre es la v7). Mapa:
   MapLibre + OpenFreeMap.
 - APK: Capacitor 8, paquete `cl.dashund.ares`. Abre `https://proyecto-ares-five.vercel.app/conductor`,
@@ -221,6 +222,10 @@ y un agente no debe "corregir".
     teléfono y la foto de la etiqueta se leen con ML Kit, sin IA ni Cloud Vision (spec 021). La
     guía sí va a la IA, porque no trae datos personales: solo la OF y el destino, sin nombre ni
     teléfono. No se le suman campos de la etiqueta a nada que salga del teléfono.
+  - **Excepción, el aviso de WhatsApp** (dueño, 2026-11-09; spec 004): con WhatsApp activo, el
+    nombre, el teléfono y la dirección van a Meta para pedirle al receptor que confirme su
+    dirección, y lo que contesta pasa por el servidor hasta que el teléfono lo baja. No se amplía
+    a otros datos ni a otros proveedores.
   - Un store nuevo con esos datos se registra en `STORES_DEL_DIA`.
   - Un error de red nunca borra, y la `cola` no se toca.
 - **Proveedores y ley.** Todo proveedor que reciba datos de destinatarios figura en
@@ -340,7 +345,8 @@ y un agente no debe "corregir".
 - **WhatsApp.** Queda en pausa hasta que el dueño tenga el chip y el token de Meta
   (`WHATSAPP_EN_PAUSA`). Sin las variables, la app funciona sin avisos (spec 013); no se empuja
   trabajo de WhatsApp. En Meta, el orden de los botones (Sí, estaré · Mañana · Otro horario) es el
-  del payload y no se cambia.
+  del payload y no se cambia. Desde la spec 004 el aviso pide confirmar la dirección con un
+  formulario (Flow, `docs/WHATSAPP.md`); el de disponibilidad queda en el código, sin pedirse.
 - **Direcciones en Arica.** Muchas casas no tienen numeración confiable, y hay calles que se llaman
   igual en distintos sectores de la ciudad.
   - **Plus Code primero.** Es la "dirección" que Google Maps saca de las coordenadas

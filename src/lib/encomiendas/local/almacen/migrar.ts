@@ -42,6 +42,9 @@ export function alDia(pedido: Pedido): Pedido {
     origenCarga: pedido.origenCarga ?? "manual",
     // Spec 022: los pedidos de antes no tienen ⚠ guardados.
     problemas: pedido.problemas ?? [],
+    // Spec 004: los de antes no tienen respuesta a la dirección.
+    direccionConfirmada: pedido.direccionConfirmada ?? null,
+    referenciaReceptor: pedido.referenciaReceptor ?? null,
   };
 }
 

@@ -1,112 +1,80 @@
 # Feature Specification: Menos visitas fallidas
 
-**Branch**: `004-menos-visitas-fallidas` · **Created**: 2026-10-20 · **Status**: Postergada a la fase de WhatsApp (2026-10-24) · **Input**: segundo dolor del negocio, visitas fallidas (`docs/HOJA-DE-RUTA.md`).
+**Branch**: `004-menos-visitas-fallidas` · **Created**: 2026-10-20 · **Retomada**: 2026-11-09 · **Status**: en curso
 
-**Decisiones**
-- **Postergada (2026-10-24)** a la fase de WhatsApp, junto con el chip del negocio: hasta
-  entonces se llama (spec 013). La lista de no entregados (US3) la construye la 007 (FR-002).
-- El aviso automático de la 001 (Meta) está construido pero inactivo; esta spec no lo espera.
-- Sin historial entre días: todo se borra al cerrar (spec 007). Lo no entregado vuelve en otra guía.
-- Autorización de Starken para Meta: solo en modo "lanzamiento oficial" (spec 007 FR-009).
-- El teléfono del receptor llega al escanear la etiqueta (spec 005) o se carga a mano.
+**Input** (dueño, 2026-11-09): «de mientras será solamente un mensaje de que confirme su dirección
+y que nos dé una referencia si es que confirma; la idea es que sea un mensaje interactuable».
 
-## User Scenarios & Testing *(mandatory)*
+## Decisiones (dueño, 2026-11-09)
 
-### User Story 1 - Avisar desde el WhatsApp del conductor (Priority: P1)
+- **Un solo aviso por pedido, el de la dirección.** Reemplaza por ahora al de disponibilidad de la
+  010 (Sí, estaré · Mañana · Otro horario), que queda en el código sin pedirse: la mitad del costo.
+- **Formulario de WhatsApp (Flow)**, no botones y texto suelto: el Sí/No y lo escrito vuelven
+  juntos, con el código del pedido como `flow_token`, sin guardar nada del teléfono del receptor.
+- **Sale solo, al leer la etiqueta**: en cuanto el pedido tiene teléfono y nombre. Sin toques.
+- **«No, es otra»**: el receptor escribe la correcta; el pedido queda con ⚠ y el conductor elige.
+- **Privacidad:** nombre, teléfono y dirección van a Meta, y lo escrito pasa por el servidor hasta
+  que el teléfono lo baja. El dueño lo acepta («cuando lo llamo igual tomo sus datos para hacer
+  efectiva la entrega»); falta la autorización de Starken antes del lanzamiento oficial
+  (`docs/PRIVACIDAD.md` §2).
+- Costo: ~US$0,02 por aviso (plantilla de Utilidad en Chile).
 
-Conductor: avisa a cada receptor con un toque y un mensaje ya escrito, sin esperar a Meta.
+## User Scenarios & Testing
 
-**Why this priority**: funciona hoy, sin trámites, y ataca el segundo dolor del negocio.
+### US1 — El receptor confirma y deja una referencia (P1)
 
-**Independent Test**: 3 pedidos → "Avisar" abre WhatsApp con número y mensaje correctos → al volver, el pedido dice "avisado HH:MM".
+**Independent Test**: un pedido con teléfono → sale la plantilla → el receptor elige «Sí» y
+escribe «reja verde» → la parada dice «Dirección confirmada por el receptor» y «reja verde».
 
-**Acceptance Scenarios**:
+1. **Given** un pedido de la guía sin teléfono, **When** se lee su etiqueta, **Then** sale el
+   aviso con su nombre y la dirección de la guía (≤ 30 s, en el sondeo).
+2. **Given** el aviso, **When** el receptor elige «Sí, es correcta» con o sin referencia,
+   **Then** el pedido queda confirmado y la referencia se ve en la parada; la disponibilidad no
+   cambia.
 
-1. **Given** pedido con teléfono válido, **When** toca "Avisar por WhatsApp", **Then** abre su WhatsApp con el chat del número y el mensaje prellenado (nombre + franja estimada), editable.
-2. **Given** que volvió a la app, **When** ve el pedido, **Then** figura "avisado HH:MM" y el botón pasa a "Avisar de nuevo".
-3. **Given** varios sin avisar, **When** usa "Avisar a todos", **Then** la app los recorre de a uno (abrir, volver, siguiente).
-4. **Given** que el receptor contestó por WhatsApp, **When** el conductor lo registra, **Then** usa los estados de disponibilidad existentes con un toque.
+### US2 — El receptor dice que es otra dirección (P1)
 
-### User Story 2 - "Voy llegando" (Priority: P1)
-
-Conductor: avisa justo antes de llegar, que es cuando importa.
-
-**Why this priority**: el aviso de la mañana no garantiza que la persona siga ahí al llegar.
-
-**Independent Test**: ruta simulada → a ≤10 min de una parada aparece "Avisar que voy llegando" con el tiempo estimado; se registra.
-
-**Acceptance Scenarios**:
-
-1. **Given** parada a ≤10 min estimados, **When** mira la próxima parada, **Then** ve "Avisar que voy llegando (~N min)".
-2. **Given** que ya avisó "llegando" a esa parada, **When** se sigue acercando, **Then** no vuelve a insistir.
-3. **Given** receptor sin confirmar, **When** se acerca, **Then** se sugiere primero llamar (comportamiento actual) y el aviso queda como segunda opción.
-
-### User Story 3 - No entregados del día (Priority: P2)
-
-Conductor: termina el día sabiendo qué paquetes no entregó (spec 012: sin motivo).
-
-**Why this priority**: evita paquetes perdidos; depende de los resultados ya registrados.
-
-**Independent Test**: marcar dos pedidos "No entregado" → la lista "No entregados" muestra ambos con su OF.
-
-**Acceptance Scenarios**:
-
-1. **Given** pedidos no entregados, **When** abre "No entregados" (o cierra el día), **Then** ve la OF de cada uno.
-2. **Given** un no entregado, **When** se registra, **Then** sale de la ruta del día.
-
-### User Story 4 - Aviso automático sin doble aviso (Priority: P3)
-
-Responsable del producto: cuando Meta habilite el envío automático, la app lo usa sin que nadie reciba dos avisos.
-
-**Why this priority**: depende de un trámite externo; el código ya existe (001).
-
-**Independent Test**: con el automático configurado en prueba → al confirmar la ruta sale el aviso (spec 010); el botón manual dice "ya avisado (automático)".
-
-**Acceptance Scenarios**:
-
-1. **Given** automático no configurado, **When** carga pedidos, **Then** se ofrece el aviso manual (US1) y la app lo dice.
-2. **Given** pedido avisado automáticamente, **When** mira el botón manual, **Then** dice "ya avisado" y solo permite reenvío explícito.
-3. **Given** el panel, **When** abre Configuración, **Then** ve si el automático está activo y qué falta (verificación Meta, plantilla, token).
+1. **Given** el aviso, **When** elige «No, es otra» y escribe la correcta, **Then** el pedido queda
+   con ⚠ «El receptor dice otra dirección», se avisa en pantalla y la ruta no cambia sola.
+2. **Given** ese ⚠, **When** el conductor toca «Usar la del receptor», **Then** se ubica la nueva
+   (como la de la etiqueta); con «Dejar la de la guía», se quita el ⚠.
+3. **Given** «No» sin texto, **Then** el ⚠ dice «El receptor dice que no es esa dirección» y solo
+   ofrece «Dejar la de la guía» (el conductor lo llama).
 
 ### Edge Cases
 
-- Teléfono inválido o sin WhatsApp → ofrecer llamar o SMS.
-- No vuelve a la app tras abrir WhatsApp → queda "abierto HH:MM"; la app no afirma que se envió.
-- "Mañana" → queda no entregado y sale de la ruta (specs 010 y 012).
-- Entrega a un tercero (vecino, conserje): cuenta como **entregado** (decidido 2026-10-24); no es un resultado nuevo.
-- Varias paradas cerca (pasaje) → "llegando" para cada una dentro del umbral, en orden.
+- Sin teléfono o sin nombre: no se avisa ni se gastan intentos (la guía trae los dos vacíos).
+- Número fijo o sin WhatsApp: el servidor lo rechaza; tras 3 intentos no se insiste (010).
+- La misma respuesta dos veces (Meta reintenta): se aplica una vez.
+- Pedido ya cerrado: la respuesta se anota como vista y no lo reabre.
+- El conductor corrige la dirección: se quita el ⚠ del receptor y la confirmación de la anterior.
+- Teléfono mal escrito («reiniciar»): se borra lo que contestó la otra persona.
+- Modo prueba o `WHATSAPP_EN_PAUSA`: no sale nada.
 
-## Requirements *(mandatory)*
+## Requirements
 
-### Functional Requirements
+- **FR-001**: Enviar la plantilla `confirmar_direccion` con nombre y dirección de la guía, y un
+  botón Flow cuyo `flow_token` es el código de correlación. Sin coordenadas.
+- **FR-002**: Avisar solo a pedidos con teléfono, nombre y dirección; una vez por pedido.
+- **FR-003**: El webhook lee `nfm_reply` (`confirma` si/no, `texto`), limpia el texto (una línea,
+  ≤ 300) y lo guarda en `respuesta_texto` (0008).
+- **FR-004**: `/status` entrega el texto; la fila se borra cuando el teléfono confirma (máx. 72 h).
+- **FR-005**: «Sí»: `direccionConfirmada = true` y `referenciaReceptor`. «No»: `direccionConfirmada
+  = false` y ⚠ `receptor_otra_direccion` con lo escrito. Idempotente por mensaje; no reabre.
+- **FR-006**: La parada activa muestra la confirmación y la referencia; el ⚠ se resuelve arriba del
+  formulario, como el de la etiqueta. Ningún estado solo con color.
+- **FR-007**: Lo escrito por el receptor vive solo en el teléfono (`pedidos`, borrado con el día)
+  y en el servidor hasta que se baja.
 
-- **FR-001**: Abrir el WhatsApp del conductor con número y mensaje prellenado en un toque, desde el pedido y la parada.
-- **FR-002**: El mensaje MUST incluir nombre del receptor y franja estimada (sin ruta: "durante el día"); editable antes de enviar.
-- **FR-003**: Textos base configurables por el jefe en el panel.
-- **FR-004**: Cada aviso MUST registrarse en el pedido: tipo (programado · llegando), canal (whatsapp_propio · automatico · llamada), hora.
-- **FR-005**: "Avisar a todos" en secuencia.
-- **FR-006**: Registrar a mano la respuesta con los estados de disponibilidad existentes.
-- **FR-007**: Ofrecer "llegando" cuando el tiempo estimado a la parada sea ≤10 min, una vez por parada.
-- **FR-008**: Los no entregados del día MUST estar en "No entregados" (OF); la pantalla de cierre de la spec 007 (FR-002) la usa.
-- **FR-009**: Con el automático activo, MUST NOT enviarse un segundo aviso programado a un receptor ya avisado, salvo reenvío explícito.
-- **FR-010**: El panel MUST mostrar estado del automático y faltantes técnicos; la autorización de Starken para Meta se exige solo en modo oficial (007 FR-009).
-- **FR-011**: Nombre, teléfono, mensajes y respuestas: solo en el teléfono, borrados al cerrar el día. El aviso por WhatsApp propio no pasa por el servidor.
-- **FR-012**: Todo mensaje MUST identificar al negocio, el envío de Starken y el motivo; sin contenido ajeno (007 FR-010).
+## Success Criteria
 
-### Key Entities
+- **SC-001**: ≥ 50 % de los avisos contestados en un día real.
+- **SC-002**: Visitas fallidas −30 % frente a las 2 semanas previas (no entregados del panel, 006).
+- **SC-003**: Ningún aviso a un pedido sin teléfono; ningún receptor con dos avisos el mismo día.
 
-MensajeEnviado (en `Pedido.mensajes`; el aviso automático es `Pedido.aviso`) · No entregados (vista derivada) · Plantillas (`empresa`). Detalle en `data-model.md`.
+## Después (fuera de esta etapa)
 
-## Success Criteria *(mandatory)*
-
-- **SC-001**: ≥90 % de los pedidos del día con un aviso registrado antes de la visita.
-- **SC-002**: Visitas fallidas por día −30 % frente a las 2 semanas previas (no entregados del panel o spec 006).
-- **SC-003**: Avisar a un receptor ≤5 s (abrir, enviar, volver).
-- **SC-004**: 100 % de los no entregados en "No entregados" al cerrar.
-- **SC-005**: Ningún receptor recibe dos avisos programados el mismo día sin reenvío explícito.
-
-## Assumptions
-
-- WhatsApp (o Business) instalado en el mismo teléfono que la app; abrirlo con mensaje prellenado no requiere permisos.
-- Franja estimada y tiempo a la parada salen de la ruta generada (ver `research.md`).
-- Activar el automático (verificación Meta, plantilla, token) es un trámite paralelo; no bloquea US1–US3.
+- El aviso de disponibilidad de la 010 (y la 014, ¿conviene ir al pedido con horario?).
+- «Voy llegando» y el aviso desde el WhatsApp propio del conductor (versión anterior de esta spec,
+  en el historial de git).
+- Cambiar el nombre del campo de texto según el Sí o el No (`If` de Flows), una vez probado en Meta.

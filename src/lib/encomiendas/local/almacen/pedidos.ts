@@ -49,6 +49,11 @@ export function guardarPedido(
       disponibilidad: anterior?.disponibilidad ?? "pendiente_respuesta",
       bloqueHorarioId: anterior?.bloqueHorarioId ?? null,
       aviso: anterior?.aviso ?? avisoVacio(),
+      // Lo que confirmó el receptor era de la dirección de antes (spec 004); su
+      // referencia de la casa se queda.
+      direccionConfirmada:
+        anterior && anterior.direccion === datos.direccion ? anterior.direccionConfirmada : null,
+      referenciaReceptor: anterior?.referenciaReceptor ?? null,
       cargadoEn: anterior?.cargadoEn ?? new Date().toISOString(),
       of: datos.of !== undefined ? datos.of : (anterior?.of ?? null),
       referencia: datos.referencia !== undefined ? datos.referencia : (anterior?.referencia ?? null),

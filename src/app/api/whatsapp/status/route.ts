@@ -41,8 +41,9 @@ import {
 // QUÉ SALE DE ACÁ
 //
 // Solo "a este pedido tuyo le contestaron esto": el id local del pedido, qué
-// botón tocó, el bloque si eligió uno, y cuándo. Ni el número del receptor ni su
-// nombre, porque el servidor no los tiene guardados (ver la migración 0003). Y
+// botón tocó, el bloque si eligió uno, lo que escribió en el formulario de la
+// dirección (spec 004), y cuándo. Ni el número del receptor ni su nombre, porque
+// el servidor no los tiene guardados (ver la migración 0003). Y
 // solo del `conductor_id` de quien pregunta: lo filtra esta ruta y lo vuelve a
 // exigir RLS.
 
@@ -54,7 +55,9 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("encomienda_whatsapp_correlaciones")
-    .select("pedido_id_local, respuesta_accion, respuesta_bloque_id, respuesta_mensaje_id, respuesta_recibida_en")
+    .select(
+      "pedido_id_local, respuesta_accion, respuesta_bloque_id, respuesta_texto, respuesta_mensaje_id, respuesta_recibida_en",
+    )
     .eq("conductor_id", conductor.conductorId)
     // Solo las que YA tienen respuesta y el teléfono todavía no confirmó.
     .not("respuesta_mensaje_id", "is", null)
@@ -79,6 +82,7 @@ export async function GET() {
     mensajeId: r.respuesta_mensaje_id,
     accion: r.respuesta_accion,
     bloqueHorarioId: r.respuesta_bloque_id,
+    texto: r.respuesta_texto,
     recibidoEn: r.respuesta_recibida_en,
   }));
 

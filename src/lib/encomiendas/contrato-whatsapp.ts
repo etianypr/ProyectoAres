@@ -15,10 +15,13 @@ export const MAX_RESPUESTAS_POR_CONSULTA = 100;
 
 // --- POST RUTA_ENVIO ---------------------------------------------------------
 
-/** "aviso": la plantilla con tres botones. "horarios": la lista de bloques, solo
+/** "direccion": pide confirmar la dirección (spec 004); es la que manda hoy el
+ *  teléfono, y la dirección también sale a Meta. "aviso": la plantilla con tres
+ *  botones (spec 010), apagada por ahora. "horarios": la lista de bloques, solo
  *  después de que el receptor tocó "Indicar un horario". Nombre y teléfono se
  *  usan para el mensaje y el servidor no los guarda. */
 export type PedidoEnvio =
+  | { tipo: "direccion"; pedidoId: string; fecha: string; nombre: string; telefono: string; direccion: string }
   | { tipo: "aviso"; pedidoId: string; fecha: string; nombre: string; telefono: string; cuando?: string }
   | { tipo: "horarios"; pedidoId: string; fecha: string; telefono: string };
 
@@ -32,8 +35,8 @@ export type EnvioOk = {
 
 // --- GET RUTA_RESPUESTAS -----------------------------------------------------
 
-/** Una respuesta del receptor, ya validada en el teléfono. No trae nombre,
- *  teléfono ni texto libre: el servidor no los guarda. */
+/** Una respuesta del receptor, ya validada en el teléfono. No trae nombre ni
+ *  teléfono: el servidor no los guarda. */
 export type RespuestaPendiente = {
   /** El id local del pedido, el que generó el teléfono. */
   pedidoId: string;
@@ -42,6 +45,9 @@ export type RespuestaPendiente = {
   accion: AccionWhatsApp;
   /** Solo cuando eligió un bloque de la lista. */
   bloqueHorarioId: string | null;
+  /** Lo que escribió en el formulario de la dirección (spec 004): la referencia
+   *  o la dirección correcta. El servidor lo borra cuando el teléfono confirma. */
+  texto: string | null;
   /** ISO. Cuándo la recibió Meta. */
   recibidoEn: string;
 };

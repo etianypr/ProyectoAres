@@ -55,5 +55,10 @@ export function respuestaDeAccion(
       return { tipo: "manana" };
     case "HORARIO":
       return bloqueHorarioId ? { tipo: "horario_indicado", bloqueHorarioId } : null;
+    // Confirmar la dirección no dice si va a estar (spec 004): la disponibilidad
+    // sigue como estaba.
+    case "DIRECCION_SI":
+    case "DIRECCION_NO":
+      return null;
   }
 }

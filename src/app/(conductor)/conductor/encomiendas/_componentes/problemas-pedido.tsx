@@ -102,23 +102,35 @@ function Problema({
   }
 
   if ("direccion" in x) {
+    // La de la etiqueta o la que escribió el receptor en WhatsApp (spec 004): la
+    // de la guía no cambia hasta que el conductor elige.
+    const otra = x.direccion;
+    const delReceptor = x.tipo === "receptor_otra_direccion";
     return (
       <div className={CAJA}>
-        {titulo("La etiqueta dice otra dirección:")}
-        <p className="rounded-xl bg-card px-3 py-2 text-foreground">{x.direccion}</p>
+        {titulo(
+          delReceptor
+            ? otra
+              ? "El receptor dice que es otra dirección:"
+              : "El receptor dice que no es esa dirección"
+            : "La etiqueta dice otra dirección:",
+        )}
+        {otra ? <p className="rounded-xl bg-card px-3 py-2 text-foreground">{otra}</p> : null}
         <div className="flex flex-wrap gap-2">
+          {otra ? (
+            <button
+              type="button"
+              disabled={ocupado}
+              onClick={() => hacer(() => usarDireccionDeEtiqueta(pedido.id, otra))}
+              className={BOTON}
+            >
+              {delReceptor ? "Usar la del receptor" : "Usar la de la etiqueta"}
+            </button>
+          ) : null}
           <button
             type="button"
             disabled={ocupado}
-            onClick={() => hacer(() => usarDireccionDeEtiqueta(pedido.id, x.direccion))}
-            className={BOTON}
-          >
-            Usar la de la etiqueta
-          </button>
-          <button
-            type="button"
-            disabled={ocupado}
-            onClick={() => hacer(() => quitarProblema(pedido.id, "etiqueta_otra_direccion"))}
+            onClick={() => hacer(() => quitarProblema(pedido.id, x.tipo))}
             className={BOTON}
           >
             Dejar la de la guía

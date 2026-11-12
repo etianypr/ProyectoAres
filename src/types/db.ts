@@ -150,10 +150,16 @@ export interface Aviso {
   /** Del MENSAJE, no de la entrega: 'fallido' es que WhatsApp no lo pudo dejar,
    *  nunca que el receptor haya rechazado el pedido. */
   estado: EstadoAviso;
-  /** Qué botón tocó. Tres valores fijos; si escribe texto libre no se guarda. */
+  /** Qué contestó: un botón de la plantilla de disponibilidad o el Sí/No del
+   *  formulario de la dirección (0008, spec 004). Lo que escriba suelto en el
+   *  chat no se guarda. */
   respuesta_accion: AccionWhatsApp | null;
   /** Id del bloque horario elegido ('08-10'). Configuración de la empresa. */
   respuesta_bloque_id: string | null;
+  /** Lo que escribió en el formulario de la dirección: la referencia o la
+   *  dirección correcta (0008, spec 004). Dato del receptor: la fila se borra
+   *  cuando el teléfono confirma que lo guardó, y a las 72 h como máximo. */
+  respuesta_texto: string | null;
   /** wamid de la RESPUESTA. Único en la base: es lo que hace idempotente al
    *  webhook cuando Meta reintenta el mismo evento. */
   respuesta_mensaje_id: string | null;

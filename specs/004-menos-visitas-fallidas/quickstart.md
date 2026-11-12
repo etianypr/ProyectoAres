@@ -1,22 +1,24 @@
-# Quickstart: Menos visitas fallidas
+# Quickstart: Menos visitas fallidas (confirmar la dirección)
 
 ## Automático
-```bash
-npm test && npm run lint && npm run build   # incluye pruebas/avisos.test.mjs
+
+```powershell
+npm test; npm run lint; npm run build   # incluye pruebas/confirmar-direccion.test.mjs
 ```
 
-## Teléfono (PWA por ngrok, ver README)
-1. Pedido con teléfono → "Avisar" → abre WhatsApp con número y mensaje (nombre + franja) → volver → "avisado HH:MM".
-2. "Avisar a todos" con 3 pendientes → recorre los 3 sin buscarlos.
-3. Registrar "confirmó" a mano → la disponibilidad cambia como en la 001.
-4. Ruta en curso (simulación o terreno) → a ≤10 min aparece "Avisar que voy llegando (~N min)" una sola vez.
-5. Receptor sin confirmar al acercarse → primero "Llamar", luego el aviso.
-6. Marcar dos pedidos "No entregado" → "No entregados" muestra ambos (OF o número); salieron de la ruta.
-7. Sin conexión: 1, 4 y 6 funcionan (WhatsApp necesita su propia conexión para enviar).
+## Con Meta (sin chip: número de prueba)
 
-## Panel
-8. Configuración → plantillas: guardar sin `{negocio}` o sin "Starken" → error; con ambos → ok, el teléfono usa el texto nuevo.
-9. Estado del automático: sin variables de Meta → "inactivo" con la lista de faltantes.
+Antes: migración 0008 en Supabase, el Flow y la plantilla de `docs/WHATSAPP.md`, y en el preview
+de Vercel `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_APP_SECRET`,
+`WHATSAPP_VERIFY_TOKEN` y `WHATSAPP_EN_PAUSA=no`. El receptor de prueba es un teléfono registrado
+en la app de Meta (hasta 5). Fuera del modo prueba: el modo prueba no manda WhatsApp.
 
-## Privacidad
-10. Pestaña Red durante 1–6: ninguna petición lleva nombre, teléfono ni mensaje.
+1. Un pedido con ese teléfono, nombre y una dirección inventada; armar la ruta. → En ≤ 30 s llega
+   «Hola …, ¿tu dirección es …?» con el botón «Confirmar dirección».
+2. En el teléfono receptor: «Sí, es correcta» + «reja verde» → Enviar. → En ≤ 30 s, en Recorrer,
+   la parada dice «Dirección confirmada por el receptor» y «reja verde».
+3. Otro pedido: «No, es otra» + otra dirección. → Aviso «Un receptor dio otra dirección»; el pedido
+   con ⚠ «El receptor dice que es otra dirección» y sus dos botones.
+4. «Usar la del receptor» → la parada se mueve; «Dejar la de la guía» → sin ⚠.
+5. Un pedido de la guía sin escanear (sin teléfono) → no sale nada hasta leer su etiqueta.
+6. Supabase: tras el paso 2, la fila de ese pedido ya no está (`encomienda_whatsapp_correlaciones`).

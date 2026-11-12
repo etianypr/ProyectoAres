@@ -20,11 +20,11 @@ de la base conservan sus nombres viejos hasta la spec 002 (equivalencias en
 | Paquete a entregar ese día | `Pedido` |
 | Orden de visita y trazado del día | `Ruta` (`orden`, `trazado`, `tramos`, `inicio`, `inicioReparto`, `cierre`, `partida`) · un tramo por parada: `TramoDelDia` |
 | Paso del día del conductor (cabecera de la hoja, spec 027) | `Paso`: `guia` · `resolver` · `ruta` · `carga` · `reparto` · `cierre` (solo pantalla) |
-| Lo que hace dudar de un pedido (⚠) | `ProblemaPedido` (`TipoProblema`): deducidos (sin ubicar, sin OF) y guardados en `Pedido.problemas` como `ProblemaGuardado` (calle en varios lugares con sus `OpcionLugar`, solo la calle, lejana, horario, etiqueta con otra dirección, fuera de la guía; spec 022). La OF de otro largo no es ⚠ |
+| Lo que hace dudar de un pedido (⚠) | `ProblemaPedido` (`TipoProblema`): deducidos (sin ubicar, sin OF) y guardados en `Pedido.problemas` como `ProblemaGuardado` (calle en varios lugares con sus `OpcionLugar`, solo la calle, lejana, horario, etiqueta con otra dirección, receptor con otra dirección (spec 004), fuera de la guía; spec 022). La OF de otro largo no es ⚠ |
 | Pedido dentro de la ruta, con su número | `Parada` (solo pantalla) |
 | Cómo terminó la visita · la llamada | `Pedido.resultado`: entregado o no entregado · `Pedido.llamada`: `ResultadoLlamada` |
-| Lo que dijo el receptor | `Pedido.disponibilidad` |
-| Aviso de WhatsApp (uno por pedido, con su estado) | `Pedido.aviso`; en el servidor, copia temporal `Aviso` |
+| Lo que dijo el receptor | `Pedido.disponibilidad` · a la dirección: `Pedido.direccionConfirmada` y `Pedido.referenciaReceptor` (spec 004) |
+| Aviso de WhatsApp (uno por pedido, con su estado) | `Pedido.aviso`; en el servidor, copia temporal `Aviso`. Hoy pide confirmar la dirección (spec 004) |
 | Hecho que cuenta para el pago | `ActividadPorEnviar` (teléfono) → `Actividad` (servidor) |
 | Lo que valió el día · tarifa vigente · tarifa de un día | `PagoDelDia` · `ReglaDePago` · `TarifaDelDia` |
 | Avisos en la pantalla del conductor | `Notificacion` |
@@ -48,6 +48,7 @@ classDiagram
       llamada: ResultadoLlamada
       resultado: ResultadoVisita
       aviso: estado · codigo · intentos
+      direccionConfirmada · referenciaReceptor (004)
       problemas: ProblemaGuardado[] (022)
     }
     class Ruta {
@@ -122,6 +123,7 @@ classDiagram
       conductor_id · pedido_id_local · fecha
       estado: EstadoAviso
       respuesta_accion: AccionWhatsApp
+      respuesta_texto (0008, hasta que el teléfono la baja)
     }
   }
   Ruta --> Pedido : orden
@@ -372,6 +374,7 @@ lo usa.
 | La ruta en curso se reordena con las respuestas | `encomiendas/local/replanificar.ts` |
 | `Coordenada`, `PuntoLngLat`, `Trazado`, `distanciaMetros`, `CENTRO_ARICA`, `RECUADRO_ARICA` | `geo/coordenada.ts` |
 | Contrato teléfono ↔ `/api/whatsapp/*` | `encomiendas/contrato-whatsapp.ts` |
+| Aviso de la dirección (spec 004): envío a Meta · leer el formulario · aplicar la respuesta en el pedido | `whatsapp/confirmar-direccion.ts` · `leerFormularioDireccion` en `encomiendas/config.ts` · `encomiendas/local/aplicar-respuestas.ts` (+ `registrarRespuestaDireccion` en `almacen/disponibilidad.ts`) |
 | Stores y su forma (`FilaDe`) | `encomiendas/local/idb.ts` |
 | Operaciones del teléfono: lecturas, pedidos, ruta, terreno, aviso y disponibilidad, cola; migración v2 → v3 | `encomiendas/local/almacen/` (barril `index.ts`) |
 | Esquema Postgres para supabase-js | `src/types/db.ts` (`Database`) |

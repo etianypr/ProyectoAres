@@ -44,6 +44,8 @@ export function crearDesdeGuia(
         disponibilidad: "pendiente_respuesta",
         bloqueHorarioId: null,
         aviso: avisoVacio(),
+        direccionConfirmada: null,
+        referenciaReceptor: null,
         llamada: "pendiente",
         resultado: "pendiente",
         horaLlamada: null,

@@ -6,6 +6,7 @@ import { normalizarTelefono } from "@/lib/comun/telefono";
 import { bloquesActivos } from "@/lib/encomiendas/config";
 import { esFecha } from "@/lib/comun/fechas";
 import { enviarAvisoDisponibilidad, enviarListaHorarios } from "@/lib/whatsapp/meta";
+import { enviarConfirmarDireccion } from "@/lib/whatsapp/confirmar-direccion";
 import type { EnvioOk, ErrorApi, PedidoEnvio } from "@/lib/encomiendas/contrato-whatsapp";
 
 // POST /api/whatsapp/send — el teléfono pide que salga un aviso de WhatsApp.
@@ -13,7 +14,8 @@ import type { EnvioOk, ErrorApi, PedidoEnvio } from "@/lib/encomiendas/contrato-
 // Es la única razón por la que un dato del receptor toca este servidor, así que
 // vale detallar exactamente qué pasa con él:
 //
-//   1. El teléfono manda `nombre` y `telefono` en el cuerpo.
+//   1. El teléfono manda `nombre` y `telefono` en el cuerpo (y la `direccion`
+//      en el aviso de la dirección, spec 004).
 //   2. Se usan para armar la llamada a Meta, que los necesita para poder decir
 //      "Ana, tu encomienda llega hoy" y para saber a qué número mandarlo.
 //   3. NO SE GUARDAN. La fila que queda en la base lleva el conductor, el id
@@ -26,10 +28,13 @@ import type { EnvioOk, ErrorApi, PedidoEnvio } from "@/lib/encomiendas/contrato-
 // servidor sepa de quién era el pedido.
 //
 // ----------------------------------------------------------------------------
-// DOS TIPOS DE ENVÍO
+// TRES TIPOS DE ENVÍO
 //
-//   tipo: "aviso"     la plantilla con los tres botones. Sale cuando un pedido
-//                     ubicado entra en una ruta (FR-007).
+//   tipo: "direccion" la plantilla que pide confirmar la dirección, con el botón
+//                     que abre el formulario (spec 004). Es la que manda hoy el
+//                     teléfono, en cuanto el pedido tiene su teléfono.
+//   tipo: "aviso"     la plantilla con los tres botones (spec 010), apagada por
+//                     ahora: el teléfono no la pide.
 //   tipo: "horarios"  el mensaje de lista con los bloques. Solo después de que
 //                     el receptor tocó "Indicar un horario", que es lo que abre
 //                     la ventana de 24 h (ver docs/WHATSAPP.md, Diseño).
@@ -39,7 +44,13 @@ import type { EnvioOk, ErrorApi, PedidoEnvio } from "@/lib/encomiendas/contrato-
 // contra la comprobación de "ya se mandó" de más abajo.
 
 /** El cuerpo crudo: los campos de PedidoEnvio, todavía sin validar. */
-type Cuerpo = Partial<Record<keyof Extract<PedidoEnvio, { tipo: "aviso" }>, unknown>>;
+type Cuerpo = Partial<
+  Record<keyof Extract<PedidoEnvio, { tipo: "aviso" }> | keyof Extract<PedidoEnvio, { tipo: "direccion" }>, unknown>
+>;
+
+/** Lo que se le muestra al receptor de la dirección. Una de la guía con su
+ *  referencia puede ser larga: se corta en vez de rechazar el aviso. */
+const MAX_DIRECCION = 150;
 
 /** UUID en cualquier versión: el id lo genera el teléfono (UUIDv7). Se valida la
  *  FORMA y no el contenido, porque la columna es `uuid` y un texto cualquiera
@@ -164,6 +175,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Falta el nombre del destinatario." }, { status: 400 });
   }
   const cuando = texto(cuerpo.cuando, 40) ?? "hoy";
+  const esDireccion = cuerpo.tipo === "direccion";
+  const direccion =
+    typeof cuerpo.direccion === "string" ? cuerpo.direccion.trim().slice(0, MAX_DIRECCION).trim() : "";
+  if (esDireccion && !direccion) {
+    return NextResponse.json(
+      { error: "Falta la dirección del pedido.", reintentable: false },
+      { status: 400 },
+    );
+  }
 
   // Un reintento REUTILIZA el identificador anterior. Si se generara uno nuevo,
   // el primer mensaje —que pudo haber llegado igual, aunque Meta contestara
@@ -195,12 +215,14 @@ export async function POST(req: Request) {
     );
   }
 
-  const r = await enviarAvisoDisponibilidad({
-    telefono: telefono.telefono.e164,
-    nombre,
-    correlationId,
-    cuando,
-  });
+  const r = esDireccion
+    ? await enviarConfirmarDireccion({ telefono: telefono.telefono.e164, nombre, direccion, correlationId })
+    : await enviarAvisoDisponibilidad({
+        telefono: telefono.telefono.e164,
+        nombre,
+        correlationId,
+        cuando,
+      });
 
   if (!r.ok) {
     // Queda anotado como fallido para que el teléfono pueda mostrar el reintento

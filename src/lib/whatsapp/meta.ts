@@ -42,7 +42,7 @@ import {
   payloadBoton,
   type BloqueHorario,
 } from "@/lib/encomiendas/config";
-import { ACCIONES_WHATSAPP } from "@/lib/encomiendas/catalogos";
+import { BOTONES_DISPONIBILIDAD } from "@/lib/encomiendas/catalogos";
 
 // Versión fijada a mano y no "la última": Meta cambia formas de respuesta entre
 // versiones, y un webhook que empieza a recibir otra forma pierde respuestas de
@@ -80,6 +80,8 @@ type ConfigMeta = {
   token: string;
   phoneNumberId: string;
   plantilla: string;
+  /** La plantilla que pide confirmar la dirección (spec 004). */
+  plantillaDireccion: string;
   idioma: string;
 };
 
@@ -107,6 +109,7 @@ export function configMeta(): ConfigMeta | null {
     token,
     phoneNumberId,
     plantilla: process.env.WHATSAPP_PLANTILLA_AVISO ?? "aviso_encomienda",
+    plantillaDireccion: process.env.WHATSAPP_PLANTILLA_DIRECCION ?? "confirmar_direccion",
     idioma: process.env.WHATSAPP_PLANTILLA_IDIOMA ?? "es",
   };
 }
@@ -130,7 +133,7 @@ export type ResultadoEnvioMeta =
       reintentable: boolean;
     };
 
-const SIN_CONFIGURAR: ResultadoEnvioMeta = {
+export const SIN_CONFIGURAR: ResultadoEnvioMeta = {
   ok: false,
   error: "WhatsApp no está configurado en este servidor.",
   codigo: null,
@@ -152,8 +155,9 @@ const dormir = (ms: number) => new Promise<void>((listo) => setTimeout(listo, ms
  *
  *  `esperar` existe para las pruebas: el backoff real haría que la prueba del
  *  reintento tardara dos segundos por caso. Es un parámetro y no una variable de
- *  módulo para que no haya forma de dejarlo cambiado sin darse cuenta. */
-async function mandar(
+ *  módulo para que no haya forma de dejarlo cambiado sin darse cuenta. También
+ *  lo usa confirmar-direccion.ts (spec 004). */
+export async function mandar(
   cuerpo: Record<string, unknown>,
   esperar: (ms: number) => Promise<void> = dormir,
 ): Promise<ResultadoEnvioMeta> {
@@ -285,10 +289,10 @@ export function enviarAvisoDisponibilidad(
             ],
           },
           // El índice es la POSICIÓN del botón en la plantilla aprobada, y
-          // ACCIONES_WHATSAPP está en ese mismo orden. Si alguien reordena los
+          // BOTONES_DISPONIBILIDAD está en ese mismo orden. Si alguien reordena los
           // botones en el panel de Meta y no toca esto, el "sí" del receptor
           // llega como otra cosa: no hay forma de detectarlo desde acá.
-          ...ACCIONES_WHATSAPP.map((accion, i) =>
+          ...BOTONES_DISPONIBILIDAD.map((accion, i) =>
             botonRapido(i, payloadBoton(accion, aviso.correlationId)),
           ),
         ],

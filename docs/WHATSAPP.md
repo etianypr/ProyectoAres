@@ -1,6 +1,6 @@
 # WhatsApp: plantilla y despliegue
 
-Lo que la app necesita de Meta y de Supabase para el aviso al receptor (spec 010). Código:
+Lo que la app necesita de Meta y de Supabase para el aviso al receptor (specs 010 y 004). Código:
 `src/lib/whatsapp/meta.ts` (envío), `src/app/api/whatsapp/*` (rutas), `local/replanificar.ts`
 (qué hace cada respuesta con la ruta).
 
@@ -13,7 +13,90 @@ etiquetas reales: un pedido de prueba con teléfono no puede terminar en un What
 de verdad. Con la pausa el servidor se comporta como sin WhatsApp. Para reactivar, cargar
 `WHATSAPP_EN_PAUSA=no` en Vercel (además del token y el número) y volver a publicar.
 
-## Plantilla del aviso
+## El aviso de hoy: confirmar la dirección (spec 004)
+
+Mientras tanto (dueño, 2026-11-09) el teléfono manda **solo este aviso**, en cuanto el pedido
+tiene teléfono y nombre (al leer la etiqueta). El de disponibilidad (abajo) queda en el código,
+sin pedirse. Código: `lib/whatsapp/confirmar-direccion.ts` (envío), `leerFormularioDireccion` en
+`lib/encomiendas/config.ts` (respuesta), `local/aplicar-respuestas.ts` (qué hace en el pedido).
+
+**1. El formulario (Flow).** Meta > WhatsApp Manager > Flows > Crear: nombre `confirmar_direccion`,
+categoría «Otro», sin endpoint. Se pega este JSON (si el editor pide otra `version`, se usa la que
+proponga) y se publica. Los `name` (`confirma`, `texto`) y los `id` (`si`, `no`) los lee el webhook:
+no se cambian.
+
+```json
+{
+  "version": "6.0",
+  "screens": [
+    {
+      "id": "DIRECCION",
+      "title": "Tu dirección",
+      "terminal": true,
+      "success": true,
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "RadioButtonsGroup",
+            "name": "confirma",
+            "label": "¿Es correcta la dirección del mensaje?",
+            "required": true,
+            "data-source": [
+              { "id": "si", "title": "Sí, es correcta" },
+              { "id": "no", "title": "No, es otra" }
+            ]
+          },
+          {
+            "type": "TextArea",
+            "name": "texto",
+            "label": "Referencia o dirección correcta",
+            "helper-text": "Si es correcta: cómo encontrar tu casa. Si es otra: escríbela.",
+            "required": false,
+            "max-length": 300
+          },
+          {
+            "type": "Footer",
+            "label": "Enviar",
+            "on-click-action": {
+              "name": "complete",
+              "payload": { "confirma": "${form.confirma}", "texto": "${form.texto}" }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
+```
+
+Un solo campo de texto para los dos casos, a propósito: es la forma que acepta cualquier versión
+de Flows. Cambiar su nombre según el Sí o el No (`If`) se puede probar después en la vista previa
+del editor de Meta.
+
+**2. La plantilla.**
+
+| Campo | Valor |
+|---|---|
+| Nombre | `confirmar_direccion` (= `WHATSAPP_PLANTILLA_DIRECCION`) |
+| Categoría · idioma | Utilidad · Español (`es`) |
+| Cuerpo | `Hola {{1}}, somos Dashund y hoy te llevamos tu pedido de Starken. ¿Tu dirección es {{2}}?` |
+| Ejemplos para la revisión | `{{1}}` = Ana · `{{2}}` = Pasaje Los Aromos 1234, Arica |
+| Botón | Uno, de tipo **Flow**: `Confirmar dirección` → el Flow `confirmar_direccion` |
+
+**Qué hace cada respuesta** (en el teléfono; la disponibilidad no cambia):
+
+| Respuesta | Pedido |
+|---|---|
+| Sí, es correcta | «Dirección confirmada por el receptor» y su referencia, en la parada |
+| No, es otra | ⚠ «El receptor dice otra dirección»: el conductor elige «Usar la del receptor» o «Dejar la de la guía» |
+| (no contesta) | nada cambia |
+
+El código viaja como `flow_token` y vuelve en `nfm_reply.response_json`: la respuesta se resuelve
+sin guardar el teléfono. Lo que escribe se guarda en `respuesta_texto` (migración 0008) hasta que
+el teléfono lo baja (excepción del dueño: `docs/PRIVACIDAD.md` §2).
+
+## Plantilla de disponibilidad (spec 010, apagada por ahora)
 
 Meta > WhatsApp Manager > Plantillas de mensajes. Si `aviso_encomienda` ya existe, se edita;
 si no, se crea con esto.
@@ -27,7 +110,7 @@ si no, se crea con esto.
 | Botones (respuesta rápida), **en este orden** | 1. `Sí, estaré` · 2. `Mañana` · 3. `Otro horario` |
 
 El orden de los botones no se puede comprobar desde el código: el payload se manda por
-posición (`ACCIONES_WHATSAPP` en `catalogos.ts`). Si se reordenan en Meta, las respuestas
+posición (`BOTONES_DISPONIBILIDAD` en `catalogos.ts`). Si se reordenan en Meta, las respuestas
 llegan cambiadas.
 
 "Otro horario" no necesita otra plantilla: tocarlo abre la ventana de 24 h y el servidor
@@ -81,10 +164,19 @@ El paso 3 puede ir antes o después del 2 sin romper nada: el botón "Mañana" o
 del antiguo "No podré recibirlo". El código anterior lo lee como rechazo; el nuevo, como
 "Mañana" (también las respuestas a avisos enviados antes del cambio).
 
+**Spec 004 (confirmar la dirección):**
+1. **Supabase**: `0008_confirmar_direccion.sql` (acepta `DIRECCION_SI`/`DIRECCION_NO` y agrega
+   `respuesta_texto`), antes de desplegar: sin ella, el webhook no puede guardar la respuesta.
+2. **Meta**: el Flow y la plantilla de arriba, y esperar la aprobación.
+3. **Desplegar** el código y, para activarlo, `WHATSAPP_EN_PAUSA=no` con el token y el número.
+   Para probar antes de tener el chip: el número de prueba de Meta escribe gratis hasta a 5
+   teléfonos registrados en la app de Meta.
+
 ## Variables (Vercel y `.env.local`)
 
 `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_BUSINESS_ACCOUNT_ID`,
 `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET`, `WHATSAPP_PLANTILLA_AVISO`,
+`WHATSAPP_PLANTILLA_DIRECCION` (spec 004, `confirmar_direccion` si falta),
 `WHATSAPP_PLANTILLA_IDIOMA`. Descripción de cada una en `.env.example`. Sin ellas la app
 funciona igual: no sale ningún aviso y todos quedan "sin respuesta". `WHATSAPP_EN_PAUSA`: sin
 ella (o con cualquier valor que no sea `no`), los avisos quedan en pausa.

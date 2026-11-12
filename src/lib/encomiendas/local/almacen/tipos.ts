@@ -37,6 +37,14 @@ export type Pedido = {
   bloqueHorarioId: string | null;
   /** El aviso de WhatsApp de este pedido (ver Aviso). */
   aviso: Aviso;
+  /** Lo que contestó el receptor al aviso de la dirección (spec 004): true = es
+   *  correcta, false = dijo que es otra (la que escribió queda en el ⚠
+   *  `receptor_otra_direccion`), null = no contestó. Aparte de `disponibilidad`:
+   *  saber dónde vive no dice si va a estar. */
+  direccionConfirmada: boolean | null;
+  /** La referencia para encontrar la casa que escribió el receptor al confirmar
+   *  (spec 004). Es para el conductor: no se usa para ubicar. */
+  referenciaReceptor: string | null;
   /** Resultado de llamar al receptor. */
   llamada: ResultadoLlamada;
   /** Cómo terminó la visita; "pendiente" mientras no se marca. Entregado o no
@@ -69,8 +77,8 @@ export type Pedido = {
   /** De dónde salió el pedido: se cuenta en el resumen del día (sin datos). */
   origenCarga: OrigenCarga;
   /** Los ⚠ guardados (spec 022): la calle en varios lugares con sus opciones, la
-   *  parada lejana, el horario que no alcanza, la etiqueta con otra dirección y el
-   *  paquete que no estaba en la guía. Lo que se deduce del pedido (sin punto, sin
+   *  parada lejana, el horario que no alcanza, la etiqueta o el receptor (spec
+   *  004) con otra dirección y el paquete que no estaba en la guía. Lo que se deduce del pedido (sin punto, sin
    *  OF) no se guarda: ver problemasDelPedido. Los pedidos de antes no lo tienen
    *  (alDia). */
   problemas: ProblemaGuardado[];

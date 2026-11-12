@@ -143,7 +143,7 @@ es solo para `admin`/`operador` y la app solo para `conductor`; RLS repite la re
 
 | Store | Clave | Contenido | Relación |
 |---|---|---|---|
-| `pedidos` | `id` | `Pedido`: destinatario, OF y referencia del paquete, llamada, resultado de la visita, su `aviso` de WhatsApp y sus ⚠ guardados (`problemas`, opcional, spec 022: incluye las opciones de lugar de una dirección en duda); `fecha` = su día | `aviso.codigo` ↔ `encomienda_whatsapp_correlaciones` |
+| `pedidos` | `id` | `Pedido`: destinatario, OF y referencia del paquete, llamada, resultado de la visita, su `aviso` de WhatsApp con lo que contestó a la dirección (`direccionConfirmada`, `referenciaReceptor`, spec 004) y sus ⚠ guardados (`problemas`, opcional, spec 022: incluye las opciones de lugar de una dirección en duda); `fecha` = su día | `aviso.codigo` ↔ `encomienda_whatsapp_correlaciones` |
 | `rutas` | `fecha` | `Ruta`: `orden` de visita + trazado (cerrado: vuelve a `partida`) + `tramos` (dónde empieza y termina cada parada en el trazado; opcional, spec 020) + `inicioReparto` (cuándo salió a repartir; opcional, spec 027, no sale del teléfono) | `orden[]` → pedidos |
 | `cola` | `id` | `ActividadPorEnviar` | `id` = `encomienda_actividad.id` (sin duplicados) |
 | `fotos` | `id` (índice `por_fecha`) | `Foto` del paquete, JPEG ≤ 1280 px (spec 003) | `Pedido.fotoId`; se borra al cerrarse el pedido y con el día |

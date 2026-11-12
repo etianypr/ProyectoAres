@@ -232,6 +232,15 @@ export function ContenidoHoja({
       {activa?.pedido.notas ? (
         <div className="mb-4 rounded-2xl bg-warn-bg px-3.5 py-3 text-sm text-warn">{activa.pedido.notas}</div>
       ) : null}
+      {/* Lo que contestó el receptor en WhatsApp (spec 004). */}
+      {activa?.pedido.direccionConfirmada || activa?.pedido.referenciaReceptor ? (
+        <div className="mb-4 space-y-0.5 rounded-2xl border border-divider bg-card px-3.5 py-3 text-sm text-foreground">
+          {activa.pedido.direccionConfirmada ? (
+            <p className="text-xs font-semibold text-muted">Dirección confirmada por el receptor</p>
+          ) : null}
+          {activa.pedido.referenciaReceptor ? <p>{activa.pedido.referenciaReceptor}</p> : null}
+        </div>
+      ) : null}
       {porResolver}
       {faltan.length > 0 ? (
         <Seccion titulo={`Sin escanear · ${faltan.length}`}>
