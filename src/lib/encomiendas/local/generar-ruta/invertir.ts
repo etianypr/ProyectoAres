@@ -1,6 +1,6 @@
 // «Invertir orden de ruta» (spec 024; dueño, 2026-11-07): la misma ruta cerrada al
-// revés, la última parada primero. Cada zona se sigue pisando una sola vez y una
-// calle estrecha se sigue pasando de frente (sus vecinos son los mismos), pero con
+// revés, la última parada primero. Una calle estrecha se sigue pasando de frente
+// (sus vecinos son los mismos), pero con
 // los sentidos únicos puede medir distinto: en el día real de 53 paradas, +3,4 km
 // (+9,9 %). Por eso la propuesta guarda la de ARES (`deAres`): la pantalla muestra
 // cuánto cuesta. Y guarda las dos ya dibujadas: ir y volver pide un solo trazado.

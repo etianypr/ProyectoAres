@@ -5,7 +5,7 @@
 //
 // La matriz que sale va en "metros equivalentes": se escala para que en promedio
 // mida lo mismo que la de metros. Así lo que el orden cobra aparte, en metros
-// (cambiar de zona, devolverse en un pasaje), sigue pesando lo mismo que antes.
+// (devolverse en un pasaje), sigue pesando lo mismo que antes.
 // Los km, el tiempo y los avisos que se muestran siguen siendo los reales.
 //
 // El éxito por parada no entra acá (dueño, 2026-11-08: «como hoy»): los horarios

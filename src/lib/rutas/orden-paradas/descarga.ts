@@ -6,11 +6,10 @@
 // por bulto, así que una parada con tres pesa tres veces.
 //
 // No es el objetivo del orden: el orden sigue siendo el de menos costo (km y
-// tiempo, con zonas y sentido de las calles). Esta pasada parte de ese orden y
-// solo acepta cambios que bajan la espera, no manejan más de `tolerancia` sobre él
+// tiempo, y el sentido de las calles). Esta pasada parte de ese orden y solo
+// acepta cambios que bajan la espera, no manejan más de `tolerancia` sobre él
 // —ni en km ni en costo— y no pagan más de lo que el orden cobra aparte de cada
-// tramo (cambiar de zona, devolverse en una calle estrecha): cada zona se sigue
-// pisando una sola vez. Y cada metro de más
+// tramo (devolverse en una calle estrecha). Y cada metro de más
 // tiene que sacar los bultos, en promedio, al menos un metro antes: sin eso la
 // pasada gastaba casi el 1 % de km en días donde la espera bajaba 0,03 %.
 //
@@ -27,7 +26,7 @@ export type Descarga = {
   /** Metros de verdad entre dos puntos (FIN = volver), sin lo que el orden cobra
    *  aparte. Sin esto, el mismo costo del orden. */
   metros?: Costo;
-  /** Lo que cuesta cada tramo para el orden, sin lo que cobra aparte (zonas): los
+  /** Lo que cuesta cada tramo para el orden, sin lo que cobra aparte: los
    *  metros con el tiempo (spec 024, generar-ruta/pesos.ts). Sin esto, `metros`. */
   base?: Costo;
   /** Cuánto más se acepta manejar sobre el orden recibido, en km y en costo: 0,01 = 1 %. */
@@ -61,8 +60,8 @@ export function esperaDeLosBultos(orden: number[], metros: Costo, bultos: number
 }
 
 /** El orden con los bultos adelantados donde sale casi gratis. Nunca devuelve uno
- *  que espere más, que maneje más de la tolerancia, que cambie más de zona ni que
- *  gaste un metro que no rinda (ESPERA_POR_METRO). */
+ *  que espere más, que maneje más de la tolerancia, que pague más de lo que el
+ *  orden cobra aparte ni que gaste un metro que no rinda (ESPERA_POR_METRO). */
 export function adelantarBultos(orden: number[], costo: Costo, descarga: Descarga, pen?: Penalizacion): number[] {
   if (orden.length <= 2) return orden;
   const metros = descarga.metros ?? costo;

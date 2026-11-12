@@ -177,7 +177,7 @@ Segunda tanda de la misma revisión (citas del dueño, no verificadas), y qué s
   siguiente y no volver a pisarlo, aunque cueste algo más: en la prueba de 66 paradas, +1,7 km
   (+4,6 %). Es la versión que funciona de la sectorización: zonas chicas de barrio (~900 m, 17) y
   el optimizador decide el orden entre y dentro de ellas, en vez de pocos sectores fijos (que
-  daban 4 % a 20 % más). `generar-ruta/zonas.ts`.
+  daban 4 % a 20 % más). Salió el 2026-11-12 (spec 030; `zonas.ts` se borró).
 - **Casilleros o depósitos compartidos.** Decisión de negocio con Starken, fuera de la app.
 - **Construcción aleatoria en milisegundos.** No hace falta: la búsqueda tarda 1-2 s.
 

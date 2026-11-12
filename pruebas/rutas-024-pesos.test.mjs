@@ -13,7 +13,6 @@ import { ordenarParadas } from "@/lib/rutas/orden-paradas";
 import { adelantarBultos } from "@/lib/rutas/orden-paradas/descarga";
 import { conFinal } from "@/lib/rutas/orden-paradas/costo";
 import { matrizDeCosto, METROS_POR_SEGUNDO, pesosDeManejar } from "@/lib/encomiendas/local/generar-ruta/pesos";
-import { matrizPorZonas, zonasPorCercania } from "@/lib/encomiendas/local/generar-ruta/zonas";
 import { elegirUtiles } from "@/lib/encomiendas/local/generar-ruta/estrategias";
 import { calcularRutaLocal } from "@/lib/encomiendas/local/generar-ruta";
 import { guardarPedido } from "@/lib/encomiendas/local/almacen";
@@ -65,12 +64,10 @@ test("matrizDeCosto: el tramo lento cuesta más, el promedio queda en metros y e
 });
 
 test("con la matriz real de un día de 80 paradas: menos tiempo y menos plata, casi sin km de más", () => {
-  // Como ordenarGrupo (estrategias.ts): el costo con zonas, y el mejor orden por
-  // metros con zonas como un arranque más.
+  // Como ordenarGrupo (estrategias.ts): el costo, y el mejor orden por metros
+  // como un arranque más.
   const { puntos, metros, segundos } = DIA;
-  const zonas = zonasPorCercania(metros);
-  const conZonas = (m) => matrizPorZonas(m, zonas);
-  const ordenar = (m, extra) => ordenarParadas(puntos, conZonas(m), (i) => m[i][0], true, extra);
+  const ordenar = (m, extra) => ordenarParadas(puntos, m, (i) => m[i][0], true, extra);
   const medir = (orden) => {
     let m = 0;
     let s = 0;
@@ -84,7 +81,7 @@ test("con la matriz real de un día de 80 paradas: menos tiempo y menos plata, c
   };
   const porKm = medir(ordenar(metros));
   const costo = matrizDeCosto(metros, segundos);
-  const porCosto = medir(ordenar(costo, { arranquePorMetros: { matriz: conZonas(metros), vuelta: (i) => metros[i][0] } }));
+  const porCosto = medir(ordenar(costo, { arranquePorMetros: { matriz: metros, vuelta: (i) => metros[i][0] } }));
   assert.ok(porCosto.pesos < porKm.pesos, `cuesta ${Math.round(porCosto.pesos)} y no menos que ${Math.round(porKm.pesos)}`);
   assert.ok(porCosto.s < porKm.s, "tarda menos");
   assert.ok(porCosto.m <= porKm.m * 1.01, `maneja ${porCosto.m} m contra ${porKm.m} m: más de 1 %`);

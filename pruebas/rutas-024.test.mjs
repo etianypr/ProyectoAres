@@ -2,13 +2,12 @@
 //
 // El orden sigue siendo el de menos km. Lo que se prueba es la pasada de encima
 // (orden-paradas/descarga.ts): adelanta bultos cuando sale casi gratis, nunca se
-// pasa de la tolerancia de km y nunca pisa una zona dos veces.
+// pasa de la tolerancia de km.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { ordenarParadas } from "@/lib/rutas/orden-paradas";
 import { adelantarBultos, esperaDeLosBultos } from "@/lib/rutas/orden-paradas/descarga";
 import { conFinal, distanciaOrden } from "@/lib/rutas/orden-paradas/costo";
-import { matrizPorZonas, zonasPorCercania, zonasRepetidas } from "@/lib/encomiendas/local/generar-ruta/zonas";
 import { distanciaMetros } from "@/lib/geo/coordenada";
 import { ordenarConSentido } from "@/lib/encomiendas/local/generar-ruta/sentido";
 
@@ -81,7 +80,7 @@ test("de dos paradas en el mismo lugar, primero la de más bultos", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Días al azar, con zonas: lo que la pasada nunca hace
+// Días al azar: lo que la pasada nunca hace
 // ---------------------------------------------------------------------------
 
 function azar(semilla) {
@@ -115,21 +114,17 @@ function diaConBarrios(n, semilla) {
   return { puntos, bultos, m };
 }
 
-test("en días al azar: nunca más de 1 % de km, nunca una zona repetida de más y nunca más espera", () => {
+test("en días al azar: nunca más de 1 % de km y nunca más espera", () => {
   for (const [n, semilla] of [[30, 3], [45, 7], [60, 11], [60, 23], [75, 31], [90, 41]]) {
     const { puntos, bultos, m } = diaConBarrios(n, semilla);
-    const zona = zonasPorCercania(m);
-    const mz = matrizPorZonas(m, zona);
     const vuelta = (i) => m[i][0];
-    const costo = conFinal((a, b) => mz[a][b], vuelta);
     const metros = conFinal((a, b) => m[a][b], vuelta);
-    const corta = ordenarParadas(puntos, mz, vuelta);
-    const conBultos = adelantarBultos(corta, costo, { bultos, metros, tolerancia: 0.01, metrosPorParada: METROS_POR_PARADA });
+    const corta = ordenarParadas(puntos, m, vuelta);
+    const conBultos = adelantarBultos(corta, metros, { bultos, metros, tolerancia: 0.01, metrosPorParada: METROS_POR_PARADA });
 
     assert.deepEqual([...conBultos].sort((a, b) => a - b), puntos.map((_, i) => i), `día ${semilla}: todas una vez`);
     assert.equal(conBultos[0], 0, `día ${semilla}: parte de la base`);
     assert.ok(distanciaOrden(conBultos, metros) <= distanciaOrden(corta, metros) * 1.01 + 1e-6, `día ${semilla}: km`);
-    assert.ok(zonasRepetidas(conBultos, zona) <= zonasRepetidas(corta, zona), `día ${semilla}: zonas`);
     assert.ok(
       esperaDeLosBultos(conBultos, metros, bultos, METROS_POR_PARADA) <= esperaDeLosBultos(corta, metros, bultos, METROS_POR_PARADA),
       `día ${semilla}: espera`,

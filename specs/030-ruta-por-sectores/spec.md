@@ -23,7 +23,7 @@ cosa (2026-11-12): por eso la carpeta conserva el nombre.
 
 ## Qué
 - **R1. El orden se decide con el costo solo** (km a $130 y hora a $6.000): sale «cada zona una
-  sola vez». `generar-ruta/zonas.ts` queda sin uso en el armado.
+  sola vez». `generar-ruta/zonas.ts` se borró (dueño, 2026-11-12).
 - **R2. Los sectores no entran al orden.** Quedan como dato: `geo/sectores-arica.ts`, los siete del
   plano de poblaciones de la Municipalidad (2025), con `sectorDe(punto)`, en el teléfono y sin red.
 - **R3 (pendiente, pedido del dueño).** Al escanear un bulto, además de «PARADA n de N», decir el

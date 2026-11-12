@@ -79,7 +79,7 @@ export function ordenarParadas(
     penalizacion?: Penalizacion;
     arranque?: number[];
     descarga?: DescargaPorMatriz;
-    /** Una matriz de metros (con lo que cobre aparte, como las zonas) cuyo mejor
+    /** Una matriz de metros (con lo que cobre aparte) cuyo mejor
      *  orden entra como un arranque más: ver más abajo (spec 024). */
     arranquePorMetros?: { matriz: number[][]; vuelta?: (i: number) => number };
   } = {},
@@ -98,7 +98,7 @@ export function ordenarParadas(
     if (!extra.descarga) return corto;
     const { matrizReal, matrizBase, vueltaReal, ...descarga } = extra.descarga;
     const metros = matrizReal ? conFinal((a, b) => matrizReal[a]?.[b] ?? Infinity, vueltaReal ?? vuelta) : costo;
-    // La vuelta a la base no paga zonas: la del orden es la de la base.
+    // La vuelta a la base no paga nada aparte: la del orden es la de la base.
     const base = matrizBase ? conFinal((a, b) => matrizBase[a]?.[b] ?? Infinity, vuelta) : undefined;
     return adelantarBultos(corto, costo, { ...descarga, metros, base }, extra.penalizacion);
   };
@@ -145,11 +145,11 @@ export function ordenarParadas(
 /** Adelantar bultos con una matriz (ver descarga.ts). */
 export type DescargaPorMatriz = Omit<Descarga, "metros" | "base"> & {
   /** Metros de verdad, con los mismos índices que los puntos: la matriz del orden
-   *  cobra además cada cambio de zona. null: la misma del orden. */
+   *  cobra además el tiempo. null: la misma del orden. */
   matrizReal: number[][] | null;
   /** Volver a la base en metros de verdad; sin esto, la vuelta del orden. */
   vueltaReal?: (i: number) => number;
-  /** La matriz del orden sin los cambios de zona (metros con tiempo, spec 024).
+  /** La matriz del orden sin lo que cobra aparte (metros con tiempo, spec 024).
    *  null o sin ella: los metros. */
   matrizBase?: number[][] | null;
 };

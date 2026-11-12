@@ -8,9 +8,9 @@ import type { PedidoUbicado } from "./tipos";
 /** Sacar los bultos del auto antes (spec 024): lo que cada orden del día
  *  necesita para retocarse sin manejar de más. */
 export type DescargaDelDia = {
-  /** La matriz de metros de verdad: la del orden cobra además cada cambio de zona. */
+  /** La matriz de metros de verdad: la del orden cobra además el tiempo (pesos.ts). */
   matriz: number[][] | null;
-  /** La del orden sin los cambios de zona: metros con el tiempo (pesos.ts). */
+  /** La del orden sin lo que cobra aparte: metros con el tiempo (pesos.ts). */
   base: number[][] | null;
   /** Cuánto más se acepta manejar: casi nada (dueño, 2026-11-07). */
   tolerancia: number;

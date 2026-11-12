@@ -155,7 +155,7 @@ function ordenarGrupo(
         return m != null && Number.isFinite(m) ? m : distanciaMetros(puntos[i], volverA);
       }
     : undefined;
-  // Con el tiempo en el costo, el orden de menos km (con sus zonas) es un arranque
+  // Con el tiempo en el costo, el orden de menos km es un arranque
   // más (spec 024, ver ordenarParadas): los metros de verdad más lo que el orden
   // cobra aparte del costo de cada tramo. Sin tiempos, el costo son los metros.
   const real = descarga && descarga.base !== descarga.matriz ? recortar(descarga.matriz) : null;
