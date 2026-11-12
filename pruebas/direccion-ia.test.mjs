@@ -172,6 +172,28 @@ test("corregirSinUbicar: propone y NO cambia nada; el conductor confirma (terren
   assert.match(p1.notas, /confirmada; decía «AV STA MARIA 2150»/);
 });
 
+test("aplicarCorreccion: corregida con el lápiz, queda la que eligió el conductor (dueño, 2026-11-11)", async () => {
+  const mala = await pedido("AV STA MARIA 2150");
+  const igual = await pedido("AV STA MARIA 2151");
+  const r = await corregirSinUbicar(HOY, {
+    corregir: async () => ({ tipo: "propuesta", candidato: SANTA_MARIA, direccion: "Avenida Santa María 2150", confianza: "alta", motivo: "m" }),
+  });
+  const de = (id) => r.propuestas.find((p) => p.pedidoId === id);
+
+  // Eligió otra de la lista: su texto y su punto, nunca los de la IA.
+  const elegida = { direccion: "Avenida Santa María 2250", lat: -18.4735, lng: -70.2911 };
+  await aplicarCorreccion(de(mala.id), elegida);
+  const p1 = (await almacen.leerPedidos(HOY)).find((p) => p.id === mala.id);
+  assert.equal(p1.direccion, elegida.direccion);
+  assert.deepEqual([p1.lat, p1.lng], [elegida.lat, elegida.lng]);
+  assert.match(p1.notas, /corregida a mano sobre la de la IA; decía «AV STA MARIA 2150»/);
+
+  // Abrió el lápiz y dejó la de la IA: cuenta como la de la IA.
+  await aplicarCorreccion(de(igual.id), { direccion: SANTA_MARIA.direccion, lat: SANTA_MARIA.lat, lng: SANTA_MARIA.lng });
+  const p2 = (await almacen.leerPedidos(HOY)).find((p) => p.id === igual.id);
+  assert.match(p2.notas, /corregida con IA y confirmada; decía «AV STA MARIA 2151»/);
+});
+
 test("esSegura: la puerta, o la cuadra con el número; nunca el barrio", () => {
   const p = (confianza, candidato) => ({ tipo: "propuesta", candidato: { ...SANTA_MARIA, ...candidato }, direccion: "d", confianza, motivo: "m" });
   assert.equal(esSegura(p("alta", {})), true);

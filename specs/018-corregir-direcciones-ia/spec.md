@@ -13,6 +13,7 @@ unas 3 quedan "Sin ubicar" (spec 016) y el conductor las corrige a mano, una por
 |---|---|
 | Al cargar la guía, las que el buscador no ubicó quedan "Sin ubicar" | La IA las intenta corregir con Mapbox, OpenStreetMap, Google y el catálogo de calles de Arica |
 | Corregir es escribir la dirección de nuevo | La IA propone y el conductor **confirma cada una** viendo lo que decía, lo que propone, por qué y el punto en el mapa; las dudosas van marcadas. Nada se aplica solo (pedido del dueño, 2026-10-27) |
+| Si la propuesta no es, se descarta y se corrige el pedido aparte | El lápiz abre el campo de dirección de siempre con la de la IA escrita; se elige otra de la lista, se ve en el mapa y «Confirmar» la guarda. Sin «Descartar»: la que no se confirma queda sin ubicar (dueño, 2026-11-11) |
 | — | "Corregir con IA" también en "Pedidos fuera de la ruta", para las de etiquetas o cargadas a mano |
 
 ## Reglas

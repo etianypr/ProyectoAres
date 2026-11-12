@@ -77,7 +77,9 @@ es «con …», «al lado de…» y lo que va **antes** del número. Ojo con el 
   confianza en `baja`; «alta» baja a «media» si el candidato no es puerta exacta.
 - `corregirSinUbicar`: solo pedidos pendientes, con dirección y sin punto; un candidato `baja` no
   se propone. `esSegura`: confianza alta, o media sobre una cuadra cuyo número no contradice.
-  `aplicarCorreccion` deja en las notas «Dirección corregida con IA y confirmada…; decía «…»».
+  `aplicarCorreccion` deja en las notas «Dirección corregida con IA y confirmada…; decía «…»». Si
+  el conductor la corrigió con el lápiz (`DireccionInput` en la tarjeta), guarda la que eligió él:
+  «Dirección corregida a mano sobre la de la IA; decía «…»».
 
 ## Punto pegado a una carretera (`corregirAccesos`)
 Las calles a 150 m (`RADIO_M`) salen de las teselas vectoriales de OpenFreeMap del zoom 14
