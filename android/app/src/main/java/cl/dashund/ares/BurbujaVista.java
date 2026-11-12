@@ -1,6 +1,7 @@
 package cl.dashund.ares;
 
 import android.content.Context;
+import android.content.res.Resources;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
 import android.graphics.Typeface;
@@ -21,8 +22,12 @@ import org.json.JSONObject;
  * Lo que se ve de la burbuja (spec 020): la tarjeta abierta y el círculo achicado.
  * Dibuja la vista que manda la web (data-model, `VistaBurbuja`) sin decidir nada:
  * los botones y sus textos vienen de botones-parada.ts, los mismos de la tarjeta de
- * ARES. Vistas armadas en código, con los colores de «Plano» (tema-dashund.css) y la
- * fuente del sistema, como la franja de la navegación de Google que se fue.
+ * ARES. Vistas armadas en código con «Plano» (tema-dashund.css): sus colores, Manrope,
+ * IBM Plex Mono para la OF y los íconos de lucide que usa ARES.
+ *
+ * La tarjeta es la propuesta B que eligió el dueño (2026-11-12): Navegar, Volver a
+ * ARES y Achicar como íconos en la cabecera, y el paquete con su POR PAGAR y el
+ * destinatario en un renglón cada uno, para no tapar más de un tercio de Google Maps.
  */
 final class BurbujaVista {
 
@@ -40,11 +45,29 @@ final class BurbujaVista {
     private static final int BORDE = 0xFFD9CFC6;
     /** Naranja de los botones con texto blanco (AA); el del mapa va en el círculo. */
     private static final int MARCA = 0xFFC4491A;
+    private static final int MARCA_SUAVE = 0xFFFFF4EF;
     private static final int NARANJA_MAPA = 0xFFD4531A;
     private static final int OK = 0xFF0F6B45;
     private static final int PELIGRO = 0xFFB3261E;
+    private static final int PELIGRO_SUAVE = 0xFFFBE7E4;
+    private static final int AVISO = 0xFF7A5200;
+    private static final int AVISO_SUAVE = 0xFFFDF3D9;
 
-    private static final int ALTO_BOTON = 46;
+    /** Los botones del paso, como los de la hoja de ARES (48 px). */
+    private static final int ALTO_BOTON = 48;
+    /** Los íconos de la cabecera: lo mínimo para el pulgar. */
+    private static final int LADO_ICONO = 44;
+
+    /** Los pesos de Manrope que usa ARES; CIFRAS es IBM Plex Mono (OF, km, horas). */
+    private enum Letra {
+        NORMAL(400), NEGRITA(700), GRUESA(800), CIFRAS(600);
+
+        final int peso;
+
+        Letra(int peso) {
+            this.peso = peso;
+        }
+    }
 
     private BurbujaVista() {}
 
@@ -52,34 +75,70 @@ final class BurbujaVista {
      *  (las salidas, con su detalle), solo ellos se desplazan: lo fijo se ve siempre. */
     static View tarjeta(Context c, JSONObject vista, Toques t, int maxAlto) {
         Columna caja = new Columna(c, maxAlto);
-        caja.setPadding(dp(c, 14), dp(c, 12), dp(c, 14), dp(c, 12));
-        caja.setBackground(fondo(PAPEL, BORDE, dp(c, 20)));
-        LinearLayout.LayoutParams lugar = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        caja.setPadding(dp(c, 14), dp(c, 8), dp(c, 10), dp(c, 12));
+        caja.setBackground(fondo(c, PAPEL, BORDE, 20));
 
-        // Título, a quién y dónde, y el control para achicar.
+        // Cabecera: el número de parada, la OF y los tres íconos fijos. Navegar y
+        // Volver a ARES se alcanzan siempre (FR-003, FR-004).
         LinearLayout cabeza = new LinearLayout(c);
         cabeza.setGravity(Gravity.CENTER_VERTICAL);
-        LinearLayout textos = new LinearLayout(c);
-        textos.setOrientation(LinearLayout.VERTICAL);
-        textos.addView(texto(c, vista.optString("titulo"), 17, TINTA, Typeface.create(Typeface.MONOSPACE, Typeface.BOLD), 1));
-        String detalle = vista.optString("detalle");
-        if (!detalle.isEmpty()) textos.addView(texto(c, detalle, 13, GRIS, Typeface.DEFAULT, 2));
-        cabeza.addView(textos, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-        View achicar = pildora(c, "Achicar", null, "neutro", dp(c, 36));
+        int secuencia = vista.optInt("secuencia", 0);
+        if (secuencia > 0) {
+            TextView numero = texto(c, String.valueOf(secuencia), 13, Color.WHITE, Letra.NEGRITA, 1);
+            numero.setGravity(Gravity.CENTER);
+            numero.setBackground(ovalo(c, MARCA, 0));
+            LinearLayout.LayoutParams lugarNumero = new LinearLayout.LayoutParams(dp(c, 32), dp(c, 32));
+            lugarNumero.setMarginEnd(dp(c, 10));
+            cabeza.addView(numero, lugarNumero);
+        }
+        cabeza.addView(texto(c, vista.optString("titulo"), 18, TINTA, Letra.CIFRAS, 1),
+            new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        View navegar = icono(c, R.drawable.ic_burbuja_navegar, "Navegar", MARCA, ovalo(c, MARCA_SUAVE, 0), LADO_ICONO, 18);
+        navegar.setOnClickListener(v -> t.tocar("navegar", false));
+        cabeza.addView(navegar, lugarIcono(c));
+        View ares = icono(c, R.drawable.ic_burbuja_ares, "Volver a ARES", TINTA, ovalo(c, PAPEL, BORDE), LADO_ICONO, 18);
+        ares.setOnClickListener(v -> t.tocar("ares", true));
+        cabeza.addView(ares, lugarIcono(c));
+        View achicar = icono(c, R.drawable.ic_burbuja_achicar, "Achicar", GRIS, null, LADO_ICONO, 24);
         achicar.setOnClickListener(v -> t.achicar());
-        LinearLayout.LayoutParams lugarAchicar = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT, dp(c, 36));
-        lugarAchicar.setMarginStart(dp(c, 8));
-        cabeza.addView(achicar, lugarAchicar);
-        caja.addView(cabeza, lugar);
+        cabeza.addView(achicar, lugarIcono(c));
+        caja.addView(cabeza, ancho());
+
+        // Cómo es el paquete, para sacarlo de la camioneta sin leer etiquetas (spec
+        // 003), y lo que hay que cobrar, en palabras y no solo en color (spec 005).
+        String paquete = cadena(vista, "paquete");
+        String porPagar = cadena(vista, "porPagar");
+        if (paquete != null || porPagar != null) {
+            LinearLayout renglon = new LinearLayout(c);
+            renglon.setGravity(Gravity.CENTER_VERTICAL);
+            if (paquete != null) {
+                renglon.addView(texto(c, paquete, 16, MARCA, Letra.NEGRITA, 1),
+                    new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+            }
+            if (porPagar != null) {
+                TextView cobro = texto(c, porPagar, 13, PELIGRO, Letra.GRUESA, 1);
+                cobro.setPadding(dp(c, 8), dp(c, 2), dp(c, 8), dp(c, 2));
+                cobro.setBackground(fondo(c, PELIGRO_SUAVE, 0, 8));
+                LinearLayout.LayoutParams lugarCobro = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+                if (paquete != null) lugarCobro.setMarginStart(dp(c, 8));
+                renglon.addView(cobro, lugarCobro);
+            }
+            LinearLayout.LayoutParams lugar = ancho();
+            lugar.topMargin = dp(c, 2);
+            caja.addView(renglon, lugar);
+        }
+
+        // A quién y dónde, en un renglón.
+        String detalle = cadena(vista, "detalle");
+        if (detalle != null) caja.addView(texto(c, detalle, 13, GRIS, Letra.NORMAL, 1), ancho());
 
         // Lo que contestó el receptor: texto y color, nunca solo color.
         JSONObject estado = vista.optJSONObject("estado");
         if (estado != null) {
-            TextView linea = texto(c, estado.optString("texto"), 12, colorDeEstado(estado.optString("tono")), Typeface.DEFAULT_BOLD, 1);
-            linea.setPadding(0, dp(c, 4), 0, 0);
-            caja.addView(linea, lugar);
+            TextView linea = texto(c, estado.optString("texto"), 12, colorDeEstado(estado.optString("tono")), Letra.NEGRITA, 1);
+            linea.setPadding(0, dp(c, 2), 0, 0);
+            caja.addView(linea, ancho());
         }
 
         // Los botones del paso, en filas que se reparten el ancho.
@@ -91,12 +150,12 @@ final class BurbujaVista {
                 JSONArray fila = filas.optJSONArray(i);
                 if (fila == null || fila.length() == 0) continue;
                 LinearLayout renglon = new LinearLayout(c);
+                renglon.setGravity(Gravity.CENTER_VERTICAL);
                 for (int j = 0; j < fila.length(); j++) {
                     JSONObject b = fila.optJSONObject(j);
                     if (b != null) agregarBoton(c, renglon, b, t, j > 0);
                 }
-                LinearLayout.LayoutParams lugarFila = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+                LinearLayout.LayoutParams lugarFila = ancho();
                 lugarFila.topMargin = dp(c, 8);
                 botones.addView(renglon, lugarFila);
             }
@@ -106,35 +165,29 @@ final class BurbujaVista {
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
         }
 
-        // Lo último que se cerró, con "Deshacer" mientras se pueda.
+        // Lo último que se cerró, con "Deshacer" mientras se pueda, o el ⚠ de una
+        // parada que viene (spec 022: ya trae el ⚠ escrito, el color lo acompaña).
         JSONObject aviso = vista.optJSONObject("aviso");
         if (aviso != null) {
+            String texto = aviso.optString("texto");
+            boolean advertencia = texto.startsWith("⚠");
             LinearLayout renglon = new LinearLayout(c);
             renglon.setGravity(Gravity.CENTER_VERTICAL);
             renglon.setPadding(dp(c, 12), dp(c, 4), dp(c, 4), dp(c, 4));
-            renglon.setBackground(fondo(FONDO, 0, dp(c, 14)));
-            renglon.addView(texto(c, aviso.optString("texto"), 13, TINTA, Typeface.DEFAULT, 2),
+            renglon.setMinimumHeight(dp(c, 44));
+            renglon.setBackground(fondo(c, advertencia ? AVISO_SUAVE : FONDO, 0, 14));
+            renglon.addView(texto(c, texto, 13, advertencia ? AVISO : TINTA, advertencia ? Letra.NEGRITA : Letra.NORMAL, 2),
                 new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
             if (aviso.optBoolean("deshacer")) {
-                View deshacer = pildora(c, "Deshacer", null, "borde-marca", dp(c, 36));
+                View deshacer = pildora(c, R.drawable.ic_burbuja_deshacer, "Deshacer", null, "borde-marca", dp(c, 36), 13);
                 deshacer.setOnClickListener(v -> t.tocar("deshacer", false));
                 renglon.addView(deshacer, new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT, dp(c, 36)));
             }
-            LinearLayout.LayoutParams lugarAviso = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            LinearLayout.LayoutParams lugarAviso = ancho();
             lugarAviso.topMargin = dp(c, 8);
             caja.addView(renglon, lugarAviso);
         }
-
-        // Fijos: siempre se puede volver a Google Maps o a ARES (FR-003, FR-004).
-        LinearLayout pie = new LinearLayout(c);
-        agregarBoton(c, pie, fijo("navegar", "Navegar", "borde-marca", false), t, false);
-        agregarBoton(c, pie, fijo("ares", "Volver a ARES", "neutro", true), t, true);
-        LinearLayout.LayoutParams lugarPie = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        lugarPie.topMargin = dp(c, 8);
-        caja.addView(pie, lugarPie);
         return caja;
     }
 
@@ -145,11 +198,7 @@ final class BurbujaVista {
         LinearLayout caja = new LinearLayout(c);
         caja.setOrientation(LinearLayout.VERTICAL);
         caja.setGravity(Gravity.CENTER);
-        GradientDrawable fondo = new GradientDrawable();
-        fondo.setShape(GradientDrawable.OVAL);
-        fondo.setColor(NARANJA_MAPA);
-        fondo.setStroke(dp(c, 2), Color.WHITE);
-        caja.setBackground(fondo);
+        caja.setBackground(ovalo(c, NARANJA_MAPA, Color.WHITE));
         if (secuencia > 0) {
             caja.addView(textoCirculo(c, "Parada", 10));
             caja.addView(textoCirculo(c, String.valueOf(secuencia), 18));
@@ -163,20 +212,10 @@ final class BurbujaVista {
     }
 
     private static TextView textoCirculo(Context c, String valor, float sp) {
-        TextView t = texto(c, valor, sp, Color.WHITE, Typeface.DEFAULT_BOLD, 1);
+        TextView t = texto(c, valor, sp, Color.WHITE, Letra.GRUESA, 1);
         t.setGravity(Gravity.CENTER);
         t.setIncludeFontPadding(false);
         return t;
-    }
-
-    private static JSONObject fijo(String id, String texto, String tono, boolean abreAres) {
-        JSONObject b = new JSONObject();
-        try {
-            b.put("id", id).put("texto", texto).put("tono", tono).put("abreAres", abreAres);
-        } catch (org.json.JSONException e) {
-            // No pasa con claves fijas.
-        }
-        return b;
     }
 
     private static void agregarBoton(Context c, LinearLayout renglon, JSONObject b, Toques t, boolean conMargen) {
@@ -184,8 +223,9 @@ final class BurbujaVista {
         String texto = b.optString("texto");
         String tono = b.optString("tono", "neutro");
         boolean soloIcono = b.optBoolean("soloIcono");
-        String detalle = b.isNull("detalle") ? null : b.optString("detalle", null);
-        View boton = soloIcono ? icono(c, id, texto, tono) : pildora(c, texto, detalle, tono, dp(c, ALTO_BOTON));
+        View boton = soloIcono
+            ? icono(c, iconoDe(id), texto, colorDeTexto(tono), fondoDeTono(c, tono, true), ALTO_BOTON, 20)
+            : pildora(c, iconoDe(id), texto, cadena(b, "detalle"), tono, dp(c, ALTO_BOTON), 14);
         boolean abreAres = b.optBoolean("abreAres");
         boton.setOnClickListener(v -> t.tocar(id, abreAres));
         LinearLayout.LayoutParams lugar = soloIcono
@@ -195,55 +235,114 @@ final class BurbujaVista {
         renglon.addView(boton, lugar);
     }
 
-    /** Un botón redondeado: el texto y, en las salidas, la consecuencia debajo. */
-    private static View pildora(Context c, String texto, String detalle, String tono, int altoMinimo) {
+    /** El ícono de cada botón, el mismo de la tarjeta de ARES (parada-activa.tsx). */
+    private static int iconoDe(String id) {
+        switch (id) {
+            case "entregado":
+                return R.drawable.ic_burbuja_paquete;
+            case "llamar":
+                return R.drawable.ic_burbuja_telefono;
+            case "escanear":
+                return R.drawable.ic_burbuja_escanear;
+            case "telefono":
+                return R.drawable.ic_burbuja_lapiz;
+            case "pendiente":
+                return R.drawable.ic_burbuja_reintentar;
+            case "no_se_pudo":
+            case "no_entregado":
+                return R.drawable.ic_burbuja_cerrar;
+            default:
+                return 0;
+        }
+    }
+
+    /** Un botón redondeado: el ícono y el texto y, en las salidas, la consecuencia debajo. */
+    private static View pildora(Context c, int icono, String texto, String detalle, String tono, int altoMinimo, float sp) {
         LinearLayout caja = new LinearLayout(c);
         caja.setOrientation(LinearLayout.VERTICAL);
         caja.setGravity(Gravity.CENTER);
         caja.setMinimumHeight(altoMinimo);
         caja.setPadding(dp(c, 12), dp(c, 4), dp(c, 12), dp(c, 4));
-        caja.setBackground(fondoDeTono(c, tono));
+        caja.setBackground(fondoDeTono(c, tono, false));
         caja.setClickable(true);
         int color = colorDeTexto(tono);
-        TextView principal = texto(c, texto, 14, color, Typeface.DEFAULT_BOLD, 2);
+        LinearLayout renglon = new LinearLayout(c);
+        renglon.setGravity(Gravity.CENTER);
+        if (icono != 0) {
+            int lado = dp(c, sp + 4);
+            LinearLayout.LayoutParams lugarIcono = new LinearLayout.LayoutParams(lado, lado);
+            lugarIcono.setMarginEnd(dp(c, 6));
+            renglon.addView(imagen(c, icono, color), lugarIcono);
+        }
+        TextView principal = texto(c, texto, sp, color, Letra.NEGRITA, 2);
         principal.setGravity(Gravity.CENTER);
-        caja.addView(principal);
-        if (detalle != null && !detalle.isEmpty()) {
-            TextView abajo = texto(c, detalle, 12, tono.equals("neutro") ? GRIS : color, Typeface.DEFAULT, 2);
+        renglon.addView(principal);
+        caja.addView(renglon);
+        if (detalle != null) {
+            TextView abajo = texto(c, detalle, 12, tono.equals("neutro") ? GRIS : color, Letra.NORMAL, 2);
             abajo.setGravity(Gravity.CENTER);
             caja.addView(abajo);
         }
         return caja;
     }
 
-    /** El botón redondo del medio (llamar, o escanear la etiqueta si no hay
-     *  teléfono): solo el ícono; el texto queda para TalkBack. */
-    private static View icono(Context c, String id, String texto, String tono) {
+    /** Un botón redondo con solo el ícono; el texto queda para TalkBack. */
+    private static View icono(Context c, int icono, String texto, int color, GradientDrawable fondo, int ladoDp, int iconoDp) {
+        ImageView boton = imagen(c, icono, color);
+        int margen = dp(c, (ladoDp - iconoDp) / 2f);
+        boton.setPadding(margen, margen, margen, margen);
+        if (fondo != null) boton.setBackground(fondo);
+        boton.setContentDescription(texto);
+        boton.setClickable(true);
+        boton.setFocusable(true);
+        return boton;
+    }
+
+    private static ImageView imagen(Context c, int icono, int color) {
         ImageView imagen = new ImageView(c);
-        imagen.setImageResource("escanear".equals(id) ? android.R.drawable.ic_menu_camera : android.R.drawable.ic_menu_call);
-        imagen.setColorFilter(colorDeTexto(tono), PorterDuff.Mode.SRC_IN);
-        imagen.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
-        imagen.setPadding(dp(c, 10), dp(c, 10), dp(c, 10), dp(c, 10));
-        GradientDrawable fondo = fondoDeTono(c, tono);
-        fondo.setShape(GradientDrawable.OVAL);
-        imagen.setBackground(fondo);
-        imagen.setContentDescription(texto);
-        imagen.setClickable(true);
+        if (icono != 0) imagen.setImageResource(icono);
+        imagen.setColorFilter(color, PorterDuff.Mode.SRC_IN);
+        imagen.setScaleType(ImageView.ScaleType.FIT_CENTER);
         return imagen;
     }
 
+    private static LinearLayout.LayoutParams lugarIcono(Context c) {
+        LinearLayout.LayoutParams lugar = new LinearLayout.LayoutParams(dp(c, LADO_ICONO), dp(c, LADO_ICONO));
+        lugar.setMarginStart(dp(c, 4));
+        return lugar;
+    }
+
+    private static LinearLayout.LayoutParams ancho() {
+        return new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+    }
+
+    /** Un texto de la vista, o null si no vino o vino vacío (una APK nueva con una
+     *  web anterior no trae `paquete` ni `porPagar`). */
+    private static String cadena(JSONObject o, String clave) {
+        if (o.isNull(clave)) return null;
+        String valor = o.optString(clave, "").trim();
+        return valor.isEmpty() ? null : valor;
+    }
+
     /** Los tonos de botones-parada.ts: relleno con texto blanco, o borde con texto de color. */
-    private static GradientDrawable fondoDeTono(Context c, String tono) {
+    private static GradientDrawable fondoDeTono(Context c, String tono, boolean redondo) {
+        int relleno;
+        int borde = 0;
         switch (tono) {
             case "marca":
-                return fondo(MARCA, 0, dp(c, ALTO_BOTON / 2));
+                relleno = MARCA;
+                break;
             case "ok":
-                return fondo(OK, 0, dp(c, ALTO_BOTON / 2));
+                relleno = OK;
+                break;
             case "peligro":
-                return fondo(PELIGRO, 0, dp(c, ALTO_BOTON / 2));
+                relleno = PELIGRO;
+                break;
             default:
-                return fondo(PAPEL, BORDE, dp(c, ALTO_BOTON / 2));
+                relleno = PAPEL;
+                borde = BORDE;
         }
+        return redondo ? ovalo(c, relleno, borde) : fondo(c, relleno, borde, ALTO_BOTON / 2);
     }
 
     private static int colorDeTexto(String tono) {
@@ -274,23 +373,46 @@ final class BurbujaVista {
         }
     }
 
-    private static GradientDrawable fondo(int color, int borde, int radio) {
+    private static GradientDrawable fondo(Context c, int color, int borde, int radioDp) {
         GradientDrawable fondo = new GradientDrawable();
         fondo.setColor(color);
-        fondo.setCornerRadius(radio);
-        if (borde != 0) fondo.setStroke(2, borde);
+        fondo.setCornerRadius(dp(c, radioDp));
+        if (borde != 0) fondo.setStroke(dp(c, 1), borde);
         return fondo;
     }
 
-    private static TextView texto(Context c, String valor, float sp, int color, Typeface letra, int lineas) {
+    private static GradientDrawable ovalo(Context c, int color, int borde) {
+        GradientDrawable fondo = new GradientDrawable();
+        fondo.setShape(GradientDrawable.OVAL);
+        fondo.setColor(color);
+        if (borde != 0) fondo.setStroke(dp(c, borde == Color.WHITE ? 2 : 1), borde);
+        return fondo;
+    }
+
+    private static TextView texto(Context c, String valor, float sp, int color, Letra letra, int lineas) {
         TextView t = new TextView(c);
         t.setText(valor);
         t.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp);
         t.setTextColor(color);
-        t.setTypeface(letra);
+        if (letra == Letra.CIFRAS) {
+            t.setTypeface(fuente(c, R.font.ibm_plex_mono_semibold, Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)));
+        } else {
+            t.setTypeface(fuente(c, R.font.manrope, Typeface.DEFAULT));
+            // Manrope viene variable: el peso se elige acá, como font-weight en la web.
+            t.setFontVariationSettings("'wght' " + letra.peso);
+        }
         t.setMaxLines(lineas);
         t.setEllipsize(TextUtils.TruncateAt.END);
         return t;
+    }
+
+    /** La letra de la APK; si no carga, la del sistema (nunca una burbuja sin texto). */
+    private static Typeface fuente(Context c, int id, Typeface respaldo) {
+        try {
+            return c.getResources().getFont(id);
+        } catch (Resources.NotFoundException e) {
+            return respaldo;
+        }
     }
 
     static int dp(Context c, float valor) {

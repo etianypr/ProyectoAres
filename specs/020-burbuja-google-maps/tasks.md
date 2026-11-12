@@ -48,6 +48,7 @@ muestra cartel.
 - [ ] T017 APK de depuración y quickstart en el emulador del PC (Android 15 con Google Play y Google Maps). Probada en el vivo con la APK de depuración contra el PC (2026-11-05): Google Maps navega solo en auto, burbuja achicada sobre la velocidad, se abre al llegar (≤ 50 m) y con «Deshacer», «Teléfono» y vuelta a Google Maps. En el emulador quedó el día de 68 paradas y `scripts/simular-recorrido.mjs`
 - [ ] T018 Quickstart en el vivo con la APK 1.5.0; el dueño sube `APK_VERSION_MINIMA` a 1.5.0
 - [ ] T019 Día real: SC-004 (8 de cada 10 sin volver a ARES), SC-001 y SC-008 en las consolas
+- [ ] T020 Diseño B de la tarjeta abierta (dueño, 2026-11-12, maqueta con 4 propuestas): Navegar, ARES y Achicar como íconos en la cabecera; el paquete con su POR PAGAR y el destinatario en un renglón cada uno; Manrope, IBM Plex Mono e íconos de lucide (`BurbujaVista.java`, `vista-burbuja.ts`: `paquete` y `porPagar`). Vista en el V2430 con la APK de prueba y una vista inventada (2026-11-12): tapa ~25 % con un paso y llega al tercio con las salidas (los botones se desplazan); Achicar, el círculo y Volver a ARES responden. Falta: publicar la APK 1.8.0 y verla en un recorrido con Google Maps
 
 ## Dependencias
 
