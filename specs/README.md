@@ -10,7 +10,7 @@ pedido. Un *Pendiente* en `AGENTS.md` apunta a su carpeta.
 - Spec Kit en Claude Code: `/speckit-specify` (crea la carpeta aquí), `/speckit-clarify`,
   `/speckit-plan`, `/speckit-tasks`, `/speckit-analyze` y `/speckit-implement`.
 
-**Próximo número: 031.**
+**Próximo número: 032.**
 
 ## Preparar el día real (prioridad, dueño 2026-11-09)
 
@@ -97,7 +97,8 @@ Estados: borrador → definida → en curso → hecha (falta día real) · poste
 | 2 y 5 | [022](022-pedidos-con-problemas/spec.md) pedidos con ⚠ | el ⚠ queda en el pedido (`Pedido.problemas`), la dirección en duda entra a la ruta con su primera opción y se avisa dos paradas antes; la OF de otro largo deja de ser ⚠ | hecha (falta día real) | — | 11/12 | la línea de la burbuja y un día real en la APK (T012) |
 | 3 | [019](019-sin-mapbox/spec.md) sin Mapbox | ORS, MapLibre y OpenFreeMap (Liberty); Google da el número de casa | hecha (falta día real) | — | 13/16 | el dueño borra el token de Mapbox en Vercel (T013); día real (T014). Google sin tope, decisión del dueño (T012) |
 | 3 | [024](024-criterios-de-ruta/spec.md) criterios de ruta | bultos fuera antes (≤ 1 % de km), «Invertir orden de ruta», el orden cobra km ($130) y tiempo ($6.000/h) y el cupo de ORS no es «Sin señal» | hecha (falta día real) | — (en `main` desde 2026-11-09) | 13/14 | medido en el teléfono (2026-11-09, 53 paradas): armar 20,3 s (antes 15 s), 1 matriz + 32 trazados; invertir +2,4 km y 12 trazados, volver 0 (T009 ok). el dueño acepta los 20 s (T013). Después del día real: T006, éxito por parada y ganancia |
-| 3 | [030](030-ruta-por-sectores/spec.md) ruta por sectores | la ruta termina un sector municipal (Norte, Borde Costero, San José…) antes de pasar a otro, y el conductor elige por cuál empieza viendo los km | en curso | `030-ruta-por-sectores` | — | medir un día real: km contra la ruta de antes y que no haya que rehacerla |
+| 3 | [030](030-ruta-por-sectores/spec.md) orden sin regla de barrios | el orden ya no cobra por cambiar de barrio («cada zona una sola vez» sale); ordenar por sectores municipales se midió y se descartó; los sectores quedan como dato para el escáner | en curso | `030-ruta-por-sectores` | — | armar un día real y comparar los km; decir el sector del bulto al escanear (pendiente) |
+| 3 | [031](031-ruta-con-rumbo/spec.md) ruta con rumbo | la red de calles de Arica dentro de la app: las distancias saben hacia dónde apunta el auto al salir y al llegar, la búsqueda elige orden y sentido, y la línea se dibuja sin ORS (queda de respaldo) | en curso | `031-ruta-con-rumbo` | — | medir en el V2430 el armado de 100 paradas y recorrer un día real anotando giros imposibles |
 | 3 | [017](017-listo-para-terreno/spec.md) listo para terreno | errores del flujo, rutas por calle y con horarios | en curso | — | 25/27 | prueba en terreno (T051) |
 | 4 | [003](003-referencia-paquete/spec.md) OF y referencia del paquete | OF y descripción en cada parada, búsqueda por OF | hecha (falta día real) | — | 15/16 | foto con la cámara y SC-001 en terreno (T016) |
 | todos | [027](027-hoja-por-paso/spec.md) la hoja paso por paso | la cabecera de la hoja dice el paso del día que toca y adentro va solo lo de ese paso | hecha (falta día real) | — | 15/16 | escáner, «Salir a repartir» y volver de Google Maps en la APK (T016) |
