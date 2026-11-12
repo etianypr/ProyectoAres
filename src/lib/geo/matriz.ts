@@ -26,6 +26,7 @@
 
 import { distanciaMetros, type Coordenada } from "./coordenada";
 import { claveOrs, postOrs, ultimaFallaOrs } from "./ors/cliente";
+import { metrosPorLaRed, olvidarMedidas } from "./red/medir";
 
 const MATRIX = "/v2/matrix/driving-car";
 
@@ -71,13 +72,16 @@ function clavePunto(p: Coordenada): string {
  *  (null si no está). Sirve con la ruta andando: reubicar una parada no puede
  *  esperar a la red. */
 export function metrosEnMemoria(a: Coordenada, b: Coordenada): number | null {
-  return conocidos.get(`${clavePunto(a)}>${clavePunto(b)}`) ?? null;
+  // Lo que dejó la matriz de ORS o, con la red propia en memoria, lo que mide ella
+  // (spec 031): tampoco consulta a nadie.
+  return conocidos.get(`${clavePunto(a)}>${clavePunto(b)}`) ?? metrosPorLaRed(a, b);
 }
 
 /** Olvida los pares guardados (al cerrar el día, y en las pruebas). */
 export function olvidarMatriz(): void {
   conocidos.clear();
   tiempos.clear();
+  olvidarMedidas();
 }
 
 export type Consulta = { origenes: number[]; destinos: number[] };

@@ -31,6 +31,18 @@ ellos, y hay que avisar la diferencia.
   pasada y volver: salto de 2,2 km. No volver a proponer zonas ni sectores para el orden sin medir
   contra una ruta real.
 - **No se da la vuelta** en pasajes ni en calles residenciales (`sentido.ts`, `geo/ors/vuelta.ts`).
+- **Ruta con rumbo** (dueño, 2026-11-12, spec 031): el camino normal ya no pasa por ORS ni por
+  `ordenarParadas`. Las distancias salen de la red propia (`geo/red/`), de estado a estado (el sentido
+  de paso por la calle de cada parada), y `buscarConRumbo` elige orden y sentido juntos. `sentido.ts`,
+  la matriz y el trazado de ORS quedan como respaldo (red sin bajar, punto fuera de la red, o el
+  interruptor de Diagnóstico). No volver a «ordenar y después corregir».
+  - En un condominio la parada se entrega en su entrada (`geo/red/entrada.ts`), y Google Maps navega
+    a ella. Si una ruta da una vuelta rara cerca de un condominio, mira primero ahí.
+  - Las velocidades (`geo/red/tiempos.ts`) están ajustadas contra ORS: no se cambian sin correr
+    `pruebas/red-contra-ors.test.mjs`. Los tiempos de maniobra (U en calle ancha 12 s, reversa 20 s,
+    portón 45 s) son supuestos: los decide el dueño.
+  - Los ajustes de la búsqueda (`AJUSTES`, `AJUSTES_JUGADAS`) salen de medir: tramos de hasta 12,
+    10 vecinas, 0,2 % de tolerancia. Cambiarlos, solo midiendo desde varios arranques.
 - **El orden ya está en el óptimo práctico** con un conductor y ~60–100 paradas: la búsqueda llega
   en 1–2 s a lo que 87.000 intentos más no mejoran. No proponer ALNS, Tabu, genéticos, colonias de
   hormigas, OR-Tools, VROOM ni sectorizar con k-means/HSAC: sectorizar alargó la ruta entre 4 % y
@@ -61,7 +73,10 @@ ellos, y hay que avisar la diferencia.
 | Sin cupo de ORS ≠ sin señal; consultas del día (spec 024) | `geo/ors/cliente.ts` (`ultimaFallaOrs`, `consultasOrsDeHoy`), `generar-ruta/avisos.ts` |
 | Orden con horarios, sin congelar la pantalla | `orden-paradas/con-horarios.ts`, `sin-congelar.ts` |
 | Hora de llegada, replanificar, sumar a la ruta | `local/planificar.ts`, `replanificar.ts`, `sumar-a-ruta.ts` |
-| Matriz y trazado | `src/lib/geo/matriz.ts`, `trazado.ts`, `ors/` |
+| La red de calles propia y su motor (spec 031) | `src/lib/geo/red/` (`grafo`, `pegar`, `caminos`, `tiempos`, `matriz-con-rumbo`, `trazado-propio`, `medir`); el dato lo genera `scripts/generar-red.mjs` |
+| Orden y sentido de paso juntos (spec 031) | `orden-paradas/con-rumbo.ts` (modelo, exacto), `con-rumbo-jugadas.ts`, `con-rumbo-busqueda.ts`, `descarga-con-rumbo.ts` |
+| La red en el armado, y la puerta al trazado (spec 031) | `generar-ruta/red-del-dia.ts`, `src/lib/geo/ruta-por-calles.ts` |
+| Matriz y trazado de ORS (respaldo) | `src/lib/geo/matriz.ts`, `trazado.ts`, `ors/` |
 
 `rutas/orden-paradas/` es puro: sin red, sin IndexedDB, sin React. Mantenlo así.
 
@@ -70,6 +85,8 @@ ellos, y hay que avisar la diferencia.
   se reutiliza dentro de la corrida y nunca se usa `Infinity` como cupo (así se generó la cuenta de
   US$66 de Mapbox el 2026-10-29).
 - La herramienta `get_route_ch` del MCP `ares-geo` también consulta ORS.
+- Con la red propia, armar, invertir, sumar y rehacer no consultan nada (spec 031). `npm run red` es
+  una consulta a Overpass (gratis): se avisa antes.
 - La calle cercana a cada parada (`corregirAccesos`, `geo/acceso.ts`) sale de las teselas de
   OpenFreeMap (`geo/teselas.ts`, spec 019): gratis, sin clave y sin cupo. Mapbox salió entero.
 

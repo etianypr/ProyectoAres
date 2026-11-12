@@ -31,6 +31,7 @@ const SECCIONES: { titulo: string; pasos: string[] }[] = [
     titulo: "Armar la ruta",
     pasos: [
       "«Armar la ruta» → elige una alternativa → «Usar esta ruta».",
+      "En un condominio la ruta llega a su entrada, y «Navegar» te lleva a ella. El número de la parada queda en el edificio.",
       "Un pedido que no va: 🗑 en la lista de la ruta propuesta («Deshacer» lo devuelve).",
       "La misma ruta al revés (la última parada primero): «Invertir orden de ruta». Otro toque la deja como la propuso ARES.",
       "Cargar el auto: «Escanear paquete» y pasa las etiquetas por la cámara: un tic por dato leído y otro sonido cuando queda leída. «Salir a repartir» muestra la primera parada; lo no escaneado queda en «Faltan».",

@@ -2,10 +2,11 @@
 // parada menos o de vuelta, y su trazado nuevo (sale de index.ts, spec 024, que
 // lo dejó en más de 400 líneas).
 
-import { obtenerRutaCalles } from "@/lib/geo/ors/direcciones";
+import { rutaPorCalles } from "@/lib/geo/ruta-por-calles";
 import { ultimaFallaOrs } from "@/lib/geo/ors/cliente";
 import { tramosConPedidos } from "../almacen";
 import { coord } from "./estrategias";
+import { pesosDeManejar } from "./pesos";
 import type { EstrategiaRuta, PedidoUbicado, PropuestaRuta } from "./tipos";
 
 /** Cambia la alternativa puesta y le pide SU trazado.
@@ -26,11 +27,10 @@ export async function elegirAlternativa(
   const alternativa = propuesta.alternativas.find((a) => a.estrategia === estrategia);
   if (!alternativa) return propuesta;
 
-  const calles = await obtenerRutaCalles([
-    propuesta.partida,
-    ...alternativa.paradas.map(coord),
-    propuesta.llegada ?? propuesta.partida,
-  ]);
+  const calles = await rutaPorCalles(
+    [propuesta.partida, ...alternativa.paradas.map(coord), propuesta.llegada ?? propuesta.partida],
+    pesosDeManejar,
+  );
 
   return {
     ...propuesta,
@@ -75,7 +75,7 @@ export function devolverParada(propuesta: PropuestaRuta, parada: PedidoUbicado, 
 export async function retrazar(propuesta: PropuestaRuta): Promise<PropuestaRuta> {
   const calles =
     propuesta.paradas.length > 0
-      ? await obtenerRutaCalles([propuesta.partida, ...propuesta.paradas.map(coord), propuesta.llegada ?? propuesta.partida])
+      ? await rutaPorCalles([propuesta.partida, ...propuesta.paradas.map(coord), propuesta.llegada ?? propuesta.partida], pesosDeManejar)
       : null;
   return {
     ...propuesta,

@@ -26,6 +26,9 @@ import {
 import type { Parada } from "./dia-trabajo-tipos";
 import type { Fase } from "./fase-parada";
 import { atenderBoton, type AccionesParada, type IdBoton } from "./botones-parada";
+import { destinoParaNavegar } from "@/lib/geo/ruta-por-calles";
+import { cargarRed } from "@/lib/geo/red/grafo";
+import { useRedDeCalles } from "./use-red-de-calles";
 import { aDondeNavegar, vistaDeBurbuja, type AvisoBurbuja } from "./vista-burbuja";
 import { useEvento } from "./use-evento";
 
@@ -102,7 +105,10 @@ export function useBurbuja({
   /** Los km de la parada: Google Maps navegando y, con permiso, la burbuja. */
   const navegar = useCallback(async () => {
     if (!activa || activa.pedido.lat == null || activa.pedido.lng == null) return;
-    const destino = { lat: activa.pedido.lat, lng: activa.pedido.lng };
+    // En un condominio, a su entrada (spec 031): el mapa de calles tiene que estar
+    // cargado, o iría al edificio.
+    await cargarRed();
+    const destino = destinoParaNavegar({ lat: activa.pedido.lat, lng: activa.pedido.lng });
     let permiso = await permisoBurbuja();
     if (permiso === "falta" && !yaSePidioHoy(fecha)) {
       marcarPedidoHoy(fecha);
@@ -125,6 +131,10 @@ export function useBurbuja({
   // La vista de la burbuja, cada vez que cambia algo de la parada. El texto
   // resume la vista: se redibuja solo si cambió, no con cada lectura del GPS.
   const pedidoId = activa?.pedido.id ?? null;
+  // Con la burbuja en curso, el mapa de calles se carga: el «Navegar» de la burbuja
+  // lleva a la entrada del condominio. Cuando termina de cargar, el hook vuelve a
+  // dibujar y la vista sale con la entrada (spec 031).
+  useRedDeCalles(enCurso);
   const vistaJson =
     enCurso && activa ? JSON.stringify(vistaDeBurbuja(activa, fase, { whatsapp, aviso, nueva: false })) : null;
   useEffect(() => {
@@ -145,13 +155,16 @@ export function useBurbuja({
     void terminarBurbuja();
   }, [enCurso]);
 
-  // Cambió la parada activa: Google Maps va a la nueva.
+  // Cambió la parada activa: Google Maps va a la nueva. Se marca antes de esperar
+  // al mapa de calles (si no, otro dibujado la mandaría dos veces) y el destino se
+  // calcula después, para que en un condominio sea su entrada (spec 031).
   useEffect(() => {
-    const destino = aDondeNavegar(enCurso, navegada.current, activa);
-    if (destino && activa) {
-      navegada.current = activa.pedido.id;
-      void navegarA(destino);
-    }
+    if (!aDondeNavegar(enCurso, navegada.current, activa) || !activa) return;
+    navegada.current = activa.pedido.id;
+    void cargarRed().then(() => {
+      const destino = aDondeNavegar(true, null, activa);
+      if (destino) void navegarA(destino);
+    });
   }, [enCurso, activa]);
 
   useEffect(() => {

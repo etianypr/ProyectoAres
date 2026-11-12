@@ -16,6 +16,8 @@ import { escanearCodigo } from "@/lib/nativo/escaner";
 import { entrarAlModoPrueba, esApkDePrueba, salirDelModoPrueba, useModoPrueba } from "@/lib/encomiendas/local/modo-prueba";
 import { fijarConfigGps, useConfigGps, VELOCIDADES } from "@/lib/encomiendas/local/gps-simulado";
 import { consultasOrsDeHoy, type ConsultasOrs } from "@/lib/geo/ors/cliente";
+import { apagarRed, cargarRed, redApagada } from "@/lib/geo/red/grafo";
+import { origenDelUltimoTrazado } from "@/lib/geo/ruta-por-calles";
 import { ProbarBarridoNomina } from "./_componentes/probar-barrido-nomina";
 import { ProbarEscanerVivo } from "./_componentes/probar-escaner-vivo";
 import { ProbarEtiqueta } from "./_componentes/probar-etiqueta";
@@ -54,6 +56,10 @@ function Fila({ etiqueta, estado, detalle }: { etiqueta: string; estado: Estado;
 export default function DiagnosticoPage() {
   const [info, setInfo] = useState<Info | null>(null);
   const [ors, setOrs] = useState<ConsultasOrs | null>(null);
+  // El mapa de calles propio (spec 031): de cuándo es, y el interruptor para
+  // armar la ruta con OpenRouteService si un día falla.
+  const [fechaRed, setFechaRed] = useState<string | null>(null);
+  const [rutaConOrs, setRutaConOrs] = useState(false);
   const [lectura, setLectura] = useState<string | null>(null);
   const [escaneando, setEscaneando] = useState(false);
   const modoPrueba = useModoPrueba();
@@ -79,6 +85,8 @@ export default function DiagnosticoPage() {
         ubicacion: estadoDe(ubicacion),
       });
       setOrs(consultasOrsDeHoy());
+      setRutaConOrs(redApagada());
+      setFechaRed((await cargarRed())?.fecha ?? null);
     })();
   }, []);
 
@@ -125,6 +133,26 @@ export default function DiagnosticoPage() {
           <span className="font-mono">{ors.trazado}</span> trazados.
         </p>
       ) : null}
+
+      <div className="space-y-1.5">
+        <p className="text-xs text-muted">
+          Mapa de calles propio: {rutaConOrs ? "apagado" : fechaRed ? <span className="font-mono">{fechaRed}</span> : "sin cargar"}.
+          {origenDelUltimoTrazado() === "red" ? " La última ruta la dibujó el mapa propio." : null}
+          {origenDelUltimoTrazado() === "ors" ? " La última ruta la dibujó OpenRouteService." : null}
+        </p>
+        <label className="flex items-center gap-2 px-1 text-sm font-medium">
+          <input
+            type="checkbox"
+            checked={rutaConOrs}
+            onChange={(e) => {
+              apagarRed(e.target.checked);
+              setRutaConOrs(e.target.checked);
+            }}
+            className="h-4 w-4 accent-[var(--brand)]"
+          />
+          Armar la ruta con OpenRouteService
+        </label>
+      </div>
 
       <p className="text-xs text-muted">
         Los permisos sin decidir se piden la primera vez que se usan. Un permiso negado se cambia en

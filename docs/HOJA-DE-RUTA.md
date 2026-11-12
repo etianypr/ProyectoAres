@@ -218,6 +218,34 @@ Sin reglas de barrio ni de sector (2026-11-12, spec 030):
   poblaciones de la Municipalidad, 2025): el dueño los quiere en el escáner, para decir a qué sector
   va cada bulto. Pendiente.
 
+Ruta con rumbo (2026-11-12, spec 031; todo medido sin consultas, salvo una a Overpass):
+
+- **El dueño:** el orden suponía que en cada parada el auto gira en U gratis; «no debería
+  reordenarla sino generar la ruta sin errores sabiendo toda esta información».
+- **La red de calles va dentro de la app:** 10.500 cruces y 14.400 tramos de Arica y sus valles
+  (OpenStreetMap), 216 KB comprimida, con sentido único, tipo de calle, velocidad máxima,
+  superficie, restricciones de giro, barreras y portones.
+- **El motor propio mide lo que mide ORS** cuando se le quitan las reglas de giro: contra la matriz
+  real de 81 puntos, mediana 0,0 % en metros y 0,9 % en segundos; 87 % de los pares a ±5 % y 96 % a
+  ±10 %. Para eso hubo que copiar lo que ORS hace con la velocidad: la máxima anotada, la
+  superficie y ~1,65 s perdidos por cuadra.
+- **Los km que estaban en el aire:** en la ruta real de 87 paradas, el orden de antes creía medir
+  36,6 km y 90 min; respetando hacia dónde queda apuntando el auto son 42,1 km y 112 min. Con el
+  orden buscado con rumbo, 41,4 km. El orden que el conductor armó en otra app, medido igual: 44,2 km.
+- **La búsqueda:** el orden y el sentido de paso juntos. Con tramos de hasta 3 paradas quedaba en
+  valles distintos según el arranque (±0,5 %); con tramos de hasta 12, vecinas y aceptando 0,2 % de
+  retroceso llega a la mejor ruta conocida o a 0,15 % de ella en ~1,5 s. Llegar siempre a la mejor
+  cuesta cuatro veces más tiempo: no se tomó.
+- **El armado entero** (medir, ordenar, bultos y dibujar): 2–3,5 s en el PC para 80–87 paradas,
+  sin red; en el teléfono del conductor (V2430), 6,7 s para 87, sin una consulta (antes, 20 s para 53).
+- **En un condominio, por su entrada:** una parada (un departamento) quedó pegada a un camino de
+  tierra detrás de su condominio, porque los pasajes internos no cuentan para detenerse, y sin
+  vuelta en U ahí la ruta dio la vuelta al Centro Ecuestre (+2,2 km). Ahora la casa que está dentro
+  se entrega en la entrada (9 de 88 paradas ese día) y Google Maps navega a ella. Los pasajes abiertos
+  con nombre de calle que el mapa dibuja como estacionamiento (30 en Arica, como Mosa) cuentan como
+  calle: con ellos como condominio, dos casas del mismo pasaje salían a esquinas distintas. Con eso, la ruta
+  de hoy mide 37,1 km, contra 39,7 la anterior y 39,5 la de Spoke, todas medidas con rumbo.
+
 ## Fuera de alcance
 
 Varios conductores o mandantes · seguir paquetes entre días · prueba de entrega con

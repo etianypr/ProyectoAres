@@ -36,7 +36,7 @@ flowchart LR
     CRON["pg_cron · 00:30 cierra días · cada hora limpia correlaciones"]
   end
   UI -- "zona que se mira · zona de cada parada (teselas)" --> OFM
-  LOCAL -- "coordenadas de paradas" --> ORS
+  LOCAL -- "coordenadas de paradas (solo de respaldo, spec 031)" --> ORS
   LOCAL -- "dirección" --> OSM
   LOCAL -- "dirección con número (tránsito)" --> GEO --> GOOGLE
   LOCAL -- "foto de la guía (tránsito)" --> TXT --> VISION
@@ -169,6 +169,11 @@ pero solo cuando el servidor lo confirmó: un error de red nunca borra. La `cola
 El día del conductor, paso a paso: `AGENTS.md`, "El flujo del conductor". Abajo, cómo viajan los
 datos en dos de esos pasos.
 
+Armar la ruta (spec 031) no sale del teléfono: paradas → red de calles propia (`geo/red/`, un archivo
+generado de OpenStreetMap que queda guardado por el service worker) → matriz con rumbo → orden y
+sentido de paso → trazado. ORS queda de respaldo, detrás de `geo/ruta-por-calles.ts` y de
+`generar-ruta/red-del-dia.ts`.
+
 ```mermaid
 sequenceDiagram
   participant T as Teléfono
@@ -213,9 +218,9 @@ src/
 │   ├── supabase/                 server · client · admin · sesion-proxy
 │   ├── comun/                    fechas · format · forms · utils · uuid · deslizar · telefono · periodo · periodo-servidor
 │   ├── encomiendas/              catalogos · estados · pago · periodos · config · paquete · contrato-whatsapp · lectura/ (guía, etiqueta, código de barras)
-│   │   └── local/                idb · almacen/ (lecturas, pedidos, ruta, terreno…) · generar-ruta/ (partida, ubicar-pedidos, estrategias, horarios, pesos, avisos, cambiar-propuesta…) · planificar · replanificar · sumar-a-ruta · corregir-direcciones · enviar · sincronizar-whatsapp
-│   ├── geo/                      coordenada · trazado · hacia-parada (km a la parada activa por su tramo, spec 020) · plus-code · openrouteservice (MCP) · estilo-mapa (OpenFreeMap "Liberty" con edificios planos y el worker de MapLibre, que copia scripts/copiar-worker-mapa.mjs a public/) · matriz (distancias por calle con ORS, por bloques, en memoria) · ors/ (cliente · direcciones: línea del día y sus tramos por parada, sin reversa en calles estrechas · vuelta: tipo de calle) · acceso (la calle por donde se llega a una parada pegada a una troncal) · teselas (las calles de las teselas de OpenFreeMap) · geocoding/ (consulta · calles · calles-arica generado · google · nominatim · sugerir · codigo · completar-numero · ubicar) · direccion-ia/ (contrato · servidor · cliente: corregir con IA, spec 018)
-│   ├── rutas/orden-paradas/      exacto · construccion · mejora · perturbacion · descarga · con-horarios · sin-congelar
+│   │   └── local/                idb · almacen/ (lecturas, pedidos, ruta, terreno…) · generar-ruta/ (partida, ubicar-pedidos, red-del-dia, estrategias, horarios, pesos, avisos, cambiar-propuesta…) · planificar · replanificar · sumar-a-ruta · corregir-direcciones · enviar · sincronizar-whatsapp
+│   ├── geo/                      coordenada · trazado · hacia-parada (km a la parada activa por su tramo, spec 020) · plus-code · openrouteservice (MCP) · estilo-mapa (OpenFreeMap "Liberty" con edificios planos y el worker de MapLibre, que copia scripts/copiar-worker-mapa.mjs a public/) · matriz (distancias por calle con ORS, por bloques, en memoria) · ors/ (cliente · direcciones: línea del día y sus tramos por parada, sin reversa en calles estrechas · vuelta: tipo de calle) · acceso (la calle por donde se llega a una parada pegada a una troncal) · teselas (las calles de las teselas de OpenFreeMap) · geocoding/ (consulta · calles · calles-arica generado · google · nominatim · sugerir · codigo · completar-numero · ubicar) · direccion-ia/ (contrato · servidor · cliente: corregir con IA, spec 018) · red/ (spec 031: red-arica generado · codigo · grafo · pegar · caminos · tiempos · matriz-con-rumbo · trazado-propio · medir) · ruta-por-calles (la puerta al trazado: la red propia y, si falta, ORS)
+│   ├── rutas/orden-paradas/      exacto · construccion · mejora · perturbacion · descarga · con-horarios · sin-congelar · con-rumbo · con-rumbo-jugadas · con-rumbo-busqueda · descarga-con-rumbo (spec 031)
 │   ├── whatsapp/                 meta · correlacion
 │   ├── conductores/              vencimientos
 │   └── nativo/                   entorno · telefono · llamada · escaner · escaner-vivo (cámara en vivo, spec 028) · version (APK) · mapas · burbuja (la parada sobre Google Maps, spec 020)

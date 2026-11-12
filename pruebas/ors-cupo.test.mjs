@@ -13,6 +13,11 @@ import { avisoSinTrazado, calcularRutaLocal } from "@/lib/encomiendas/local/gene
 import { guardarPedido } from "@/lib/encomiendas/local/almacen";
 import { olvidarMatriz } from "@/lib/geo/matriz";
 
+// Estas pruebas cuidan el camino de respaldo, el de OpenRouteService: la red de
+// calles propia (spec 031) va apagada, como cuando se elige en Diagnóstico.
+import { apagarRed } from "@/lib/geo/red/grafo";
+apagarRed(true);
+
 const fetchOriginal = globalThis.fetch;
 const localStorageOriginal = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
 const locationOriginal = Object.getOwnPropertyDescriptor(globalThis, "location");

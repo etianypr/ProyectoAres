@@ -226,6 +226,22 @@ más corta" cobrando entrar y salir por el mismo extremo (`Penalizacion` en `ord
 simétrica; las jugadas la calculan solo donde cambian vecinos) y se queda con la que mide menos por
 calles. En la prueba de 66 paradas (48 en calle estrecha): 42,77 → 42,58 km.
 
+**Ruta con rumbo** (spec 031, dueño 2026-11-12): lo de arriba quedó como respaldo. En el camino
+normal las distancias salen de la red propia (`geo/red/`): `Red` (grafo.ts) son nodos, aristas y ARCOS
+(una arista en un sentido); `caminos.ts` busca de arco en arco con las reglas de giro; un `Lugar` es un
+punto pegado a su arista (`pegar.ts`) y sus ESTADOS son los sentidos en que el auto puede pasar por
+ella (uno si la calle es de un sentido; la central no tiene). `MatrizConRumbo` mide de estado a estado.
+`DiaConRumbo`/`RutaConRumbo` (`orden-paradas/con-rumbo.ts`) son el día y la ruta para la búsqueda: el
+orden y el estado de cada parada; `mejoresEstados` da el mejor sentido para un orden, `exactoConRumbo`
+el óptimo hasta 13 paradas y `buscarConRumbo` lo demás (jugadas por vecinas y sacudidas).
+`generar-ruta/red-del-dia.ts` (`RedDelDia`) lo une al armado y `geo/ruta-por-calles.ts` dibuja con la
+misma red. Una parada dentro de un condominio se entrega en su entrada (`entregaEn`,
+`geo/red/entrada.ts`: la casa está dentro si su calle interna más cercana —privada, o pasaje de
+estacionamiento sin nombre de calle (un pasaje abierto con nombre, como Mosa, es calle)— está tan
+cerca como la pública; la entrada es el primer cruce con una calle pública,
+por dentro); `destinoParaNavegar` manda ahí a Google Maps. Medido: ruta real de 87 paradas, 42,1 km con el orden de antes y 41,4 con el nuevo; el
+armado entero, 2,5–3,5 s en el PC y sin red.
+
 **Sin reglas de barrio ni de sector** (spec 030, dueño 2026-11-12): el orden se decide con el costo
 solo (`matrizOrden = costo` en `generar-ruta/index.ts`). `zonas.ts` ya no lo usa el armado (lo de abajo
 es historia). `geo/sectores-arica.ts` trae los siete sectores del plano municipal y `sectorDe(punto)`:

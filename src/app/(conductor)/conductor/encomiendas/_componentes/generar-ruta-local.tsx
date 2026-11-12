@@ -10,12 +10,13 @@
 // la pantalla la muestra dibujada en el mapa para que el conductor la acepte. Antes
 // se guardaba de una y la ruta le cambiaba abajo de los pies.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AlertTriangle, RefreshCw, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DireccionInput } from "@/components/direccion/direccion-input";
 import { cn } from "@/lib/comun/utils";
 import { fuenteUbicacion } from "@/lib/encomiendas/local/gps-simulado";
+import { cargarRed } from "@/lib/geo/red/grafo";
 import { BuscandoRuta, esperarDibujo } from "./buscando-ruta";
 import { BOTON_PRINCIPAL } from "./parada-activa";
 import {
@@ -69,6 +70,11 @@ export function GenerarRutaLocal({
     lng: number;
   } | null>(null);
   const [armando, setArmando] = useState(false);
+  // El mapa de calles propio (spec 031) baja apenas hay botón para armar la ruta,
+  // mientras hay señal: así queda guardado para armarla después sin ella.
+  useEffect(() => {
+    void cargarRed();
+  }, []);
   const [preguntando, setPreguntando] = useState(false);
   const [obteniendoUbicacion, setObteniendoUbicacion] = useState(false);
   const [error, setError] = useState<string | null>(null);

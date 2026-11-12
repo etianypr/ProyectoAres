@@ -20,7 +20,7 @@ export type DescargaDelDia = {
 export const TOLERANCIA_DESCARGA = 0.01;
 
 /** El tiempo de cada parada en metros de manejo, con el mismo reloj de planificar.ts. */
-const METROS_POR_PARADA = (MIN_POR_PARADA * KMH_CIUDAD * 1000) / 60;
+export const METROS_POR_PARADA = (MIN_POR_PARADA * KMH_CIUDAD * 1000) / 60;
 
 /** Los bultos que deja una parada. Al armar la ruta casi nunca se sabe: salen al
  *  escanear la etiqueta (paso 4), así que sin escanear cada pedido vale uno. */

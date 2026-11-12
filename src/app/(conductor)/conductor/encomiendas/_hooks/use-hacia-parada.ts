@@ -17,6 +17,8 @@ import type { Parada } from "./use-dia-trabajo";
 import { usePantallaEncendida } from "./use-pantalla-encendida";
 import { usePuntoEnRuta } from "./use-punto-en-ruta";
 import { useSimularRecorrido } from "@/lib/encomiendas/local/gps-simulado";
+import { destinoParaNavegar } from "@/lib/geo/ruta-por-calles";
+import { useRedDeCalles } from "./use-red-de-calles";
 
 /** Con la última lectura más vieja que esto, el punto que se ve ya no es dónde
  *  está el conductor. */
@@ -38,10 +40,16 @@ export function useHaciaParada({
   miUbicacion: Ubicacion | null;
   hayRuta: boolean;
 }) {
+  // Donde se entrega la parada activa: en un condominio, su entrada (spec 031), que
+  // es donde termina su tramo. Con eso la cámara se acerca, el GPS simulado camina y
+  // la línea recta (fuera del tramo) apuntan al mismo lugar que «Navegar».
+  const redLista = useRedDeCalles(hayRuta);
   const destinoActivo = useMemo(() => {
     if (!activa || activa.pedido.lat == null || activa.pedido.lng == null) return null;
-    return { lat: activa.pedido.lat, lng: activa.pedido.lng };
-  }, [activa]);
+    return destinoParaNavegar({ lat: activa.pedido.lat, lng: activa.pedido.lng });
+    // redLista: cuando el mapa de calles termina de cargar, la entrada se recalcula.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activa, redLista]);
 
   // El tramo que llega a la parada activa. Memorizado: usePuntoEnRuta compara la
   // línea por identidad, y un arreglo nuevo en cada lectura le borraría la memoria.

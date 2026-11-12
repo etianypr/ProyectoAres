@@ -7,6 +7,11 @@ import "fake-indexeddb/auto";
 import test from "node:test";
 import assert from "node:assert/strict";
 
+// Estas pruebas cuidan el camino de respaldo, el de OpenRouteService: la red de
+// calles propia (spec 031) va apagada, como cuando se elige en Diagnóstico.
+import { apagarRed } from "@/lib/geo/red/grafo";
+apagarRed(true);
+
 process.env.NEXT_PUBLIC_ORS_KEY = "ors.prueba";
 
 const almacen = await import("@/lib/encomiendas/local/almacen");

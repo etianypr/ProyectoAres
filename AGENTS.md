@@ -51,7 +51,8 @@ comparten layout: el panel del jefe (escritorio) y la app del conductor (APK And
 - APK: Capacitor 8, paquete `cl.dashund.ares`. Abre `https://proyecto-ares-five.vercel.app/conductor`,
   así que cada deploy le llega solo. Lo nativo está en `android/` (plugins `Telefono`, `Burbuja` y
   `EscanerVivo`, ML Kit) y la web lo usa solo a través de `src/lib/nativo/`.
-- Proveedores: OpenRouteService (matriz y trazado), Google Geocoding (número de casa) y OSM/Nominatim
+- Proveedores: OpenRouteService (respaldo de la matriz y el trazado: la ruta se arma con la red de
+  calles propia, spec 031), Google Geocoding (número de casa) y OSM/Nominatim
   (calles y lugares),
   ML Kit en el teléfono (la etiqueta) y Google Cloud Vision (texto de la guía), Anthropic (guía y
   direcciones sin ubicar) y Meta WhatsApp (en pausa). Mapbox salió en la spec 019. Las variables
@@ -72,7 +73,7 @@ src/
 ├── components/                 # ui (sin dominio) · direccion · panel · marca (logo Dashund)
 ├── lib/                        # una carpeta por dominio, sin archivos sueltos
 │   ├── encomiendas/            # catálogos, estados, pago, paquete, lectura/ · local/ = el teléfono (almacen/, idb, generar-ruta/, planificar…)
-│   ├── geo/                    # coordenada, trazado, matriz (ORS), ors/, geocoding/, direccion-ia/, plus-code
+│   ├── geo/                    # coordenada, trazado, red/ (la red de calles de Arica y el motor de rutas propio), matriz (ORS), ors/, geocoding/, direccion-ia/, plus-code
 │   ├── rutas/orden-paradas/    # optimizador del orden de paradas
 │   ├── nativo/                 # única puerta a la APK, con respaldo web
 │   └── auth/ · supabase/ · comun/ · whatsapp/ · conductores/
@@ -116,6 +117,8 @@ npm run test:base        # esquema de encomiendas y cuenta del pago contra la ba
 npm run test:esquema     # cada campo de src/types/db.ts existe en la base
 npm run mcp              # servidor MCP geo (stdio)
 npm run calles           # regenera el catálogo de calles de Arica desde OSM
+npm run red              # regenera la red de calles de Arica desde OSM (una consulta a Overpass, gratis)
+npm run medir            # mide el armado con la red propia sobre el día de prueba (sin red ni cupo)
 npm run sondear          # mide los buscadores de direcciones (gasta 27 consultas de Google y 27 de ORS)
 ```
 
@@ -321,6 +324,26 @@ y un agente no debe "corregir".
     proponer sin medir. Los sectores (`geo/sectores-arica.ts`) quedan para decir a cuál va cada bulto
     al escanear (pendiente).
   - No se da la vuelta en pasajes ni en calles residenciales.
+  - **Ruta con rumbo** (dueño, 2026-11-12; spec 031): hacia dónde queda apuntando el auto es parte
+    de la búsqueda, no una corrección posterior. La app lleva la red de calles de Arica
+    (`geo/red/`, OpenStreetMap, `npm run red`) y mide ahí cada tramo saliendo de una parada hacia
+    donde quedó apuntando y llegando a la otra en el sentido de su calle; la búsqueda elige el orden
+    y el sentido de paso a la vez (`orden-paradas/con-rumbo*.ts`) y la línea se dibuja con la misma
+    red (`geo/ruta-por-calles.ts`).
+    - Reglas: calle angosta (residencial, pasaje, servicio), sin giro en U; calle ancha de doble
+      sentido, con maniobra; pasaje sin salida, en reversa; calle y portón privados, solo para llegar.
+    - **En un condominio, siempre por su entrada** (dueño, 2026-11-12; `geo/red/entrada.ts`): si la
+      calle interna más cercana a la casa (privada, o un pasaje interno sin nombre) está tan cerca
+      como la pública, la parada se entrega en la entrada del condominio (la más cercana por
+      dentro): la ruta llega ahí y «Navegar» lleva a Google Maps ahí (`destinoParaNavegar`). El
+      número de la parada queda en el edificio. Sin esto, una parada quedó pegada a un camino de
+      tierra detrás de su condominio y la ruta dio la vuelta al Centro Ecuestre (+2,2 km). Un pasaje
+      abierto con nombre de calle (como Mosa) no es condominio: se para frente a la casa.
+    - Medido en la ruta real de 87 paradas: el orden de antes «creía» 36,6 km y con rumbo eran 42,1;
+      el nuevo mide 41,4 km. El motor calza con ORS (mediana 0 % en metros; `red-contra-ors.test.mjs`).
+    - Armar la ruta no necesita señal ni cupo, y los puntos de las paradas no salen del teléfono.
+      ORS queda de respaldo: red sin bajar, punto lejos de toda calle, o «Armar la ruta con
+      OpenRouteService» en Diagnóstico. No se quita el respaldo ni se vuelve a ordenar «sin rumbo».
   - Con un solo conductor, sectorizar (k-means, HSAC) alarga la ruta entre 4 % y 20 %, y el orden
     ya está en el óptimo práctico: no proponer ALNS, Tabu ni colonias de hormigas. Lo que mejora la
     ruta es ubicar bien las direcciones.

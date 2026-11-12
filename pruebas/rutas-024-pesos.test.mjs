@@ -19,6 +19,11 @@ import { calcularRutaLocal } from "@/lib/encomiendas/local/generar-ruta";
 import { guardarPedido } from "@/lib/encomiendas/local/almacen";
 import { olvidarMatriz } from "@/lib/geo/matriz";
 
+// Estas pruebas cuidan el camino de respaldo, el de OpenRouteService: la red de
+// calles propia (spec 031) va apagada, como cuando se elige en Diagnóstico.
+import { apagarRed } from "@/lib/geo/red/grafo";
+apagarRed(true);
+
 const DIA = JSON.parse(readFileSync(new URL("./fixtures/matriz-tiempo-arica.json", import.meta.url), "utf8"));
 
 test("pesosDeManejar: un km a $130 y una hora a $6.000", () => {

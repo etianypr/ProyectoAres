@@ -36,11 +36,13 @@
 //   index.ts            calcular la propuesta
 
 import { distanciaMetros, type Coordenada } from "@/lib/geo/coordenada";
-import { obtenerRutaCalles } from "@/lib/geo/ors/direcciones";
+import { rutaPorCalles } from "@/lib/geo/ruta-por-calles";
 import { ultimaFallaOrs } from "@/lib/geo/ors/cliente";
-import { matrizCalles } from "@/lib/geo/matriz";
+import { matrizCalles, type MatrizCalles, type SinMatriz } from "@/lib/geo/matriz";
+import { ordenarParadas } from "@/lib/rutas/orden-paradas";
+import { bloquePorId } from "@/lib/encomiendas/config";
 import { nombreVisible } from "@/lib/encomiendas/paquete";
-import { resultadoCerrado } from "@/lib/encomiendas/estados";
+import { estaConfirmado, resultadoCerrado } from "@/lib/encomiendas/estados";
 import { minutoDelDia } from "../planificar";
 import { leerPedidos, leerRuta, pedidosEnOrden, tramosConPedidos } from "../almacen";
 import { resolverInicio } from "./partida";
@@ -56,8 +58,9 @@ import {
   TITULOS,
   vueltaPorMatriz,
 } from "./estrategias";
-import { TOLERANCIA_DESCARGA } from "./bultos";
-import { matrizDeCosto } from "./pesos";
+import { bultosDe, TOLERANCIA_DESCARGA } from "./bultos";
+import { matrizDeCosto, pesosDeManejar } from "./pesos";
+import { medirConRumbo, ordenarConRumboDelDia, prepararRedDelDia } from "./red-del-dia";
 import { paradasLejanas } from "./lejanas";
 import { ordenConHorarios } from "./horarios";
 import { ordenarConSentido } from "./sentido";
@@ -193,10 +196,15 @@ export async function calcularRutaLocal(
     ...(terminaEnOtroLado ? [llegada] : []),
   ];
 
-  // Distancias reales por calles para decidir el orden, por bloques y guardadas
-  // en memoria el día entero (spec 017, R1). Sin ellas se ordena en línea recta
-  // y la propuesta lo dice.
-  const calle = await matrizCalles(puntos);
+  // Las distancias por calle para decidir el orden. Primero la red propia (spec
+  // 031): en el teléfono, sin señal ni cupo, y sabiendo hacia dónde queda apuntando
+  // el auto en cada parada. Si no se puede (la red no bajó todavía, un punto lejos
+  // de toda calle), la matriz de ORS, por bloques y guardada en memoria el día
+  // entero (spec 017, R1). Sin ninguna se ordena en línea recta y la propuesta lo dice.
+  const propia = await prepararRedDelDia(puntos, terminaEnOtroLado).catch(() => null);
+  const calle: MatrizCalles | SinMatriz = propia
+    ? { metros: propia.metros, segundos: propia.segundos, completa: true, pedidos: 0 }
+    : await matrizCalles(puntos);
   // Terminando en otro lado, todo lo que cuenta "volver a la base" cuenta volver
   // a la central, sin tocar el optimizador (hastaLaLlegada).
   const matriz = calle.metros && terminaEnOtroLado ? hastaLaLlegada(calle.metros, 0) : calle.metros;
@@ -241,18 +249,41 @@ export async function calcularRutaLocal(
   // Los tres órdenes. Ninguno consulta nada: todos reusan la matriz de arriba.
   const orden = (estrategia: EstrategiaRuta) =>
     ordenPorEstrategia(estrategia, base, ubicados, indiceEnMatriz, matrizOrden, minutosDeInicio, llegada, descarga);
-  const corta = orden("corta");
+  // «La más económica». Con la red propia, el orden y el sentido de paso de cada
+  // parada se buscan juntos (spec 031): parte del orden sin rumbo (rápido, de la
+  // matriz de arriba) y nunca cuesta más que él. Sin la red, el de siempre.
+  let corta: PedidoUbicado[];
+  if (propia && costo) {
+    const sinRumbo = ordenarParadas(puntos.slice(0, ubicados.length + 1), costo, (i) => costo[i][0], false).slice(1);
+    const conRumbo = await ordenarConRumboDelDia(propia, sinRumbo, [0, ...ubicados.map(bultosDe)]);
+    corta = conRumbo.map((i) => ubicados[i - 1]);
+  } else {
+    corta = orden("corta");
+  }
+  // Sin confirmados ni horarios, las otras dos son la misma ruta: no se calculan.
+  const hayConfirmados = ubicados.some((p) => estaConfirmado(p.disponibilidad));
+  const hayBloques = ubicados.some((p) => bloquePorId(p.bloqueHorarioId));
   const ordenes: Record<EstrategiaRuta, PedidoUbicado[]> = {
     corta,
-    confirmados: orden("confirmados"),
+    confirmados: hayConfirmados ? orden("confirmados") : corta,
     // El optimizador con horarios corre fuera del hilo de la pantalla (R5).
-    horarios: await ordenConHorarios(ubicados, [corta, orden("horarios")], indiceEnMatriz, metros, minutosDeInicio, vuelta),
+    horarios: hayBloques
+      ? await ordenConHorarios(ubicados, [corta, orden("horarios")], indiceEnMatriz, metros, minutosDeInicio, vuelta)
+      : corta,
+  };
+  // Con la red propia, las alternativas se comparan por lo que miden con rumbo: la
+  // matriz de punto a punto las haría parecer más cortas de lo que son.
+  const conRumbo = (paradas: PedidoUbicado[]) => {
+    if (!propia) return {};
+    const m = medirConRumbo(propia, paradas.map((p) => indiceEnMatriz.get(p.id) ?? 0));
+    return { metrosEstimados: Math.round(m.metros), costoEstimado: Math.round(m.pesos) };
   };
   const candidatas: Alternativa[] = (["corta", "horarios", "confirmados"] as const).map((estrategia) => ({
     estrategia,
     ...TITULOS[estrategia],
     paradas: ordenes[estrategia],
     ...medir(ordenes[estrategia], metros, vuelta, minutosDeInicio, costoEntre),
+    ...conRumbo(ordenes[estrategia]),
   }));
 
   const alternativas = elegirUtiles(candidatas);
@@ -264,16 +295,17 @@ export async function calcularRutaLocal(
   // puede costar tres veces más. Cuando el conductor elige otra, se le pide el
   // trazado de esa en ese momento (ver elegirAlternativa).
   //
-  // Un día que no entra en una consulta (ORS acepta 70 puntos) lo parte en tramos
-  // y lo pega obtenerRutaCalles.
+  // Lo dibuja la red propia (spec 031) y, si no se puede, ORS (que parte en tramos
+  // un día de más de 70 puntos).
   // Con la vuelta: la línea del mapa, los km y el reloj cuentan el regreso.
-  let calles = await obtenerRutaCalles([base, ...paradas.map(coord), llegada]);
+  let calles = await rutaPorCalles([base, ...paradas.map(coord), llegada], pesosDeManejar);
 
   // El orden otra vez, sabiendo en qué paradas no se puede dar la vuelta
   // (sentido.ts). Solo la más corta: las otras tienen un orden que respetar.
   // Es una mejora: si falla, o el armado ya tomó más de MS_PARA_MEJORAS (mala
-  // señal), se queda la ruta que ya está.
-  if (calles && recomendada.estrategia === "corta" && Date.now() - empezo < MS_PARA_MEJORAS) {
+  // señal), se queda la ruta que ya está. Con la red propia no hace falta: el
+  // orden ya se buscó sabiendo dónde no se da la vuelta.
+  if (!propia && calles && recomendada.estrategia === "corta" && Date.now() - empezo < MS_PARA_MEJORAS) {
     const conSentido = await ordenarConSentido(base, paradas, indiceEnMatriz, matrizOrden, calles, llegada, descarga).catch(() => null);
     if (conSentido) {
       paradas = conSentido.paradas;

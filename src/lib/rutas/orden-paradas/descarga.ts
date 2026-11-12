@@ -111,8 +111,8 @@ export function adelantarBultos(orden: number[], costo: Costo, descarga: Descarg
   return actual;
 }
 
-/** Los órdenes vecinos, de la jugada más grande a la más chica. */
-function* jugadas(o: number[], mismoBarrio: (a: number, b: number) => boolean): Generator<number[]> {
+/** Los órdenes vecinos, de la jugada más grande a la más chica (o[0] es la base). */
+export function* jugadas(o: number[], mismoBarrio: (a: number, b: number) => boolean): Generator<number[]> {
   const n = o.length;
   // Un barrio entero a otro lugar, al derecho o al revés: es lo que adelanta el
   // barrio de más bultos sin pisar dos veces ninguno.

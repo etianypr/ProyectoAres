@@ -14,8 +14,9 @@ const MS_POR_TANDA = 30;
 
 const cederTurno = () => new Promise<void>((listo) => setTimeout(listo, 0));
 
-export async function optimizarSinCongelar(arranques: number[][], dia: DiaConHorarios): Promise<number[]> {
-  const busqueda = buscarConHorarios(arranques, dia);
+/** Corre una búsqueda que va por partes, devolviéndole el turno a la pantalla cada
+ *  MS_POR_TANDA. La usan también la matriz y el orden con rumbo (spec 031). */
+export async function correrSinCongelar<T>(busqueda: Generator<void, T>): Promise<T> {
   let desde = performance.now();
   let paso = busqueda.next();
   while (!paso.done) {
@@ -26,4 +27,8 @@ export async function optimizarSinCongelar(arranques: number[][], dia: DiaConHor
     paso = busqueda.next();
   }
   return paso.value;
+}
+
+export function optimizarSinCongelar(arranques: number[][], dia: DiaConHorarios): Promise<number[]> {
+  return correrSinCongelar(buscarConHorarios(arranques, dia));
 }

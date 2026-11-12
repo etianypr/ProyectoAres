@@ -11,7 +11,7 @@
 import { bloquePorId } from "@/lib/encomiendas/config";
 import { resultadoCerrado } from "@/lib/encomiendas/estados";
 import { deLngLat, type Coordenada } from "@/lib/geo/coordenada";
-import { obtenerRutaCalles } from "@/lib/geo/ors/direcciones";
+import { rutaPorCalles } from "@/lib/geo/ruta-por-calles";
 import {
   fijarTrazado,
   leerPedidos,
@@ -97,7 +97,7 @@ export async function replanificarRuta(
       try {
         // Con la vuelta a la base, si la ruta la tiene (ver Ruta.partida).
         const vuelta = ruta.partida ? [ruta.partida] : [];
-        const calles = await obtenerRutaCalles(inicio ? [inicio, ...puntos, ...vuelta] : [...puntos, ...vuelta]);
+        const calles = await rutaPorCalles(inicio ? [inicio, ...puntos, ...vuelta] : [...puntos, ...vuelta]);
         // A qué pedido llega cada tramo (spec 020): los puntos, en el mismo orden.
         const ids = [...(inicio ? [null] : []), ...ubicados.map((p) => p.id), ...vuelta.map(() => null)];
         if (calles) await fijarTrazado(fecha, { ...calles, tramos: tramosConPedidos(calles.tramos, ids) });

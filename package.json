@@ -14,7 +14,9 @@
     "test:esquema": "node --env-file=.env.local pruebas/esquema.mjs",
     "mcp": "node --env-file-if-exists=.env.local --import ./mcp/registrar.mjs mcp/servidor.ts",
     "sondear": "node --env-file=.env.local scripts/sondear-proveedores.mjs",
-    "calles": "node scripts/generar-calles.mjs"
+    "calles": "node scripts/generar-calles.mjs",
+    "red": "node scripts/generar-red.mjs",
+    "medir": "node --no-warnings --import ./pruebas/registrar.mjs scripts/medir-rutas.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",

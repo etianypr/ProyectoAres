@@ -3,6 +3,7 @@
 
 import { formatCLP } from "@/lib/comun/format";
 import { formatoOf, textoReferencia } from "@/lib/encomiendas/paquete";
+import { destinoParaNavegar } from "@/lib/geo/ruta-por-calles";
 import type { VistaBurbuja } from "@/lib/nativo/burbuja";
 import type { Parada } from "./dia-trabajo-tipos";
 import type { Fase } from "./fase-parada";
@@ -34,7 +35,8 @@ export function vistaDeBurbuja(
       ? `POR PAGAR ${pedido.montoPorPagar != null ? formatCLP(pedido.montoPorPagar) : "· monto por revisar"}`
       : null,
     estado: estado ? { texto: estado.texto, tono: estado.tono } : null,
-    destino: pedido.lat != null && pedido.lng != null ? { lat: pedido.lat, lng: pedido.lng } : null,
+    // El «Navegar» de la burbuja: en un condominio, su entrada (spec 031).
+    destino: pedido.lat != null && pedido.lng != null ? destinoParaNavegar({ lat: pedido.lat, lng: pedido.lng }) : null,
     filas: botonesDeParada(activa, fase),
     aviso,
     nueva,
@@ -53,5 +55,5 @@ export function aDondeNavegar(
 ): { lat: number; lng: number } | null {
   if (!enCurso || !activa || activa.pedido.id === navegadaId) return null;
   const { lat, lng } = activa.pedido;
-  return lat != null && lng != null ? { lat, lng } : null;
+  return lat != null && lng != null ? destinoParaNavegar({ lat, lng }) : null;
 }
