@@ -10,7 +10,7 @@ pedido. Un *Pendiente* en `AGENTS.md` apunta a su carpeta.
 - Spec Kit en Claude Code: `/speckit-specify` (crea la carpeta aquí), `/speckit-clarify`,
   `/speckit-plan`, `/speckit-tasks`, `/speckit-analyze` y `/speckit-implement`.
 
-**Próximo número: 032.**
+**Próximo número: 033.**
 
 ## Preparar el día real (prioridad, dueño 2026-11-09)
 
@@ -113,6 +113,7 @@ se anota aquí.
 
 | Feature | Qué | Estado | Tareas | Lo que falta |
 |---|---|---|---|---|
+| [032](032-tiempo-esperado/spec.md) tiempo esperado | la propuesta informa el tiempo de la jornada (manejo + entregas + hora de término), un contador corre desde «Salir a repartir» y al cerrar el día se compara lo esperado con lo real | borrador (anotada 2026-11-12) | — | minutos reales por entrega (hoy 4), dónde va el contador y si el jefe recibe los tiempos |
 | [025](025-referencias-en-direcciones/spec.md) referencias en direcciones | se ubica por la calle con número; «con…», «frente a…» quedan para el conductor | postergada (borrador) | — | dónde se guarda la referencia. El día real dirá cuántas direcciones con «con…» se ubican mal |
 | [026](026-guardado-persistente/spec.md) guardado persistente | pedir que el teléfono no borre IndexedDB (el día y la `cola`) por falta de espacio | postergada (borrador) | — | medir en la APK si la WebView desaloja y si `persist()` responde |
 | [002](002-reestructuracion-codigo/spec.md) reestructuración | `lib/` por dominio, archivos chicos, nombres del glosario | postergada (en curso) | 45/51 | partir `pedido-form-local` (T042; antes, si el ensayo obliga a tocarlo); quickstart (T047); tablas `encomienda_*` (T049–T051, con aprobación) |
