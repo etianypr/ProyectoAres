@@ -61,7 +61,6 @@ import { matrizDeCosto } from "./pesos";
 import { paradasLejanas } from "./lejanas";
 import { ordenConHorarios } from "./horarios";
 import { ordenarConSentido } from "./sentido";
-import { matrizPorZonas, zonasPorCercania } from "./zonas";
 import type { Alternativa, EstrategiaRuta, PedidoUbicado, PropuestaRuta, PuntoInicio } from "./tipos";
 
 export type { Alternativa, EstrategiaRuta, PedidoUbicado, PropuestaRuta, PuntoInicio, ResultadoRuta } from "./tipos";
@@ -74,17 +73,6 @@ export { avisoSinTrazado } from "./avisos";
  *  bloque seguía recibiendo la propuesta vieja (spec 017, R3). */
 /** Partida y llegada a menos de esto son el mismo punto: la ruta es cerrada. */
 const METROS_MISMO_PUNTO = 30;
-/** La matriz para ordenar por zonas (zonas.ts): el costo de cada tramo más el
- *  de cambiar de zona. Las zonas salen de los metros, que son el barrio; si algo
- *  fallara, el costo solo. */
-function conZonas(costo: number[][], metros: number[][]): number[][] {
-  try {
-    return matrizPorZonas(costo, zonasPorCercania(metros));
-  } catch {
-    return costo;
-  }
-}
-
 /** Terminando en otro lado, la columna 0 pasa a ser lo que cuesta llegar a la
  *  central (la última fila/columna, que después se saca). */
 function hastaLaLlegada<T>(m: T[][], cero: T): T[][] {
@@ -237,12 +225,17 @@ export async function calcularRutaLocal(
   const vuelta = vueltaPorMatriz(llegada, indiceEnMatriz, matriz);
   // Con esto se elige la recomendada entre las estrategias (elegirUtiles).
   const costoEntre = { entre: metrosPorMatriz(base, indiceEnMatriz, costo), vuelta: vueltaPorMatriz(llegada, indiceEnMatriz, costo) };
-  // Cada zona una sola vez (zonas.ts): el ORDEN se decide cobrando cada cambio
-  // de zona; los km, los tiempos y los avisos siguen con la matriz real.
-  const matrizOrden = matriz && costo ? conZonas(costo, matriz) : null;
+  // El ORDEN se decide con el costo solo (spec 030; dueño, 2026-11-12). Antes
+  // cobraba además 3 km por cada cambio de barrio de 900 m («cada zona una sola
+  // vez», zonas.ts): en la ruta real del 10-11 (87 paradas) eso prohibía dejar dos
+  // paradas de pasada y volver después, y metía un salto de 2,2 km. Sin la regla:
+  // 36,7 km en vez de 37,1 y 2 min menos, y menos que la ruta que el conductor
+  // armó a mano en otra app (37,3 km). Los sectores municipales tampoco entran al
+  // orden (+7 % de km ese día).
+  const matrizOrden = costo;
   // Y sobre el orden que menos cuesta, los bultos fuera del auto lo antes posible,
   // casi sin manejar de más (spec 024): la tolerancia en metros de verdad y en el
-  // costo sin los cambios de zona.
+  // costo.
   const descarga = { matriz, base: costo, tolerancia: TOLERANCIA_DESCARGA };
 
   // Los tres órdenes. Ninguno consulta nada: todos reusan la matriz de arriba.

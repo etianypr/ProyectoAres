@@ -303,7 +303,7 @@ y un agente no debe "corregir".
   día guarda su tarifa, así que cambiar la regla no mueve los días anteriores.
 - **Rutas.** Se evalúan por cinco criterios: sacar los bultos del móvil lo más rápido posible,
   kilómetros recorridos, tiempo de ruta, porcentaje de éxito por parada y ganancia en la logística.
-  - Manda el costo en plata, con zonas y horarios (dueño, 2026-11-08; `generar-ruta/pesos.ts`): el
+  - Manda el costo en plata (dueño, 2026-11-08; `generar-ruta/pesos.ts`): el
     km a $130 (bencina) y la hora al volante a $6.000. El tiempo viene en la misma matriz de ORS.
     Medido en 3 días simulados de 80 paradas: −1,5 % de tiempo y −1 % de plata, sin km de más.
   - Encima, los bultos salen antes solo si cuesta ≤ 1 % de km (y de costo) y cada metro de más los
@@ -314,7 +314,12 @@ y un agente no debe "corregir".
   - El éxito por parada no entra al costo (dueño, 2026-11-08): los horarios y los confirmados van
     en su propia propuesta, como antes.
   - La ruta es cerrada: vuelve a la central.
-  - Cada zona se recorre una sola vez (`generar-ruta/zonas.ts`, zonas de 900 m).
+  - **Sin reglas de barrio ni de sector en el orden** (dueño, 2026-11-12; spec 030): «cada zona
+    una sola vez» salió, y ordenar por sectores municipales se probó y se descartó. Medido con una
+    ruta real de 87 paradas: sin la regla 36,7 km y 85 min; con ella 37,1 km y un salto de 2,2 km
+    (no podía dejar dos paradas de pasada y volver); por sectores, +7 % de km. No se vuelven a
+    proponer sin medir. Los sectores (`geo/sectores-arica.ts`) quedan para decir a cuál va cada bulto
+    al escanear (pendiente).
   - No se da la vuelta en pasajes ni en calles residenciales.
   - Con un solo conductor, sectorizar (k-means, HSAC) alarga la ruta entre 4 % y 20 %, y el orden
     ya está en el óptimo práctico: no proponer ALNS, Tabu ni colonias de hormigas. Lo que mejora la

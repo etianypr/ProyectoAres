@@ -201,6 +201,23 @@ El tiempo en el costo (2026-11-08, spec 024; 3 días simulados de 80 paradas con
   resultado ±1 %, tanto como lo que se gana. Con el mejor orden por metros como arranque: −1,5 % de
   tiempo (~2 min), −1 % de plata y los mismos km, y nunca más caro que el orden por km.
 
+Sin reglas de barrio ni de sector (2026-11-12, spec 030):
+
+- **El dueño, en terreno:** hubo que rehacer la ruta 4 veces, y le gustó más el orden que el
+  conductor armó en otra app (Spoke) que el de ARES.
+- **Se comparó con una ruta real** (10-11, 87 paradas, ubicadas con Google y medidas con la matriz y
+  el trazado de ORS): la otra app 37,3 km y 86 min; ARES con «cada zona una sola vez» 37,1 km y
+  87 min, con un salto de 2,2 km entre dos paradas; ARES sin esa regla 36,7 km y 85 min, con el mayor
+  salto en 1,7 km; solo por km y sin la regla, 36,0 km y 88 min.
+- **La regla de barrios causaba el salto:** prohibía dejar dos paradas de pasada en un barrio y
+  volver después a terminarlo. El dueño eligió sacarla y seguir con km y tiempo.
+- **Ordenar por sectores municipales se programó, se midió y se descartó:** un sector entero y
+  después el otro costó +7 % de km ese día (+1,3 % a +10 % en días simulados). Norte y Borde
+  Costero son franjas paralelas: la ruta corta cruza de una a otra a medida que avanza.
+- **Los sectores quedan como dato** (`geo/sectores-arica.ts`, límites sacados del plano de
+  poblaciones de la Municipalidad, 2025): el dueño los quiere en el escáner, para decir a qué sector
+  va cada bulto. Pendiente.
+
 ## Fuera de alcance
 
 Varios conductores o mandantes · seguir paquetes entre días · prueba de entrega con

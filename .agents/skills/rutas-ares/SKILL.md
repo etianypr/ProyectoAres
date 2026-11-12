@@ -24,8 +24,12 @@ ellos, y hay que avisar la diferencia.
   propuesta. El mejor orden por metros es un arranque más (sin él, la búsqueda variaba ±1 %).
   Encima, una pasada saca los bultos antes solo si cuesta ≤ 1 % de km y de costo, y cada
   metro de más los saca en promedio un metro antes (`descarga.ts`, spec 024): no darle más peso
-  sin preguntar (sin tope, ≤ 10–15 % menos espera por +10–15 % de km). La ruta es cerrada (vuelve a la central). Cada zona de ~900 m se recorre una
-  sola vez (`zonas.ts`), aunque cueste ~5 % más: lo pidió el dueño.
+  sin preguntar (sin tope, ≤ 10–15 % menos espera por +10–15 % de km). La ruta es cerrada (vuelve a la central).
+- **Sin reglas de barrio ni de sector** (dueño, 2026-11-12, spec 030): «cada zona de ~900 m una sola
+  vez» (`zonas.ts`) salió del armado, y ordenar por sectores municipales se midió y se descartó (+7 %
+  de km en una ruta real de 87 paradas). Con la regla de barrios la ruta no podía dejar dos paradas de
+  pasada y volver: salto de 2,2 km. No volver a proponer zonas ni sectores para el orden sin medir
+  contra una ruta real.
 - **No se da la vuelta** en pasajes ni en calles residenciales (`sentido.ts`, `geo/ors/vuelta.ts`).
 - **El orden ya está en el óptimo práctico** con un conductor y ~60–100 paradas: la búsqueda llega
   en 1–2 s a lo que 87.000 intentos más no mejoran. No proponer ALNS, Tabu, genéticos, colonias de
@@ -45,7 +49,8 @@ ellos, y hay que avisar la diferencia.
 |---|---|
 | Armado del día en el teléfono (entrada) | `src/lib/encomiendas/local/generar-ruta/index.ts` |
 | Las tres estrategias y cuáles se muestran | `generar-ruta/estrategias.ts` |
-| Zonas de barrio, una pasada por zona | `generar-ruta/zonas.ts` |
+| Zonas de barrio (ya no las usa el armado; quedan sus pruebas) | `generar-ruta/zonas.ts` |
+| Sectores municipales, para el escáner (no para el orden) | `src/lib/geo/sectores-arica.ts` |
 | Sentido de calles y vueltas prohibidas | `generar-ruta/sentido.ts`, `src/lib/geo/ors/vuelta.ts` |
 | Paradas lejanas (aviso con su costo) | `generar-ruta/lejanas.ts` |
 | Reubicar pedidos sin punto y puntos pegados a carretera | `generar-ruta/ubicar-pedidos.ts` |

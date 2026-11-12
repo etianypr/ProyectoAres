@@ -226,7 +226,12 @@ más corta" cobrando entrar y salir por el mismo extremo (`Penalizacion` en `ord
 simétrica; las jugadas la calculan solo donde cambian vecinos) y se queda con la que mide menos por
 calles. En la prueba de 66 paradas (48 en calle estrecha): 42,77 → 42,58 km.
 
-**Cada zona una sola vez** (criterio del dueño, terreno 2026-10-29): `generar-ruta/zonas.ts` agrupa las
+**Sin reglas de barrio ni de sector** (spec 030, dueño 2026-11-12): el orden se decide con el costo
+solo (`matrizOrden = costo` en `generar-ruta/index.ts`). `zonas.ts` ya no lo usa el armado (lo de abajo
+es historia). `geo/sectores-arica.ts` trae los siete sectores del plano municipal y `sectorDe(punto)`:
+no entran al orden; son para decir el sector de cada bulto al escanear.
+
+**Cada zona una sola vez, hasta el 2026-11-12** (criterio del dueño, terreno 2026-10-29): `generar-ruta/zonas.ts` agrupaba las
 paradas en zonas por distancia por calle (enlace promedio, `ZONA_M` = 900 m) y el orden se decide con
 `matrizPorZonas`, que cobra 3 km por cada cambio de zona; los km, tiempos y avisos siguen con la matriz
 real. En la prueba de 66 paradas: 17 zonas, 0 repetidas (sin zonas, 2), 38,71 km en vez de 37,00 por
