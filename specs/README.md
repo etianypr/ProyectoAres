@@ -10,7 +10,7 @@ pedido. Un *Pendiente* en `AGENTS.md` apunta a su carpeta.
 - Spec Kit en Claude Code: `/speckit-specify` (crea la carpeta aquí), `/speckit-clarify`,
   `/speckit-plan`, `/speckit-tasks`, `/speckit-analyze` y `/speckit-implement`.
 
-**Próximo número: 033.**
+**Próximo número: 034.**
 
 ## Preparar el día real (prioridad, dueño 2026-11-09)
 
@@ -105,6 +105,7 @@ Estados: borrador → definida → en curso → hecha (falta día real) · poste
 | 5 | [020](020-burbuja-google-maps/spec.md) burbuja de Google Maps | la ruta en ARES, la guía en Google Maps con la burbuja encima; diseño B (2026-11-12, APK 1.8.0) | hecha (falta día real) | — | 16/20 | instalar la 1.8.0 y recorrer con Google Maps (T020); quickstart en el teléfono (T018; ensayo 2026-11-09: navegar, burbuja y entregar desde ella bien; Maps a la parada siguiente, en la APK 1.6.1); día real (T019): 8 de cada 10 paradas sin volver a ARES |
 | 5 | [015](015-app-android/spec.md) app Android (APK) | llamar con un toque, abrir sin señal, pantalla encendida, escáner | en curso | — | 27/30 | llamadas con chip (T019) y quickstart en el teléfono del conductor (T013, T030) |
 | 5 | [023](023-paradas-cercanas/spec.md) paradas cercanas | «N cerca» al lado de «Centrar»: hasta 3 pendientes a ≤ 300 m, marcadas en el mapa; «Ahora» deja una como la próxima | hecha (falta día real) | — (en `main` desde 2026-11-09) | — | día real |
+| 1–6 | [033](033-huecos-terreno/spec.md) huecos de terreno | los casos que la app no cubría en la prueba de terreno (guía, ruta, recorrer, cerrar, login) y «Cargar la guía» simple | hecha (en `main` desde 2026-11-14) | — | — | recorrer en el V2430 lo que solo existe en la APK (foto de la guía, nómina, cámara en vivo, burbuja); «Ya avisé» y el texto «Solo el código» (preguntar al dueño) |
 
 ### Después del día real (postergadas, dueño 2026-11-09)
 
