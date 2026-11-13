@@ -16,8 +16,19 @@ import { leerCodigoEtiqueta, type CodigoEtiqueta } from "@/lib/encomiendas/lectu
 import { formatoOf } from "@/lib/encomiendas/paquete";
 import { aplicarLecturaEtiqueta, type ResultadoEscaneo } from "@/lib/encomiendas/local/almacen";
 import { esApp } from "@/lib/nativo/entorno";
-import { escanearCodigo } from "@/lib/nativo/escaner";
+import { escanearConMotivo, type LecturaEscaner } from "@/lib/nativo/escaner";
 import { Resultado } from "./resultado-escaneo";
+import { AvisoOtraParada, tituloEsperado, type PaqueteEsperado } from "./aviso-otra-parada";
+
+/** Por qué se cayó a escribir la OF (spec 033, clasico-silencio). Si lo cerró
+ *  él, no hay nada que decir. */
+const POR_QUE_ESCRIBIR: Record<Extract<LecturaEscaner, { motivo: string }>["motivo"], string | null> = {
+  cancelado: null,
+  "fuera-app": null,
+  "sin-modulo": "El escáner de Google no se pudo bajar.",
+  error: "El escáner no abrió.",
+  "sin-codigo": "El escáner no leyó ningún código.",
+};
 
 type Fase =
   | { tipo: "escaneando" }
@@ -30,12 +41,15 @@ const BOTON =
 
 export function EscanearEtiqueta({
   fecha,
+  esperado = null,
   avance,
   onCerrar,
   onCambio,
   onAgregarPedido,
 }: {
   fecha: string;
+  /** Abierto desde la parada: el paquete que se espera (spec 033). */
+  esperado?: PaqueteEsperado | null;
   /** Paquetes de la guía escaneados sobre el total: el contador de la carga. */
   avance: { escaneados: number; total: number };
   onCerrar: () => void;
@@ -79,9 +93,9 @@ export function EscanearEtiqueta({
       return;
     }
     setFase({ tipo: "escaneando" });
-    const leido = await escanearCodigo().catch(() => null);
-    if (leido) await procesar(leido);
-    else setFase({ tipo: "escribir", error: null });
+    const leido = await escanearConMotivo().catch(() => ({ motivo: "error" as const }));
+    if ("codigo" in leido) await procesar(leido.codigo);
+    else setFase({ tipo: "escribir", error: POR_QUE_ESCRIBIR[leido.motivo] });
   }, [procesar]);
 
   // Al abrir se escanea de una: es lo único que se viene a hacer acá.
@@ -102,8 +116,8 @@ export function EscanearEtiqueta({
       aria-label="Escanear etiqueta"
     >
       <div className="flex items-center gap-2 px-4 pb-2">
-        <h2 className="min-w-0 flex-1 text-lg font-semibold">Escanear etiqueta</h2>
-        {avance.total > 0 ? (
+        <h2 className="min-w-0 flex-1 truncate text-lg font-semibold">{esperado ? tituloEsperado(esperado) : "Escanear etiqueta"}</h2>
+        {avance.total > 0 && !esperado ? (
           <span className="shrink-0 rounded-full bg-brand-soft px-2.5 py-1 text-sm font-semibold tabular-nums text-brand">
             {avance.escaneados} de {avance.total}
           </span>
@@ -172,6 +186,7 @@ export function EscanearEtiqueta({
           </div>
         ) : null}
 
+        {fase.tipo === "resultado" ? <AvisoOtraParada esperado={esperado} r={fase.r} /> : null}
         {fase.tipo === "resultado" ? (
           <Resultado
             fecha={fecha}

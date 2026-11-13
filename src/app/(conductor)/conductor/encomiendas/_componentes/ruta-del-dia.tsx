@@ -3,13 +3,14 @@
 // La lista de paradas de la ruta del día, en la hoja (sale de pantalla.tsx, spec
 // 002 T037).
 
-import { memo } from "react";
-import { AlertTriangle, Check, Clock, Phone, X } from "lucide-react";
+import { memo, useState } from "react";
+import { AlertTriangle, Check, Clock, Phone, RotateCcw, X } from "lucide-react";
 import { cn } from "@/lib/comun/utils";
 import { bloquePorId } from "@/lib/encomiendas/config";
 import { nombreVisible } from "@/lib/encomiendas/paquete";
 import { problemasDelPedido } from "@/lib/encomiendas/problemas";
-import type { Pedido } from "@/lib/encomiendas/local/almacen";
+import { sePuedeCambiar, type Pedido } from "@/lib/encomiendas/local/almacen";
+import type { ResultadoVisita } from "@/lib/encomiendas/estados";
 import type { Parada } from "../_hooks/use-dia-trabajo";
 import { FilaDeslizable } from "./fila-deslizable";
 import { MetaBono } from "./meta-bono";
@@ -27,6 +28,7 @@ export const RutaDelDia = memo(function RutaDelDia({
   entregadasDelDia,
   onEliminar,
   onEditar,
+  onCambiar,
   soloLista = false,
 }: {
   paradas: Parada[];
@@ -41,15 +43,21 @@ export const RutaDelDia = memo(function RutaDelDia({
   /** Tocar una parada pendiente abre su edición: con la ruta armada se corrige
    *  ahí la OF, el teléfono o la dirección (terreno 2026-10-29). */
   onEditar: (pedido: Pedido) => void;
+  /** Tocar una parada cerrada ofrece pasarla a otro estado (spec 033, G5; dueño
+   *  2026-11-13), mientras su evento se pueda borrar en el servidor (< 12 h). */
+  onCambiar: (pedidoId: string, nuevo: ResultadoVisita) => void;
   /** Sin título ni barra: la ruta plegada de un día terminado (spec 027). */
   soloLista?: boolean;
 }) {
+  // La parada cerrada con las opciones a la vista (una a la vez).
+  const [abierta, setAbierta] = useState<string | null>(null);
   const lista = (
           <ol className="overflow-hidden rounded-2xl bg-card shadow-soft">
             {paradas.map((p, i) => {
               const esActiva = p.pedido.id === activaId;
               // Una cerrada es el registro del día (ver el deslizar, abajo): no se edita.
               const editable = p.pedido.resultado === "pendiente";
+              const cambiable = !editable && sePuedeCambiar(p.pedido);
               return (
                 <FilaDeslizable
                   key={p.pedido.id}
@@ -67,8 +75,11 @@ export const RutaDelDia = memo(function RutaDelDia({
                 >
                   <button
                     type="button"
-                    disabled={!editable}
-                    onClick={() => onEditar(p.pedido)}
+                    disabled={!editable && !cambiable}
+                    aria-expanded={cambiable ? abierta === p.pedido.id : undefined}
+                    onClick={() =>
+                      editable ? onEditar(p.pedido) : setAbierta((a) => (a === p.pedido.id ? null : p.pedido.id))
+                    }
                     className="flex w-full items-center gap-3 px-3.5 py-2.5 text-left text-sm transition-colors active:bg-background disabled:active:bg-transparent"
                   >
                     <span
@@ -126,6 +137,15 @@ export const RutaDelDia = memo(function RutaDelDia({
                       <X className="h-4 w-4 shrink-0 text-danger" aria-label="No entregado" />
                     ) : null}
                   </button>
+                  {cambiable && abierta === p.pedido.id ? (
+                    <CambiarEstado
+                      actual={p.pedido.resultado}
+                      onElegir={(nuevo) => {
+                        setAbierta(null);
+                        onCambiar(p.pedido.id, nuevo);
+                      }}
+                    />
+                  ) : null}
                 </FilaDeslizable>
               );
             })}
@@ -150,3 +170,30 @@ export const RutaDelDia = memo(function RutaDelDia({
         </Seccion>
   );
 });
+
+const OPCIONES: { valor: ResultadoVisita; texto: string; Icono: typeof Check }[] = [
+  { valor: "entregado", texto: "Entregado", Icono: Check },
+  { valor: "no_entregado", texto: "No entregado", Icono: X },
+  { valor: "pendiente", texto: "Pendiente", Icono: RotateCcw },
+];
+
+/** Los tres estados de una parada cerrada; el actual queda marcado y sin acción. */
+function CambiarEstado({ actual, onElegir }: { actual: ResultadoVisita; onElegir: (nuevo: ResultadoVisita) => void }) {
+  return (
+    <div className="flex gap-1.5 px-3.5 pb-2.5">
+      {OPCIONES.map(({ valor, texto, Icono }) => (
+        <button
+          key={valor}
+          type="button"
+          disabled={valor === actual}
+          aria-pressed={valor === actual}
+          onClick={() => onElegir(valor)}
+          className="flex h-10 flex-1 items-center justify-center gap-1 rounded-full border border-separator bg-card text-xs font-semibold text-foreground active:scale-[0.97] disabled:border-transparent disabled:bg-background disabled:text-muted"
+        >
+          <Icono className="h-3.5 w-3.5 shrink-0" />
+          {texto}
+        </button>
+      ))}
+    </div>
+  );
+}

@@ -20,6 +20,10 @@ export type LineaGuia = {
   /** Barrido de la nómina: el número o la dirección no quedaron firmes, y el
    *  conductor la confirma con el papel antes de crear (dueño, 2026-11-11). */
   porConfirmar?: boolean;
+  /** El teléfono del receptor tal como lo escribió el conductor al revisar la
+   *  línea (lo consultó en Infologistic; dueño, 2026-11-13). Solo vive en el
+   *  teléfono: la guía va a la IA sin él (telefono-linea.ts). */
+  telefono?: string;
 };
 
 export type GuiaLeida = {
@@ -61,8 +65,10 @@ export function leerGuia(texto: string): GuiaLeida {
   // pie de la guía.
   const crudas = [
     ...plano.matchAll(
-      // "0F:" también: el lector del teléfono suele leer la O como cero.
-      /\b[O0]F\s*:?\s*([\d\s]{1,14}?)\s*DESTINO\s*:?\s*(.*?)(?=\b[O0]F\s*:|SOLO TRASLADO|Oficio\s+N|SON\s*:|MONTO\s+NETO|$)/gi,
+      // "0F:" también: el lector del teléfono suele leer la O como cero. La OF
+      // acepta letras (un 0 leído como O): si no, la línea se perdía sin aviso;
+      // con letras sale como dudosa para corregirla a mano (spec 033).
+      /\b[O0]F\s*:?\s*([\dA-Z\s]{1,16}?)\s*DESTINO\s*:?\s*(.*?)(?=\b[O0]F\s*:|SOLO TRASLADO|Oficio\s+N|SON\s*:|MONTO\s+NETO|$)/gi,
     ),
   ];
 
@@ -107,9 +113,13 @@ export function armarGuia(
   const porOf = new Map<string, LineaGuia>();
   let repetidas = 0;
   for (const cruda of crudas) {
+    // Una OF con letras no se adivina ni se le quitan las letras (9000O0105 no
+    // es 90000105): queda tal cual, dudosa, para que el conductor la corrija con
+    // el papel. Un dígito inventado enlazaría otro paquete (spec 033).
+    const conLetras = /[A-Z]/i.test(cruda.of);
     const digitos = cruda.of.replace(/\D/g, "");
-    const valida = ofValida(digitos);
-    const of = valida ?? digitos;
+    const valida = conLetras ? null : ofValida(digitos);
+    const of = valida ?? (conLetras ? cruda.of.replace(/\s+/g, "").toUpperCase() : digitos);
     const destino = limpiarDestino(cruda.destino);
     const linea = { of, destino, dudosa: valida === null || destino === "" };
     const antes = porOf.get(of);
@@ -147,7 +157,7 @@ export function armarGuia(
         : `La guía dice ${totalDeclarado} y se leyeron ${lineas.length}. Revisa que no haya líneas de más.`,
     );
   }
-  if (lineas.length === 0) avisos.push("No se encontró ninguna línea \"OF: … DESTINO: …\".");
+  if (lineas.length === 0) avisos.push("No se leyó ninguna línea con OF.");
 
   return { folio, totalDeclarado, lineas, avisos };
 }

@@ -115,7 +115,13 @@ export async function calcularRutaLocal(
    *  ubicación" u otra dirección (terreno 2026-10-29: repasar lo pendiente y
    *  volver a la central). Sin esto, la ruta vuelve a donde partió. */
   fin?: PuntoInicio,
+  /** «Cancelar» o atrás mientras dice «Buscando la mejor ruta» (spec 033,
+   *  buscando-trabado): se revisa entre cada paso y lanza AbortError. No cambia
+   *  qué se calcula: sin cancelar, la propuesta es la misma. */
+  senal?: AbortSignal,
 ): Promise<PropuestaRuta> {
+  const seguir = () => senal?.throwIfAborted();
+  seguir();
   // Solo los del día y sin marcar: lo ya cerrado (entregado o no entregado) no
   // se vuelve a rutear.
   const [delDia, rutaActual] = await Promise.all([leerPedidos(fecha), leerRuta(fecha)]);
@@ -126,6 +132,7 @@ export async function calcularRutaLocal(
   }
 
   const reintento = await reintentarUbicar(pendientesIniciales);
+  seguir();
   const { pendientes } = reintento;
 
   // "Mañana" ya cerró el pedido como no entregado (ver registrarDisponibilidad):
@@ -136,6 +143,7 @@ export async function calcularRutaLocal(
   const conPunto = pendientes.filter(tieneCoordenadas);
   // Si la revisión de calles falla, se sigue con los puntos como estaban.
   const accesos = await corregirAccesos(conPunto).catch(() => ({ ubicados: conPunto, advertencias: [] as string[] }));
+  seguir();
   const ubicados = accesos.ubicados;
   const sinUbicar = pendientes.filter((p) => !tieneCoordenadas(p));
 
@@ -201,7 +209,12 @@ export async function calcularRutaLocal(
   // el auto en cada parada. Si no se puede (la red no bajó todavía, un punto lejos
   // de toda calle), la matriz de ORS, por bloques y guardada en memoria el día
   // entero (spec 017, R1). Sin ninguna se ordena en línea recta y la propuesta lo dice.
-  const propia = await prepararRedDelDia(puntos, terminaEnOtroLado).catch(() => null);
+  // Un «Cancelar» no cae a ORS: se relanza (spec 033).
+  const propia = await prepararRedDelDia(puntos, terminaEnOtroLado, senal).catch((e) => {
+    if (senal?.aborted) throw e;
+    return null;
+  });
+  seguir();
   const calle: MatrizCalles | SinMatriz = propia
     ? { metros: propia.metros, segundos: propia.segundos, completa: true, pedidos: 0 }
     : await matrizCalles(puntos);
@@ -222,6 +235,7 @@ export async function calcularRutaLocal(
     advertencias.push("Algunas distancias por calle no llegaron: parte del orden se calculó en línea recta.");
   }
   await cederTurno();
+  seguir();
 
   // El índice de cada pedido en la matriz: la fila 0 es la base, así que el
   // pedido i está en la fila i + 1.
@@ -255,11 +269,13 @@ export async function calcularRutaLocal(
   let corta: PedidoUbicado[];
   if (propia && costo) {
     const sinRumbo = ordenarParadas(puntos.slice(0, ubicados.length + 1), costo, (i) => costo[i][0], false).slice(1);
-    const conRumbo = await ordenarConRumboDelDia(propia, sinRumbo, [0, ...ubicados.map(bultosDe)]);
+    const conRumbo = await ordenarConRumboDelDia(propia, sinRumbo, [0, ...ubicados.map(bultosDe)], senal);
     corta = conRumbo.map((i) => ubicados[i - 1]);
   } else {
     corta = orden("corta");
   }
+  await cederTurno();
+  seguir();
   // Sin confirmados ni horarios, las otras dos son la misma ruta: no se calculan.
   const hayConfirmados = ubicados.some((p) => estaConfirmado(p.disponibilidad));
   const hayBloques = ubicados.some((p) => bloquePorId(p.bloqueHorarioId));
@@ -268,7 +284,7 @@ export async function calcularRutaLocal(
     confirmados: hayConfirmados ? orden("confirmados") : corta,
     // El optimizador con horarios corre fuera del hilo de la pantalla (R5).
     horarios: hayBloques
-      ? await ordenConHorarios(ubicados, [corta, orden("horarios")], indiceEnMatriz, metros, minutosDeInicio, vuelta)
+      ? await ordenConHorarios(ubicados, [corta, orden("horarios")], indiceEnMatriz, metros, minutosDeInicio, vuelta, senal)
       : corta,
   };
   // Con la red propia, las alternativas se comparan por lo que miden con rumbo: la
@@ -299,6 +315,7 @@ export async function calcularRutaLocal(
   // un día de más de 70 puntos).
   // Con la vuelta: la línea del mapa, los km y el reloj cuentan el regreso.
   let calles = await rutaPorCalles([base, ...paradas.map(coord), llegada], pesosDeManejar);
+  seguir();
 
   // El orden otra vez, sabiendo en qué paradas no se puede dar la vuelta
   // (sentido.ts). Solo la más corta: las otras tienen un orden que respetar.
@@ -314,6 +331,8 @@ export async function calcularRutaLocal(
       alternativas[0] = recomendada;
     }
   }
+
+  seguir();
 
   // Una parada lejos de todas: se avisa con lo que cuesta (terreno 2026-10-28).
   const lejanas = paradasLejanas(paradas, base, metros, vuelta);

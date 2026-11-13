@@ -3,9 +3,10 @@
 // direcciones y rutas se van al cerrar el día o la sesión. La cola de eventos
 // no se toca: no tiene datos de personas y sin ella el conductor no cobra.
 
+import { hoyChile, sumarDias } from "@/lib/comun/fechas";
 import { olvidarConsultasGoogle } from "@/lib/geo/geocoding/google";
 import { olvidarMatriz } from "@/lib/geo/matriz";
-import { STORES, STORES_DEL_DIA, clavesFotosDe, escribir, leerTodos, leerUno } from "../idb";
+import { STORES, STORES_DEL_DIA, clavesFotosDe, escribir, fechasDeFotos, leerTodos, leerUno } from "../idb";
 import { enFila } from "./fila";
 import { leerDiaGuardado, leerPedidos, leerRuta, leerTodosLosPedidos, pedidosEnOrden } from "./lecturas";
 import { rutaAlDia } from "./migrar";
@@ -31,26 +32,76 @@ export async function diasPorBorrar(hoy: string): Promise<string[]> {
   return [...fechas].filter((f) => f < hoy).sort();
 }
 
+/** Fotos y propuestas de días anteriores que ya no tienen pedidos ni ruta (spec
+ *  033, G5): ningún cierre las alcanzaba y quedaban para siempre. Se borran sin
+ *  mostrar nada: no son un día trabajado. Devuelve cuántas fechas limpió. */
+export function borrarSueltos(hoy: string): Promise<number> {
+  return enFila(async () => {
+    const [rutas, pedidos, fotos, propuestas] = await Promise.all([
+      leerTodos(STORES.rutas),
+      leerTodosLosPedidos(),
+      fechasDeFotos(),
+      leerTodos(STORES.propuestas),
+    ]);
+    const conDatos = new Set([...rutas.map((r) => r.fecha), ...pedidos.map((p) => p.fecha)]);
+    const sueltas = [...new Set([...fotos, ...propuestas.map((p) => p.fecha)])].filter((f) => f < hoy && !conDatos.has(f));
+    if (sueltas.length === 0) return 0;
+    const claves = (await Promise.all(sueltas.map(clavesFotosDe))).flat();
+    const conPropuesta = new Set(propuestas.map((p) => p.fecha));
+    await escribir([STORES.fotos, STORES.propuestas], ({ borrar }) => {
+      for (const id of claves) borrar(STORES.fotos, id);
+      for (const f of sueltas) if (conPropuesta.has(f)) borrar(STORES.propuestas, f);
+    });
+    return sueltas.length;
+  });
+}
+
+/** Cuántos días de resúmenes quedan en el teléfono (spec 033, G5): «Tus días»
+ *  muestra unos pocos y el panel tiene el historial. Un resumen por día, solo
+ *  cifras, pero sin tope crecían para siempre. */
+export const DIAS_DE_RESUMEN = 60;
+
+/** Los resúmenes que ya sobran: más viejos que DIAS_DE_RESUMEN y sin eventos en
+ *  la cola (su día todavía tiene que salir al servidor con ellos). Pura. */
+export function resumenesQueSobran(fechas: string[], conCola: Set<string>, hoy: string): string[] {
+  const desde = sumarDias(hoy, -DIAS_DE_RESUMEN);
+  return fechas.filter((f) => f < desde && !conCola.has(f));
+}
+
 /** Escribe el resumen del día y borra sus pedidos y su ruta, todo en una
  *  transacción: o queda el resumen sin los datos, o queda todo como estaba. */
 export function cerrarYBorrarDia(fecha: string): Promise<ResumenDia | null> {
   return enFila(async () => {
-    const [ruta, pedidos, guardado, fotos, propuesta] = await Promise.all([
+    const [ruta, pedidos, guardado, fotos, propuesta, dias, cola] = await Promise.all([
       leerRuta(fecha),
       leerPedidos(fecha),
       leerDiaGuardado(fecha),
       clavesFotosDe(fecha),
       leerUno(STORES.propuestas, fecha),
+      leerTodos(STORES.dias),
+      leerTodos(STORES.cola),
     ]);
-    if (!ruta && pedidos.length === 0 && fotos.length === 0) {
-      // Una propuesta suelta no es un día trabajado: se borra sin dejar resumen.
-      if (propuesta) await escribir([STORES.propuestas], ({ borrar }) => borrar(STORES.propuestas, fecha));
+    if (!ruta && pedidos.length === 0) {
+      // Una propuesta o unas fotos sueltas no son un día trabajado: se borran sin
+      // dejar resumen.
+      if (propuesta || fotos.length > 0) {
+        await escribir([STORES.propuestas, STORES.fotos], ({ borrar }) => {
+          for (const id of fotos) borrar(STORES.fotos, id);
+          if (propuesta) borrar(STORES.propuestas, fecha);
+        });
+      }
       return guardado;
     }
 
     const resumen = resumenAlBorrar(fecha, ruta, pedidos, guardado);
+    const sobran = resumenesQueSobran(
+      dias.map((d) => d.fecha).filter((f) => f !== fecha),
+      new Set(cola.map((e) => e.fecha)),
+      hoyChile(),
+    );
     await escribir([STORES.dias, ...STORES_DEL_DIA], ({ guardar, borrar }) => {
       guardar(STORES.dias, resumen);
+      for (const f of sobran) borrar(STORES.dias, f);
       for (const p of pedidos) borrar(STORES.pedidos, p.id);
       for (const id of fotos) borrar(STORES.fotos, id);
       if (ruta) borrar(STORES.rutas, fecha);

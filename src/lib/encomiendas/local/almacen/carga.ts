@@ -10,7 +10,9 @@ import { leerPedidos, leerRuta, pedidosEnOrden } from "./lecturas";
 import { avisoVacio } from "./migrar";
 import type { OrigenCarga, Pedido, ReferenciaPaquete } from "./tipos";
 
-export type LineaParaCrear = { of: string; destino: string };
+/** `telefono`: el que anotó el conductor al revisar la línea (dueño, 2026-11-13),
+ *  ya normalizado (lectura/telefono-linea.ts). */
+export type LineaParaCrear = { of: string; destino: string; telefono?: string };
 
 /** Un pedido por línea de la guía, sin ubicar (la ubicación sigue el flujo de
  *  siempre). Una OF que ya está en el día no se duplica: cargar la guía dos
@@ -25,7 +27,7 @@ export function crearDesdeGuia(
     const ahora = new Date().toISOString();
     const creados: Pedido[] = [];
     let yaEstaban = 0;
-    for (const { of, destino } of lineas) {
+    for (const { of, destino, telefono } of lineas) {
       if (existentes.has(of)) {
         yaEstaban++;
         continue;
@@ -34,9 +36,9 @@ export function crearDesdeGuia(
       creados.push({
         id: uuidv7(),
         fecha,
-        // Los completa el escaneo de la etiqueta.
+        // Los completa el escaneo de la etiqueta (el teléfono, si no se anotó en la guía).
         nombre: "",
-        telefono: "",
+        telefono: telefono ?? "",
         direccion: destino,
         lat: null,
         lng: null,
@@ -65,6 +67,39 @@ export function crearDesdeGuia(
       for (const p of creados) guardar(STORES.pedidos, p);
     });
     return { creados, yaEstaban };
+  });
+}
+
+/** Un pedido recién creado que todavía no se tocó: sin ruta, sin bultos, sin
+ *  foto, sin llamada y sin resultado. Solo esos se pueden borrar con «Deshacer». */
+function sinTocar(p: Pedido, enRuta: Set<string>): boolean {
+  return (
+    !enRuta.has(p.id) &&
+    p.resultado === "pendiente" &&
+    p.bultosEscaneados.length === 0 &&
+    p.fotoId == null &&
+    p.horaLlamada == null &&
+    p.horaResultado == null
+  );
+}
+
+/** «Deshacer esta carga» (spec 033, crear-irrev): borra los pedidos que creó esa
+ *  carga de la guía, en una transacción, salvo los que ya se tocaron (están en la
+ *  ruta, tienen bultos o resultado): esos quedan. Devuelve cuántos se borraron y
+ *  cuántos quedaron. No toca la cola: un pedido sin tocar no tiene actividad. */
+export function deshacerCarga(ids: string[], fecha: string): Promise<{ borrados: number; quedan: number }> {
+  return enFila(async () => {
+    const [ruta, pedidos] = await Promise.all([leerRuta(fecha), leerPedidos(fecha)]);
+    const enRuta = new Set(ruta?.orden ?? []);
+    const pedir = new Set(ids);
+    const deLaCarga = pedidos.filter((p) => pedir.has(p.id));
+    const borrar = deLaCarga.filter((p) => sinTocar(p, enRuta));
+    if (borrar.length > 0) {
+      await escribir([STORES.pedidos], ({ borrar: quitar }) => {
+        for (const p of borrar) quitar(STORES.pedidos, p.id);
+      });
+    }
+    return { borrados: borrar.length, quedan: deLaCarga.length - borrar.length };
   });
 }
 
@@ -100,7 +135,18 @@ export type ResultadoEscaneo = {
   direccionDistinta: string | null;
   /** El número provisorio que tomó esta OF escrita a mano; null si no hubo. */
   bultoAMano: number | null;
+  /** El bulto que sumó esta lectura (null = ninguno) y el total de bultos que
+   *  había antes: con eso «−1 bulto» la deshace (spec 033). Solo en memoria. */
+  bultoSumado: number | null;
+  bultosAntes: number | null;
 };
+
+/** «−1 bulto» vale solo para un bulto sumado de más: la OF escrita a mano, o un
+ *  escaneo que subió el total del envío (spec 033, vivo-limites). */
+export function sePuedeQuitarBulto(r: ResultadoEscaneo): boolean {
+  if (r.bultoSumado == null || r.pedido.resultado !== "pendiente") return false;
+  return r.bultoAMano != null || r.pedido.bultosEscaneados.length > (r.bultosAntes ?? 1);
+}
 
 /** Los bultos escaneados después de esta lectura (spec 027). El código trae el
  *  número de bulto: uno nuevo suma y la misma etiqueta leída otra vez no (es la
@@ -199,13 +245,42 @@ export function aplicarLecturaEtiqueta(fecha: string, lectura: LecturaParaAplica
     };
     await escribir([STORES.pedidos], ({ guardar }) => guardar(STORES.pedidos, actualizado));
 
-    const enRuta = pedidosEnOrden(ruta, pedidos);
-    const indice = enRuta.findIndex((p) => p.id === pedido.id);
+    const sumado = escaneados.find((n) => !pedido.bultosEscaneados.includes(n)) ?? null;
     return {
       pedido: actualizado,
-      parada: indice >= 0 ? { n: indice + 1, total: enRuta.length } : null,
+      parada: paradaDe(ruta, pedidos, pedido.id),
       direccionDistinta: distinta,
       bultoAMano: aMano,
+      bultoSumado: sumado,
+      bultosAntes: pedido.bultos,
     };
+  });
+}
+
+function paradaDe(ruta: Awaited<ReturnType<typeof leerRuta>>, pedidos: Pedido[], id: string): ResultadoEscaneo["parada"] {
+  const enRuta = pedidosEnOrden(ruta, pedidos);
+  const indice = enRuta.findIndex((p) => p.id === id);
+  return indice >= 0 ? { n: indice + 1, total: enRuta.length } : null;
+}
+
+/** «−1 bulto» (spec 033, vivo-limites): deshace el bulto que sumó la última
+ *  lectura (ver sePuedeQuitarBulto) y deja el total como estaba antes de ella. No
+ *  cambia la regla de la spec 027 (más bultos escaneados suben el total): solo
+ *  deshace un error. null = ese bulto ya no está o el pedido ya se cerró. */
+export function quitarBulto(fecha: string, r: ResultadoEscaneo): Promise<ResultadoEscaneo | null> {
+  return enFila(async () => {
+    const [pedidos, ruta] = await Promise.all([leerPedidos(fecha), leerRuta(fecha)]);
+    const pedido = pedidos.find((p) => p.id === r.pedido.id);
+    const bulto = r.bultoSumado;
+    if (!pedido || bulto == null || pedido.resultado !== "pendiente" || !pedido.bultosEscaneados.includes(bulto)) return null;
+    const escaneados = pedido.bultosEscaneados.filter((n) => n !== bulto);
+    const antes = r.bultosAntes;
+    const actualizado: Pedido = {
+      ...pedido,
+      bultosEscaneados: escaneados,
+      bultos: escaneados.length > (antes ?? 1) ? escaneados.length : antes,
+    };
+    await escribir([STORES.pedidos], ({ guardar }) => guardar(STORES.pedidos, actualizado));
+    return { ...r, pedido: actualizado, parada: paradaDe(ruta, pedidos, pedido.id), bultoAMano: null, bultoSumado: null };
   });
 }

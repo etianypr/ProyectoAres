@@ -119,3 +119,16 @@ test("si el teléfono ve una OF que la IA no trajo, la guía se relee", async ()
   assert.equal(faltanEnLaPrimera(ia, conOtra), true);
   assert.equal(faltanEnLaPrimera(ia, malLeida), false, "una OF corta vista solo por el teléfono no obliga a releer");
 });
+
+
+test("guía: una OF con una letra (0 leído como O) no se pierde: sale dudosa y sin adivinar dígitos (spec 033)", () => {
+  const guia = leerGuia(
+    "OF:900000104 DESTINO:18 DE SEPTIEMBRE 5555 OF:9000O0105 DESTINO:AVENIDA ALEMANIA 6666 OF:900000107 DESTINO:AVENIDA CHILE 1010",
+  );
+  assert.equal(guia.lineas.length, 3);
+  const conLetra = guia.lineas.find((l) => l.destino.startsWith("AVENIDA ALEMANIA"));
+  assert.ok(conLetra, "la línea con la OF mal leída sigue en la guía");
+  assert.equal(conLetra.of, "9000O0105");
+  assert.equal(conLetra.dudosa, true);
+  assert.notEqual(conLetra.of, "90000105");
+});

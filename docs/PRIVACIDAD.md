@@ -24,9 +24,11 @@ antes de las autorizaciones (el contrato con Starken aplica desde ya; la ley des
 | Ruta propuesta sin aceptar (paradas como id y punto, trazado y avisos; store `propuestas`) | teléfono | al usarla o descartarla, y al cierre del día |
 | Cuadros del escáner en vivo (spec 028, APK 1.6.0): la etiqueta en cámara y su texto | memoria del teléfono, mientras está abierto; la captura en alta queda como foto del paquete | se olvidan al pasar a la siguiente; la foto, con el día |
 | Cuadros al barrer la nómina («Cargar la guía» → «Barrer la nómina», 2026-11-11): la nómina en cámara, con el nombre del destinatario | memoria del teléfono, mientras está abierto; solo la OF y la dirección pasan a las líneas de la guía (el nombre no se lee) | se olvidan al terminar; las líneas, como las de la guía |
+| Teléfono del receptor anotado al revisar una línea de la guía o una corrección de la IA («Cargar la guía», dueño 2026-11-13; lo saca de Infologistic) | memoria del teléfono (la línea, sin IndexedDB) y, al crear, el `telefono` del pedido. No va a la IA, a Cloud Vision ni a los buscadores: la guía ya se leyó, y al ubicar sale solo la dirección (`lectura/telefono-linea.ts`, prueba `guia-telefono.test.mjs`) | la línea, al cerrar la ventana; el pedido, al cierre del día |
 | Coordinación WhatsApp | teléfono · servidor (correlación sin datos personales) | cierre del día (servidor: máx. 72 h) |
 | Burbuja sobre Google Maps (OF, nombre, dirección de la parada activa), APK | memoria del teléfono; su aviso fijo dice solo «ARES · Parada N», porque se ve con el teléfono bloqueado. Para abrirse al llegar compara en el teléfono la ubicación del auto (la que ya pide Google Maps) con el punto de la parada; no la guarda ni la envía | mientras haya una parada activa (spec 020) |
-| Actividad (entrega/no entrega, hora) | servidor | sin datos del destinatario |
+| Actividad (entrega/no entrega, hora) | servidor | sin datos del destinatario. Corregir una parada cerrada (spec 033, G5) borra ese evento por su id: no manda nada más |
+| En memoria: distancias, respuestas de Google, accesos revisados y la foto del mapa de cada dirección (estampilla) | memoria del teléfono | al borrar el día (spec 033, G5: los accesos y las estampillas antes quedaban hasta cerrar la app) |
 
 Solo sobreviven conteos (asignados, entregados, no entregados).
 
@@ -64,7 +66,8 @@ la autorización para dejarlo explícito.
 - Destinatarios solo en el teléfono, borrados cada día · RLS por rol · secretos solo en
   servidor (`server-only`) · servidor sin fotos ni cuerpos en logs.
 - Día cerrado → la app muestra "No entregados" y borra pedidos y ruta; un día anterior con datos
-  se borra al abrir · cerrar sesión borra todo (con aviso) · cuenta sin ficha o desactivada → la
+  se borra al abrir · cerrar sesión borra todo (con aviso; primero se cierra la sesión y después se
+  borra, spec 033) · cuenta sin ficha o desactivada → la
   app borra al abrir con señal (spec 007) · teléfono con bloqueo.
 - La APK de **depuración** (solo para probar contra el PC) registra en el log de Android lo que pasa
   por el puente de Capacitor, incluido el texto de una etiqueta; la firmada no. Se usa solo en el

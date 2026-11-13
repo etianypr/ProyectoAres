@@ -38,3 +38,10 @@ test("el panel del jefe y el login no se guardan", () => {
   assert.equal(estrategia("/login"), "red");
   assert.equal(estrategia("/conductorx"), "red");
 });
+
+test("lo que no se usa en 30 días vence; lo sin sello no (spec 033, G5)", () => {
+  assert.equal(contexto.vencida(null, "2026-11-13"), false, "sin sello se sella hoy, no se borra");
+  assert.equal(contexto.vencida("2026-11-13", "2026-11-13"), false);
+  assert.equal(contexto.vencida("2026-10-14", "2026-11-13"), false, "30 días justos todavía no");
+  assert.equal(contexto.vencida("2026-10-13", "2026-11-13"), true);
+});

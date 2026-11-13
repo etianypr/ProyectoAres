@@ -134,7 +134,9 @@ export function ProbarEscanerVivo({ enApp }: { enApp: boolean }) {
         <ScanLine className="h-4 w-4" />
         Probar escáner en vivo
       </button>
-      {!disponible ? <p className="text-xs text-muted">Esta app no trae el escáner en vivo (APK 1.6.0).</p> : null}
+      {!disponible ? (
+        <p className="text-xs text-muted">{enApp ? "Esta app no trae el escáner en vivo (APK 1.6.0)." : "Solo en la app."}</p>
+      ) : null}
       {disponible ? (
         <label className="flex items-center gap-2 px-1 text-sm font-medium">
           <input

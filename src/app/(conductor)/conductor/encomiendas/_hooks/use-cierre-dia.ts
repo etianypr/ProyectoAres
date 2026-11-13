@@ -10,7 +10,10 @@
 //     para después; vuelve a aparecer la próxima vez que se abra la app.
 
 import { useCallback, useEffect, useState } from "react";
+import { olvidarEstampillas } from "@/components/direccion/estampilla-mapa";
+import { olvidarAccesos } from "@/lib/encomiendas/local/generar-ruta/ubicar-pedidos";
 import {
+  borrarSueltos,
   cerrarYBorrarDia,
   cifrasDelDia,
   diasPorBorrar,
@@ -18,6 +21,7 @@ import {
   noEntregadosDelDia,
   type Pedido,
 } from "@/lib/encomiendas/local/almacen";
+import { entregadosPorRevisar } from "./por-pagar";
 
 export type CierrePendiente = {
   fecha: string;
@@ -29,29 +33,40 @@ export type CierrePendiente = {
   porPagar: number;
   aCobrar: number;
   cobrado: number;
+  /** Entregados sin leer si se cobraban (spec 033): se dicen aparte. */
+  porRevisar: number;
   noEntregados: Pedido[];
 };
 
 export function useCierreDia({
   fecha,
   hoyCerrado,
+  enEspera = false,
   alBorrar,
 }: {
   fecha: string;
   /** El día de hoy está cerrado y todavía tiene sus datos en el teléfono. */
   hoyCerrado: boolean;
+  /** Hay pedidos que llegaron tarde fuera de la ruta (spec 033, llega-tarde): el
+   *  cierre de hoy no se abre solo; sí con «Cerrar el día». */
+  enEspera?: boolean;
   /** Después de borrar: volver a leer el día. */
   alBorrar: () => Promise<unknown> | void;
 }) {
   const [anteriores, setAnteriores] = useState<string[]>([]);
   const [hoyAplazado, setHoyAplazado] = useState(false);
+  const [hoyPedido, setHoyPedido] = useState(false);
   const [leido, setLeido] = useState<CierrePendiente | null>(null);
   const [borrando, setBorrando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let vigente = true;
-    diasPorBorrar(fecha)
+    // Antes, lo suelto de días anteriores (fotos y propuestas sin pedidos): se va
+    // sin preguntar, no es un día trabajado (spec 033, G5).
+    borrarSueltos(fecha)
+      .catch(() => 0)
+      .then(() => diasPorBorrar(fecha))
       .then((f) => vigente && setAnteriores(f))
       .catch(() => {});
     return () => {
@@ -59,7 +74,7 @@ export function useCierreDia({
     };
   }, [fecha]);
 
-  const objetivo = anteriores[0] ?? (hoyCerrado && !hoyAplazado ? fecha : null);
+  const objetivo = anteriores[0] ?? (hoyCerrado && !hoyAplazado && (!enEspera || hoyPedido) ? fecha : null);
   // Lo leído vale solo para el día que sigue siendo el objetivo.
   const pendiente = objetivo && leido?.fecha === objetivo ? leido : null;
 
@@ -78,6 +93,7 @@ export function useCierreDia({
           porPagar,
           aCobrar,
           cobrado,
+          porRevisar: entregadosPorRevisar(pedidos),
           noEntregados,
         });
       })
@@ -93,6 +109,10 @@ export function useCierreDia({
     setError(null);
     try {
       await cerrarYBorrarDia(pendiente.fecha);
+      // Lo que quedó en memoria con puntos de destinatarios (la matriz y Google los
+      // olvida el almacén): las fotos del mapa de cada dirección y los accesos.
+      olvidarEstampillas();
+      olvidarAccesos();
       setLeido(null);
       if (!pendiente.esHoy) setAnteriores((a) => a.filter((f) => f !== pendiente.fecha));
       await alBorrar();
@@ -104,12 +124,18 @@ export function useCierreDia({
   }, [pendiente, borrando, alBorrar]);
 
   const aplazar = useCallback(() => {
-    if (pendiente?.esHoy) setHoyAplazado(true);
+    if (pendiente?.esHoy) {
+      setHoyAplazado(true);
+      setHoyPedido(false);
+    }
   }, [pendiente]);
 
   /** Vuelve a mostrar el cierre de hoy después de aplazarlo (spec 027,
    *  «Cerrar el día» en la cabecera). */
-  const reabrir = useCallback(() => setHoyAplazado(false), []);
+  const reabrir = useCallback(() => {
+    setHoyAplazado(false);
+    setHoyPedido(true);
+  }, []);
 
   return { pendiente, borrando, error, confirmar, aplazar, reabrir };
 }

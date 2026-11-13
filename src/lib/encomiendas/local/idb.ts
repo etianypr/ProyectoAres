@@ -243,6 +243,25 @@ export async function clavesFotosDe(fecha: string): Promise<string[]> {
   return pedir(indice.getAllKeys(IDBKeyRange.only(fecha))) as Promise<string[]>;
 }
 
+/** Los días que tienen alguna foto, sin cargar las imágenes: una foto suelta (su
+ *  pedido ya no está) también se borra con su día (spec 033, G5). */
+export async function fechasDeFotos(): Promise<string[]> {
+  const base = await abrir();
+  const tx = base.transaction(STORES.fotos, "readonly");
+  const indice = tx.objectStore(STORES.fotos).index(INDICE_FOTOS_POR_FECHA);
+  return new Promise((resolve, reject) => {
+    const fechas: string[] = [];
+    const cursor = indice.openKeyCursor(null, "nextunique");
+    cursor.onsuccess = () => {
+      const c = cursor.result;
+      if (!c) return resolve(fechas);
+      fechas.push(String(c.key));
+      c.continue();
+    };
+    cursor.onerror = () => reject(new ErrorAlmacenLocal(cursor.error?.message ?? "Falló la lectura local."));
+  });
+}
+
 export type Escritor = {
   guardar: <S extends Store>(store: S, valor: FilaDe[S]) => void;
   borrar: (store: Store, clave: string) => void;
@@ -251,6 +270,9 @@ export type Escritor = {
   /** Lee una fila y la reescribe DENTRO de la transacción; si ya no está, no
    *  hace nada (nunca revive una fila que otro borró). */
   actualizar: <S extends Store>(store: S, clave: string, cambio: (fila: FilaDe[S]) => FilaDe[S]) => void;
+  /** Lee una fila y la borra DENTRO de la transacción solo si cumple `si`: la
+   *  cola tacha un alta sin tachar la corrección que la reemplazó (spec 033, G5). */
+  borrarSi: <S extends Store>(store: S, clave: string, si: (fila: FilaDe[S]) => boolean) => void;
 };
 
 // Escribe en uno o varios stores dentro de UNA transacción: o queda todo, o no
@@ -286,6 +308,13 @@ export async function escribir(
           const lectura = deposito.get(clave);
           lectura.onsuccess = () => {
             if (lectura.result) deposito.put(cambio(lectura.result));
+          };
+        },
+        borrarSi: (store, clave, si) => {
+          const deposito = tx.objectStore(store);
+          const lectura = deposito.get(clave);
+          lectura.onsuccess = () => {
+            if (lectura.result && si(lectura.result)) deposito.delete(clave);
           };
         },
       });

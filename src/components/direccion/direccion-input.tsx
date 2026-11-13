@@ -389,7 +389,7 @@ export function DireccionInput({
           pie={
             sinUbicarAMano
               ? "Sin ubicar en el mapa: no entra en la ruta hasta que corrijas la dirección."
-              : "Elige una dirección de la lista y vas a ver acá en qué esquina queda."
+              : "Sin punto"
           }
         />
       ) : null}

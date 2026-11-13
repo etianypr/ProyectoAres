@@ -39,7 +39,12 @@ export type RedDelDia = {
 /** Pega los puntos a la red y mide entre todos. `puntos[0]` es la partida; si la
  *  ruta termina en otro lado, el último es la llegada. null si no se puede: la red
  *  no está cargada (primera vez sin señal) o un punto queda lejos de toda calle. */
-export async function prepararRedDelDia(puntos: Coordenada[], terminaEnOtroLado: boolean): Promise<RedDelDia | null> {
+export async function prepararRedDelDia(
+  puntos: Coordenada[],
+  terminaEnOtroLado: boolean,
+  /** «Cancelar» mientras busca (spec 033): lanza AbortError entre tandas. */
+  senal?: AbortSignal,
+): Promise<RedDelDia | null> {
   const red = await cargarRed();
   if (!red) return null;
   const lugares = [];
@@ -50,7 +55,7 @@ export async function prepararRedDelDia(puntos: Coordenada[], terminaEnOtroLado:
     if (!pegado) return null;
     lugares.push({ arista: pegado.arista, fraccion: pegado.fraccion, libre });
   }
-  const conRumbo = await correrSinCongelar(armarMatrizConRumbo(red, lugares));
+  const conRumbo = await correrSinCongelar(armarMatrizConRumbo(red, lugares), senal);
   const { n, estadosDe } = conRumbo;
 
   const costo = new Float64Array(n * n);
@@ -77,8 +82,14 @@ export async function prepararRedDelDia(puntos: Coordenada[], terminaEnOtroLado:
  * rumbo): el resultado nunca cuesta más que él. `bultos`: los de cada punto; se
  * adelantan si sale casi gratis (spec 024).
  */
-export async function ordenarConRumboDelDia(red: RedDelDia, arranque: number[], bultos: number[]): Promise<number[]> {
-  const ruta = await correrSinCongelar(buscarConRumbo(red.dia, [arranque]));
+export async function ordenarConRumboDelDia(
+  red: RedDelDia,
+  arranque: number[],
+  bultos: number[],
+  /** «Cancelar» mientras busca (spec 033); sin cancelar, el orden es el mismo. */
+  senal?: AbortSignal,
+): Promise<number[]> {
+  const ruta = await correrSinCongelar(buscarConRumbo(red.dia, [arranque]), senal);
   const conBultos = adelantarBultosConRumbo(tableroDe(red.dia), ruta, {
     bultos,
     metros: red.conRumbo.metros,

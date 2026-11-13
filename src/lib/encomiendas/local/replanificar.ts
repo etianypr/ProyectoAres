@@ -53,6 +53,8 @@ export async function replanificarRuta(
   fecha: string,
   respuestas: RespuestaAplicada[],
   ahora: Date = new Date(),
+  /** false = sin pedir el trazado: quien llama lo rehace en segundo plano (spec 033). */
+  { trazar = true }: { trazar?: boolean } = {},
 ): Promise<string[]> {
   if (respuestas.length === 0) return [];
   const [ruta, pedidos] = await Promise.all([leerRuta(fecha), leerPedidos(fecha)]);
@@ -86,7 +88,7 @@ export async function replanificarRuta(
       guardada = await ordenarRuta(fecha, nuevo.map((p) => p.id));
     }
 
-    if (guardada && guardada.orden.join() !== ruta.orden.join()) {
+    if (trazar && guardada && guardada.orden.join() !== ruta.orden.join()) {
       // El trazado gris con el orden nuevo. Sin señal queda el anterior: la línea
       // azul, hasta la parada activa, se recalcula sola contra el GPS.
       // Es un extra: el orden ya quedó guardado, y un error acá (sin token, sin

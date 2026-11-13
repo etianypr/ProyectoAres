@@ -6,14 +6,16 @@
 // 027: lo pide la cabecera de la hoja.
 
 import { useState } from "react";
-import { logout } from "@/lib/auth/acciones";
-import { avanceCarga, leerDias, type Pedido, type ResumenDia } from "@/lib/encomiendas/local/almacen";
+import { avanceCarga, fechasConDatos, leerCola, leerDias, type Pedido, type ResumenDia } from "@/lib/encomiendas/local/almacen";
+import { sinEnviarPorFecha } from "@/lib/encomiendas/local/dias-del-menu";
 import type { PropuestaRuta } from "@/lib/encomiendas/local/generar-ruta";
 import { problemasDelPedido } from "@/lib/encomiendas/problemas";
+import { fueraDeLaRuta } from "@/lib/encomiendas/local/sumar-a-ruta";
 import { usarEscanerVivo } from "@/lib/nativo/escaner-vivo";
-import type { DiaEnCurso } from "../_hooks/use-dia-trabajo";
+import type { DiaEnCurso, Parada } from "../_hooks/use-dia-trabajo";
 import type { useCierreDia } from "../_hooks/use-cierre-dia";
 import { Ayuda } from "./ayuda";
+import type { PaqueteEsperado } from "./aviso-otra-parada";
 import { BuscarOf } from "./buscar-of";
 import { CargarGuia } from "./cargar-guia";
 import { CierreDia } from "./cierre-dia";
@@ -28,12 +30,22 @@ export function useVentanas() {
   // así la lista está fresca aunque el día se haya cerrado con el menú ya usado.
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [dias, setDias] = useState<ResumenDia[]>([]);
+  /** Fechas con pedidos o ruta en el teléfono, y la cola por fecha (spec 033, dia-sin-cerrar). */
+  const [conDatos, setConDatos] = useState<Set<string>>(new Set());
+  const [sinEnviar, setSinEnviar] = useState<Map<string, number>>(new Map());
+  const leerMenu = () => {
+    void leerDias().then(setDias, () => {});
+    void fechasConDatos().then(setConDatos, () => {});
+    void leerCola().then((cola) => setSinEnviar(sinEnviarPorFecha(cola)), () => {});
+  };
   const [buscandoOf, setBuscandoOf] = useState(false);
   // Spec 005: cargar el día desde la guía y escanear cada etiqueta.
   const [cargandoGuia, setCargandoGuia] = useState(false);
   /** La carga de la guía está ubicando direcciones: no se puede cerrar. */
   const [guiaOcupada, setGuiaOcupada] = useState(false);
   const [escaneando, setEscaneando] = useState(false);
+  /** Escaneando desde la parada: el paquete que se espera (spec 033, escanear-parada). */
+  const [esperado, setEsperado] = useState<PaqueteEsperado | null>(null);
   /** Sin cámara (permiso negado): el escáner de siempre hasta cerrar (spec 028). */
   const [escanerClasico, setEscanerClasico] = useState(false);
   /** Cómo se usa la app (ver ayuda.tsx). */
@@ -43,9 +55,12 @@ export function useVentanas() {
     menuAbierto,
     setMenuAbierto,
     dias,
+    conDatos,
+    sinEnviar,
+    releerMenu: leerMenu,
     abrirMenu: () => {
       setMenuAbierto(true);
-      void leerDias().then(setDias);
+      leerMenu();
     },
     buscandoOf,
     setBuscandoOf,
@@ -54,7 +69,15 @@ export function useVentanas() {
     guiaOcupada,
     setGuiaOcupada,
     escaneando,
-    setEscaneando,
+    setEscaneando: (abierto: boolean) => {
+      setEsperado(null);
+      setEscaneando(abierto);
+    },
+    esperado,
+    escanearParada: (p: Parada) => {
+      setEsperado({ pedidoId: p.pedido.id, secuencia: p.secuencia, of: p.pedido.of });
+      setEscaneando(true);
+    },
     escanerClasico,
     setEscanerClasico,
     ayudaAbierta,
@@ -75,6 +98,8 @@ export function VentanasPantalla({
   direccionEmpresa,
   onPropuesta,
   onResolver,
+  onSumar,
+  onEditar,
 }: {
   ventanas: Ventanas;
   fecha: string;
@@ -89,6 +114,11 @@ export function VentanasPantalla({
   onPropuesta: (propuesta: PropuestaRuta) => void;
   /** Abre de a uno los pedidos con ⚠ (useResolverProblemas). */
   onResolver: (conProblema: Pedido[]) => void;
+  /** Suma a la ruta los pedidos de afuera con punto (spec 033, otra-guia-ruta). */
+  onSumar: () => Promise<void>;
+  /** Abre el formulario de un pedido (spec 033: la fila de «Buscar por OF» y
+   *  «Corregir» en el resumen de la guía). */
+  onEditar: (pedido: Pedido) => void;
 }) {
   const conProblema = dia.pedidos.filter((p) => p.resultado === "pendiente" && problemasDelPedido(p).length > 0);
   return (
@@ -97,9 +127,13 @@ export function VentanasPantalla({
         <MenuLateral
           nombreConductor={nombreConductor}
           dias={v.dias}
+          conDatos={v.conDatos}
+          sinEnviar={v.sinEnviar}
+          onReintentar={dia.intentar}
+          enviando={dia.enviando}
+          onReleer={v.releerMenu}
           fechaActiva={fecha}
           onCerrar={() => v.setMenuAbierto(false)}
-          logout={logout}
           onBuscarOf={() => {
             v.setMenuAbierto(false);
             v.setBuscandoOf(true);
@@ -116,6 +150,8 @@ export function VentanasPantalla({
           fecha={fecha}
           lecturaIA={lecturaIA}
           hayRuta={dia.ruta != null}
+          fueraDeRuta={dia.ruta ? fueraDeLaRuta(dia.pedidos, dia.ruta.orden).length : 0}
+          onSumar={onSumar}
           onOcupado={v.setGuiaOcupada}
           onEscanearPaquetes={() => {
             v.setCargandoGuia(false);
@@ -124,11 +160,19 @@ export function VentanasPantalla({
           onCerrar={() => v.setCargandoGuia(false)}
           onCreados={() => void dia.recargar()}
           onAyuda={() => v.setAyudaAbierta(true)}
+          onCorregir={(id) => {
+            // El formulario va en la hoja, debajo de esta ventana: se cierra primero.
+            const pedido = dia.pedidos.find((p) => p.id === id);
+            if (!pedido) return;
+            v.setCargandoGuia(false);
+            onEditar(pedido);
+          }}
           armar={() => (
             <GenerarRutaLocal
               fecha={fecha}
               direccionEmpresa={direccionEmpresa}
               conProblema={conProblema.length}
+              sinDesde
               onResolver={() => {
                 v.setCargandoGuia(false);
                 onResolver(conProblema);
@@ -148,6 +192,7 @@ export function VentanasPantalla({
       {v.escaneando && usarEscanerVivo() && !v.escanerClasico ? (
         <EscanerVivo
           fecha={fecha}
+          esperado={v.esperado}
           avance={avanceCarga(dia.pedidos)}
           onCerrar={() => v.setEscaneando(false)}
           onCambio={() => void dia.recargar()}
@@ -161,6 +206,7 @@ export function VentanasPantalla({
       {v.escaneando && (!usarEscanerVivo() || v.escanerClasico) ? (
         <EscanearEtiqueta
           fecha={fecha}
+          esperado={v.esperado}
           avance={avanceCarga(dia.pedidos)}
           onCerrar={() => {
             v.setEscaneando(false);
@@ -179,6 +225,10 @@ export function VentanasPantalla({
           pedidos={dia.pedidos}
           secuenciaDe={new Map(dia.paradas.map((p) => [p.pedido.id, p.secuencia] as const))}
           onCerrar={() => v.setBuscandoOf(false)}
+          onAbrir={(p) => {
+            v.setBuscandoOf(false);
+            onEditar(p);
+          }}
         />
       ) : null}
 

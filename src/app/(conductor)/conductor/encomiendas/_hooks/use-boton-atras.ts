@@ -9,6 +9,7 @@ import { useEffect, useRef } from "react";
 import { alBotonAtras, minimizarApp } from "@/lib/nativo/entorno";
 import type { Ventanas } from "../_componentes/ventanas-pantalla";
 import type { useCierreDia } from "./use-cierre-dia";
+import { atenderAtrasPropio } from "./use-atras-propio";
 
 /** Algo abierto que el botón atrás cierra: [¿está abierto?, cómo se cierra]. */
 type Abierto = [boolean, () => void];
@@ -31,6 +32,10 @@ export function useBotonAtras({
     manejar.current = () => {
       // El cierre de un día anterior no se salta; el de hoy queda para después.
       if (cierreDia.pendiente) return cierreDia.aplazar();
+      // La ayuda se abre encima de «Cargar la guía»: se cierra primero.
+      if (v.ayudaAbierta) return v.setAyudaAbierta(false);
+      // Lo que hay que confirmar antes de cerrar (spec 033, use-atras-propio.ts).
+      if (atenderAtrasPropio()) return;
       const abiertos: Abierto[] = [
         [v.ayudaAbierta, () => v.setAyudaAbierta(false)],
         [v.buscandoOf, () => v.setBuscandoOf(false)],

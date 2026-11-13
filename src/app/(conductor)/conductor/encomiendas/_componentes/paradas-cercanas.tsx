@@ -4,7 +4,8 @@
 // activa, abajo a la derecha del mapa, a la izquierda de «Centrar» (dueño,
 // 2026-11-09). Al tocarla se abre una lista compacta —una línea por parada, para
 // tapar poco el mapa— y esas paradas se marcan en el mapa; tocar una fila lleva
-// el mapa a ella (use-vista-cercanas.ts). «Ahora» la deja como la próxima. No
+// el mapa a ella (use-vista-cercanas.ts). «Ahora» la deja como la próxima, con
+// «Deshacer» y el aviso por su OF (spec 033, use-reordenar.ts). Elegirlas no
 // consulta nada: línea recta y el orden guardado. Solo en ARES: la burbuja es
 // nativa y sumarla obligaría a otra APK.
 
@@ -22,7 +23,6 @@ export function ParadasCercanas({
   guardando,
   onLlamar,
   onHacerAhora,
-  avisar,
 }: {
   cercanas: Cercana[];
   abierta: boolean;
@@ -31,16 +31,14 @@ export function ParadasCercanas({
   enfocar: (c: Cercana) => void;
   guardando: boolean;
   onLlamar: (c: Cercana) => void;
-  /** null = no se pudo (el error ya está a la vista). */
-  onHacerAhora: (pedidoId: string) => Promise<unknown>;
-  avisar: (texto: string) => void;
+  /** La deja como la próxima y lo avisa (el error, si falla, ya queda a la vista). */
+  onHacerAhora: (c: Cercana) => Promise<unknown>;
 }) {
   if (cercanas.length === 0) return null;
 
   async function hacerAhora(c: Cercana) {
     setAbierta(false);
-    if ((await onHacerAhora(c.pedido.id)) === null) return;
-    avisar(c.secuencia == null ? "Entró a la ruta como la próxima parada" : `La ${c.secuencia} queda como la próxima parada`);
+    await onHacerAhora(c);
   }
 
   return (

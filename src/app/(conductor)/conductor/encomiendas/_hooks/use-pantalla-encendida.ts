@@ -29,15 +29,22 @@ type NavegadorConWakeLock = Navigator & {
   wakeLock?: { request: (tipo: "screen") => Promise<Centinela> };
 };
 
+/** Cuántas partes de la pantalla la piden encendida dentro de la APK. */
+let pedidosApp = 0;
+
 export function usePantallaEncendida(activo: boolean): void {
   useEffect(() => {
     if (!activo || typeof navigator === "undefined") return;
 
     // Dentro de la APK (spec 015) lo hace Android, que no lo suelta al pasar a
     // segundo plano: no hace falta volver a pedirlo después de cada llamada.
+    // Se cuenta quién la pide (spec 033: también mientras busca la ruta): si no,
+    // terminar de rehacer la ruta la apagaba con el reparto en curso.
     if (esApp()) {
-      void pantallaEncendida(true);
-      return () => void pantallaEncendida(false);
+      if (++pedidosApp === 1) void pantallaEncendida(true);
+      return () => {
+        if (--pedidosApp === 0) void pantallaEncendida(false);
+      };
     }
 
     const wakeLock = (navigator as NavegadorConWakeLock).wakeLock;

@@ -1,7 +1,8 @@
 "use client";
 
 // Buscar un paquete por su OF (spec 003, US3): con el paquete en la mano, se
-// escriben los últimos dígitos de la etiqueta y aparece su parada.
+// escriben los últimos dígitos de la etiqueta y aparece su parada. Tocar la fila
+// abre el pedido (spec 033, filas-muertas): para llamar o corregirlo.
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
@@ -13,11 +14,14 @@ export function BuscarOf({
   pedidos,
   secuenciaDe,
   onCerrar,
+  onAbrir,
 }: {
   pedidos: Pedido[];
   /** Número de parada de cada pedido en la ruta; los que no están, fuera de ella. */
   secuenciaDe: Map<string, number>;
   onCerrar: () => void;
+  /** Abre el formulario del pedido. */
+  onAbrir: (pedido: Pedido) => void;
 }) {
   const [texto, setTexto] = useState("");
   const digitos = texto.replace(/\D/g, "");
@@ -69,7 +73,12 @@ export function BuscarOf({
               const secuencia = secuenciaDe.get(p.id);
               const referencia = textoReferencia(p.referencia);
               return (
-                <li key={p.id} className="flex items-start gap-3 px-4 py-3">
+                <li key={p.id}>
+                  <button
+                    type="button"
+                    onClick={() => onAbrir(p)}
+                    className="flex w-full items-start gap-3 px-4 py-3 text-left active:bg-background"
+                  >
                   <span className="flex h-9 min-w-9 shrink-0 items-center justify-center rounded-full bg-brand px-2 text-sm font-semibold tabular-nums text-brand-foreground">
                     {secuencia ?? "—"}
                   </span>
@@ -81,6 +90,7 @@ export function BuscarOf({
                       {secuencia != null ? `Parada ${secuencia}` : "Fuera de la ruta"} · {p.direccion}
                     </p>
                   </div>
+                  </button>
                 </li>
               );
             })}

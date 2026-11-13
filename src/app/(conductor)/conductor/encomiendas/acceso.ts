@@ -24,7 +24,7 @@ export async function accesoEncomiendas(): Promise<Acceso> {
       ok: false,
       titulo: "Cuenta sin vincular",
       texto:
-        "Tu usuario no está vinculado a ningún conductor. Pide a un administrador que lo configure en tu ficha.",
+        "Este usuario no está vinculado a ningún conductor.",
       borrarLocal: true,
     };
   }
@@ -33,7 +33,7 @@ export async function accesoEncomiendas(): Promise<Acceso> {
       ok: false,
       titulo: "Cuenta desactivada",
       texto:
-        "Tu cuenta de conductor está desactivada. Los pedidos se borraron de este teléfono. Si es un error, habla con la oficina.",
+        "La cuenta de conductor está desactivada. Los pedidos se borraron de este teléfono.",
       borrarLocal: true,
     };
   }

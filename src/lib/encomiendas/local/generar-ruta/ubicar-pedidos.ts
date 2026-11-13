@@ -104,6 +104,11 @@ export async function reintentarUbicar(
 
 /** Lo ya revisado en esta sesión, por punto: regenerar no vuelve a preguntar. */
 const accesosRevisados = new Map<string, Acceso | null>();
+
+/** Olvida lo revisado: son puntos de destinatarios (al borrar el día, spec 033 G5). */
+export function olvidarAccesos(): void {
+  accesosRevisados.clear();
+}
 /** Consultas a la vez. */
 const EN_PARALELO = 6;
 /** Tope de la revisión entera: con mala señal no puede demorar el armado. */

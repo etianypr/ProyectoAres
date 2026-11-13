@@ -18,7 +18,9 @@ export async function pedidosPendientes(fecha: string): Promise<Pedido[]> {
 /** Lo que el formulario edita: el resto del pedido lo maneja el almacén. */
 export type DatosPedido = Pick<Pedido, "nombre" | "telefono" | "direccion" | "lat" | "lng" | "notas"> &
   /** El paquete (spec 003). Si no viene, se conserva el que tenía. */
-  Partial<Pick<Pedido, "of" | "referencia">>;
+  Partial<Pick<Pedido, "of" | "referencia">> &
+  /** POR PAGAR y bultos corregidos a mano (spec 033, por-pagar). Si no vienen, se conservan. */
+  Partial<Pick<Pedido, "porPagar" | "montoPorPagar" | "bultos">>;
 
 /** Crea (sin id) o actualiza (con id) un pedido del día `fecha`. Devuelve el
  *  guardado. Editar no cambia la fecha de un pedido existente. */
@@ -42,6 +44,7 @@ export function guardarPedido(
       resultado: anterior?.resultado ?? "pendiente",
       horaLlamada: anterior?.horaLlamada ?? null,
       horaResultado: anterior?.horaResultado ?? null,
+      eventoResultado: anterior?.eventoResultado ?? null,
       // Corregir un teléfono o una dirección tampoco borra lo que el receptor
       // ya contestó. Si el conductor cambia el número porque el anterior estaba
       // mal, esa respuesta era de otra persona y hay que descartarla — pero eso
@@ -53,10 +56,10 @@ export function guardarPedido(
       of: datos.of !== undefined ? datos.of : (anterior?.of ?? null),
       referencia: datos.referencia !== undefined ? datos.referencia : (anterior?.referencia ?? null),
       fotoId: anterior?.fotoId ?? null,
-      bultos: anterior?.bultos ?? null,
+      bultos: datos.bultos !== undefined ? datos.bultos : (anterior?.bultos ?? null),
       bultosEscaneados: anterior?.bultosEscaneados ?? [],
-      porPagar: anterior?.porPagar ?? null,
-      montoPorPagar: anterior?.montoPorPagar ?? null,
+      porPagar: datos.porPagar !== undefined ? datos.porPagar : (anterior?.porPagar ?? null),
+      montoPorPagar: datos.montoPorPagar !== undefined ? datos.montoPorPagar : (anterior?.montoPorPagar ?? null),
       folioGuia: anterior?.folioGuia ?? null,
       origenCarga: anterior?.origenCarga ?? nuevo?.origen ?? "manual",
       // Editar conserva los ⚠; cambiar la dirección o el punto quita los que
@@ -117,6 +120,19 @@ export function cambiarDireccion(
       // Los ⚠ del lugar de antes ya no valen (spec 022).
       problemas: pedido.problemas.filter((x) => !PROBLEMAS_DE_LUGAR.has(x.tipo)),
     };
+    await escribir([STORES.pedidos], ({ guardar }) => guardar(STORES.pedidos, cambiado));
+    return cambiado;
+  });
+}
+
+/** Anota el teléfono del receptor (ya normalizado) sin tocar el resto: al
+ *  confirmar una corrección de la IA en «Cargar la guía» (dueño, 2026-11-13).
+ *  Solo en el teléfono, como el del formulario. */
+export function fijarTelefono(id: string, telefono: string): Promise<Pedido | null> {
+  return enFila(async () => {
+    const pedido = await leerPedido(id);
+    if (!pedido) return null;
+    const cambiado: Pedido = { ...pedido, telefono };
     await escribir([STORES.pedidos], ({ guardar }) => guardar(STORES.pedidos, cambiado));
     return cambiado;
   });

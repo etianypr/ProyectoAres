@@ -36,11 +36,14 @@ import {
   X,
 } from "lucide-react";
 import { formatDistancia } from "@/lib/comun/format";
+import { cn } from "@/lib/comun/utils";
 import { nombreVisible } from "@/lib/encomiendas/paquete";
-import { bloquePorId } from "@/lib/encomiendas/config";
-import { avisoSinTrazado, type EstrategiaRuta, type PropuestaRuta } from "@/lib/encomiendas/local/generar-ruta";
+import { avisoSinTrazado, type EstrategiaRuta, type PedidoUbicado, type PropuestaRuta } from "@/lib/encomiendas/local/generar-ruta";
 import type { QuitadoDeLaPropuesta } from "../_hooks/use-propuesta";
+import { useAtrasPropio } from "../_hooks/use-atras-propio";
+import { useSegundoToque } from "../_hooks/use-segundo-toque";
 import { CifrasRuta } from "./cifras-ruta";
+import { ListaPropuesta } from "./lista-propuesta";
 
 // Mismas medidas que los botones de la tarjeta de la parada activa (ver
 // parada-activa.tsx): 48 px de alto, para el pulgar y sin mirar mucho.
@@ -65,6 +68,7 @@ export function VistaPreviaRuta({
   onQuitar,
   onDeshacerQuitar,
   onInvertir,
+  onVer,
 }: {
   propuesta: PropuestaRuta;
   /** Guarda la ruta en el teléfono (ver confirmarRutaLocal). */
@@ -79,8 +83,17 @@ export function VistaPreviaRuta({
   onDeshacerQuitar: () => Promise<void>;
   /** «Invertir orden de ruta»: al revés, u otra vez como la propuso ARES (spec 024). */
   onInvertir: () => Promise<void>;
+  /** Tocar una fila lleva el mapa a su pin (spec 033). */
+  onVer?: (p: PedidoUbicado) => void;
 }) {
   const [guardando, setGuardando] = useState(false);
+  // La lista a pantalla completa (spec 033, nuevo-propuesta-lista-chica).
+  const [entera, setEntera] = useState(false);
+  // La ✕ pide un segundo toque (spec 033, descartar-propuesta): rearmarla cuesta
+  // 16 s con 86 paradas. Atrás no la descarta (pantalla.tsx): achica la lista o
+  // desarma la ✕.
+  const descarte = useSegundoToque();
+  useAtrasPropio(entera || descarte.armado, () => (entera ? setEntera(false) : descarte.desarmar()));
   const [cambiando, setCambiando] = useState<EstrategiaRuta | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -146,7 +159,13 @@ export function VistaPreviaRuta({
     // donde el mapa que dibuja la ruta propuesta es una tarjeta que queda ARRIBA
     // (ver pantalla.tsx). Con el tope viejo el panel la tapaba entera, así que
     // se veían los kilómetros y el tiempo de una ruta que no se podía mirar.
-    <div data-propuesta-ruta className="sube-y-frena flex max-h-[52vh] flex-col rounded-t-[26px] bg-card px-4 pb-5 pt-4 shadow-[0_-8px_30px_rgba(34,26,21,0.16)]">
+    <div
+      data-propuesta-ruta
+      className={cn(
+        "sube-y-frena flex flex-col bg-card px-4 pb-5 pt-4 shadow-[0_-8px_30px_rgba(34,26,21,0.16)]",
+        entera ? "h-dvh" : "max-h-[52vh] rounded-t-[26px]",
+      )}
+    >
       <div className="flex shrink-0 items-center gap-2">
         <Route className="h-4 w-4 shrink-0 text-brand" />
         <p className="flex-1 text-sm font-semibold">Ruta propuesta</p>
@@ -261,57 +280,15 @@ export function VistaPreviaRuta({
         </p>
       ) : null}
 
-      {/* El orden es lo que el conductor viene a revisar: se puede desplazar, pero
-          sin comerse la pantalla — el mapa de atrás también es parte de esto. */}
-      <ol className="mt-3 min-h-0 max-h-[17vh] flex-1 overflow-y-auto rounded-2xl bg-background">
-        {paradas.map((p, i) => (
-          <li
-            key={p.id}
-            className={`flex items-center gap-2.5 px-3 py-2 text-sm ${i > 0 ? "border-t border-divider" : ""}`}
-          >
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand font-mono text-[11px] font-semibold tabular-nums text-brand-foreground">
-              {numero(i)}
-            </span>
-            <span className="min-w-0 flex-1">
-              {/* La OF en monoespaciada, como en la guía; el nombre, en la letra de texto. */}
-              <span className={`block truncate font-semibold leading-tight ${p.nombre ? "text-sm" : "font-mono text-[13px]"}`}>
-                {nombreVisible(p)}
-              </span>
-              <span className="block truncate text-xs text-muted">{p.direccion}</span>
-            </span>
-            {/* Qué contestó este receptor. Es la mitad del valor de haberle
-                avisado: sin esto, el conductor llega a la puerta sin saber si lo
-                están esperando. Cada estado lleva icono Y texto, no solo
-                color. */}
-            {p.bloqueHorarioId ? (
-              <span className="flex shrink-0 items-center gap-1 rounded-full bg-brand-soft px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-brand">
-                <Clock className="h-3 w-3" />
-                {bloquePorId(p.bloqueHorarioId)?.etiqueta ?? p.bloqueHorarioId}
-              </span>
-            ) : p.disponibilidad === "confirmado" ? (
-              <span className="flex shrink-0 items-center gap-1 rounded-full bg-ok-bg px-1.5 py-0.5 text-[10px] font-semibold text-ok">
-                <Check className="h-3 w-3" />
-                confirmó
-              </span>
-            ) : (
-              <span className="flex shrink-0 items-center gap-1 rounded-full bg-background px-1.5 py-0.5 text-[10px] font-semibold text-muted">
-                <Phone className="h-3 w-3" />
-                por llamar
-              </span>
-            )}
-            {/* Un pedido que no va (terreno 2026-10-28) se elimina acá mismo. */}
-            <button
-              type="button"
-              onClick={() => void onQuitar(p.id)}
-              disabled={ocupada}
-              aria-label={`Eliminar ${nombreVisible(p)}`}
-              className="-mr-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted active:bg-card disabled:opacity-50"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          </li>
-        ))}
-      </ol>
+      <ListaPropuesta
+        paradas={paradas}
+        numero={numero}
+        entera={entera}
+        onEntera={setEntera}
+        onVer={onVer}
+        onQuitar={(id) => void onQuitar(id)}
+        ocupada={ocupada}
+      />
 
       {cerradas > 0 ? (
         <p className="mt-2 flex shrink-0 items-start gap-2 rounded-xl bg-background px-3 py-2 text-xs text-muted">
@@ -366,11 +343,17 @@ export function VistaPreviaRuta({
       <div className="mt-3 grid shrink-0 grid-cols-[auto_1fr] gap-2">
         <button
           type="button"
-          onClick={onDescartar}
+          onClick={() => descarte.tocar(onDescartar)}
           disabled={ocupada}
-          aria-label="Descartar esta ruta"
-          className="flex h-12 w-12 items-center justify-center rounded-full border border-separator bg-card text-muted transition-transform active:scale-[0.97] disabled:opacity-50"
+          aria-label={descarte.armado ? "¿Descartar? Toca otra vez" : "Descartar esta ruta"}
+          className={cn(
+            "flex h-12 items-center justify-center gap-1 rounded-full border transition-transform active:scale-[0.97] disabled:opacity-50",
+            descarte.armado
+              ? "border-danger/30 bg-danger-bg px-4 text-sm font-semibold text-danger"
+              : "w-12 border-separator bg-card text-muted",
+          )}
         >
+          {descarte.armado ? "¿Descartar?" : null}
           <X className="h-5 w-5" />
         </button>
         <button type="button" onClick={() => void usar()} disabled={ocupada} className={BOTON_PRINCIPAL}>

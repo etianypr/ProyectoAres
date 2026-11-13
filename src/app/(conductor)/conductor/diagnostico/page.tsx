@@ -21,6 +21,7 @@ import { origenDelUltimoTrazado } from "@/lib/geo/ruta-por-calles";
 import { ProbarBarridoNomina } from "./_componentes/probar-barrido-nomina";
 import { ProbarEscanerVivo } from "./_componentes/probar-escaner-vivo";
 import { ProbarEtiqueta } from "./_componentes/probar-etiqueta";
+import { CintaModoPrueba } from "../encomiendas/_componentes/cinta-modo-prueba";
 
 type Estado = "si" | "no" | "pendiente";
 
@@ -111,6 +112,8 @@ export default function DiagnosticoPage() {
 
   return (
     <div className="mx-auto max-w-md space-y-4 px-4 pb-8 pt-[max(1rem,env(safe-area-inset-top))]">
+      {/* La misma cinta de la pantalla de reparto (spec 033, diag-apagados). */}
+      <CintaModoPrueba visible={modoPrueba} />
       <Link href="/conductor/encomiendas" className="inline-flex items-center gap-1.5 text-sm text-muted">
         <ArrowLeft className="h-4 w-4" />
         Volver a la ruta
@@ -168,7 +171,8 @@ export default function DiagnosticoPage() {
         )}
       >
         <ScanLine className="h-4 w-4" />
-        {escaneando ? "Escaneando…" : "Probar escáner"}
+        {/* Fuera de la APK se dice por qué no anda (spec 033, diag-apagados). */}
+        {escaneando ? "Escaneando…" : info && !info.app ? "Probar escáner · Solo en la app" : "Probar escáner"}
       </button>
       {lectura ? (
         <p className="break-all rounded-2xl bg-card px-4 py-3 font-mono text-sm shadow-soft">{lectura}</p>

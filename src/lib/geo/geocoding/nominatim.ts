@@ -170,7 +170,13 @@ export async function sugerirEnOsm(
 
 // La ciudad se agrega para desambiguar direcciones cortas ("Av. Colón 123")
 // que sin ella podrían matchear en cualquier país.
-export async function conNominatim(direccion: string): Promise<SugerenciaDireccion[]> {
+export async function conNominatim(direccion: string, senal?: AbortSignal): Promise<SugerenciaDireccion[]> {
+  return (await preguntarANominatim(direccion, senal)) ?? [];
+}
+
+/** Lo mismo, pero null si no se pudo preguntar (sin señal, OSM caído): ubicar una
+ *  guía sin señal se corta en vez de esperar dirección por dirección (spec 033). */
+export async function preguntarANominatim(direccion: string, senal?: AbortSignal): Promise<SugerenciaDireccion[] | null> {
   const params = new URLSearchParams({
     q: `${direccion}, Arica, Chile`,
     format: "jsonv2",
@@ -179,7 +185,7 @@ export async function conNominatim(direccion: string): Promise<SugerenciaDirecci
     "accept-language": "es",
   });
 
-  const filas = await pedirNominatim(params);
-  if (!filas) return [];
+  const filas = await pedirNominatim(params, senal);
+  if (!filas) return null;
   return (filas as FilaOsm[]).flatMap(aSugerenciaOsm);
 }

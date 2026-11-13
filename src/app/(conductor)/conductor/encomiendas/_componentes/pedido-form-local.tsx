@@ -13,8 +13,11 @@
 // Es la excepción de A7 que queda (spec 002, T041): sus estados están entrelazados
 // y partir la lógica del formulario más usado en terreno no vale el riesgo ahora.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ResolverDireccion, type PorResolver } from "./resolver-direccion";
+import { MarcarPunto } from "./marcar-punto";
+import { SeccionPaquete, usePaqueteForm } from "./seccion-paquete";
+import { plusCodeDe } from "@/lib/geo/plus-code";
 import { Check, Save, StickyNote } from "lucide-react";
 import { Campo, CampoArea, NotaCampo } from "@/components/ui/campo";
 import { DireccionInput } from "@/components/direccion/direccion-input";
@@ -27,6 +30,12 @@ import { ofValida } from "@/lib/encomiendas/paquete";
 
 const VACIO = { nombre: "", telefono: "", direccion: "", notas: "" };
 
+/** El id del formulario: «Cambios sin guardar · Guardar» lo envía desde afuera. */
+export const ID_FORM_PEDIDO = "pedido-form-local";
+
+/** Lo que la vista que lo contiene necesita saber del formulario (spec 033). */
+export type CambiosForm = { sucio: boolean; telefono: string | null };
+
 /** Dirección que el conductor eligió de la lista de sugerencias: el texto tal cual
  *  lo devolvió el buscador y sus coordenadas. Mientras el campo diga exactamente
  *  ese texto, esas son las coordenadas que se guardan — sin volver a
@@ -38,6 +47,7 @@ export function PedidoFormLocal({
   fecha,
   ofInicial,
   onGuardado,
+  onCambios,
 }: {
   /** Pedido a editar. Sin esto es uno nuevo. */
   pedido?: Pedido;
@@ -54,6 +64,8 @@ export function PedidoFormLocal({
    *  guardar era un segundo camino para lo mismo, ocupando la mitad del ancho
    *  que le hacía falta al único botón que importa. */
   onGuardado: (aviso?: string | null) => void;
+  /** Hay algo escrito sin guardar, y el teléfono escrito si es válido (spec 033). */
+  onCambios?: (c: CambiosForm) => void;
 }) {
   const editando = pedido != null;
   const [campos, setCampos] = useState(
@@ -79,11 +91,14 @@ export function PedidoFormLocal({
   // que el botón de guardar entre en la pantalla sin deslizar.
   const [notasAbiertas, setNotasAbiertas] = useState(Boolean(pedido?.notas));
   // La OF (spec 003), opcional a mano: es la llave que une este pedido con su
-  // etiqueta al escanearla (spec 005). La descripción y la foto del paquete NO se
-  // cargan acá: salen del escaneo de la etiqueta.
+  // etiqueta al escanearla (spec 005). La descripción, la foto, los bultos y el
+  // POR PAGAR salen del escaneo; al corregir un pedido se pueden cambiar en la
+  // sección plegada «Paquete» (spec 033).
   const [ofTexto, setOfTexto] = useState(pedido?.of ?? ofInicial ?? "");
   const ofEscrita = ofTexto.trim();
   const of = ofValida(ofEscrita);
+  // POR PAGAR, bultos y cómo es el paquete, al corregir uno (spec 033).
+  const paquete = usePaqueteForm(pedido);
 
   function set(campo: keyof typeof VACIO, valor: string) {
     setCampos((c) => ({ ...c, [campo]: valor }));
@@ -117,6 +132,21 @@ export function PedidoFormLocal({
   // forma mientras escribe, que es la señal de que no hace falta el "+569".
   const telefono = useMemo(() => normalizarTelefono(campos.telefono), [campos.telefono]);
   const telefonoEscrito = campos.telefono.trim().length > 0;
+
+  // Algo escrito que se perdería al cerrar: contra el pedido guardado, o contra
+  // el formulario vacío si es uno nuevo (spec 033, form-pierde).
+  const base = pedido
+    ? { nombre: pedido.nombre, telefono: pedido.telefono, direccion: pedido.direccion, notas: pedido.notas ?? "" }
+    : VACIO;
+  const sucio =
+    (Object.keys(VACIO) as (keyof typeof VACIO)[]).some((k) => campos[k].trim() !== base[k].trim()) ||
+    ofEscrita !== (pedido?.of ?? ofInicial ?? "").trim() ||
+    elegida != null ||
+    (editando && paquete.sucio);
+  const telefonoValido = telefono.ok ? telefono.telefono.e164 : null;
+  useEffect(() => {
+    onCambios?.({ sucio, telefono: telefonoValido });
+  }, [sucio, telefonoValido, onCambios]);
 
   // Editando y con un número distinto del guardado: hay una respuesta previa que
   // ya no corresponde a este destinatario. Se compara contra el NORMALIZADO para
@@ -159,6 +189,7 @@ export function PedidoFormLocal({
         lng: coord.lng,
         notas: campos.notas.trim() || null,
         of,
+        ...(editando ? paquete.datos() : {}),
       },
       fecha,
       pedido?.id,
@@ -173,6 +204,7 @@ export function PedidoFormLocal({
         .join(" ");
     }
 
+    if (editando) await paquete.guardarFotoDe(guardado.id);
     setPorResolver(null);
 
     // Al cargar pedidos siempre se hace en tanda: tras guardar uno nuevo el
@@ -316,7 +348,7 @@ export function PedidoFormLocal({
     // debajo del borde y hubiera que deslizar para llegar a él con el pedido ya
     // escrito. Un formulario que se llena treinta veces al día no puede pedir
     // un gesto extra para cerrarse.
-    <form onSubmit={onSubmit} className="flex h-full min-h-0 flex-col">
+    <form id={ID_FORM_PEDIDO} onSubmit={onSubmit} className="flex h-full min-h-0 flex-col">
       {/* La etiqueta va dentro de cada caja (ui/campo.tsx): sin el renglón de
           encima, los campos entran de una sin deslizar.
           content-start porque una rejilla que scrollea estira sus filas para
@@ -418,6 +450,18 @@ export function PedidoFormLocal({
             setPorResolver(null);
           }}
         />
+        {/* Sin buscador que la encuentre: el punto a mano o con el GPS (spec 033). Sin
+            dirección escrita, va el Plus Code del punto. */}
+        <MarcarPunto
+          inicial={puntoPreview}
+          onPunto={(p) => {
+            const texto = direccionEscrita || plusCodeDe(p) || "";
+            setCampos((c) => ({ ...c, direccion: texto }));
+            setElegida({ texto, lat: p.lat, lng: p.lng });
+            setAceptadaAMano(null);
+            setPorResolver(null);
+          }}
+        />
 
         {/* La nota es opcional y la mayoría de los pedidos no lleva ninguna:
             plegada es un renglón. Se abre tocándola —con el cursor ya adentro,
@@ -447,6 +491,8 @@ export function PedidoFormLocal({
             Agregar una nota
           </button>
         )}
+
+        {editando ? <SeccionPaquete form={paquete} fotoGuardadaId={pedido.fotoId} deshabilitado={guardando} /> : null}
 
         {porResolver ? (
           <ResolverDireccion

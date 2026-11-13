@@ -3,7 +3,7 @@
 // «Resolver los ⚠» (spec 027, paso 2): abre el primer pedido con ⚠ en la hoja y,
 // al guardarlo, el siguiente, sin volver a la lista entre medio. Un ⚠ que no se
 // arregla (una OF que de verdad viene con 8 dígitos) no traba la pasada: se
-// sigue con el que viene.
+// sigue con el que viene. «Siguiente» salta al que viene sin guardar (spec 033).
 
 import { useCallback, useState } from "react";
 import type { Pedido } from "@/lib/encomiendas/local/almacen";
@@ -29,7 +29,8 @@ export function useResolverProblemas(setFormPedido: (p: "nuevo" | Pedido | null)
     setPasada(null);
   }, [setFormPedido]);
 
-  /** Se guardó una corrección: abre el siguiente ⚠ que siga en el día, o cierra. */
+  /** Se guardó una corrección (o se tocó «Siguiente»): abre el siguiente ⚠ que
+   *  siga en el día, o cierra. */
   const despuesDeGuardar = useCallback(
     (pedidos: Pedido[]) => {
       const quedan = pasada?.cola ?? [];
@@ -45,5 +46,8 @@ export function useResolverProblemas(setFormPedido: (p: "nuevo" | Pedido | null)
   /** "⚠ 2 de 4" en el formulario, durante la pasada. */
   const titulo = pasada ? `⚠ ${pasada.total - pasada.cola.length} de ${pasada.total}` : undefined;
 
-  return { empezar, cerrar, despuesDeGuardar, titulo };
+  /** Quedan ⚠ por delante en la pasada. */
+  const hayMas = (pasada?.cola.length ?? 0) > 0;
+
+  return { empezar, cerrar, despuesDeGuardar, titulo, hayMas };
 }

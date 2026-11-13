@@ -14,8 +14,8 @@ import { leerEtiqueta } from "@/lib/encomiendas/lectura/etiqueta";
 import { formatoOf, notaPaquete, referenciaOVacia, textoReferencia } from "@/lib/encomiendas/paquete";
 import {
   aplicarLecturaEtiqueta,
+  guardarDescripcionPaquete,
   guardarFoto,
-  guardarPaquete,
   type ResultadoEscaneo,
 } from "@/lib/encomiendas/local/almacen";
 import { leerFotoEtiqueta } from "@/lib/encomiendas/local/lectura-cliente";
@@ -148,15 +148,16 @@ export function Resultado({
   async function guardarDescripcion() {
     setGuardando(true);
     try {
-      await guardarPaquete(p.id, {
+      await guardarDescripcionPaquete(p.id, {
         referencia: referenciaOVacia({
           tipo: paquete.tipo,
           tamano: paquete.tamano,
           color: paquete.color,
           nota: notaPaquete(paquete.nota),
         }),
+        fotoNueva: paquete.fotoNueva,
+        quitarFoto: paquete.quitarFoto,
       });
-      if (paquete.fotoNueva) await guardarFoto(p.id, paquete.fotoNueva);
       const nuevo = await aplicarLecturaEtiqueta(fecha, { of: codigo.of, bulto: null });
       if (nuevo) onCambio({ ...nuevo, direccionDistinta: r.direccionDistinta });
       setDescribiendo(false);

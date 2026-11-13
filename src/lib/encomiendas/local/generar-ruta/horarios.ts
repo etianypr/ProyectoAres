@@ -31,6 +31,8 @@ export async function ordenConHorarios(
   metros: MetrosEntre,
   minutosDeInicio: number,
   vuelta: VueltaABase,
+  /** «Cancelar» mientras busca (spec 033). */
+  senal?: AbortSignal,
 ): Promise<PedidoUbicado[]> {
   const ventanas: (Ventana | null)[] = [null];
   const porIndice: PedidoUbicado[] = [];
@@ -64,7 +66,7 @@ export async function ordenConHorarios(
     kmh: KMH_CIUDAD,
     servicio: MIN_POR_PARADA,
     vuelta: metrosVuelta,
-  });
+  }, senal);
   const salida = orden.slice(1).map((i) => porIndice[i]);
   return salida.length === ubicados.length && salida.every(Boolean) ? salida : arranques[0];
 }

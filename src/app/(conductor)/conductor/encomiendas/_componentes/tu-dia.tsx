@@ -15,6 +15,7 @@ export function TuDia({
   enviando,
   onReintentar,
   rechazados,
+  correccionesRechazadas = 0,
 }: {
   /** FR-020: por qué el día no se cierra, solo con todas las paradas marcadas. */
   motivoNoCerrar: string | null;
@@ -23,8 +24,10 @@ export function TuDia({
   enviando: boolean;
   onReintentar: () => void;
   rechazados: number;
+  /** Correcciones que el servidor no aceptó: pasó el plazo de 12 h (spec 033, G5). */
+  correccionesRechazadas?: number;
 }) {
-  if (!motivoNoCerrar && sinEnviar === 0 && rechazados === 0) return null;
+  if (!motivoNoCerrar && sinEnviar === 0 && rechazados === 0 && correccionesRechazadas === 0) return null;
   return (
     <Seccion titulo="Tu día">
           <div className="space-y-2">
@@ -83,6 +86,18 @@ export function TuDia({
                   {rechazados === 1
                     ? "1 registro rechazado por el servidor. Avisa a la oficina."
                     : `${rechazados} registros rechazados por el servidor. Avisa a la oficina.`}
+                </p>
+              </div>
+            ) : null}
+
+            {/* La corrección no llegó: la entrega sigue contada como estaba. */}
+            {correccionesRechazadas > 0 ? (
+              <div className="flex items-start gap-2.5 rounded-2xl bg-danger-bg px-3.5 py-3 text-sm text-danger">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <p className="min-w-0 flex-1">
+                  {correccionesRechazadas === 1
+                    ? "No se pudo corregir: pasó el plazo. Avisa a la oficina."
+                    : `${correccionesRechazadas} correcciones no se pudieron hacer: pasó el plazo. Avisa a la oficina.`}
                 </p>
               </div>
             ) : null}

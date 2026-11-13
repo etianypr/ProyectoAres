@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import { sumarDias } from "@/lib/comun/fechas";
 import { leerResumenDia } from "@/lib/encomiendas/local/almacen";
 import { versionInstalada } from "@/lib/nativo/entorno";
-import { esMasVieja } from "@/lib/nativo/version";
+import { CLAVE_AVISO_APK_ESCONDIDO, mostrarAvisoApk } from "@/lib/nativo/version";
 
 export function useResumenAyer(fecha: string): { entregadas: number; noEntregadas: number } | null {
   const [ayer, setAyer] = useState<{ entregadas: number; noEntregadas: number } | null>(null);
@@ -34,12 +34,30 @@ export function useResumenAyer(fecha: string): { entregadas: number; noEntregada
   return ayer;
 }
 
-export function useApkVieja(apkMinima: string | null): boolean {
-  // APK más vieja que la mínima publicada: aviso con el enlace, sin frenar nada.
-  const [apkVieja, setApkVieja] = useState(false);
+/** «Hay una actualización disponible» al abrir la app, si la APK instalada es más
+ *  vieja que APK_VERSION_MINIMA (spec 033, apk-aviso; dueño 2026-11-13: avisa, no
+ *  obliga). La ✕ lo esconde hasta que se vuelva a abrir la app (sessionStorage). */
+export function useAvisoApk(apkMinima: string | null): { visible: boolean; esconder: () => void } {
+  const [visible, setVisible] = useState(false);
   useEffect(() => {
     if (!apkMinima) return;
-    void versionInstalada().then((v) => setApkVieja(esMasVieja(v, apkMinima)));
+    void versionInstalada().then((v) => {
+      let escondida: string | null = null;
+      try {
+        escondida = sessionStorage.getItem(CLAVE_AVISO_APK_ESCONDIDO);
+      } catch {
+        // Sin sessionStorage el aviso sale; la ✕ lo esconde igual en memoria.
+      }
+      setVisible(mostrarAvisoApk(v, apkMinima, escondida));
+    });
   }, [apkMinima]);
-  return apkVieja;
+  const esconder = () => {
+    setVisible(false);
+    try {
+      if (apkMinima) sessionStorage.setItem(CLAVE_AVISO_APK_ESCONDIDO, apkMinima);
+    } catch {
+      // Queda escondido mientras la pantalla siga abierta.
+    }
+  };
+  return { visible, esconder };
 }

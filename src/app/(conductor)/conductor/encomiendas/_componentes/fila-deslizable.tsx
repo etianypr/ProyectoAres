@@ -14,12 +14,10 @@
 //    lo que decide es un toque, no un arrastre. Es lo que hace que esto sea
 //    usable manejando: el gesto no puede terminar en un borrado sin que hubiera
 //    algo que leer.
-//  - EL ARRASTRE LARGO es el atajo, para el que ya lo sabe. Pide más de la mitad
-//    del ancho de la fila, así que no se llega ahí desplazando la lista.
-//
-// La resistencia que aparece después de que el panel se abrió (ver
-// desplazamiento) es lo que avisa, con el dedo todavía apoyado, que se entró en
-// la zona donde soltar borra.
+//  - EL ARRASTRE LARGO era un atajo que borraba solo. Desde la spec 033
+//    (recibo-eliminado) termina igual que el corto: la fila abierta y el toque
+//    en «Eliminar». Con la app cerrada a mitad del «Deshacer», el pedido se
+//    perdía para siempre.
 //
 // Nada de esto es definitivo: eliminar deja un aviso con "Deshacer" a la vista
 // (ver PedidoEliminado en el almacén). Es lo que permite que el atajo exista sin
@@ -161,9 +159,10 @@ export function FilaDeslizable({
 
     setFase("quieta");
     const decision = alSoltar(xRef.current, contenedorRef.current?.offsetWidth ?? 0);
-    if (decision === "eliminar") {
-      eliminar();
-    } else if (decision === "abrir") {
+    // El arrastre largo ya no borra: deja «Eliminar» a la vista y borrar es el
+    // toque (spec 033, recibo-eliminado). El «Deshacer» se pierde si la app se
+    // cierra en esos 8 s, y un pedido borrado así no vuelve.
+    if (decision === "eliminar" || decision === "abrir") {
       setAbierta(true);
       mover(ANCHO_ACCION);
     } else {

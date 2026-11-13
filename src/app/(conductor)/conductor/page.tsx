@@ -2,9 +2,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { exigirConductor } from "@/lib/auth/sesion";
 import { conductorDeUsuario } from "@/lib/auth/conductor-de-usuario";
-import { logout } from "@/lib/auth/acciones";
-import { LogOut } from "lucide-react";
 import { BorradoLocal } from "../borrado-local";
+import { BotonCerrarSesion, BotonReintentar } from "../cerrar-sesion";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Inicio — Conductor" };
@@ -38,8 +37,9 @@ export default async function ConductorInicioPage() {
   // pantalla que solo podría rebotarlo de vuelta.
   if (conductor?.activo) redirect("/conductor/encomiendas");
 
-  // Con logout a la vista: sin él la pantalla es un callejón sin salida — no hay
-  // nada que tocar y tampoco forma de entrar con otra cuenta.
+  // «Reintentar» primero: apenas el jefe vincula o activa la ficha, entra sin
+  // cerrar sesión. «Cerrar sesión» queda abajo, con la confirmación de siempre
+  // (spec 033, cuenta-reintentar). El texto es el estado; qué hacer va en la Ayuda.
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-1.5 p-6 text-center">
       {/* Sin ficha o con la ficha desactivada (consulta que sí respondió): los
@@ -48,18 +48,13 @@ export default async function ConductorInicioPage() {
       <p className="text-lg font-semibold">{conductor ? "Cuenta desactivada" : "Cuenta sin vincular"}</p>
       <p className="max-w-xs text-sm text-muted">
         {conductor
-          ? "Tu cuenta de conductor está desactivada. Si es un error, habla con la oficina."
-          : "Tu usuario no está vinculado a ningún conductor. Pide a un administrador que lo configure en tu ficha."}
+          ? "La cuenta de conductor está desactivada. Los pedidos se borraron de este teléfono."
+          : "Este usuario no está vinculado a ningún conductor."}
       </p>
-      <form action={logout} className="mt-5">
-        <button
-          type="submit"
-          className="flex items-center gap-2 text-sm text-muted transition-colors hover:text-foreground"
-        >
-          <LogOut className="h-4 w-4" />
-          Cerrar sesión
-        </button>
-      </form>
+      <div className="mt-5">
+        <BotonReintentar />
+      </div>
+      <BotonCerrarSesion className="mt-6" />
     </div>
   );
 }

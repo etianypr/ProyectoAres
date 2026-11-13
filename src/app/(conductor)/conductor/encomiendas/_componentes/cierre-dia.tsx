@@ -3,9 +3,13 @@
 // Cierre del día (spec 007): lo que no se entregó y la confirmación que borra del
 // teléfono los datos de los destinatarios. Pantalla completa: hasta confirmar,
 // esto es lo único que importa. Un día anterior no se puede dejar para después.
+// Con no entregados, borrar pide un segundo toque (spec 033, borrar-dia): la lista
+// se va con el borrado y hay que haberlos separado antes.
 
 import { createPortal } from "react-dom";
-import { PackageX } from "lucide-react";
+import { AlertTriangle, PackageX } from "lucide-react";
+import { cn } from "@/lib/comun/utils";
+import { useSegundoToque } from "../_hooks/use-segundo-toque";
 import { formatCLP, formatDateLong } from "@/lib/comun/format";
 import type { CierrePendiente } from "../_hooks/use-cierre-dia";
 import { ListaNoEntregados } from "./lista-no-entregados";
@@ -23,8 +27,10 @@ export function CierreDia({
   onConfirmar: () => void;
   onAplazar: () => void;
 }) {
+  const segundo = useSegundoToque();
   if (typeof document === "undefined") return null;
   const n = cierre.noEntregados.length;
+  const borrar = () => (n > 0 ? segundo.tocar(onConfirmar) : onConfirmar());
 
   return createPortal(
     <div
@@ -45,6 +51,13 @@ export function CierreDia({
           {cierre.porPagar > 0 ? (
             <p className="mt-1 text-sm font-medium tabular-nums">
               Cobraste {formatCLP(cierre.cobrado)} de {formatCLP(cierre.aCobrar)} ({cierre.porPagar} por pagar).
+            </p>
+          ) : null}
+          {/* Entregados sin leer si se cobraban (spec 033): no suman a «Cobraste». */}
+          {cierre.porRevisar > 0 ? (
+            <p className="mt-1 flex items-center gap-1 text-sm font-medium text-warn">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              POR PAGAR por revisar: {cierre.porRevisar}
             </p>
           ) : null}
         </div>
@@ -70,10 +83,13 @@ export function CierreDia({
         <button
           type="button"
           disabled={borrando}
-          onClick={onConfirmar}
-          className="flex h-12 w-full items-center justify-center rounded-full bg-brand text-sm font-semibold text-brand-foreground transition-transform active:scale-[0.97] disabled:opacity-50"
+          onClick={borrar}
+          className={cn(
+            "flex h-12 w-full items-center justify-center rounded-full text-sm font-semibold transition-transform active:scale-[0.97] disabled:opacity-50",
+            segundo.armado ? "border border-danger/30 bg-danger-bg text-danger" : "bg-brand text-brand-foreground",
+          )}
         >
-          {borrando ? "Borrando…" : "Listo, borrar del teléfono"}
+          {borrando ? "Borrando…" : segundo.armado ? "Sí, ya los separé" : "Listo, borrar del teléfono"}
         </button>
         {cierre.esHoy ? (
           <button

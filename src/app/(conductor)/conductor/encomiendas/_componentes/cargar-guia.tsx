@@ -1,52 +1,54 @@
 "use client";
 
-// Cargar el día desde la guía de despacho (spec 005, US1): texto de la guía →
+// Cargar el día desde la guía de despacho (spec 005, US1): fotos de la guía →
 // revisar las líneas → crear los pedidos → ubicar sus direcciones. Después sigue
 // el flujo de siempre: armar la ruta y escanear cada etiqueta.
 //
 // Con una foto de la guía: en la APK el texto se lee en el teléfono (gratis) y,
 // si no alcanza, con la IA (ver lectura-cliente). Sin foto, el texto se copia de
 // la guía con Google Lens ("Copiar texto") y se pega acá.
+//
+// Spec 033: cerrar (✕ o atrás) con líneas leídas pregunta antes; el barrido se
+// descarta con la ✕ y se suma con «Terminar»; quitar una línea se deshace; pegar
+// otro texto suma líneas en vez de reemplazarlas; y la carga se puede cortar y
+// deshacer (use-cargar-lineas.ts). Diseño de los tres pasos (dueño, 2026-11-13):
+// pasos-guia.tsx, visor-guia.tsx (1), revision-guia.tsx (2) y fin-guia.tsx (3).
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, CircleHelp, ClipboardPaste, Loader2, X } from "lucide-react";
+import { ArrowLeft, CircleHelp, X } from "lucide-react";
 import { CampoArea } from "@/components/ui/campo";
-import { armarGuia, leerGuia, limpiarDestino, type LineaGuia } from "@/lib/encomiendas/lectura/guia";
-import { ofValida } from "@/lib/encomiendas/paquete";
-import { crearDesdeGuia, fijarCoordenadas, ubicarConDuda } from "@/lib/encomiendas/local/almacen";
-import { lugarProvisorio } from "@/lib/encomiendas/problemas";
-import { ubicarDireccion } from "@/lib/geo/geocoding";
+import { leerGuia } from "@/lib/encomiendas/lectura/guia";
+import { lineasParaCrear } from "@/lib/encomiendas/lectura/telefono-linea";
 import { leerFotosGuia, type FuenteLectura } from "@/lib/encomiendas/local/lectura-cliente";
 import { esApp } from "@/lib/nativo/entorno";
-import { BandejaFotos, BotonesFoto, InicioFotos, useFotosGuia } from "./fotos-guia";
-import { LineasGuia } from "./lineas-guia";
-import { VistaFinGuia, type FinGuia } from "./fin-guia";
-import { corregirSinUbicar } from "@/lib/encomiendas/local/corregir-direcciones";
-import { conPorConfirmar, lineasDelBarrido } from "@/lib/encomiendas/lectura/barrido-nomina";
+import { lineasDelBarrido } from "@/lib/encomiendas/lectura/barrido-nomina";
+import { useFotosGuia } from "./fotos-guia";
+import { PieFotos, VisorGuia } from "./visor-guia";
+import { PasosGuia } from "./pasos-guia";
+import { RevisionGuia } from "./revision-guia";
+import { lineaMala } from "./lineas-guia";
+import { VistaFinGuia } from "./fin-guia";
 import { CamaraBarrido } from "./camara-barrido";
+import { FranjaConfirmar } from "./franja-confirmar";
+import { PieGuia, plural, type PasoGuia, type PreguntaGuia } from "./pie-guia";
+import { useLineasGuia } from "../_hooks/use-lineas-guia";
 import { resultadoDelBarrido, useBarridoDisponible, useBarridoNomina, type Barrido } from "../_hooks/use-barrido-nomina";
-
-type Paso =
-  /** Sacar o elegir las fotos de la guía (lo primero que se ve). */
-  | { tipo: "fotos" }
-  /** Pegar el texto copiado con Google Lens (botón aparte). */
-  | { tipo: "pegar" }
-  | { tipo: "revisar" }
-  | FinGuia;
-
-const BOTON =
-  "flex h-12 w-full items-center justify-center gap-2 rounded-full bg-brand text-[15px] font-semibold text-brand-foreground transition-transform active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50";
+import { useCargarLineas } from "../_hooks/use-cargar-lineas";
+import { useAtrasPropio } from "../_hooks/use-atras-propio";
 
 export function CargarGuia({
   fecha,
   lecturaIA,
   hayRuta,
+  fueraDeRuta,
   onOcupado,
+  onSumar,
   onEscanearPaquetes,
   onCerrar,
   onCreados,
   onAyuda,
+  onCorregir,
   armar,
 }: {
   fecha: string;
@@ -54,57 +56,88 @@ export function CargarGuia({
   lecturaIA: boolean;
   /** Ya hay ruta armada: al terminar se sigue directo a escanear los paquetes. */
   hayRuta: boolean;
+  /** Con ruta: los pedidos con punto que no están en ella (spec 033, otra-guia-ruta). */
+  fueraDeRuta: number;
   /** Avisa mientras se ubican las direcciones (no se puede cerrar). */
   onOcupado?: (ocupado: boolean) => void;
+  /** «Sumar N a la ruta» (sumar-a-ruta.ts, sin señal ni cupo). */
+  onSumar: () => Promise<void>;
   onEscanearPaquetes: () => void;
   onCerrar: () => void;
   /** Se crearon pedidos: la pantalla los vuelve a leer. */
   onCreados: () => void;
   /** Abre la ayuda (cómo sacar las fotos, Google Lens). */
   onAyuda: () => void;
+  /** «Corregir» un pedido no ubicado del resumen: abre su formulario. */
+  onCorregir: (pedidoId: string) => void;
   /** Armar la ruta de una (GenerarRutaLocal): con ⚠ sin resolver, pregunta antes. */
   armar: () => React.ReactNode;
 }) {
   // Foto: en la APK siempre (lee el teléfono); en el navegador, solo con IA.
   const conFoto = lecturaIA || esApp();
-  const [paso, setPaso] = useState<Paso>(() => ({ tipo: conFoto ? "fotos" : "pegar" }));
+  const [paso, setPaso] = useState<PasoGuia>(conFoto ? "fotos" : "pegar");
   const [texto, setTexto] = useState("");
-  const [lineas, setLineas] = useState<LineaGuia[]>([]);
-  const [avisos, setAvisos] = useState<string[]>([]);
-  const [folio, setFolio] = useState<string | null>(null);
-  /** MONTO NETO de la guía (= cantidad de paquetes), de la foto que lo traiga. */
-  const [total, setTotal] = useState<number | null>(null);
+  const guia = useLineasGuia();
+  const { lineas, avisos, folio } = guia;
   const [error, setError] = useState<string | null>(null);
   const [leyendo, setLeyendo] = useState(false);
   /** Quién leyó las fotos de esta carga (null = texto pegado). */
   const [fuente, setFuente] = useState<FuenteLectura | null>(null);
+  const [pregunta, setPregunta] = useState<PreguntaGuia | null>(null);
   const entradaFoto = useRef<HTMLInputElement>(null);
   const entradaFotos = useRef<HTMLInputElement>(null);
   /** Fotos juntadas y todavía sin leer (ver fotos-guia.tsx). */
   const bandeja = useFotosGuia();
   const { fotos } = bandeja;
-  const barrer = useBarridoNomina(agregarBarrido);
+  const barrer = useBarridoNomina(agregarBarrido, { conAtras: false });
   const onBarrer = useBarridoDisponible() ? () => void barrer.iniciar() : undefined;
+  const carga = useCargarLineas({ fecha, lecturaIA, onCreados });
+  const { fin } = carga;
 
-  const malas = useMemo(() => lineas.filter((l) => !ofValida(l.of) || !l.destino.trim()).length, [lineas]);
+  const malas = useMemo(() => lineas.filter(lineaMala).length, [lineas]);
   const porConfirmar = useMemo(() => lineas.filter((l) => l.porConfirmar).length, [lineas]);
-  const ocupado = paso.tipo === "ubicando" || paso.tipo === "corrigiendo";
+  const ocupado = fin?.tipo === "ubicando" || fin?.tipo === "corrigiendo";
   useEffect(() => {
     onOcupado?.(ocupado);
     return () => onOcupado?.(false);
   }, [ocupado, onOcupado]);
 
-  function leer() {
-    const guia = leerGuia(texto);
-    setLineas(guia.lineas);
-    setAvisos(guia.avisos);
-    setFolio(guia.folio);
-    setTotal(guia.totalDeclarado);
-    setPaso({ tipo: "revisar" });
+  /** Lo leído que se perdería al cerrar: líneas sin crear, fotos sin leer o texto pegado. */
+  const sinGuardar = fin ? 0 : lineas.length;
+  const hayAlgo = sinGuardar > 0 || fotos.length > 0 || (paso === "pegar" && texto.trim() !== "" && !fin);
+  const leidoEnBarrido = (barrer.vista?.firmes ?? 0) + (barrer.vista?.porConfirmar ?? 0);
+
+  function pedirCerrar() {
+    if (ocupado) return;
+    if (hayAlgo) setPregunta("cerrar");
+    else onCerrar();
+  }
+  function cerrarBarrido() {
+    if (leidoEnBarrido > 0) setPregunta("barrido");
+    else void barrer.descartar();
+  }
+  // Atrás de Android: el barrido, la pregunta a la vista o cerrar (spec 033).
+  useAtrasPropio(true, () => {
+    if (barrer.activo) return pregunta === "barrido" ? setPregunta(null) : cerrarBarrido();
+    if (pregunta) return setPregunta(null);
+    pedirCerrar();
+  });
+
+  /** Suma lo leído y pasa a revisar las líneas. */
+  function sumar(...args: Parameters<typeof guia.sumar>) {
+    guia.sumar(...args);
+    setError(null); // un «Sin señal» de antes no sigue a la vista en la revisión
+    setPaso("revisar");
   }
 
-  /** Suma fotos a las juntadas, sin leerlas: se sacan de a una (o se eligen de
-   *  la galería) y se leen todas juntas con "Leer las N fotos juntas". */
+  /** El texto pegado se suma a lo leído antes (fotos o barrido), como una foto más. */
+  function leer() {
+    const leida = leerGuia(texto);
+    setTexto(""); // ya leído: «Pegar texto» vuelve vacío para pegar la otra parte
+    sumar(leida.lineas, leida.folio, leida.totalDeclarado);
+  }
+
+  /** Suma fotos a las juntadas, sin leerlas: se leen juntas con «Scan físico». */
   function agregarFotos(archivos: File[]) {
     if (entradaFoto.current) entradaFoto.current.value = "";
     if (entradaFotos.current) entradaFotos.current.value = "";
@@ -112,24 +145,18 @@ export function CargarGuia({
   }
 
   /** Las fotos juntadas de la guía (la del día suele ser de 3), TODAS en una
-   *  sola consulta a la IA (terreno 2026-10-27). Sus líneas se suman a las que
-   *  ya hay y las repetidas se juntan por OF. Al final se compara con el MONTO
+   *  sola consulta a la IA (terreno 2026-10-27). Al final se compara con el MONTO
    *  NETO, que se conserva aunque esté en una foto anterior (spec 017, E11). */
-  async function leerFotos(archivos: File[]) {
+  async function leerFotos() {
+    const archivos = fotos.map((f) => f.archivo);
     if (archivos.length === 0) return;
     setLeyendo(true);
     setError(null);
     try {
       const r = await leerFotosGuia(archivos, { ia: lecturaIA });
-      const totalGuia = r.guia.totalDeclarado ?? total;
-      const unida = armarGuia([...lineas, ...r.guia.lineas], folio ?? r.guia.folio, totalGuia);
-      setLineas(conPorConfirmar(unida.lineas, lineas, r.guia.lineas));
-      setAvisos(unida.avisos);
-      setFolio(unida.folio);
-      setTotal(totalGuia);
+      sumar(r.guia.lineas, r.guia.folio, r.guia.totalDeclarado);
       setFuente((antes) => (antes === "ia" || r.fuente === "ia" ? "ia" : r.fuente));
       bandeja.vaciar();
-      setPaso({ tipo: "revisar" });
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo leer la foto.");
     } finally {
@@ -145,69 +172,36 @@ export function CargarGuia({
       setError("No se leyó ninguna OF de la nómina.");
       return;
     }
-    const totalGuia = leido.total ?? total;
-    const unida = armarGuia([...lineas, ...leido.lineas], folio, totalGuia);
-    setLineas(conPorConfirmar(unida.lineas, lineas, leido.lineas, leido.porConfirmar));
-    setAvisos(unida.avisos);
-    setTotal(totalGuia);
+    sumar(leido.lineas, null, leido.total, leido.porConfirmar);
     setFuente((antes) => (antes === "ia" ? "ia" : "texto"));
     setError(null);
-    setPaso({ tipo: "revisar" });
-  }
-
-  function cambiar(i: number, cambio: Partial<LineaGuia>) {
-    setLineas((ls) => ls.map((l, j) => (j === i ? { ...l, ...cambio } : l)));
   }
 
   async function crear() {
     setError(null);
-    const validas = lineas.map((l) => ({ of: ofValida(l.of)!, destino: limpiarDestino(l.destino) }));
+    guia.olvidarQuitada();
+    // El teléfono anotado pasa al pedido (+569); a los buscadores y a la IA va
+    // solo la dirección (dueño, 2026-11-13).
+    const falla = await carga.crear(lineasParaCrear(lineas), {
+      folio,
+      origen: fuente === "ia" ? "guia_ia" : fuente === "texto" ? "guia_foto" : "guia_pegada",
+    });
+    if (falla) setError(falla);
+  }
+
+  async function deshacerCarga() {
+    setPregunta(null);
     try {
-      const { creados, yaEstaban } = await crearDesdeGuia(validas, fecha, {
-        folio,
-        origen: fuente === "ia" ? "guia_ia" : fuente === "texto" ? "guia_foto" : "guia_pegada",
-      });
-      onCreados();
-      // Una por una, como al cargar a mano: el geocodificador respeta el límite
-      // de consultas de OpenStreetMap. Lo que no se ubique queda "Sin ubicar" en
-      // la lista, para corregirlo como siempre.
-      let ubicados = 0;
-      for (const [i, p] of creados.entries()) {
-        setPaso({ tipo: "ubicando", hechos: i, total: creados.length });
-        try {
-          const r = await ubicarDireccion(p.direccion);
-          const provisorio = lugarProvisorio(r);
-          if (r.elegida) {
-            await fijarCoordenadas([{ id: p.id, lat: r.elegida.lat, lng: r.elegida.lng }]);
-            ubicados++;
-          } else if (provisorio) {
-            // En duda pero con opciones: entra con la primera y ⚠ (spec 022).
-            await ubicarConDuda([{ id: p.id, ...provisorio }]);
-            ubicados++;
-          }
-        } catch {
-          // Sin señal o proveedor caído: queda sin ubicar.
-        }
-      }
-      onCreados();
-      // Las que no se ubicaron, con IA (spec 018): la IA propone y el
-      // conductor confirma cada una (ver confirmar-correcciones.tsx).
-      const propuestas =
-        lecturaIA && ubicados < creados.length
-          ? (
-              await corregirSinUbicar(fecha, {
-                alAvanzar: (hechos, total) => setPaso({ tipo: "corrigiendo", hechos, total }),
-              })
-            ).propuestas
-          : [];
-      setPaso({ tipo: "listo", creados: creados.length, ubicados, yaEstaban, propuestas });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudieron crear los pedidos.");
-      setPaso({ tipo: "revisar" });
+      setError(await carga.deshacer());
+    } catch {
+      setError("No se pudo deshacer la carga. Intenta de nuevo.");
     }
+    setPaso("revisar");
   }
 
   if (typeof document === "undefined") return null;
+
+  const errorVisible = error ?? barrer.error;
 
   return createPortal(
     <div
@@ -216,7 +210,7 @@ export function CargarGuia({
       aria-modal="true"
       aria-label="Cargar la guía"
     >
-      <div className="flex items-center gap-2 px-4 pb-3">
+      <div className="flex items-center gap-2 px-4 pb-2">
         <h2 className="min-w-0 flex-1 text-lg font-semibold">Cargar la guía</h2>
         <button
           type="button"
@@ -228,7 +222,7 @@ export function CargarGuia({
         </button>
         <button
           type="button"
-          onClick={onCerrar}
+          onClick={pedirCerrar}
           disabled={ocupado}
           aria-label="Cerrar"
           className="flex h-10 w-10 items-center justify-center rounded-full text-muted active:bg-card disabled:opacity-40"
@@ -236,8 +230,14 @@ export function CargarGuia({
           <X className="h-5 w-5" />
         </button>
       </div>
+      {/* Tocar el paso vuelve a él: a sumar fotos o texto, o a revisar lo leído. */}
+      <PasosGuia
+        actual={fin ? 3 : paso === "revisar" ? 2 : 1}
+        puede={{ 1: !fin && !leyendo, 2: !fin && !leyendo && lineas.length > 0 }}
+        onIr={(n) => setPaso(n === 2 ? "revisar" : conFoto ? "fotos" : "pegar")}
+      />
 
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-4">
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 pb-4 pt-1">
         <input
           ref={entradaFoto}
           type="file"
@@ -255,49 +255,28 @@ export function CargarGuia({
           className="hidden"
           onChange={(e) => agregarFotos([...(e.target.files ?? [])])}
         />
-        {leyendo ? (
-          <p className="flex items-center gap-2 rounded-xl bg-brand-soft px-3 py-2 text-sm font-medium text-brand">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Leyendo la guía…
-          </p>
-        ) : null}
-        {(error || barrer.error) && (paso.tipo === "fotos" || paso.tipo === "pegar") ? (
-          <p className="text-sm text-danger">{error ?? barrer.error}</p>
-        ) : null}
+        {errorVisible && !fin ? <p className="text-sm text-danger">{errorVisible}</p> : null}
 
-        {conFoto ? (
-          <BandejaFotos
+        {!fin && paso === "fotos" ? (
+          <VisorGuia
             fotos={fotos}
-            leyendo={leyendo}
-            onQuitar={bandeja.quitar}
-            onLeer={() => void leerFotos(fotos.map((f) => f.archivo))}
-            clase={BOTON}
-          />
-        ) : null}
-
-        {/* Lo primero: sacar foto o elegir de la galería, grandes y al centro.
-            Con fotos ya juntadas, la bandeja arriba y los botones más chicos. */}
-        {paso.tipo === "fotos" ? (
-          <InicioFotos
-            hayFotos={fotos.length > 0}
             leyendo={leyendo}
             lleno={bandeja.lleno}
             onCamara={() => entradaFoto.current?.click()}
-            onGaleria={() => entradaFotos.current?.click()}
-            onBarrer={onBarrer}
+            onQuitar={bandeja.quitar}
           />
         ) : null}
 
-        {paso.tipo === "pegar" ? (
+        {!fin && paso === "pegar" ? (
           <>
-            {conFoto ? (
+            {lineas.length > 0 || conFoto ? (
               <button
                 type="button"
-                onClick={() => setPaso({ tipo: "fotos" })}
-                className="flex items-center gap-1.5 text-sm font-medium text-brand"
+                onClick={() => setPaso(lineas.length > 0 ? "revisar" : "fotos")}
+                className="flex items-center gap-1.5 self-start text-sm font-medium text-brand"
               >
                 <ArrowLeft className="h-4 w-4" />
-                Volver a las fotos
+                {lineas.length > 0 ? plural(lineas.length, "línea", "líneas") : "Fotos"}
               </button>
             ) : null}
             <CampoArea
@@ -310,79 +289,101 @@ export function CargarGuia({
           </>
         ) : null}
 
-        {paso.tipo === "revisar" ? (
-          <>
-            <LineasGuia
-              lineas={lineas}
-              avisos={avisos}
-              folio={folio}
-              onCambiar={cambiar}
-              onQuitar={(i) => setLineas((ls) => ls.filter((_, j) => j !== i))}
-              onAgregar={() => setLineas((ls) => [...ls, { of: "", destino: "", dudosa: true }])}
-            >
-              {conFoto ? (
-                <BotonesFoto
-                  camara="Sacar otra foto"
-                  deshabilitado={leyendo || bandeja.lleno}
-                  onCamara={() => entradaFoto.current?.click()}
-                  onGaleria={() => entradaFotos.current?.click()}
-                  onBarrer={onBarrer}
-                />
-              ) : null}
-            </LineasGuia>
-            {error ? <p className="text-sm text-danger">{error}</p> : null}
-          </>
+        {!fin && paso === "revisar" ? (
+          <RevisionGuia
+            lineas={lineas}
+            avisos={avisos}
+            onCambiar={guia.cambiar}
+            onQuitar={guia.quitar}
+            onAgregar={guia.agregar}
+            arriba={
+              guia.hayQuitada ? (
+                <p className="flex items-center justify-between gap-2 rounded-xl bg-card px-3 py-2 text-sm shadow-soft">
+                  <span className="min-w-0 truncate text-muted">Línea quitada</span>
+                  <button type="button" onClick={guia.deshacerQuitar} className="shrink-0 font-semibold text-brand">
+                    Deshacer
+                  </button>
+                </p>
+              ) : null
+            }
+          />
         ) : null}
 
-        {paso.tipo === "ubicando" || paso.tipo === "corrigiendo" || paso.tipo === "listo" ? (
-          <VistaFinGuia paso={paso} onAplicada={onCreados} />
+        {fin ? (
+          <>
+            <VistaFinGuia
+              paso={fin}
+              fecha={fecha}
+              lecturaIA={lecturaIA}
+              onAplicada={onCreados}
+              onDejar={carga.dejar}
+              onDeshacer={() => setPregunta("deshacer")}
+              onCorregir={onCorregir}
+            />
+            {error ? <p className="text-center text-sm text-danger">{error}</p> : null}
+          </>
         ) : null}
       </div>
 
       <div className="border-t border-divider px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
-        {paso.tipo === "fotos" ? (
-          // Google Lens, aparte: abre su propia pantalla con las instrucciones.
-          <button
-            type="button"
-            disabled={leyendo}
-            onClick={() => setPaso({ tipo: "pegar" })}
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full border border-separator bg-card text-sm font-semibold text-brand disabled:opacity-50"
-          >
-            <ClipboardPaste className="h-4 w-4" />
-            Pegar el texto de Google Lens
-          </button>
-        ) : paso.tipo === "pegar" ? (
-          <button type="button" disabled={!texto.trim() || leyendo} onClick={leer} className={BOTON}>
-            <ClipboardPaste className="h-4 w-4" />
-            Leer la guía
-          </button>
-        ) : paso.tipo === "revisar" ? (
-          <button
-            type="button"
-            disabled={lineas.length === 0 || malas > 0 || porConfirmar > 0 || fotos.length > 0 || leyendo}
-            onClick={() => void crear()}
-            className={BOTON}
-          >
-            {fotos.length > 0
-              ? "Primero lee las fotos de arriba"
-              : malas > 0
-              ? `Corrige ${malas} ${malas === 1 ? "línea" : "líneas"}`
-              : porConfirmar > 0
-              ? `Confirma ${porConfirmar} ${porConfirmar === 1 ? "línea" : "líneas"}`
-              : `Crear ${lineas.length} ${lineas.length === 1 ? "pedido" : "pedidos"}`}
-          </button>
-        ) : paso.tipo === "listo" ? (
-          hayRuta ? (
-            <button type="button" onClick={onEscanearPaquetes} className={BOTON}>
-              Escanear paquete
-            </button>
-          ) : (
-            armar()
-          )
-        ) : null}
+        <PieGuia
+          fin={fin}
+          paso={paso}
+          pregunta={pregunta}
+          hayRuta={hayRuta}
+          fueraDeRuta={fueraDeRuta}
+          leyendo={leyendo}
+          hayTexto={texto.trim() !== ""}
+          lineas={lineas.length}
+          malas={malas}
+          porConfirmar={porConfirmar}
+          fotos={fotos.length}
+          pieFotos={
+            <PieFotos
+              fotos={fotos.length}
+              leyendo={leyendo}
+              lleno={bandeja.lleno}
+              onCamara={() => entradaFoto.current?.click()}
+              onGaleria={() => entradaFotos.current?.click()}
+              onLeer={() => void leerFotos()}
+              onBarrer={onBarrer}
+              onPegar={() => setPaso("pegar")}
+            />
+          }
+          onLeer={leer}
+          onLeerFotos={() => void leerFotos()}
+          onCrear={() => void crear()}
+          onSumar={onSumar}
+          onEscanear={onEscanearPaquetes}
+          armar={armar}
+          onDescartar={onCerrar}
+          onDeshacer={() => void deshacerCarga()}
+          onSeguir={() => setPregunta(null)}
+        />
       </div>
       {barrer.activo ? (
-        <CamaraBarrido vista={barrer.vista} conLinterna={barrer.conLinterna} onDetener={() => void barrer.terminar()} />
+        <CamaraBarrido
+          vista={barrer.vista}
+          conLinterna={barrer.conLinterna}
+          onDetener={() => {
+            setPregunta(null);
+            void barrer.terminar();
+          }}
+          onCerrar={cerrarBarrido}
+          pregunta={
+            pregunta === "barrido" ? (
+              <FranjaConfirmar
+                texto="¿Descartar lo barrido?"
+                si="Descartar"
+                onSi={() => {
+                  setPregunta(null);
+                  void barrer.descartar();
+                }}
+                onNo={() => setPregunta(null)}
+              />
+            ) : undefined
+          }
+        />
       ) : null}
     </div>,
     document.body,

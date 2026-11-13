@@ -10,10 +10,11 @@
 // crecer con ella.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { borrarPedido, cerrarDia, purgarFotosCerradas, deshacerResultado, leerPedidos, leerRuta, marcarResultado, registrarLlamada, pedidosEnOrden, restaurarPedido, rutaTerminada, type PedidoEliminado, type Pedido, type Ruta } from "@/lib/encomiendas/local/almacen";
-import { estaConfirmado, type ResultadoMarcable } from "@/lib/encomiendas/estados";
+import { borrarPedido, cambiarResultado, cerrarDia, purgarFotosCerradas, deshacerResultado, leerPedidos, leerRuta, marcarResultado, registrarLlamada, pedidosEnOrden, restaurarPedido, rutaTerminada, type PedidoEliminado, type Pedido, type Ruta } from "@/lib/encomiendas/local/almacen";
+import { estaConfirmado, type ResultadoMarcable, type ResultadoVisita } from "@/lib/encomiendas/estados";
 
-import { dejarParaMasTarde, hacerAhora, sumarALaRuta } from "@/lib/encomiendas/local/sumar-a-ruta";
+import { dejarParaMasTarde, hacerAhora, sumarALaRuta, volverALaRuta } from "@/lib/encomiendas/local/sumar-a-ruta";
+import { retrazarRuta } from "@/lib/encomiendas/local/reubicar";
 import { useEnvioActividad } from "@/lib/encomiendas/local/enviar";
 import type { DiaEnCurso, Parada } from "./dia-trabajo-tipos";
 import { useWhatsappDia } from "./use-whatsapp-dia";
@@ -56,6 +57,7 @@ export function useDiaTrabajo({
     intentar,
     error: errorEnvio,
     rechazados,
+    correccionesRechazadas,
   } = useEnvioActividad(true, conductorId, fecha);
 
   // WhatsApp: avisos, respuestas y el sondeo (ver use-whatsapp-dia.ts). Se
@@ -203,11 +205,35 @@ export function useDiaTrabajo({
       let deshecho = false;
       await unaSolaVez(`deshacer:${eventoId}`, async () => {
         deshecho = await deshacerResultado({ fecha, pedidoId }, eventoId);
+        // Ya había salido (la app estuvo atrás, o el aviso se tocó tarde): se
+        // corrige como cualquier parada cerrada, y queda en su lugar (spec 033, G5).
+        if (!deshecho) deshecho = await cambiarResultado({ fecha, pedidoId, conductorId }, "pendiente");
         await recargar();
+        if (deshecho) intentar();
       });
       return deshecho;
     },
-    [fecha, recargar, unaSolaVez],
+    [fecha, conductorId, recargar, intentar, unaSolaVez],
+  );
+
+  // Cambiar una parada ya cerrada (spec 033, G5): el borrado del evento viejo y el
+  // nuevo salen por la cola (correccion.ts). Pendiente vuelve a la ruta donde menos
+  // alarga, y la línea gris se rehace en segundo plano.
+  const onCambiarResultado = useCallback(
+    async (pedidoId: string, nuevo: ResultadoVisita) =>
+      (await unaSolaVez(`cambiar:${pedidoId}`, async () => {
+        if (!(await cambiarResultado({ fecha, pedidoId, conductorId }, nuevo))) return null;
+        const parada = nuevo === "pendiente" ? await volverALaRuta(fecha, pedidoId) : null;
+        await recargar();
+        intentar();
+        if (nuevo === "pendiente") {
+          void retrazarRuta(fecha).then((cambio) => {
+            if (cambio) void recargar();
+          });
+        }
+        return { parada };
+      })) ?? null,
+    [fecha, conductorId, recargar, intentar, unaSolaVez],
   );
 
   const onDejarParaElFinal = useCallback(
@@ -335,6 +361,7 @@ export function useDiaTrabajo({
     sinEnviar,
     errorEnvio,
     rechazados,
+    correccionesRechazadas,
     enviando,
     intentar,
     recargar,
@@ -347,6 +374,7 @@ export function useDiaTrabajo({
     vistoCambioRuta,
     motivoNoCerrar,
     deshacer: onDeshacer,
+    cambiarResultado: onCambiarResultado,
     dejarParaElFinal: onDejarParaElFinal,
     sumarALaRuta: onSumarALaRuta,
     hacerAhora: onHacerAhora,

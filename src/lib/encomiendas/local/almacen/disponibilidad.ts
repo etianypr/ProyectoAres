@@ -115,6 +115,10 @@ export function registrarDisponibilidad(
     }
 
     const hora = new Date().toISOString();
+    const evento: ActividadPorEnviar | null =
+      respuesta.tipo === "manana"
+        ? nuevoEvento(conductorId, pedido.fecha, "omision", hora)
+        : null;
     const actualizado: Pedido = {
       ...pedido,
       aviso: { ...aviso, estado: "respondido" },
@@ -122,18 +126,33 @@ export function registrarDisponibilidad(
       // El bloque se limpia con cualquier otra respuesta: un "18:00-20:00" que
       // quedara puesto seguiría ordenando la ruta por una ventana que ya no vale.
       bloqueHorarioId: respuesta.tipo === "horario_indicado" ? respuesta.bloqueHorarioId : null,
-      ...(respuesta.tipo === "manana" ? { resultado: "no_entregado" as const, horaResultado: hora } : {}),
+      // Con el id del evento, el conductor puede corregirlo (spec 033, G5).
+      ...(evento ? { resultado: "no_entregado" as const, horaResultado: hora, eventoResultado: evento.id } : {}),
     };
-    const evento: ActividadPorEnviar | null =
-      respuesta.tipo === "manana"
-        ? nuevoEvento(conductorId, pedido.fecha, "omision", hora)
-        : null;
 
     await escribir([STORES.pedidos, STORES.cola], ({ guardar }) => {
       guardar(STORES.pedidos, actualizado);
       if (evento) guardar(STORES.cola, evento);
     });
     return true;
+  });
+}
+
+/** «Pidió otra hora» (spec 033, otra-hora): lo que dijo el receptor en la puerta o
+ *  por teléfono, en los mismos campos que una respuesta de WhatsApp. Es
+ *  disponibilidad, no un motivo de resultado: no cierra el pedido ni encola nada
+ *  (la cola no se toca). Con `antes`, lo deja como estaba (el «Deshacer»). */
+export function anotarHorario(
+  pedidoId: string,
+  valor: Pick<Pedido, "disponibilidad" | "bloqueHorarioId">,
+): Promise<Pick<Pedido, "disponibilidad" | "bloqueHorarioId"> | null> {
+  return enFila(async () => {
+    const pedido = await leerPedido(pedidoId);
+    if (!pedido || pedido.resultado !== "pendiente") return null;
+    await escribir([STORES.pedidos], ({ guardar }) =>
+      guardar(STORES.pedidos, { ...pedido, disponibilidad: valor.disponibilidad, bloqueHorarioId: valor.bloqueHorarioId }),
+    );
+    return { disponibilidad: pedido.disponibilidad, bloqueHorarioId: pedido.bloqueHorarioId };
   });
 }
 

@@ -3,7 +3,8 @@
 // La pantalla del conductor mientras abre su día, y cuando no lo pudo abrir (sale de
 // pantalla.tsx, spec 002 T037).
 
-import { LogOut, RotateCw } from "lucide-react";
+import { RotateCw } from "lucide-react";
+import { BotonCerrarSesion } from "../../../cerrar-sesion";
 
 export function PantallaCargando() {
   return (
@@ -13,7 +14,7 @@ export function PantallaCargando() {
   );
 }
 
-export function PantallaError({ error, logout }: { error: string; logout: () => Promise<void> }) {
+export function PantallaError({ error }: { error: string }) {
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center p-6 text-center">
       <p className="text-lg font-semibold">No se pudo abrir tu ruta</p>
@@ -31,12 +32,9 @@ export function PantallaError({ error, logout }: { error: string; logout: () => 
         <RotateCw className="h-4 w-4" />
         Reintentar
       </button>
-      <form action={logout} className="mt-6">
-        <button type="submit" className="flex items-center gap-2 text-sm text-muted">
-          <LogOut className="h-4 w-4" />
-          Cerrar sesión
-        </button>
-      </form>
+      {/* La misma confirmación del menú (spec 033, error-logout): avisa lo sin
+          enviar y borra solo después de cerrar la sesión. */}
+      <BotonCerrarSesion className="mt-6" />
     </div>
   );
 }

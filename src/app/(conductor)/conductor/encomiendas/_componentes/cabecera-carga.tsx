@@ -4,10 +4,12 @@
 // recién armada y el auto vacío en la central, la cabecera ya era la parada 1
 // con «Pedido entregado», y el avance de la carga quedaba adentro de la hoja. Lo
 // que se hace en ese momento es escanear: eso va acá, a la vista con la hoja
-// cerrada. «Salir a repartir» no bloquea (ver use-carga-auto.ts).
+// cerrada. «Salir a repartir» no bloquea (ver use-carga-auto.ts): con paquetes
+// sin escanear pide un segundo toque en el mismo lugar (spec 033, salir-repartir).
 
 import { ScanLine, Truck } from "lucide-react";
 import type { CargaAuto } from "../_hooks/use-carga-auto";
+import { useSegundoToque } from "../_hooks/use-segundo-toque";
 import { BOTON_PRINCIPAL } from "./parada-activa";
 
 export function CabeceraCarga({
@@ -22,6 +24,8 @@ export function CabeceraCarga({
   onSalir: () => void;
 }) {
   const { escaneados, total } = carga;
+  const faltan = carga.faltan.length;
+  const salida = useSegundoToque();
   return (
     <div className="space-y-2.5">
       <div className="space-y-2">
@@ -45,11 +49,15 @@ export function CabeceraCarga({
       <button
         type="button"
         disabled={guardando}
-        onClick={onSalir}
-        className="flex w-full items-center justify-center gap-1.5 py-1 text-sm font-semibold text-brand disabled:opacity-50"
+        onClick={() => (faltan > 0 ? salida.tocar(onSalir) : onSalir())}
+        className={
+          salida.armado
+            ? "flex h-11 w-full items-center justify-center gap-1.5 rounded-full border border-danger/30 bg-danger-bg text-sm font-semibold text-danger"
+            : "flex w-full items-center justify-center gap-1.5 py-1 text-sm font-semibold text-brand disabled:opacity-50"
+        }
       >
         <Truck className="h-4 w-4" />
-        Salir a repartir
+        {salida.armado ? `Faltan ${faltan} · Salir igual` : "Salir a repartir"}
       </button>
     </div>
   );

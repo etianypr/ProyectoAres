@@ -14,14 +14,19 @@ export type DatosNotificaciones = {
   onCerrarError: () => void;
   apkVieja: boolean;
   apkUrl: string | null;
+  /** La ✕ del aviso de la APK: hasta que se vuelva a abrir la app. */
+  onEsconderApk: () => void;
   /** Solo con ruta armada: sin ruta no hay respuestas que esperar. */
   errorWhatsapp: string | null;
   cambiosRuta: string[];
   onVistoCambioRuta: () => void;
   eliminado: PedidoEliminado | null;
   onDeshacerEliminado: () => void;
-  deshacer: { pedidoId: string; eventoId: string; texto: string } | null;
+  deshacer: { eventos: { eventoId: string }[]; texto: string } | null;
   onDeshacer: () => void;
+  /** Un cambio de orden que se puede deshacer (spec 033, use-reordenar.ts). */
+  reordenado: { texto: string; n: number } | null;
+  onDeshacerReorden: () => void;
   confirmacion: { texto: string; n: number } | null;
 };
 
@@ -55,12 +60,15 @@ export function armarNotificaciones(d: DatosNotificaciones): Notificacion[] {
   // mientras lo esté no van a llegar respuestas, y el conductor tiene que saber que
   // esperarlas no sirve: lo que corresponde es llamar. Es lo único que quedó
   // visible del canal.
+  // Avisa, no obliga (dueño, 2026-11-13): «Bajar» si hay APK_URL, y una ✕ que lo
+  // esconde hasta la próxima vez que se abra la app (spec 033, apk-aviso).
   if (d.apkVieja) {
     notificaciones.push({
       id: "apk-vieja",
       icono: <Download className="h-4 w-4 text-white/70" />,
-      texto: "Hay una versión nueva de la app para instalar.",
+      texto: "Hay una actualización disponible.",
       ...(d.apkUrl ? { accion: { etiqueta: "Bajar", onClick: () => window.open(d.apkUrl!, "_blank") } } : {}),
+      cerrar: d.onEsconderApk,
     });
   }
   if (d.errorWhatsapp) {
@@ -99,7 +107,7 @@ export function armarNotificaciones(d: DatosNotificaciones): Notificacion[] {
     // Mientras este aviso está a la vista, lo que se marcó no salió del teléfono
     // ni cerró el día (ver use-dia-trabajo).
     notificaciones.push({
-      id: `deshacer:${deshacer.eventoId}`,
+      id: `deshacer:${deshacer.eventos[0]?.eventoId}:${deshacer.eventos.length}`,
       icono: <Check className="h-4 w-4 text-ok" />,
       texto: deshacer.texto,
       accion: {
@@ -107,6 +115,17 @@ export function armarNotificaciones(d: DatosNotificaciones): Notificacion[] {
         icono: <Undo2 className="h-4 w-4" />,
         onClick: d.onDeshacer,
       },
+    });
+  }
+  // «Dejar como pendiente», «Ahora», otra hora o una dirección cambiada: volver
+  // al orden de antes (spec 033). No hay nada retenido; solo el teléfono.
+  const reordenado = d.reordenado;
+  if (reordenado) {
+    notificaciones.push({
+      id: `reorden:${reordenado.n}`,
+      icono: <Route className="h-4 w-4 text-white/70" />,
+      texto: reordenado.texto,
+      accion: { etiqueta: "Deshacer", icono: <Undo2 className="h-4 w-4" />, onClick: d.onDeshacerReorden },
     });
   }
   const confirmacion = d.confirmacion;

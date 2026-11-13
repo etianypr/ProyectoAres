@@ -70,6 +70,18 @@ export function borrarFoto(pedidoId: string): Promise<void> {
   });
 }
 
+/** «Guardar la descripción» del escaneo: la referencia y la foto como quedaron
+ *  en los tres toques. «Quitar» la foto la borra del pedido y del store (spec
+ *  033, quitar-foto: antes solo la escondía y seguía guardada). */
+export async function guardarDescripcionPaquete(
+  pedidoId: string,
+  cambios: { referencia: ReferenciaPaquete | null; fotoNueva: Blob | null; quitarFoto: boolean },
+): Promise<void> {
+  await guardarPaquete(pedidoId, { referencia: cambios.referencia });
+  if (cambios.fotoNueva) await guardarFoto(pedidoId, cambios.fotoNueva);
+  else if (cambios.quitarFoto) await borrarFoto(pedidoId);
+}
+
 /** Borra las fotos del día que ya no hacen falta: las de pedidos cerrados
  *  (entregado o no) y las que quedaron sin pedido. Se llama cuando vence la
  *  ventana para deshacer, así deshacer una entrega no pierde la foto. Devuelve

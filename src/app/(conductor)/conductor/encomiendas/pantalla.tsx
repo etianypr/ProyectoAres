@@ -12,10 +12,10 @@ import dynamic from "next/dynamic";
 import { BottomSheet } from "./_componentes/hoja";
 import { PilaNotificaciones } from "./_componentes/notificaciones";
 import type { Pedido } from "@/lib/encomiendas/local/almacen";
-import { logout } from "@/lib/auth/acciones";
+import type { ResultadoVisita } from "@/lib/encomiendas/estados";
 import { useDiaTrabajo } from "./_hooks/use-dia-trabajo";
-import { useAccionesParada } from "./_hooks/use-acciones-parada";
-import { useApkVieja, useResumenAyer } from "./_hooks/use-avisos-del-dia";
+import { useParadaEnCurso } from "./_hooks/use-parada-en-curso";
+import { useAvisoApk, useResumenAyer } from "./_hooks/use-avisos-del-dia";
 import { usePuntosMapa } from "./_hooks/use-puntos-mapa";
 import { useVistaCercanas } from "./_hooks/use-vista-cercanas";
 import { PantallaCargando, PantallaError } from "./_componentes/estado-pantalla";
@@ -24,11 +24,9 @@ import { useEvento } from "./_hooks/use-evento";
 import { armarNotificaciones } from "./_componentes/notificaciones-pantalla";
 import { useHaciaParada } from "./_hooks/use-hacia-parada";
 import { useBurbuja } from "./_hooks/use-burbuja";
-import { atenderBoton, type AccionesParada } from "./_hooks/botones-parada";
 import { useBrujula } from "./_hooks/use-brujula";
 import { useCierreDia } from "./_hooks/use-cierre-dia";
 import { useFechaDelDia } from "./_hooks/use-fecha-del-dia";
-import { faseDeParada, type Fase } from "./_hooks/fase-parada";
 import { useVentanas, VentanasPantalla } from "./_componentes/ventanas-pantalla";
 import { useBotonAtras } from "./_hooks/use-boton-atras";
 import { cierreDelDia, cifrasPantalla } from "./_hooks/cifras-pantalla";
@@ -47,13 +45,10 @@ import { VistaPedido } from "./_componentes/vista-pedido";
 import { VistaPreviaRuta } from "./_componentes/vista-previa-ruta";
 import { useModoPrueba } from "@/lib/encomiendas/local/modo-prueba";
 import { CintaModoPrueba } from "./_componentes/cinta-modo-prueba";
+import { fueraDeLaRuta } from "@/lib/encomiendas/local/sumar-a-ruta";
 
-// maplibre-gl toca `window` apenas se importa — aunque este archivo ya es "use
-// client", Next.js igual lo renderiza una vez en el servidor antes de hidratar,
-// donde `window` no existe. ssr:false lo deja cargar solo en el navegador.
-const RutaMapa = dynamic(() => import("./_mapa/ruta-mapa").then((m) => m.RutaMapa), {
-  ssr: false,
-});
+// maplibre-gl toca `window` al importarse y Next.js renderiza una vez en el servidor.
+const RutaMapa = dynamic(() => import("./_mapa/ruta-mapa").then((m) => m.RutaMapa), { ssr: false });
 
 export function PantallaEncomiendas({
   conductorId,
@@ -97,44 +92,46 @@ export function PantallaEncomiendas({
     rutaEnCursoRef.current = Boolean(dia.ruta?.inicio && !dia.ruta.cierre);
   }, [dia.ruta]);
   const { paradas, activa, pedidos } = dia;
+  // Llega tarde con la ruta completa (spec 033): el cierre no se abre solo.
+  const fueraConPunto = dia.ruta ? fueraDeLaRuta(pedidos, dia.ruta.orden).length : 0;
   // Spec 007: con el día cerrado, lista de no entregados y borrado del teléfono.
   const cierreDia = useCierreDia({
     fecha,
     hoyCerrado: dia.ruta?.cierre != null && pedidos.length > 0,
+    enEspera: fueraConPunto > 0,
     alBorrar: dia.recargar,
   });
 
-  // Llamar, las salidas, entregar y deshacer (ver _hooks/use-acciones-parada.ts).
-  const {
-    error,
-    setError,
-    guardando,
-    dandoResultadoDe,
-    setDandoResultadoDe,
-    deshacer,
-    eliminado,
-    confirmacion,
-    avisar,
-    correr,
-    onLlamar,
-    onSalida,
-    onPedidoFinalizado,
-    onEliminarPedido,
-    onDeshacerEliminado,
-    onDeshacer,
-  } = useAccionesParada({ dia, activa });
-
   // El formulario abierto en la hoja: "nuevo", el pedido que se corrige, o null.
   const [formPedido, setFormPedido] = useState<"nuevo" | Pedido | null>(null);
-  // «Resolver los ⚠» de a uno (spec 027).
-  const resolver = useResolverProblemas(setFormPedido);
-  // Estables entre dibujados: la lista no se redibuja con cada lectura del GPS.
-  const eliminarDeLaLista = useEvento((id: string) => void onEliminarPedido(id));
-  const editarDeLaLista = useEvento((p: Pedido) => setFormPedido(p));
-  const [alturaCerrada, setAlturaCerrada] = useState(140);
   // Las ventanas que se abren encima (ver _componentes/ventanas-pantalla.tsx).
   const ventanas = useVentanas();
   const { setCargandoGuia, setEscaneando } = ventanas;
+  // Llamar, las salidas, entregar, deshacer y cada botón de la parada, para la
+  // tarjeta y la burbuja (ver _hooks/use-parada-en-curso.ts).
+  const enCurso = useParadaEnCurso({ dia, fecha, onEditar: setFormPedido, onEscanear: ventanas.escanearParada });
+  const { error, setError, guardando, dandoResultadoDe, setDandoResultadoDe, deshacer, eliminado, confirmacion, avisar, correr } = enCurso;
+  const { onLlamar, onEliminarPedido, onDeshacerEliminado, onDeshacer, reordenar, fase, acciones } = enCurso;
+  // «Resolver los ⚠» de a uno (spec 027).
+  const resolver = useResolverProblemas(setFormPedido);
+  // Al abrirse «Día terminado», el formulario abierto se cierra: quedaba detrás
+  // (spec 033, visto en Chrome). Ajuste al dibujar, sin efecto.
+  const cierreAbierto = cierreDia.pendiente != null;
+  const [cierreVisto, setCierreVisto] = useState(cierreAbierto);
+  if (cierreAbierto !== cierreVisto) {
+    setCierreVisto(cierreAbierto);
+    if (cierreAbierto && formPedido != null) resolver.cerrar();
+  }
+  // Estables entre dibujados: la lista no se redibuja con cada lectura del GPS.
+  const eliminarDeLaLista = useEvento((id: string) => void onEliminarPedido(id));
+  const editarDeLaLista = useEvento((p: Pedido) => setFormPedido(p));
+  // Pasar una parada cerrada a otro estado (spec 033, G5).
+  const cambiarDeLaLista = useEvento(async (id: string, nuevo: ResultadoVisita) => {
+    const r = await correr(() => dia.cambiarResultado(id, nuevo));
+    if (r === null) return setError("Esa parada ya no se puede cambiar.");
+    avisar(nuevo === "pendiente" ? (r.parada ? `Pendiente · parada ${r.parada}` : "Pendiente") : nuevo === "entregado" ? "Pasó a entregado" : "Pasó a no entregado");
+  });
+  const [alturaCerrada, setAlturaCerrada] = useState(140);
   // La ruta propuesta a la vista, elegir otra alternativa y usarla.
   const { propuesta, setPropuesta, onElegirAlternativa, onUsarPropuesta, quitado, onQuitar, onDeshacerQuitar, onInvertir } =
     usePropuesta({ dia, fecha });
@@ -156,34 +153,20 @@ export function PantallaEncomiendas({
   // Con una propuesta a la vista el mapa la muestra entera y no sigue a nadie.
   const enNavegacion = siguiendo && !propuesta;
 
-  // La brújula solo se enciende con el mapa suelto: el haz del punto muestra
-  // hacia dónde apunta el teléfono. Manejando no aporta y el magnetómetro
-  // despierta al aparato varias veces por segundo.
+  // La brújula solo con el mapa suelto: manejando no aporta y despierta al aparato.
   const rumboBrujula = useBrujula(!enNavegacion);
 
   const hayRuta = paradas.length > 0;
-
-  const fase: Fase = faseDeParada(activa, { dandoResultadoDe });
 
   // El camino a la parada activa (_hooks/use-hacia-parada.ts). ARES no guía (spec 020).
   const { destinoActivo, faltan, rumbo, ubicacionMostrada, trazadoPorDelante, señalDebil } =
     useHaciaParada({ activa, ruta: dia.ruta, miUbicacion, hayRuta });
 
-  // Cada botón de la parada, en la tarjeta y en la burbuja (_hooks/use-burbuja.ts).
-  const acciones: AccionesParada = {
-    llamar: () => activa && onLlamar(activa),
-    escanear: () => setEscaneando(true),
-    editar: () => activa && setFormPedido(activa.pedido),
-    finalizar: () => void onPedidoFinalizado(),
-    noSePudo: () => activa && setDandoResultadoDe(activa.pedido.id),
-    salida: (salida) => void onSalida(salida),
-    volver: () => setDandoResultadoDe(null),
-    deshacer: () => void onDeshacer(),
-  };
   const enAres = ventanas.cargandoGuia;
   // Un pedido con ⚠ a una o dos paradas (spec 022): en la cabecera y en la burbuja.
   const adelante = avisoAdelante(paradas, activa?.pedido.id ?? null);
-  const burbuja = useBurbuja({ fecha, activa, fase, whatsapp, deshacer, confirmacion, enAres, acciones, adelante: adelante && lineaAvisoAdelante(adelante) });
+  const burbuja = useBurbuja({ fecha, activa, fase, whatsapp, deshacer, confirmacion, enAres, acciones, adelante: adelante && lineaAvisoAdelante(adelante),
+    extra: enCurso.extra, onBoton: enCurso.onBoton });
 
   const ayer = useResumenAyer(fecha);
 
@@ -193,20 +176,26 @@ export function PantallaEncomiendas({
     ventanas,
     despues: [
       [formPedido != null, resolver.cerrar],
-      [propuesta != null, () => setPropuesta(null)],
+      // Atrás no descarta la propuesta: rearmarla cuesta (spec 033); solo la ✕.
+      [propuesta != null, () => {}],
+      [fase !== "en_parada", acciones.volver],
       [dandoResultadoDe != null, () => setDandoResultadoDe(null)],
     ],
     sinParadas: paradas.length === 0,
   });
 
-  const apkVieja = useApkVieja(apkMinima);
+  const avisoApk = useAvisoApk(apkMinima);
 
   const cerca = useVistaCercanas({ paradas, activa, pedidos, soltarMapa: () => setSiguiendo(false) });
-  const { puntos, previa } = usePuntosMapa(paradas, activa, propuesta, cerca.marcadas);
+  const { puntos, previa } = usePuntosMapa(paradas, activa, propuesta, cerca.marcadas, pedidos);
+  const sumarALaRuta = async () => {
+    const cuantos = await correr(() => dia.sumarALaRuta());
+    if (cuantos) avisar(cuantos === 1 ? "1 pedido entró a la ruta" : `${cuantos} pedidos entraron a la ruta`);
+  };
 
   if (dia.cargando) return <PantallaCargando />;
 
-  if (dia.error) return <PantallaError error={dia.error} logout={logout} />;
+  if (dia.error) return <PantallaError error={dia.error} />;
 
   const { sinRutear, sinUbicar, entregadas, noEntregadas, porcentaje } = cifrasPantalla(paradas, pedidos);
   // El paso del día decide la cabecera de la hoja y lo de adentro (spec 027).
@@ -222,7 +211,8 @@ export function PantallaEncomiendas({
   const notificaciones = armarNotificaciones({
     error,
     onCerrarError: () => setError(null),
-    apkVieja,
+    apkVieja: avisoApk.visible,
+    onEsconderApk: avisoApk.esconder,
     apkUrl,
     errorWhatsapp: hayRuta ? dia.errorWhatsapp : null,
     cambiosRuta: dia.cambiosRuta,
@@ -231,6 +221,8 @@ export function PantallaEncomiendas({
     onDeshacerEliminado: () => void onDeshacerEliminado(),
     deshacer,
     onDeshacer: () => void onDeshacer(),
+    reordenado: reordenar.reordenado,
+    onDeshacerReorden: () => void reordenar.deshacerReorden(),
     confirmacion,
   });
 
@@ -241,8 +233,10 @@ export function PantallaEncomiendas({
       paso={paso}
       parada={
         activa
-          ? { activa, fase, whatsapp, guardando, faltan, onBoton: (id) => atenderBoton(id, acciones), adelante, onLlamarA: onLlamar, onVer: setFormPedido,
-              onNavegar: destinoActivo ? () => void burbuja.navegar() : undefined }
+          ? { activa, fase, whatsapp, guardando, faltan, onBoton: enCurso.onBoton, adelante, onLlamarA: onLlamar, onVer: setFormPedido,
+              onNavegar: destinoActivo ? () => void burbuja.navegar() : undefined, juntas: enCurso.juntas, extra: enCurso.extra,
+              moverActiva: reordenar.moverActiva ? { onMover: () => void reordenar.moverLaActiva(), onSeguir: reordenar.seguirConLaActiva } : null,
+              onDarPermiso: burbuja.sinPermiso ? () => void burbuja.darPermiso() : undefined }
           : null
       }
       carga={carga}
@@ -250,6 +244,7 @@ export function PantallaEncomiendas({
       cargando={formPedido === "nuevo" && !hayRuta}
       cifras={{ pendientes: sinRutear.length, conProblema: conProblema.length, ...cierreDelDia(pedidos) }}
       diaCerrado={dia.ruta?.cierre != null}
+      cierre={{ fuera: fueraConPunto, deshacerHasta: deshacer?.hasta ?? null, onSumar: sumarALaRuta }}
       nombreConductor={nombreConductor}
       fecha={fecha}
       direccionEmpresa={direccionEmpresa}
@@ -301,12 +296,16 @@ export function PantallaEncomiendas({
         direccionEmpresa={direccionEmpresa}
         onPropuesta={setPropuesta}
         onResolver={resolver.empezar}
+        onSumar={sumarALaRuta}
+        onEditar={editarDeLaLista}
       />
 
       <CarrilSuperior
         altoNotificaciones={altoNotificaciones}
         onAbrirMenu={ventanas.abrirMenu}
-        onEscanear={pedidos.length > 0 ? () => setEscaneando(true) : null}
+        // Solo con la ruta armada (carga, reparto y cierre: un paquete que llega
+        // tarde): antes, la etiqueta no tiene parada que decir (spec 033, G5).
+        onEscanear={hayRuta ? () => setEscaneando(true) : null}
         resumen={resumenDelDia}
         errorUbicacion={errorUbicacion}
         señalDebil={señalDebil}
@@ -319,8 +318,7 @@ export function PantallaEncomiendas({
           siguiendo={enNavegacion && miUbicacion != null}
           onCentrar={() => { setSiguiendo(true); pedirUbicacion(); }}
           alLado={paso === "reparto" ? (
-            <ParadasCercanas {...cerca} guardando={guardando} onLlamar={onLlamar}
-              onHacerAhora={(id) => correr(() => dia.hacerAhora(id))} avisar={avisar} />
+            <ParadasCercanas {...cerca} guardando={guardando} onLlamar={onLlamar} onHacerAhora={reordenar.ahora} />
           ) : null}
         />
       ) : null}
@@ -339,12 +337,15 @@ export function PantallaEncomiendas({
               fecha={fecha}
               titulo={formPedido === "nuevo" ? undefined : resolver.titulo}
               onCerrar={resolver.cerrar}
+              onSiguiente={formPedido !== "nuevo" && resolver.hayMas ? () => resolver.despuesDeGuardar(pedidos) : undefined}
               onGuardado={(aviso) => {
                 void dia.recargar();
                 const esNuevo = formPedido === "nuevo";
                 // Corrigiendo se cierra o, resolviendo los ⚠, abre el siguiente; cargando
                 // nuevos se queda (van en tanda). Una advertencia queda escrita en el formulario.
                 if (!esNuevo) resolver.despuesDeGuardar(pedidos);
+                // Otro lugar (> 150 m): la parada se reubica (spec 033, cambio-dir-ruta).
+                if (!esNuevo) void reordenar.direccionCambiada(formPedido);
                 if (esNuevo && aviso == null) avisar("Pedido agregado — listo para el siguiente");
               }}
             />
@@ -368,10 +369,8 @@ export function PantallaEncomiendas({
           faltan={carga.faltan}
           onEliminar={eliminarDeLaLista}
           onEditar={editarDeLaLista}
-          onSumar={async () => {
-            const cuantos = await correr(() => dia.sumarALaRuta());
-            if (cuantos) avisar(cuantos === 1 ? "1 pedido entró a la ruta" : `${cuantos} pedidos entraron a la ruta`);
-          }}
+          onCambiar={cambiarDeLaLista}
+          onSumar={sumarALaRuta}
           onCargarGuia={() => setCargandoGuia(true)}
           onAgregar={() => nuevoPedido()}
           onPropuesta={setPropuesta}
@@ -383,16 +382,8 @@ export function PantallaEncomiendas({
           usa es lo único que hay que hacer en esta pantalla. */}
       {propuesta ? (
         <div className="fixed inset-x-0 bottom-0 z-30">
-          <VistaPreviaRuta
-            propuesta={propuesta}
-            onUsar={onUsarPropuesta}
-            onElegir={onElegirAlternativa}
-            onDescartar={() => setPropuesta(null)}
-            quitado={quitado}
-            onQuitar={onQuitar}
-            onDeshacerQuitar={onDeshacerQuitar}
-            onInvertir={onInvertir}
-          />
+          <VistaPreviaRuta propuesta={propuesta} onUsar={onUsarPropuesta} onElegir={onElegirAlternativa} onDescartar={() => setPropuesta(null)}
+            quitado={quitado} onQuitar={onQuitar} onDeshacerQuitar={onDeshacerQuitar} onInvertir={onInvertir} onVer={cerca.enfocarPunto} />
         </div>
       ) : null}
     </div>

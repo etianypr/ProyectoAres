@@ -104,12 +104,13 @@ export function marcarResultado(
     if (pedido.resultado !== "pendiente") return null;
 
     const hora = new Date().toISOString();
-    const actualizado: Pedido = { ...pedido, resultado: resultado, horaResultado: hora };
-
     const registro: ActividadPorEnviar = {
       ...nuevoEvento(conductorId, fecha, tipoEventoDe(resultado), hora),
       ...(retenerMs > 0 ? { retenidoHasta: new Date(Date.now() + retenerMs).toISOString() } : {}),
     };
+    // El id del evento queda en el pedido: con él se corrige después aunque ya se
+    // haya enviado (spec 033, G5, correccion.ts).
+    const actualizado: Pedido = { ...pedido, resultado: resultado, horaResultado: hora, eventoResultado: registro.id };
 
     await escribir([STORES.pedidos, STORES.cola], ({ guardar }) => {
       guardar(STORES.pedidos, actualizado);
@@ -151,7 +152,7 @@ export function deshacerResultado(
 
     await escribir([STORES.rutas, STORES.pedidos, STORES.cola], ({ guardar, borrar }) => {
       guardar(STORES.rutas, reabierta);
-      guardar(STORES.pedidos, { ...pedido, resultado: "pendiente", horaResultado: null });
+      guardar(STORES.pedidos, { ...pedido, resultado: "pendiente", horaResultado: null, eventoResultado: null });
       borrar(STORES.cola, eventoId);
     });
 

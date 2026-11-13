@@ -3,7 +3,9 @@
 // El único puente entre el teléfono y el servidor en el módulo del conductor. Todo
 // lo demás (pedidos, direcciones, orden de la ruta, trazado) se queda en el
 // teléfono y no sale nunca; por acá salen solo los eventos de actividad, que no
-// llevan un dato personal: quién, qué día, qué pasó y a qué hora. Sin motivo:
+// llevan un dato personal: quién, qué día, qué pasó y a qué hora (y, si el
+// conductor corrige un resultado, el borrado de ese evento por su id: spec 033,
+// G5, almacen/correccion.ts). Sin motivo:
 // se entregó o no (spec 012). La base cuenta por `tipo`: 'entrega' suma y
 // 'omision' no.
 //
@@ -23,6 +25,8 @@ import {
   leerRechazados,
   leerResumenDia,
   leerRuta,
+  MOTIVO_PLAZO,
+  quitarCorreccion,
   quitarDeCola,
   type ActividadPorEnviar,
 } from "./almacen";
@@ -100,7 +104,18 @@ export async function enviarActividadPendiente(): Promise<ResultadoEnvioCola> {
 
   const lote = cola.slice(0, MAX_POR_ENVIO);
   const supabase = createClient();
+  // Primero las altas y después las correcciones (spec 033, G5): una corrección
+  // nunca comparte id con un alta de la cola (la reemplaza), así que el orden solo
+  // cuida que un día sin señal llegue entero antes de restar.
+  const altas = lote.filter((e) => !e.borrar);
+  const enviados = (await subirAltas(supabase, altas)) + (await borrarCorregidos(supabase, lote.filter((e) => e.borrar)));
+  return { enviados, pendientes: cola.length - lote.length };
+}
 
+type Cliente = ReturnType<typeof createClient>;
+
+async function subirAltas(supabase: Cliente, lote: ActividadPorEnviar[]): Promise<number> {
+  if (lote.length === 0) return 0;
   // ignoreDuplicates hace que PostgREST use "on conflict do nothing": si un
   // evento de este lote ya había llegado en un intento anterior que se cortó
   // antes de poder vaciar la cola, se ignora en silencio en vez de fallar.
@@ -123,12 +138,41 @@ export async function enviarActividadPendiente(): Promise<ResultadoEnvioCola> {
     }
     if (malos.length === lote.length) throw new Error(error.message);
     for (const evento of malos) await apartarRechazado(evento.id, error.message);
-    return { enviados: lote.length - malos.length, pendientes: cola.length - lote.length };
+    return lote.length - malos.length;
   }
 
   // Recién ahora, con la confirmación del servidor en mano.
   await quitarDeCola(lote.map((e) => e.id));
-  return { enviados: lote.length, pendientes: cola.length - lote.length };
+  return lote.length;
+}
+
+/** Las correcciones (spec 033, G5): borra cada evento del servidor por su id. El
+ *  delete de PostgREST no falla cuando la policy no deja borrar: devuelve 0 filas.
+ *  Por eso se pide la fila borrada y, si no vuelve ninguna, se mira si el evento
+ *  sigue allá: si sigue, pasó el plazo de 12 h (rechazo visible en «Tu día»); si
+ *  no, ya estaba borrado o nunca llegó, y reenviar la corrección no hace nada. */
+async function borrarCorregidos(supabase: Cliente, lote: ActividadPorEnviar[]): Promise<number> {
+  let hechos = 0;
+  for (const c of lote) {
+    const borrado = await supabase.from("encomienda_actividad").delete().eq("id", c.id).select("id");
+    if (borrado.error) {
+      // Sin código es la red: queda en la cola para el próximo intento.
+      if (!borrado.error.code) throw new Error(borrado.error.message);
+      await apartarRechazado(c.id, borrado.error.message, true);
+      continue;
+    }
+    if ((borrado.data ?? []).length === 0) {
+      const sigue = await supabase.from("encomienda_actividad").select("id").eq("id", c.id).maybeSingle();
+      if (sigue.error && !sigue.error.code) throw new Error(sigue.error.message);
+      if (sigue.error || sigue.data) {
+        await apartarRechazado(c.id, sigue.error?.message ?? MOTIVO_PLAZO, true);
+        continue;
+      }
+    }
+    await quitarCorreccion(c.id);
+    hechos++;
+  }
+  return hechos;
 }
 
 export type EstadoEnvio = {
@@ -141,6 +185,9 @@ export type EstadoEnvio = {
   error: string | null;
   /** Eventos que el servidor rechazó y quedaron aparte: hay que avisar. */
   rechazados: number;
+  /** Correcciones que el servidor no dejó hacer (pasó el plazo de 12 h, spec 033
+   *  G5): la entrega sigue contada allá. Se avisa aparte. */
+  correccionesRechazadas: number;
   /** Fuerza un intento ahora. Hay que llamarlo después de cada marcarResultado /
    *  marcarLlamada para que el evento salga en el momento y no espere al
    *  siguiente reintento. */
@@ -162,6 +209,7 @@ export function useEnvioActividad(
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rechazados, setRechazados] = useState(0);
+  const [correccionesRechazadas, setCorreccionesRechazadas] = useState(0);
   // Sin este candado, volver a la app con el reintento periódico ya corriendo
   // mandaría el mismo lote dos veces en paralelo.
   const enVueloRef = useRef(false);
@@ -208,7 +256,10 @@ export function useEnvioActividad(
       } finally {
         enVueloRef.current = false;
         setEnviando(false);
-        void leerRechazados().then((r) => setRechazados(r.length), () => {});
+        void leerRechazados().then((r) => {
+          setRechazados(r.filter((e) => !e.borrar).length);
+          setCorreccionesRechazadas(r.filter((e) => e.borrar).length);
+        }, () => {});
       }
     })();
   }, [conductorId, fecha]);
@@ -229,5 +280,5 @@ export function useEnvioActividad(
     };
   }, [activo, intentar]);
 
-  return { pendientes, enviando, error, rechazados, intentar };
+  return { pendientes, enviando, error, rechazados, correccionesRechazadas, intentar };
 }

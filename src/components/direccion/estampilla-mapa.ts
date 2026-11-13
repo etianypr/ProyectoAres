@@ -29,6 +29,12 @@ export function claveEstampilla({ lat, lng, ancho, alto, zoom = ZOOM_PUNTO }: Pe
 const fotos = new Map<string, Promise<string>>();
 let cola: Promise<unknown> = Promise.resolve();
 
+/** Olvida las fotos guardadas: cada una muestra dónde vive un destinatario y
+ *  pesa cientos de KB (al borrar el día, spec 033 G5). */
+export function olvidarEstampillas(): void {
+  fotos.clear();
+}
+
 /** La foto (data URL) del mapa con el punto en el centro. Falla sin señal. */
 export function fotoDelMapa(pedido: PedidoEstampilla): Promise<string> {
   const clave = claveEstampilla(pedido);

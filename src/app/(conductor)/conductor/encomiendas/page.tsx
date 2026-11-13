@@ -1,10 +1,10 @@
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { hoyChile } from "@/lib/comun/fechas";
 import { whatsappActivo } from "@/lib/whatsapp/meta";
 import { lecturaIADisponible } from "@/lib/encomiendas/lectura/servidor";
 import { accesoEncomiendas } from "./acceso";
 import { BorradoLocal } from "../../borrado-local";
+import { BotonCerrarSesion, BotonReintentar } from "../../cerrar-sesion";
 import { PantallaEncomiendas } from "./pantalla";
 
 export const dynamic = "force-dynamic";
@@ -19,17 +19,19 @@ export const metadata = { title: "Ruta del día" };
 // anteriores solo muestra el resumen del último. Un conductor no vuelve a repartir
 // un día pasado, y el historial completo lo mira la oficina en el panel.
 
-// Siempre con la vuelta al hub: estas pantallas no tienen nada que tocar, y sin
-// el link el conductor queda encerrado en una URL que se sabe de memoria.
+// «Reintentar» vuelve a preguntarle al servidor (apenas el jefe arregla la ficha,
+// entra) y «Cerrar sesión» queda abajo con su confirmación (spec 033,
+// cuenta-reintentar). Antes había un «Volver al inicio» que solo servía de reintento.
 function Mensaje({ titulo, texto, borrarLocal }: { titulo: string; texto: string; borrarLocal: boolean }) {
   return (
-    <div className="p-6 text-center">
+    <div className="flex min-h-dvh flex-col items-center justify-center gap-1.5 p-6 text-center">
       {borrarLocal ? <BorradoLocal /> : null}
       <p className="text-lg font-semibold">{titulo}</p>
       <p className="mx-auto max-w-xs text-sm text-muted">{texto}</p>
-      <Link href="/conductor" className="mt-4 inline-block text-sm text-brand hover:underline">
-        Volver al inicio
-      </Link>
+      <div className="mt-5">
+        <BotonReintentar />
+      </div>
+      <BotonCerrarSesion className="mt-6" />
     </div>
   );
 }

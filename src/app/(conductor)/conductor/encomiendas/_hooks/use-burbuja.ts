@@ -25,7 +25,7 @@ import {
 } from "@/lib/nativo/burbuja";
 import type { Parada } from "./dia-trabajo-tipos";
 import type { Fase } from "./fase-parada";
-import { atenderBoton, type AccionesParada, type IdBoton } from "./botones-parada";
+import { atenderBoton, type AccionesParada, type ExtraBotones, type IdBoton } from "./botones-parada";
 import { destinoParaNavegar } from "@/lib/geo/ruta-por-calles";
 import { cargarRed } from "@/lib/geo/red/grafo";
 import { useRedDeCalles } from "./use-red-de-calles";
@@ -62,6 +62,8 @@ export function useBurbuja({
   enAres,
   acciones,
   adelante = null,
+  extra,
+  onBoton,
 }: {
   fecha: string;
   activa: Parada | null;
@@ -82,8 +84,30 @@ export function useBurbuja({
    *  un «Deshacer» ni una confirmación. Sin tocar android/: solo se ve con la
    *  tarjeta abierta. */
   adelante?: string | null;
+  /** Lo que los botones necesitan además de la parada (botones-parada.ts). */
+  extra?: ExtraBotones;
+  /** Atiende un toque con la guarda del doble toque (use-guarda-toque.ts); sin
+   *  esto, atenderBoton directo. */
+  onBoton?: (id: IdBoton) => void;
 }) {
   const [enCurso, setEnCurso] = useState(false);
+  // Si falta el permiso de mostrarse sobre otras apps (spec 033, burbuja-permiso):
+  // la tarjeta lo dice y ofrece pedirlo otra vez, aunque ya se haya pedido hoy.
+  const [permiso, setPermiso] = useState<"dado" | "falta" | "no_disponible">("no_disponible");
+  useEffect(() => {
+    let vigente = true;
+    const leer = () => void permisoBurbuja().then((p) => vigente && setPermiso(p));
+    leer();
+    document.addEventListener("visibilitychange", leer);
+    return () => {
+      vigente = false;
+      document.removeEventListener("visibilitychange", leer);
+    };
+  }, []);
+  const darPermiso = useCallback(async () => {
+    marcarPedidoHoy(fecha);
+    setPermiso((await pedirPermisoBurbuja()) ? "dado" : "falta");
+  }, [fecha]);
   const textoDeshacer = deshacer?.texto ?? null;
   const textoConfirmacion = confirmacion?.texto ?? null;
   const aviso = useMemo<AvisoBurbuja>(
@@ -97,6 +121,8 @@ export function useBurbuja({
             : null,
     [textoDeshacer, textoConfirmacion, adelante],
   );
+  // Con el renglón de aviso ocupado, el ⚠ de adelante va en el del estado.
+  const adelanteEnEstado = adelante != null && aviso?.texto !== adelante ? adelante : null;
   /** El pedido al que se mandó Google Maps por última vez. */
   const navegada = useRef<string | null>(null);
   /** El pedido de la última vista: si cambia, la burbuja se abre. */
@@ -123,10 +149,11 @@ export function useBurbuja({
       // La primera vista va ANTES de abrir Google Maps: con ella arranca el servicio
       // de la burbuja, y Android 15 solo lo deja arrancar con ARES adelante.
       mostrada.current = activa.pedido.id;
-      await mostrarBurbuja(vistaDeBurbuja(activa, fase, { whatsapp, aviso, nueva: true }));
+      await mostrarBurbuja(vistaDeBurbuja(activa, fase, { whatsapp, aviso, nueva: true, extra, adelante: adelanteEnEstado }));
     }
+    setPermiso(permiso);
     await navegarA(destino);
-  }, [activa, fecha, fase, whatsapp, aviso]);
+  }, [activa, fecha, fase, whatsapp, aviso, extra, adelanteEnEstado]);
 
   // La vista de la burbuja, cada vez que cambia algo de la parada. El texto
   // resume la vista: se redibuja solo si cambió, no con cada lectura del GPS.
@@ -136,7 +163,9 @@ export function useBurbuja({
   // dibujar y la vista sale con la entrada (spec 031).
   useRedDeCalles(enCurso);
   const vistaJson =
-    enCurso && activa ? JSON.stringify(vistaDeBurbuja(activa, fase, { whatsapp, aviso, nueva: false })) : null;
+    enCurso && activa
+      ? JSON.stringify(vistaDeBurbuja(activa, fase, { whatsapp, aviso, nueva: false, extra, adelante: adelanteEnEstado }))
+      : null;
   useEffect(() => {
     if (!vistaJson) return;
     const vista = JSON.parse(vistaJson) as VistaBurbuja;
@@ -179,7 +208,8 @@ export function useBurbuja({
       if (activa && (activa.pedido.lat == null || activa.pedido.lng == null)) acciones.editar();
       return;
     }
-    atenderBoton(id as IdBoton, acciones);
+    if (onBoton) onBoton(id as IdBoton);
+    else atenderBoton(id as IdBoton, acciones);
   });
   useEffect(() => alTocarBurbuja(alToque), [alToque]);
 
@@ -187,5 +217,5 @@ export function useBurbuja({
   // flotando sin nadie que la atienda.
   useEffect(() => () => void terminarBurbuja(), []);
 
-  return { navegar, enCurso };
+  return { navegar, enCurso, sinPermiso: permiso === "falta", darPermiso };
 }

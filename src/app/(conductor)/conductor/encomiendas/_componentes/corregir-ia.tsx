@@ -2,6 +2,11 @@
 
 // "Corregir con IA" para los pedidos sin ubicar (spec 018), en "Pedidos fuera de
 // la ruta". La IA propone y el conductor confirma cada una.
+//
+// Spec 033: el botón vuelve apenas hay una dirección sin ubicar que no tenga
+// propuesta a la vista (antes se escondía mientras quedara alguna en la lista,
+// aunque ya estuviera confirmada); y sin señal lo dice, en vez de «no encontró
+// cómo corregirlas».
 
 import { useState } from "react";
 import { Loader2, Sparkles } from "lucide-react";
@@ -12,34 +17,51 @@ export function BotonCorregirIA({
   fecha,
   cuantas,
   onAplicada,
+  excluir = [],
+  solo,
+  onConfirmada,
 }: {
   fecha: string;
   cuantas: number;
   /** Se confirmó una corrección: la pantalla vuelve a leer los pedidos. */
   onAplicada: () => void;
+  /** Los que ya tienen una propuesta a la vista en otro lado (no se vuelve a pagar). */
+  excluir?: string[];
+  /** Solo estos pedidos (el resumen de «Cargar la guía» pregunta por los de esa
+   *  carga, que son los que cuenta el botón; sin esto iban todos los del día). */
+  solo?: string[];
+  /** Cada confirmada (el resumen de «Cargar la guía» la cuenta como ubicada). */
+  onConfirmada?: (pedidoId: string) => void;
 }) {
   const [avance, setAvance] = useState<{ hechos: number; total: number } | null>(null);
+  /** Las propuestas sin confirmar todavía. */
   const [propuestas, setPropuestas] = useState<PropuestaCorreccion[]>([]);
   const [aviso, setAviso] = useState<string | null>(null);
+  const sinPropuesta = Math.max(0, cuantas - propuestas.length);
 
   async function corregir() {
     setAviso(null);
-    setPropuestas([]);
-    setAvance({ hechos: 0, total: cuantas });
+    setAvance({ hechos: 0, total: sinPropuesta });
     try {
-      const r = await corregirSinUbicar(fecha, { alAvanzar: (hechos, total) => setAvance({ hechos, total }) });
-      setPropuestas(r.propuestas);
+      const r = await corregirSinUbicar(fecha, {
+        ids: solo,
+        excluir: [...excluir, ...propuestas.map((p) => p.pedidoId)],
+        alAvanzar: (hechos, total) => setAvance({ hechos, total }),
+      });
+      setPropuestas((antes) => [...antes, ...r.propuestas]);
       setAviso(
         r.sinIA
-          ? "La IA no está configurada en el servidor."
-          : r.propuestas.length === 0
-            ? "La IA no encontró cómo corregirlas: corrígelas a mano."
-            : r.sinArreglo > 0
-              ? `${r.sinArreglo} sin arreglo: corrígelas a mano.`
-              : null,
+          ? "IA apagada en el servidor."
+          : r.sinSenal > 0
+            ? `Sin señal: ${r.sinSenal === 1 ? "1 sin preguntar" : `${r.sinSenal} sin preguntar`} a la IA.`
+            : r.propuestas.length === 0
+              ? "La IA no encontró cómo corregirlas."
+              : r.sinArreglo > 0
+                ? `${r.sinArreglo} sin arreglo.`
+                : null,
       );
     } catch {
-      setAviso("No se pudo corregir. Intenta de nuevo con señal.");
+      setAviso("Sin señal: no se preguntó a la IA.");
     } finally {
       setAvance(null);
     }
@@ -47,7 +69,7 @@ export function BotonCorregirIA({
 
   return (
     <div className="mb-2 space-y-2">
-      {propuestas.length === 0 ? (
+      {sinPropuesta > 0 || avance ? (
         <button
           type="button"
           disabled={avance != null}
@@ -57,13 +79,20 @@ export function BotonCorregirIA({
           {avance ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
           {avance
             ? `Corrigiendo con IA: ${avance.hechos} de ${avance.total}`
-            : cuantas === 1
+            : sinPropuesta === 1
               ? "Corregir la dirección con IA"
-              : `Corregir las ${cuantas} direcciones con IA`}
+              : `Corregir las ${sinPropuesta} direcciones con IA`}
         </button>
       ) : null}
       {aviso ? <p className="px-1 text-sm text-muted">{aviso}</p> : null}
-      <ConfirmarCorrecciones propuestas={propuestas} onAplicada={onAplicada} />
+      <ConfirmarCorrecciones
+        propuestas={propuestas}
+        onAplicada={onAplicada}
+        onConfirmada={(id) => {
+          setPropuestas((ps) => ps.filter((p) => p.pedidoId !== id));
+          onConfirmada?.(id);
+        }}
+      />
     </div>
   );
 }

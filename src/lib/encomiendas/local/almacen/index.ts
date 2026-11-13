@@ -30,11 +30,12 @@ export type {
   Ruta,
   TramoDelDia,
 } from "./tipos";
-export { leerDiaGuardado, leerPedidos, leerRuta, pedidosEnOrden } from "./lecturas";
+export { fechasConDatos, leerDiaGuardado, leerPedidos, leerRuta, pedidosEnOrden } from "./lecturas";
 export {
   borrarPedido,
   cambiarDireccion,
   fijarCoordenadas,
+  fijarTelefono,
   guardarPedido,
   pedidosPendientes,
   restaurarPedido,
@@ -54,12 +55,16 @@ export {
   rutaTerminada,
   sumarResumenes,
   tramosConPedidos,
+  volverACargar,
   type EntradaRuta,
 } from "./ruta";
 export {
   borrarDatosDestinatarios,
+  borrarSueltos,
   cerrarYBorrarDia,
+  DIAS_DE_RESUMEN,
   diasPorBorrar,
+  resumenesQueSobran,
   noEntregadosDelDia,
 } from "./borrado";
 export {
@@ -71,19 +76,24 @@ export {
   type MarcaPedido,
 } from "./terreno";
 export {
+  anotarHorario,
   marcarHorariosEnviados,
   registrarAvisoEnviado,
   registrarAvisoFallido,
   registrarDisponibilidad,
   reiniciarDisponibilidad,
 } from "./disponibilidad";
-export { apartarRechazado, leerCola, leerRechazados, quitarDeCola, retenerEvento } from "./cola";
+export { cambiarResultado, PLAZO_CORREGIR_MS, sePuedeCambiar } from "./correccion";
+export { apartarRechazado, leerCola, leerRechazados, MOTIVO_PLAZO, quitarCorreccion, quitarDeCola, retenerEvento } from "./cola";
 export { borrarPropuestaGuardada, guardarPropuesta, leerPropuestaGuardada } from "./propuesta";
 export {
   aplicarLecturaEtiqueta,
   crearDesdeGuia,
+  deshacerCarga,
   avanceCarga,
   bultosIncompletos,
+  quitarBulto,
+  sePuedeQuitarBulto,
   sinEtiquetaEscaneada,
   type LecturaParaAplicar,
   type LineaParaCrear,
@@ -98,6 +108,7 @@ export {
 } from "./problemas";
 export {
   borrarFoto,
+  guardarDescripcionPaquete,
   guardarFoto,
   guardarPaquete,
   leerFoto,

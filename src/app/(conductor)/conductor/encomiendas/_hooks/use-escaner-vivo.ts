@@ -24,7 +24,7 @@ import { codigoEnLaFoto, leerCodigoEtiqueta, type CodigoEtiqueta } from "@/lib/e
 import { leerEtiqueta, type LecturaEtiqueta } from "@/lib/encomiendas/lectura/etiqueta";
 import { datosFirmes, resultadoVotos, sumarCuadro, type ResultadoVotos, type Votos } from "@/lib/encomiendas/lectura/etiqueta/votos";
 import { prepararSonidos, sonarLeida, sonarPausa, sonarTic } from "@/lib/comun/sonidos-escaner";
-import { aplicarLecturaEtiqueta, guardarFoto, type ResultadoEscaneo } from "@/lib/encomiendas/local/almacen";
+import { aplicarLecturaEtiqueta, guardarFoto, quitarBulto, sePuedeQuitarBulto, type ResultadoEscaneo } from "@/lib/encomiendas/local/almacen";
 import { usarDireccionDeEtiqueta } from "@/lib/encomiendas/local/direccion-etiqueta";
 import { comprimirFoto } from "@/lib/encomiendas/local/foto";
 import {
@@ -48,7 +48,9 @@ export type EstadoVivo =
   | { tipo: "prendiendo" }
   | { tipo: "sinCamara"; motivo: string }
   | { tipo: "buscando" }
-  | { tipo: "etiqueta"; r: ResultadoEscaneo; votos: ResultadoVotos | null; leida: boolean }
+  // conDato: quedó algún dato firme; escrita: la OF se escribió a mano (spec 033:
+  // sin dato firme no dice «Leída»).
+  | { tipo: "etiqueta"; r: ResultadoEscaneo; votos: ResultadoVotos | null; leida: boolean; conDato: boolean; escrita: boolean }
   | { tipo: "noEsta"; of: string }
   | { tipo: "otraDireccion"; r: ResultadoEscaneo; direccion: string; votos: ResultadoVotos | null };
 
@@ -61,7 +63,18 @@ type EnCurso = {
   leida: boolean;
   /** Cuántos tics ya sonaron (datos firmes). */
   tics: number;
+  conDato?: boolean;
+  escrita?: boolean;
 };
+
+/** Al guardar lo leído, el bulto que sumó la etiqueta sigue siendo el de «−1
+ *  bulto» (spec 033): la lectura de cierre no suma ninguno. */
+const conSuma = (nuevo: ResultadoEscaneo, de: ResultadoEscaneo): ResultadoEscaneo => ({
+  ...nuevo,
+  bultoAMano: de.bultoAMano,
+  bultoSumado: de.bultoSumado,
+  bultosAntes: de.bultosAntes,
+});
 
 /** Solo lo firme va al pedido: lo visto una vez o empatado queda sin leer. */
 function soloFirme(v: ResultadoVotos): LecturaEtiqueta {
@@ -92,6 +105,8 @@ export function useEscanerVivo({
   /** La cámara está prendida: el teclado se abre recién cuando se apagó. */
   const [enVivo, setEnVivo] = useState(false);
   const [linterna, setLinterna] = useState(false);
+  /** Lo que pasó con «Usar la dirección de la etiqueta» (spec 033). */
+  const [avisoDireccion, setAvisoDireccion] = useState<string | null>(null);
   const enCurso = useRef<EnCurso | null>(null);
   const pausa = useRef(false);
   const leidas = useRef(new Set<string>());
@@ -111,7 +126,7 @@ export function useEscanerVivo({
       e.tics = Math.max(e.tics, firmes);
     }
     if (!e.r) return;
-    setEstado({ tipo: "etiqueta", r: e.r, votos, leida: e.leida });
+    setEstado({ tipo: "etiqueta", r: e.r, votos, leida: e.leida, conDato: Boolean(e.conDato), escrita: Boolean(e.escrita) });
   }, []);
 
   /** La etiqueta queda leída: guarda lo firme. Completa (todo firme), además la
@@ -130,6 +145,8 @@ export function useEscanerVivo({
         votos = sumarCuadro(votos, e.codigo, foto.texto.trim() ? leerEtiqueta(foto.texto) : null);
       }
       const resultado = votos ? resultadoVotos(votos) : null;
+      const firmes = resultado ? soloFirme(resultado) : null;
+      e.conDato = Boolean(firmes && (firmes.destinatario || firmes.telefono || firmes.porPagar != null));
       let r = e.r;
       try {
         if (resultado) {
@@ -139,11 +156,12 @@ export function useEscanerVivo({
             bulto: null,
             ofConfirmada: resultado.ofConfirmada,
           });
-          if (nuevo) r = nuevo;
+          if (nuevo) r = conSuma(nuevo, r);
         }
         if (foto && !r.pedido.fotoId) {
           await guardarFoto(r.pedido.id, await comprimirFoto(foto.imagen));
-          r = (await aplicarLecturaEtiqueta(fecha, { of: e.codigo.of, bulto: null })) ?? r;
+          const conFoto = await aplicarLecturaEtiqueta(fecha, { of: e.codigo.of, bulto: null });
+          if (conFoto) r = conSuma(conFoto, r);
         }
       } catch {
         // Si falla el guardado local, la parada ya quedó contada: sigue.
@@ -182,6 +200,7 @@ export function useEscanerVivo({
         return;
       }
       onCambio();
+      setAvisoDireccion(null);
       e.r = r;
       e.leida = leidas.current.has(clave(e.codigo));
       mostrar(e);
@@ -290,12 +309,34 @@ export function useEscanerVivo({
     else setEstado({ tipo: "buscando" });
   }, [mostrar]);
 
+  // Lo que pasó con «Usar la dirección de la etiqueta», como en el escáner de
+  // siempre (spec 033, vivo-limites): antes se tragaba el resultado.
   const usarDireccion = useCallback(async () => {
     if (estado.tipo !== "otraDireccion") return;
-    await usarDireccionDeEtiqueta(estado.r.pedido.id, estado.direccion).catch(() => undefined);
+    const como = await usarDireccionDeEtiqueta(estado.r.pedido.id, estado.direccion).catch(() => null);
+    setAvisoDireccion(
+      como === "ubicada"
+        ? "Dirección cambiada. Rehaz la ruta para que la parada quede en su orden."
+        : como === "en_duda"
+          ? "Dirección cambiada, en duda: quedó en la primera opción con ⚠."
+          : como === "sin_ubicar"
+            ? "Dirección cambiada, pero no se pudo ubicar."
+            : "No se pudo cambiar la dirección.",
+    );
     onCambio();
     seguir();
   }, [estado, onCambio, seguir]);
+
+  /** «−1 bulto» (spec 033): deshace el bulto que sumó la etiqueta a la vista. */
+  const quitarUno = useCallback(async () => {
+    const e = enCurso.current;
+    if (!e?.r || !sePuedeQuitarBulto(e.r)) return;
+    const r = await quitarBulto(fecha, e.r).catch(() => null);
+    if (!r || enCurso.current !== e) return;
+    e.r = r;
+    onCambio();
+    mostrar(e);
+  }, [fecha, onCambio, mostrar]);
 
   /** El código dañado: se escribe la OF (o el código) y sigue como si se leyera. */
   const escribir = useCallback(
@@ -304,7 +345,7 @@ export function useEscanerVivo({
       if (!codigo) return false;
       if (codigo.bulto == null) ofAMano.current = codigo.of;
       pausa.current = false;
-      const nueva: EnCurso = { codigo, votos: null, r: null, inicio: Date.now(), ultimoCodigo: 0, leida: false, tics: 0 };
+      const nueva: EnCurso = { codigo, votos: null, r: null, inicio: Date.now(), ultimoCodigo: 0, leida: false, tics: 0, escrita: true };
       enCurso.current = nueva;
       void abrir(nueva);
       return true;
@@ -316,5 +357,5 @@ export function useEscanerVivo({
     if (await linternaViva(!linterna)) setLinterna(!linterna);
   }, [linterna]);
 
-  return { estado, camara, enVivo, linterna, alternarLinterna, seguir, usarDireccion, escribir };
+  return { estado, camara, enVivo, linterna, alternarLinterna, seguir, usarDireccion, avisoDireccion, quitarUno, escribir };
 }

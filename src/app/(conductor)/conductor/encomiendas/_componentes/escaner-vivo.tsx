@@ -14,7 +14,10 @@ import { Campo } from "@/components/ui/campo";
 import { cn } from "@/lib/comun/utils";
 import { formatCLP } from "@/lib/comun/format";
 import { formatoOf } from "@/lib/encomiendas/paquete";
+import { sePuedeQuitarBulto } from "@/lib/encomiendas/local/almacen";
+import { useAtrasPropio } from "../_hooks/use-atras-propio";
 import { useEscanerVivo } from "../_hooks/use-escaner-vivo";
+import { AvisoOtraParada, tituloEsperado, type PaqueteEsperado } from "./aviso-otra-parada";
 
 const BOTON =
   "flex h-12 w-full items-center justify-center gap-2 rounded-full bg-brand text-[15px] font-semibold text-brand-foreground transition-transform active:scale-[0.97]";
@@ -32,6 +35,7 @@ function Dato({ valor, firme, vacio }: { valor: string | null; firme: boolean; v
 
 export function EscanerVivo({
   fecha,
+  esperado = null,
   avance,
   onCerrar,
   onCambio,
@@ -39,6 +43,8 @@ export function EscanerVivo({
   onClasico,
 }: {
   fecha: string;
+  /** Abierto desde la parada: el paquete que se espera (spec 033). */
+  esperado?: PaqueteEsperado | null;
   avance: { escaneados: number; total: number };
   onCerrar: () => void;
   onCambio: () => void;
@@ -47,7 +53,7 @@ export function EscanerVivo({
   onClasico: () => void;
 }) {
   const [escribiendo, setEscribiendo] = useState(false);
-  const { estado, camara, enVivo, linterna, alternarLinterna, seguir, usarDireccion, escribir } = useEscanerVivo({
+  const { estado, camara, enVivo, linterna, alternarLinterna, seguir, usarDireccion, avisoDireccion, quitarUno, escribir } = useEscanerVivo({
     fecha,
     onCambio,
     pausada: escribiendo,
@@ -60,6 +66,16 @@ export function EscanerVivo({
   useEffect(() => {
     if (escribiendo && !enVivo) campoOf.current?.focus();
   }, [escribiendo, enVivo]);
+
+  // ✕ del campo y atrás mientras se escribe: vuelve a la cámara sin cerrar el
+  // escáner (spec 033, vivo-limites). Antes atrás cerraba todo.
+  function dejarDeEscribir() {
+    campoOf.current?.blur();
+    setErrorCodigo(null);
+    setCodigoEscrito("");
+    setEscribiendo(false);
+  }
+  useAtrasPropio(escribiendo, dejarDeEscribir);
 
   function buscar() {
     if (!escribir(codigoEscrito)) {
@@ -77,8 +93,8 @@ export function EscanerVivo({
   return createPortal(
     <div className={cn("capa-camara fixed inset-0 z-50 flex flex-col", escribiendo && "bg-black")} role="dialog" aria-modal="true" aria-label="Cargar el auto">
       <div className="flex items-center gap-2 bg-black/60 px-4 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))] text-white">
-        <h2 className="min-w-0 flex-1 text-lg font-semibold">Cargar el auto</h2>
-        {avance.total > 0 ? (
+        <h2 className="min-w-0 flex-1 truncate text-lg font-semibold">{esperado ? tituloEsperado(esperado) : "Cargar el auto"}</h2>
+        {avance.total > 0 && !esperado ? (
           <span className="shrink-0 rounded-full bg-white/20 px-2.5 py-1 text-sm font-semibold tabular-nums">
             {avance.escaneados} de {avance.total}
           </span>
@@ -127,6 +143,7 @@ export function EscanerVivo({
 
         {estado.tipo === "etiqueta" ? (
           <div className="space-y-1.5">
+            <AvisoOtraParada esperado={esperado} r={estado.r} />
             <div className="flex items-end gap-3">
               {estado.r.parada ? (
                 <p className="text-5xl font-bold leading-none tabular-nums text-brand">
@@ -137,10 +154,15 @@ export function EscanerVivo({
               ) : (
                 <p className="text-lg font-bold">SIN RUTA TODAVÍA</p>
               )}
-              {estado.leida ? (
+              {estado.leida && estado.conDato ? (
                 <span className="mb-1 ml-auto flex items-center gap-1 rounded-full bg-ok-bg px-2.5 py-1 text-xs font-semibold text-ok">
                   <Check className="h-3.5 w-3.5" />
                   Leída
+                </span>
+              ) : estado.leida ? (
+                // Sin ningún dato firme no es «Leída» (spec 033).
+                <span className="mb-1 ml-auto rounded-full bg-background px-2.5 py-1 text-xs font-semibold text-muted">
+                  {estado.escrita ? "OF escrita" : "Solo el código"}
                 </span>
               ) : null}
             </div>
@@ -148,11 +170,20 @@ export function EscanerVivo({
               OF {formatoOf(estado.r.pedido.of ?? "")}
               {!estado.leida && estado.votos ? ` · leyendo, ${estado.votos.cuadros} cuadros` : ""}
             </p>
-            {estado.r.pedido.bultos != null && estado.r.pedido.bultos > 1 ? (
-              <p className="text-sm font-medium">
-                Bultos {estado.r.pedido.bultosEscaneados.length} de {estado.r.pedido.bultos}
-              </p>
+            {(estado.r.pedido.bultos != null && estado.r.pedido.bultos > 1) || sePuedeQuitarBulto(estado.r) ? (
+              <div className="flex items-center gap-2">
+                <p className="min-w-0 flex-1 text-sm font-medium">
+                  Bultos {estado.r.pedido.bultosEscaneados.length} de {estado.r.pedido.bultos ?? 1}
+                </p>
+                {/* El bulto escrito de más o escaneado de más (spec 033): solo el último. */}
+                {sePuedeQuitarBulto(estado.r) ? (
+                  <button type="button" onClick={() => void quitarUno()} className="h-9 shrink-0 rounded-full border border-separator px-3 text-sm font-semibold text-brand">
+                    −1 bulto
+                  </button>
+                ) : null}
+              </div>
             ) : null}
+            {avisoDireccion ? <p className="rounded-xl bg-background px-3 py-2 text-sm">{avisoDireccion}</p> : null}
             {(() => {
               // Antes de quedar leída se ve lo que van diciendo los cuadros; después,
               // lo que quedó guardado (solo lo firme).
@@ -216,6 +247,11 @@ export function EscanerVivo({
               {errorCodigo ? <p className="text-sm text-danger">{errorCodigo}</p> : null}
               <Campo
                 ref={campoOf}
+                fin={
+                  <button type="button" onClick={dejarDeEscribir} aria-label="Volver a la cámara" className="-mr-1 flex h-10 w-10 items-center justify-center rounded-full text-muted active:bg-background">
+                    <X className="h-5 w-5" />
+                  </button>
+                }
                 etiqueta="OF"
                 inputMode="numeric"
                 value={codigoEscrito}

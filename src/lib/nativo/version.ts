@@ -25,3 +25,19 @@ export function esMasVieja(instalada: string | null, minima: string | null | und
   }
   return false;
 }
+
+/** sessionStorage: la versión cuyo aviso se escondió con la ✕ (spec 033, apk-aviso).
+ *  Dura hasta que se cierra la app; al abrirla de nuevo, el aviso vuelve. */
+export const CLAVE_AVISO_APK_ESCONDIDO = "ares.aviso-apk-escondido";
+
+/** ¿Se muestra «Hay una actualización disponible»? APK_VERSION_MINIMA hace de
+ *  «última versión publicada» (dueño, 2026-11-13: avisa, no obliga). La ✕ lo
+ *  esconde para esa versión mientras la app siga abierta. */
+export function mostrarAvisoApk(
+  instalada: string | null,
+  publicada: string | null | undefined,
+  escondida: string | null,
+): boolean {
+  if (!esMasVieja(instalada, publicada)) return false;
+  return escondida !== publicada;
+}

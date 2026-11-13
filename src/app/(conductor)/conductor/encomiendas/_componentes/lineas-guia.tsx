@@ -1,35 +1,69 @@
 "use client";
 
-// Las líneas leídas de la guía, para revisarlas antes de crear los pedidos. Cada
-// línea se lee como texto, con un lápiz para editarla al lado del basurero
-// (terreno 2026-10-27); las que tienen un problema se abren ya editables. Las del
-// barrido de la nómina que no quedaron firmes (`porConfirmar`) también, y se confirman
-// con el visto después de mirarlas en el papel (dueño, 2026-11-11).
+// La lista de las líneas leídas de la guía (revision-guia.tsx). Cada línea se lee
+// como texto y se abre tocándola (versión simple, dueño 2026-11-14; antes llevaba
+// un lápiz y un basurero, terreno 2026-10-27); las que tienen un problema se abren
+// ya editables. Las del barrido de la nómina que no quedaron firmes
+// (`porConfirmar`) también, y se confirman después de mirarlas en el papel (dueño,
+// 2026-11-11). Abierta, la línea trae el teléfono del receptor y «Llamar» (dueño,
+// 2026-11-13), «Quitar» y «Listo».
 
 import { useState } from "react";
-import { AlertTriangle, Check, Pencil, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, Check, Phone, Plus, Trash2 } from "lucide-react";
+import { BotonTelefono, CampoTelefono } from "./campo-telefono";
 import { cn } from "@/lib/comun/utils";
 import { Campo } from "@/components/ui/campo";
+import { normalizarTelefono } from "@/lib/comun/telefono";
 import type { LineaGuia } from "@/lib/encomiendas/lectura/guia";
 import { formatoOf, ofValida } from "@/lib/encomiendas/paquete";
 
+/** Sin OF o sin destino: frena «Crear». */
+export const lineaMala = (l: LineaGuia) => !ofValida(l.of) || !l.destino.trim();
+/** Hay que mirarla: mala o por confirmar. */
+export const lineaConProblema = (l: LineaGuia) => lineaMala(l) || Boolean(l.porConfirmar);
+
+/** OF y destino de una línea, editables. */
+export function CamposLinea({ linea, onCambiar }: { linea: LineaGuia; onCambiar: (cambio: Partial<LineaGuia>) => void }) {
+  const of = ofValida(linea.of);
+  /** «Teléfono · opcional» se abre con el botón; con uno ya anotado, de entrada. */
+  const [conTelefono, setConTelefono] = useState(() => (linea.telefono ?? "").trim() !== "");
+  return (
+    <>
+      <Campo
+        compacto
+        etiqueta="OF"
+        inputMode="numeric"
+        value={of ? formatoOf(of) : linea.of}
+        onChange={(e) => onCambiar({ of: e.target.value })}
+        tono={of ? "normal" : "aviso"}
+        className="font-mono font-semibold tabular-nums"
+      />
+      <div className="flex items-stretch gap-2">
+        <Campo
+          compacto
+          etiqueta="Destino"
+          value={linea.destino}
+          onChange={(e) => onCambiar({ destino: e.target.value })}
+          tono={linea.destino.trim() ? "normal" : "aviso"}
+          cajaClassName="min-w-0 flex-1"
+        />
+        <BotonTelefono abierto={conTelefono} onClick={() => setConTelefono((a) => !a)} />
+      </div>
+      {conTelefono ? <CampoTelefono valor={linea.telefono ?? ""} onCambiar={(telefono) => onCambiar({ telefono })} /> : null}
+    </>
+  );
+}
+
 export function LineasGuia({
   lineas,
-  avisos,
-  folio,
   onCambiar,
   onQuitar,
   onAgregar,
-  children,
 }: {
   lineas: LineaGuia[];
-  avisos: string[];
-  folio: string | null;
   onCambiar: (i: number, cambio: Partial<LineaGuia>) => void;
   onQuitar: (i: number) => void;
   onAgregar: () => void;
-  /** Lo que va entre la lista y "Agregar una línea" (los botones de foto). */
-  children?: React.ReactNode;
 }) {
   /** Las líneas abiertas con el lápiz. */
   const [abiertas, setAbiertas] = useState<Set<number>>(new Set());
@@ -43,90 +77,80 @@ export function LineasGuia({
 
   return (
     <>
-      {avisos.map((a) => (
-        <p key={a} className="flex items-start gap-1.5 rounded-xl bg-warn-bg px-3 py-2 text-sm text-warn">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          {a}
-        </p>
-      ))}
-      <p className="text-sm font-medium">
-        {lineas.length} {lineas.length === 1 ? "línea" : "líneas"}
-        {folio ? ` · guía N° ${folio}` : ""}
-      </p>
       <ul className="divide-y divide-divider overflow-hidden rounded-2xl bg-card shadow-soft">
         {lineas.map((l, i) => {
           const of = ofValida(l.of);
-          const mala = !of || !l.destino.trim();
+          const mala = lineaMala(l);
           const porConfirmar = !mala && l.porConfirmar;
           const editando = mala || porConfirmar || abiertas.has(i);
-          return (
-            <li key={i} className={cn("flex items-start gap-1 px-3 py-2.5", (mala || porConfirmar) && "bg-warn-bg")}>
-              {editando ? (
-                <div className="min-w-0 flex-1 space-y-1.5">
-                  {porConfirmar ? (
-                    <p className="flex items-center gap-1 text-xs font-semibold text-warn">
-                      <AlertTriangle className="h-3.5 w-3.5" />
-                      Por confirmar
-                    </p>
-                  ) : null}
-                  <Campo
-                    compacto
-                    etiqueta="OF"
-                    inputMode="numeric"
-                    value={of ? formatoOf(of) : l.of}
-                    onChange={(e) => onCambiar(i, { of: e.target.value })}
-                    tono={of ? "normal" : "aviso"}
-                    className="font-mono font-semibold tabular-nums"
-                  />
-                  <Campo
-                    compacto
-                    etiqueta="Destino"
-                    value={l.destino}
-                    onChange={(e) => onCambiar(i, { destino: e.target.value })}
-                    tono={l.destino.trim() ? "normal" : "aviso"}
-                  />
-                </div>
-              ) : (
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold tabular-nums">
-                    {/* Una OF de otro largo vale igual y no lleva ⚠: hay OF de distintos
-                        largos (dueño, 2026-11-06; antes, terreno 2026-10-28). */}
-                    {of ? formatoOf(of) : l.of}
-                  </p>
-                  <p className="text-sm text-muted">{l.destino}</p>
-                </div>
-              )}
-              {/* El lápiz al lado del basurero; abierta, se cierra con el visto. */}
-              {!mala ? (
+          const telefono = normalizarTelefono(l.telefono);
+          if (!editando) {
+            // Cerrada: la fila entera es el botón que la abre (sin lápiz ni basurero).
+            return (
+              <li key={i}>
                 <button
                   type="button"
-                  onClick={() => (porConfirmar ? onCambiar(i, { porConfirmar: false }) : alternar(i))}
-                  aria-label={porConfirmar ? "Confirmar la línea" : editando ? "Listo" : "Editar la línea"}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-brand active:bg-background"
+                  onClick={() => alternar(i)}
+                  aria-label={`Corregir la línea ${of ? formatoOf(of) : l.of}`}
+                  className="block w-full px-3 py-2.5 text-left active:bg-background"
                 >
-                  {editando ? <Check className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
+                  <span className="flex items-baseline justify-between gap-2">
+                    {/* Una OF de otro largo vale igual y no lleva ⚠: hay OF de distintos
+                        largos (dueño, 2026-11-06; antes, terreno 2026-10-28). */}
+                    <span className="font-mono text-sm font-semibold tabular-nums">{of ? formatoOf(of) : l.of}</span>
+                    {telefono.ok ? (
+                      <span className="flex shrink-0 items-center gap-1 font-mono text-xs text-muted">
+                        <Phone className="h-3 w-3" />
+                        {telefono.telefono.legible}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="block text-sm text-muted">{l.destino}</span>
                 </button>
+              </li>
+            );
+          }
+          return (
+            <li key={i} className={cn("space-y-1.5 px-3 py-2.5", (mala || porConfirmar) && "bg-warn-bg")}>
+              {porConfirmar ? (
+                <p className="flex items-center gap-1 text-xs font-semibold text-warn">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  Por confirmar
+                </p>
               ) : null}
-              <button
-                type="button"
-                onClick={() => {
-                  setAbiertas(new Set());
-                  onQuitar(i);
-                }}
-                aria-label="Quitar la línea"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted active:bg-background"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
+              <CamposLinea linea={l} onCambiar={(c) => onCambiar(i, c)} />
+              {/* Abierta: «Quitar» y, si no le falta nada, cerrarla (o confirmarla). */}
+              <div className="flex gap-2 pt-0.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAbiertas(new Set());
+                    onQuitar(i);
+                  }}
+                  className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full border border-separator bg-card text-sm font-semibold text-brand active:scale-[0.97]"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Quitar
+                </button>
+                {!mala ? (
+                  <button
+                    type="button"
+                    onClick={() => (porConfirmar ? onCambiar(i, { porConfirmar: false }) : alternar(i))}
+                    className="flex h-10 flex-[2] items-center justify-center gap-1.5 rounded-full bg-brand text-sm font-semibold text-brand-foreground active:scale-[0.97]"
+                  >
+                    <Check className="h-4 w-4" />
+                    {porConfirmar ? "Confirmar" : "Listo"}
+                  </button>
+                ) : null}
+              </div>
             </li>
           );
         })}
       </ul>
-      {children}
       <button
         type="button"
         onClick={onAgregar}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-separator py-3 text-sm font-medium text-brand"
+        className="mx-auto flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-muted active:bg-card"
       >
         <Plus className="h-4 w-4" />
         Agregar una línea

@@ -111,7 +111,7 @@ export function ProbarEtiqueta({ enApp }: { enApp: boolean }) {
         className="flex h-12 w-full items-center justify-center gap-2 rounded-full border border-separator bg-card text-sm font-semibold text-brand disabled:opacity-50"
       >
         {leyendo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Tag className="h-4 w-4" />}
-        {leyendo ? "Leyendo la etiqueta…" : "Probar etiqueta"}
+        {leyendo ? "Leyendo la etiqueta…" : enApp ? "Probar etiqueta" : "Probar etiqueta · Solo en la app"}
       </button>
 
       {prueba && prueba.texto === null ? (

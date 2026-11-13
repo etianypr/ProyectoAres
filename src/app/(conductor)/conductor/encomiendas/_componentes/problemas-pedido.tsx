@@ -4,10 +4,12 @@
 // por el dueño: «Arriba del formulario»). Cada uno con su salida: elegir el lugar
 // entre las opciones guardadas (sin consultar a nadie), «Va igual», «Es así», o
 // qué dirección vale. Lo que se arregla corrigiendo un campo (sin ubicar, sin OF)
-// se hace en el formulario de abajo.
+// se hace en el formulario de abajo, pero también se nombra acá (spec 033): sin
+// «Va igual», porque siguen siendo ⚠. Con un teléfono válido escrito, «Llamar»
+// al receptor sin salir del ⚠ (spec 033, llamar-resolver).
 
 import { useState } from "react";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Phone } from "lucide-react";
 import { MapaPunto } from "@/components/direccion/mapa-punto";
 import {
   elegirLugar,
@@ -16,16 +18,35 @@ import {
   type Pedido,
 } from "@/lib/encomiendas/local/almacen";
 import { usarDireccionDeEtiqueta } from "@/lib/encomiendas/local/direccion-etiqueta";
-import type { ProblemaGuardado } from "@/lib/encomiendas/problemas";
+import { problemasDelPedido, type ProblemaGuardado } from "@/lib/encomiendas/problemas";
+import { llamar } from "@/lib/nativo/telefono";
 
 const CAJA = "space-y-2 rounded-2xl bg-warn-bg px-3.5 py-3 text-sm text-warn";
 const BOTON = "shrink-0 rounded-full border border-warn/30 bg-card px-3 py-1.5 text-xs font-semibold text-warn active:scale-[0.97] disabled:opacity-50";
 
-export function ProblemasPedido({ pedido, onResuelto }: { pedido: Pedido; onResuelto: () => void }) {
+export function ProblemasPedido({
+  pedido,
+  telefono,
+  onResuelto,
+}: {
+  pedido: Pedido;
+  /** El teléfono escrito en el formulario, ya normalizado (null si no vale). */
+  telefono: string | null;
+  onResuelto: () => void;
+}) {
   const [ocupado, setOcupado] = useState(false);
+  const [llamando, setLlamando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const pendientes = pedido.problemas.filter((x) => !("revisado" in x && x.revisado));
-  if (pendientes.length === 0) return null;
+  // Los que se deducen del pedido (sin punto, sin OF): solo se nombran.
+  const deducidos = problemasDelPedido(pedido).filter((x) => x.tipo === "sin_ubicar" || x.tipo === "sin_of");
+  if (pendientes.length === 0 && deducidos.length === 0) return null;
+
+  function llamarAhora(numero: string) {
+    // Un segundo toque mientras sale la llamada no vuelve a llamar.
+    setLlamando(true);
+    void llamar(numero).finally(() => setTimeout(() => setLlamando(false), 3000));
+  }
 
   async function hacer(accion: () => Promise<unknown>) {
     setOcupado(true);
@@ -42,6 +63,23 @@ export function ProblemasPedido({ pedido, onResuelto }: { pedido: Pedido; onResu
 
   return (
     <div className="max-h-[45%] shrink-0 space-y-2 overflow-y-auto border-b border-divider px-4 py-3">
+      {telefono ? (
+        <button
+          type="button"
+          disabled={llamando}
+          onClick={() => llamarAhora(telefono)}
+          className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-brand text-sm font-semibold text-brand-foreground active:scale-[0.97] disabled:opacity-60"
+        >
+          <Phone className="h-4 w-4" />
+          Llamar
+        </button>
+      ) : null}
+      {deducidos.map((x) => (
+        <p key={x.tipo} className="flex items-start gap-1.5 rounded-2xl bg-warn-bg px-3.5 py-3 text-sm font-semibold text-warn">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{x.texto}</span>
+        </p>
+      ))}
       {pendientes.map((x) => (
         <Problema key={x.tipo} problema={x} pedido={pedido} ocupado={ocupado} hacer={hacer} />
       ))}

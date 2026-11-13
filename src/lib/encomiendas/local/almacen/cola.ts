@@ -56,12 +56,18 @@ export async function leerRechazados(): Promise<ActividadPorEnviar[]> {
   return (await leerTodos(STORES.cola)).filter((e) => e.rechazado);
 }
 
-/** Aparta un evento que el servidor rechazó, con el motivo. */
-export function apartarRechazado(id: string, motivo: string): Promise<void> {
+/** Aparta un evento que el servidor rechazó, con el motivo. `borrado` dice si lo
+ *  rechazado fue una corrección (spec 033, G5): un alta rechazada no aparta la
+ *  corrección que la reemplazó en el medio, ni al revés. */
+export function apartarRechazado(id: string, motivo: string, borrado = false): Promise<void> {
   return escribir([STORES.cola], ({ actualizar }) => {
-    actualizar(STORES.cola, id, (evento) => ({ ...evento, rechazado: motivo }));
+    actualizar(STORES.cola, id, (evento) => (Boolean(evento.borrar) === borrado ? { ...evento, rechazado: motivo } : evento));
   });
 }
+
+/** El motivo de una corrección que el servidor no aceptó porque el evento ya
+ *  tenía más de 12 h (la policy de delete del conductor, 0002). */
+export const MOTIVO_PLAZO = "plazo";
 
 export async function leerCola(): Promise<ActividadPorEnviar[]> {
   await soltarRetenidosSinPlazo();
@@ -84,9 +90,16 @@ export async function leerCola(): Promise<ActividadPorEnviar[]> {
   );
 }
 
-/** Se llama SOLO después de que el servidor confirmó el insert. */
+/** Se llama SOLO después de que el servidor confirmó el insert. No tacha una
+ *  corrección que reemplazó al alta mientras subía (spec 033, G5): esa todavía
+ *  tiene que borrar el evento recién subido. */
 export function quitarDeCola(ids: string[]): Promise<void> {
-  return escribir([STORES.cola], ({ borrar }) => {
-    for (const id of ids) borrar(STORES.cola, id);
+  return escribir([STORES.cola], ({ borrarSi }) => {
+    for (const id of ids) borrarSi(STORES.cola, id, (e) => !e.borrar);
   });
+}
+
+/** Se llama SOLO después de que el servidor confirmó que el evento ya no está. */
+export function quitarCorreccion(id: string): Promise<void> {
+  return escribir([STORES.cola], ({ borrarSi }) => borrarSi(STORES.cola, id, (e) => Boolean(e.borrar)));
 }

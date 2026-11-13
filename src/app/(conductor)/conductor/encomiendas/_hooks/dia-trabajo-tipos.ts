@@ -2,7 +2,7 @@
 // use-dia-trabajo.ts, spec 002 T041).
 
 import type { Pedido, PedidoEliminado, Ruta } from "@/lib/encomiendas/local/almacen";
-import type { ResultadoMarcable } from "@/lib/encomiendas/estados";
+import type { ResultadoMarcable, ResultadoVisita } from "@/lib/encomiendas/estados";
 
 /** Un pedido de la ruta listo para mostrar: su lugar en el recorrido y si hay
  *  que contactarlo. La llamada y el resultado están en el pedido. */
@@ -33,6 +33,8 @@ export type DiaEnCurso = {
   errorEnvio: string | null;
   /** Registros que el servidor rechazó y quedaron aparte. */
   rechazados: number;
+  /** Correcciones que el servidor no aceptó: pasó el plazo de 12 h (spec 033, G5). */
+  correccionesRechazadas: number;
   enviando: boolean;
   intentar: () => void;
   recargar: () => Promise<void>;
@@ -60,9 +62,14 @@ export type DiaEnCurso = {
   vistoCambioRuta: () => void;
   /** null = se puede cerrar el día. Si no, el motivo, mostrable. */
   motivoNoCerrar: string | null;
-  /** Reabre la parada y borra su evento. Solo funciona dentro de la ventana. */
-  /** false = ya no se podía (el evento había salido o estaba saliendo). */
+  /** Reabre la parada y borra su evento: de la cola dentro de la ventana, y si ya
+   *  salió, del servidor como cualquier corrección (spec 033, G5). false = ya no
+   *  se podía. */
   deshacer: (pedidoId: string, eventoId: string) => Promise<boolean>;
+  /** Cambia una parada ya cerrada a entregado, no entregado o pendiente (spec
+   *  033, G5), aunque su evento ya se haya enviado (< 12 h). null = ya no se podía;
+   *  `parada` = dónde volvió a la ruta, si pasó a pendiente. */
+  cambiarResultado: (pedidoId: string, nuevo: ResultadoVisita) => Promise<{ parada: number | null } | null>;
   /** La parada sigue pendiente y se reintenta más tarde: donde menos alarga,
    *  al menos media hora más adelante (spec 017, R4). Devuelve en qué lugar de lo
    *  pendiente quedó, o null si fue al final. */

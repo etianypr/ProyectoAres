@@ -9,11 +9,12 @@ import { useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/comun/utils";
 import { formatCLP, formatDistancia, formatDuracion, formatTime } from "@/lib/comun/format";
-import { AlertTriangle, Navigation } from "lucide-react";
+import { AlertTriangle, Navigation, Package } from "lucide-react";
 import { formatoOf, textoReferencia } from "@/lib/encomiendas/paquete";
 import { problemasDelPedido } from "@/lib/encomiendas/problemas";
 import type { Pedido } from "@/lib/encomiendas/local/almacen";
 import { useFotoGuardada } from "../_hooks/use-foto-paquete";
+import { porPagarPorRevisar } from "../_hooks/por-pagar";
 
 export function TarjetaParada({
   secuencia,
@@ -21,9 +22,12 @@ export function TarjetaParada({
   faltan,
   estado,
   onNavegar,
+  juntas = [],
 }: {
   secuencia: number;
   pedido: Pedido;
+  /** Los otros pedidos en el mismo punto, que siguen (spec 033, misma-dir). */
+  juntas?: Pedido[];
   /** Lo que falta hasta ESTA parada (spec 017, N4): por el tramo de la línea del
    *  día, o en línea recta si el auto no va por él (spec 020; entonces sin
    *  segundos). */
@@ -79,6 +83,21 @@ export function TarjetaParada({
         {pedido.porPagar ? (
           <p className="mt-1 inline-block rounded-lg bg-danger-bg px-2 py-0.5 text-sm font-bold text-danger">
             POR PAGAR {pedido.montoPorPagar != null ? formatCLP(pedido.montoPorPagar) : "· monto por revisar"}
+          </p>
+        ) : porPagarPorRevisar(pedido) ? (
+          // Sin leer si se cobra (spec 033): nunca se supone que no.
+          <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-warn">
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+            POR PAGAR por revisar
+          </p>
+        ) : null}
+        {juntas.length > 0 ? (
+          <p className="mt-1 flex items-center gap-1 text-sm font-semibold text-brand">
+            <Package className="h-4 w-4 shrink-0" />
+            {juntas.length + 1} paquetes aquí
+            <span className="min-w-0 truncate font-mono text-xs font-medium text-muted">
+              {juntas.map((p) => (p.of ? ` · OF ${formatoOf(p.of)}` : "")).join("")}
+            </span>
           </p>
         ) : null}
         {pedido.bultos != null && pedido.bultos > 1 ? (

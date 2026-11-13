@@ -24,7 +24,7 @@ export function useVistaCercanas({
   soltarMapa: () => void;
 }) {
   const [abierta, setAbierta] = useState(false);
-  const [enfoque, setEnfoque] = useState<{ lat: number; lng: number; clave: number } | null>(null);
+  const [enfoque, setEnfoque] = useState<{ lat: number; lng: number; clave: number; arriba?: boolean } | null>(null);
   // Memorizadas: el mapa las usa como dependencia y el GPS redibuja seguido.
   const cercanas = useMemo(() => paradasCercanas(paradas, activa, pedidos), [paradas, activa, pedidos]);
   const marcadas = abierta ? cercanas : NINGUNA;
@@ -38,5 +38,11 @@ export function useVistaCercanas({
     [soltarMapa],
   );
 
-  return { cercanas, marcadas, abierta, setAbierta, enfoque, enfocar };
+  // Una fila de la ruta propuesta (spec 033): el mapa ya no sigue a nadie, y el
+  // pin va a la mitad de arriba, que es la que el panel deja a la vista.
+  const enfocarPunto = useCallback(({ lat, lng }: { lat: number; lng: number }) => {
+    setEnfoque({ lat, lng, clave: Date.now(), arriba: true });
+  }, []);
+
+  return { cercanas, marcadas, abierta, setAbierta, enfoque, enfocar, enfocarPunto };
 }

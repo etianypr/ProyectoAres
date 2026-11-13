@@ -9,12 +9,16 @@
 import { nombreVisible } from "@/lib/encomiendas/paquete";
 import { corregirConIA, IANoDisponible } from "@/lib/geo/direccion-ia/cliente";
 import { MAX_DIRECCIONES_POR_TANDA, type ResultadoIA } from "@/lib/geo/direccion-ia/contrato";
-import { cambiarDireccion, leerPedidos, type Pedido } from "./almacen";
+import { telefonoParaGuardar } from "@/lib/comun/telefono";
+import { cambiarDireccion, fijarTelefono, leerPedidos, type Pedido } from "./almacen";
+import { hastaAbortar, hayRed } from "./ubicar-carga";
 
 /** Una corrección a confirmar. */
 export type PropuestaCorreccion = {
   pedidoId: string;
   nombre: string;
+  /** El teléfono que ya tiene el pedido ("" si ninguno): se ve con «Llamar». */
+  telefono: string;
   /** Lo que decía la guía o la etiqueta. */
   original: string;
   /** Lo que propone la IA. */
@@ -38,7 +42,13 @@ export type ResumenCorreccion = {
   sinArreglo: number;
   /** Sin IA en el servidor: no se intentó nada. */
   sinIA: boolean;
+  /** Las que no se alcanzaron a preguntar por falta de señal (o la IA no
+   *  contestó): no son «sin arreglo», se pueden volver a pedir (spec 033). */
+  sinSenal: number;
 };
+
+/** Seguidas sin respuesta de la IA: sin señal no se espera 30 s por cada una. */
+const FALLOS_PARA_PARAR = 2;
 
 const sinUbicar = (p: Pedido) => p.resultado === "pendiente" && (p.lat == null || p.lng == null) && p.direccion.trim() !== "";
 
@@ -56,28 +66,56 @@ export async function corregirSinUbicar(
   {
     alAvanzar,
     corregir = corregirConIA,
+    ids,
+    excluir = [],
+    senal,
+    enLinea = hayRed,
   }: {
     /** (hechos, total) para la barra de avance. */
     alAvanzar?: (hechos: number, total: number) => void;
     corregir?: (direccion: string) => Promise<ResultadoIA>;
+    /** Solo estos pedidos (los de la carga recién hecha), no todo el día. */
+    ids?: string[];
+    /** Los que ya tienen una propuesta a la vista: no se vuelve a pagar por ellos. */
+    excluir?: string[];
+    /** «Dejar de ubicar»: corta sin esperar la respuesta en curso. */
+    senal?: AbortSignal;
+    enLinea?: () => boolean;
   } = {},
 ): Promise<ResumenCorreccion> {
-  const pendientes = (await leerPedidos(fecha)).filter(sinUbicar).slice(0, MAX_DIRECCIONES_POR_TANDA);
-  const resumen: ResumenCorreccion = { propuestas: [], sinArreglo: 0, sinIA: false };
+  const soloEstos = ids ? new Set(ids) : null;
+  const pendientes = (await leerPedidos(fecha))
+    .filter((p) => sinUbicar(p) && (!soloEstos || soloEstos.has(p.id)) && !excluir.includes(p.id))
+    .slice(0, MAX_DIRECCIONES_POR_TANDA);
+  const resumen: ResumenCorreccion = { propuestas: [], sinArreglo: 0, sinIA: false, sinSenal: 0 };
+  if (!enLinea()) return { ...resumen, sinSenal: pendientes.length };
 
+  let seguidas = 0;
   for (const [i, p] of pendientes.entries()) {
+    if (senal?.aborted) break;
     alAvanzar?.(i, pendientes.length);
-    let r: ResultadoIA;
+    let r: ResultadoIA | null;
     try {
-      r = await corregir(p.direccion);
+      r = await hastaAbortar(corregir(p.direccion), senal);
     } catch (e) {
       if (e instanceof IANoDisponible) return { ...resumen, sinIA: true };
       r = { tipo: "error", mensaje: "La IA no respondió." };
     }
+    if (r == null || senal?.aborted) break;
+    if (r.tipo === "error") {
+      resumen.sinSenal++;
+      if (++seguidas >= FALLOS_PARA_PARAR) {
+        resumen.sinSenal += pendientes.length - i - 1;
+        break;
+      }
+      continue;
+    }
+    seguidas = 0;
     if (r.tipo === "propuesta" && r.candidato.confianza !== "baja") {
       resumen.propuestas.push({
         pedidoId: p.id,
         nombre: nombreVisible(p),
+        telefono: p.telefono,
         original: p.direccion,
         direccion: r.direccion,
         lat: r.candidato.lat,
@@ -101,7 +139,15 @@ export type CorreccionEditada = { direccion: string; lat: number; lng: number };
 /** El conductor confirmó la corrección: el pedido queda con la dirección y el
  *  punto propuestos, y lo que decía antes en las notas. Si la corrigió con el
  *  lápiz (dueño, 2026-11-11), queda la que eligió él. */
-export async function aplicarCorreccion(p: PropuestaCorreccion, editada?: CorreccionEditada): Promise<void> {
+export async function aplicarCorreccion(
+  p: PropuestaCorreccion,
+  editada?: CorreccionEditada,
+  /** El teléfono anotado en la tarjeta (dueño, 2026-11-13): se guarda en el
+   *  pedido como en el formulario. Solo en el teléfono; la IA ya contestó. */
+  telefono?: string,
+): Promise<void> {
+  const escrito = telefono?.trim() ? telefonoParaGuardar(telefono) : null;
+  if (escrito && escrito !== p.telefono) await fijarTelefono(p.pedidoId, escrito);
   const otra =
     editada != null && (editada.direccion !== p.direccion || editada.lat !== p.lat || editada.lng !== p.lng);
   if (otra) {

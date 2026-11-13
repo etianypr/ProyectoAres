@@ -44,6 +44,10 @@ export type Pedido = {
   resultado: ResultadoVisita;
   horaLlamada: string | null;
   horaResultado: string | null;
+  /** El id del evento de `cola`/`encomienda_actividad` que cerró el pedido: con él
+   *  se corrige el resultado aunque el evento ya se haya enviado (spec 033, G5).
+   *  Opcional: los pedidos cerrados antes no lo tienen y no se pueden cambiar. */
+  eventoResultado?: string | null;
   /** ISO. Sirve para ordenar la lista. */
   cargadoEn: string;
   /** Orden de flete de Starken: dígitos sin separadores ni ceros a la
@@ -222,6 +226,13 @@ export type ActividadPorEnviar = {
   /** El servidor lo rechazó mientras los demás pasaban (spec 017, E8): queda
    *  aparte para no trabar la cola y se muestra para avisarle a la oficina. */
   rechazado?: string;
+  /** Corrección (spec 033, G5): este evento NO se sube, se BORRA del servidor por
+   *  su id (la policy de delete de encomienda_actividad deja borrar los propios de
+   *  las últimas 12 h). Reemplaza en la cola al alta con el mismo id, si seguía
+   *  ahí: así un envío en vuelo no lo puede tachar (quitarDeCola solo tacha altas).
+   *  Un código anterior (si se revierte el deploy) lo subiría como alta, con el
+   *  mismo id: a lo más deja el evento que se quería borrar, nunca uno de más. */
+  borrar?: true;
 };
 
 /** El aviso de WhatsApp de un pedido: uno por pedido, y su estado dice en qué

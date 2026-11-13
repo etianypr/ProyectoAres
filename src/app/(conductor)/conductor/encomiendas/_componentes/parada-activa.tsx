@@ -6,13 +6,14 @@
 // mismo que dibuja la burbuja sobre Google Maps (spec 020): acá solo se les pone
 // ícono y clases.
 
-import { AlertTriangle, Check, Clock, PackageCheck, Pencil, Phone, RotateCw, ScanLine, X, type LucideIcon } from "lucide-react";
+import { AlertTriangle, Check, Clock, MapPinOff, PackageCheck, Pencil, Phone, RotateCw, ScanLine, X, type LucideIcon } from "lucide-react";
 import type { Pedido } from "@/lib/encomiendas/local/almacen";
 import { cn } from "@/lib/comun/utils";
 import type { Parada } from "../_hooks/use-dia-trabajo";
 import type { Fase } from "../_hooks/fase-parada";
-import { botonesDeParada, estadoDeParada, type BotonParada, type IdBoton, type Tono } from "../_hooks/botones-parada";
+import { botonesDeParada, estadoDeParada, type BotonParada, type ExtraBotones, type IdBoton, type Tono } from "../_hooks/botones-parada";
 import { TarjetaParada } from "./tarjeta-parada";
+import { FranjaConfirmar } from "./franja-confirmar";
 import { tituloAvisoAdelante, type AvisoAdelante } from "../_hooks/aviso-adelante";
 
 // Botones de la hoja: a ancho completo y de 48 px. Es lo que el conductor aprieta
@@ -50,6 +51,8 @@ const ICONO: Partial<Record<IdBoton, LucideIcon>> = {
   no_se_pudo: X,
   pendiente: RotateCw,
   no_entregado: X,
+  otra_hora: Clock,
+  todos: PackageCheck,
 };
 
 export function ParadaActiva({
@@ -63,6 +66,10 @@ export function ParadaActiva({
   adelante = null,
   onLlamarA,
   onVer,
+  juntas = [],
+  extra,
+  moverActiva = null,
+  onDarPermiso,
 }: {
   activa: Parada;
   fase: Fase;
@@ -79,9 +86,16 @@ export function ParadaActiva({
   /** Llamar a ESE pedido, o abrirlo si no tiene teléfono. */
   onLlamarA?: (parada: Parada) => void;
   onVer?: (pedido: Pedido) => void;
+  /** Las paradas en el mismo punto (spec 033, misma-dir): «2 paquetes aquí». */
+  juntas?: Parada[];
+  extra?: ExtraBotones;
+  /** Se guardó otra dirección para ESTA parada (spec 033, cambio-dir-ruta). */
+  moverActiva?: { onMover: () => void; onSeguir: () => void } | null;
+  /** Falta el permiso de la burbuja: «Sin burbuja · Dar permiso» (spec 033). */
+  onDarPermiso?: () => void;
 }) {
   const estado = estadoDeParada(activa, whatsapp);
-  const filas = botonesDeParada(activa, fase);
+  const filas = botonesDeParada(activa, fase, extra);
   const EstadoIcono = estado ? { reloj: Clock, check: Check, telefono: Phone }[estado.icono] : null;
 
   return (
@@ -107,9 +121,13 @@ export function ParadaActiva({
           </button>
         </div>
       ) : null}
+      {moverActiva ? (
+        <FranjaConfirmar texto="Cambió la dirección" si="Moverla" no="Seguir con esta" onSi={moverActiva.onMover} onNo={moverActiva.onSeguir} />
+      ) : null}
       <TarjetaParada
         secuencia={activa.secuencia}
         pedido={activa.pedido}
+        juntas={juntas.map((p) => p.pedido)}
         onNavegar={onNavegar}
         faltan={faltan}
         estado={
@@ -132,10 +150,21 @@ export function ParadaActiva({
       <div className="space-y-2">
         {/* Las salidas de la parada, en una sola pantalla. */}
         {fase === "salidas" ? <p className="text-xs text-muted">¿Qué hacemos con esta parada?</p> : null}
+        {fase === "horas" ? <p className="text-xs text-muted">Pidió otra hora</p> : null}
+        {fase === "juntas" ? <p className="text-xs text-muted">{juntas.length + 1} paquetes aquí</p> : null}
         {filas.map((fila, i) => (
           <Fila key={i} fila={fila} guardando={guardando} onBoton={onBoton} />
         ))}
       </div>
+      {onDarPermiso ? (
+        <p className="flex items-center gap-1.5 text-xs text-muted">
+          <MapPinOff className="h-3.5 w-3.5 shrink-0" />
+          <span className="min-w-0 flex-1">Sin burbuja</span>
+          <button type="button" onClick={onDarPermiso} className="h-9 shrink-0 rounded-full px-3 text-xs font-semibold text-brand active:bg-background">
+            Dar permiso
+          </button>
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -210,6 +239,8 @@ function BotonSalida({ boton, guardando, onBoton }: { boton: BotonParada; guarda
     >
       {boton.id === "pendiente" ? (
         <RotateCw className="h-4 w-4 shrink-0 text-brand" />
+      ) : boton.id === "otra_hora" ? (
+        <Clock className="h-4 w-4 shrink-0 text-brand" />
       ) : (
         <X className="h-4 w-4 shrink-0 text-danger" />
       )}

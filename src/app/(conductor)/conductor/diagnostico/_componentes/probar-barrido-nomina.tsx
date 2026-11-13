@@ -96,7 +96,9 @@ export function ProbarBarridoNomina({ enApp }: { enApp: boolean }) {
         <ScrollText className="h-4 w-4" />
         Probar barrido de nómina
       </button>
-      {!disponible ? <p className="text-xs text-muted">Esta app no trae el escáner en vivo (APK 1.6.0).</p> : null}
+      {!disponible ? (
+        <p className="text-xs text-muted">{enApp ? "Esta app no trae el escáner en vivo (APK 1.6.0)." : "Solo en la app."}</p>
+      ) : null}
       {barrido.error ? <p className="text-sm text-danger">{barrido.error}</p> : null}
 
       {medida && mejor ? (

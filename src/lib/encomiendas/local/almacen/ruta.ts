@@ -190,6 +190,19 @@ export function marcarInicioReparto(fecha: string): Promise<Ruta | null> {
   });
 }
 
+/** «Volver a cargar» (spec 033, salir-repartir): deshace «Salir a repartir»
+ *  mientras ninguna parada del día esté cerrada, y la cabecera vuelve a la carga
+ *  del auto. Con alguna cerrada ya se está repartiendo: no hace nada y devuelve
+ *  false. Solo borra la hora de salida; el resto de la ruta queda igual. */
+export function volverACargar(fecha: string): Promise<boolean> {
+  return enFila(async () => {
+    const [ruta, pedidos] = await Promise.all([leerRuta(fecha), leerPedidos(fecha)]);
+    if (!ruta?.inicioReparto || pedidos.some((p) => resultadoCerrado(p.resultado))) return false;
+    await escribir([STORES.rutas], ({ guardar }) => guardar(STORES.rutas, { ...ruta, inicioReparto: null }));
+    return true;
+  });
+}
+
 /** Marca la ruta del día como terminada. Es lo que le dice al servidor que ya
  *  puede valorar el día (0032).
  *
@@ -230,7 +243,11 @@ export function ordenarRuta(fecha: string, pendientesEnOrden: string[]): Promise
     const nombrados = new Set(pedidosPorOrden);
     const resto = [...pendientes].filter((id) => !nombrados.has(id));
 
-    const actualizada: Ruta = { ...ruta, orden: [...cerrados, ...pedidosPorOrden, ...resto] };
+    const orden = [...cerrados, ...pedidosPorOrden, ...resto];
+    // Un pedido que llegó tarde y entró a una ruta ya terminada la REABRE, como
+    // rehacerla (ver guardarRuta): el día no estaba terminado (spec 033, llega-tarde).
+    const reabre = ruta.cierre != null && orden.length > cerrados.length;
+    const actualizada: Ruta = { ...ruta, orden, ...(reabre ? { cierre: null } : {}) };
     await escribir([STORES.rutas], ({ guardar }) => guardar(STORES.rutas, actualizada));
     return actualizada;
   });

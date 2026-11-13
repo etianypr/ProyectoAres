@@ -88,7 +88,7 @@ romper lo que ya se aprendió en terreno. Las reglas vienen de `AGENTS.md` y de 
 | Qué lector se usa en el teléfono: `leerFotosGuia`, `leerImagen`, `ErrorLectura` | `lib/encomiendas/local/lectura-cliente.ts` (+ `foto.ts`) |
 | Almacén: `crearDesdeGuia`, `aplicarLecturaEtiqueta`, `avanceCarga`, `sinEtiquetaEscaneada` | `local/almacen/carga.ts` (`cambiarDireccion` en `pedidos.ts`, `guardarPaquete`/`guardarFoto` en `paquete.ts`) |
 | Escáner (`escanearCodigo`) y texto de una foto (`textoDeFoto` → `Telefono.leerTexto`) | `lib/nativo/escaner.ts`, `lib/nativo/telefono.ts`; Java en `android/…/TelefonoPlugin.java` (solo leer) |
-| Pantallas de la guía | `_componentes/cargar-guia.tsx`, `fotos-guia.tsx`, `lineas-guia.tsx`, `fin-guia.tsx` |
+| Pantallas de la guía (tres pasos, 2026-11-13) | `_componentes/cargar-guia.tsx`, `pasos-guia.tsx`, `fotos-guia.tsx` (hook), `visor-guia.tsx`, `revision-guia.tsx`, `lineas-guia.tsx`, `fin-guia.tsx`, `pie-guia.tsx`; teléfono de la línea: `lectura/telefono-linea.ts` |
 | Escáner en vivo (spec 028): cámara, votos por cuadro, pantalla y sonidos | `lib/nativo/escaner-vivo.ts` (+ `android/…/EscanerVivoPlugin.java`), `lectura/etiqueta/votos.ts`, `_hooks/use-escaner-vivo.ts`, `_componentes/escaner-vivo.tsx`, `lib/comun/sonidos-escaner.ts` |
 | Pantallas del escaneo (APK anterior a la 1.6.0, sin cámara o desde la parada) | `escanear-etiqueta.tsx`, `resultado-escaneo.tsx`, `campos-paquete.tsx`, `progreso-carga.tsx`, `aviso-cargar-auto.tsx`, `buscar-of.tsx` |
 | Quién las abre · de dónde sale `lecturaIA` | `ventanas-pantalla.tsx` · `conductor/encomiendas/page.tsx` (`lecturaIADisponible()`) |

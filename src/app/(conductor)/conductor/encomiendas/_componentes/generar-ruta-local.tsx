@@ -10,13 +10,15 @@
 // la pantalla la muestra dibujada en el mapa para que el conductor la acepte. Antes
 // se guardaba de una y la ruta le cambiaba abajo de los pies.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useAtrasPropio } from "../_hooks/use-atras-propio";
+import { usePantallaEncendida } from "../_hooks/use-pantalla-encendida";
 import { AlertTriangle, RefreshCw, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DireccionInput } from "@/components/direccion/direccion-input";
 import { cn } from "@/lib/comun/utils";
 import { fuenteUbicacion } from "@/lib/encomiendas/local/gps-simulado";
-import { cargarRed } from "@/lib/geo/red/grafo";
+import { cargarRed, redApagada } from "@/lib/geo/red/grafo";
 import { BuscandoRuta, esperarDibujo } from "./buscando-ruta";
 import { BOTON_PRINCIPAL } from "./parada-activa";
 import {
@@ -36,11 +38,15 @@ const OPCIONES: { valor: Opcion; corto: string; largo: string }[] = [
   { valor: "direccion", corto: "Otra", largo: "otra dirección" },
 ];
 
+/** El interruptor no avisa cambios: se lee al dibujar (Diagnóstico es otra pantalla). */
+const sinSuscripcion = () => () => {};
+
 export function GenerarRutaLocal({
   fecha,
   direccionEmpresa,
   regenerar = false,
   conProblema = 0,
+  sinDesde = false,
   onResolver,
   onPropuesta,
 }: {
@@ -52,6 +58,10 @@ export function GenerarRutaLocal({
   /** Pedidos con ⚠ sin resolver: antes de armar se pregunta (dueño, 2026-11-09:
    *  un solo «Armar la ruta» y una confirmación, en vez de dos botones). */
   conProblema?: number;
+  /** Sin «Desde: …» a la vista: al final de «Cargar la guía» se arma desde la
+   *  central (sin central, desde el GPS). Para partir de otro lado se cierra la guía
+   *  y se usa el «Armar la ruta» de la pantalla principal (dueño, 2026-11-14). */
+  sinDesde?: boolean;
   /** «Resolver primero» en esa confirmación: abre el primer pedido con ⚠. */
   onResolver?: () => void;
   onPropuesta: (propuesta: PropuestaRuta) => void;
@@ -72,25 +82,46 @@ export function GenerarRutaLocal({
   const [armando, setArmando] = useState(false);
   // El mapa de calles propio (spec 031) baja apenas hay botón para armar la ruta,
   // mientras hay señal: así queda guardado para armarla después sin ella.
+  // «Armar la ruta con OpenRouteService» de Diagnóstico (spec 031). Se lee al montar:
+  // vive en localStorage y en el servidor no existe.
+  const conOrs = useSyncExternalStore(sinSuscripcion, redApagada, () => false);
   useEffect(() => {
     void cargarRed();
   }, []);
   const [preguntando, setPreguntando] = useState(false);
   const [obteniendoUbicacion, setObteniendoUbicacion] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // «Cancelar» y atrás mientras busca (spec 033, buscando-trabado): la pantalla
+  // vuelve al tiro y la búsqueda se corta en su próximo paso, sin propuesta.
+  const controlRef = useRef<AbortController | null>(null);
+  const cancelar = () => {
+    controlRef.current?.abort();
+    controlRef.current = null;
+    setArmando(false);
+  };
+  useAtrasPropio(armando, cancelar);
+  // Con la pantalla apagada Android frena la búsqueda (spec 033, nuevo-armar-fondo).
+  usePantallaEncendida(armando);
+
   async function disparar(puntoInicio: PuntoInicio) {
     setError(null);
     setArmando(true);
+    const control = new AbortController();
+    controlRef.current = control;
     try {
       await esperarDibujo();
       // Partiendo de otro lado, la ruta termina igual en la central (terreno
       // 2026-10-29: repasar lo pendiente y volver).
       const fin = puntoInicio.tipo === "empresa" ? undefined : ({ tipo: "empresa", direccion: direccionEmpresa } as const);
-      onPropuesta(await calcularRutaLocal(fecha, puntoInicio, fin));
+      const propuesta = await calcularRutaLocal(fecha, puntoInicio, fin, control.signal);
+      if (!control.signal.aborted) onPropuesta(propuesta);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudo armar la ruta.");
+      if (!control.signal.aborted) setError(e instanceof Error ? e.message : "No se pudo armar la ruta.");
     } finally {
-      setArmando(false);
+      if (controlRef.current === control) {
+        controlRef.current = null;
+        setArmando(false);
+      }
     }
   }
 
@@ -178,7 +209,7 @@ export function GenerarRutaLocal({
 
   return (
     <div className="space-y-2">
-      {armando ? <BuscandoRuta /> : null}
+      {armando ? <BuscandoRuta onCancelar={cancelar} /> : null}
       <Button onClick={onClick} disabled={ocupado} className="w-full justify-center">
         <RefreshCw className={cn("h-4 w-4", ocupado && "animate-spin")} />
         {obteniendoUbicacion
@@ -189,18 +220,24 @@ export function GenerarRutaLocal({
               ? "Rehacer la ruta"
               : "Armar la ruta"}
       </Button>
+      {/* El interruptor de Diagnóstico, a la vista donde gasta (spec 033, interruptores). */}
+      {conOrs ? (
+        <p className="text-center text-xs font-medium text-warn">Con OpenRouteService (gasta cupo)</p>
+      ) : null}
 
-      <button
-        onClick={() => setMostrarOpciones((v) => !v)}
-        className="flex w-full items-center justify-center gap-1 py-0.5 text-xs text-muted transition-colors hover:text-foreground"
-      >
-        Desde: {elegida.largo}
-        <ChevronDown
-          className={cn("h-3.5 w-3.5 transition-transform", mostrarOpciones && "rotate-180")}
-        />
-      </button>
+      {sinDesde ? null : (
+        <button
+          onClick={() => setMostrarOpciones((v) => !v)}
+          className="flex w-full items-center justify-center gap-1 py-0.5 text-xs text-muted transition-colors hover:text-foreground"
+        >
+          Desde: {elegida.largo}
+          <ChevronDown
+            className={cn("h-3.5 w-3.5 transition-transform", mostrarOpciones && "rotate-180")}
+          />
+        </button>
+      )}
 
-      {mostrarOpciones ? (
+      {mostrarOpciones && !sinDesde ? (
         <div className="animate-expand space-y-2">
           {/* Control segmentado en vez de una lista de radios: los toques son
               más grandes y se lee de un vistazo cuál está elegido. */}

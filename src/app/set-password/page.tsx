@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClientSinSesionEnUrl as crearClienteSinAutoDeteccion } from "@/lib/supabase/client";
 import { inicioSegunRol, leerRol } from "@/lib/auth/roles";
-import { Bus, KeyRound } from "lucide-react";
+import { esSinSenal, mensajeClave } from "@/lib/auth/errores";
+import { LogoDashund } from "@/components/marca/logo-dashund";
+import { Bus, LogIn, RotateCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Field } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -21,48 +24,60 @@ import { Button } from "@/components/ui/button";
 // EXPLÍCITAMENTE a partir de los tokens del link — así la contraseña
 // siempre se aplica a la cuenta del correo al que se envió la invitación,
 // nunca a la que estuviera logueada antes.
+type EstadoEnlace = "verificando" | "listo" | "vencido" | "sin-senal";
+
 export default function SetPasswordPage() {
   const router = useRouter();
-  const [verificando, setVerificando] = useState(true);
-  const [sinSesion, setSinSesion] = useState(false);
+  // "sin-senal": el enlace no se pudo comprobar por la red, no porque venció
+  // (spec 033, link-vencido). Los tokens quedan en memoria para «Reintentar».
+  const [estado, setEstado] = useState<EstadoEnlace>("verificando");
+  const tokensRef = useRef<{ access_token: string; refresh_token: string } | null>(null);
   const [password, setPassword] = useState("");
   const [confirmar, setConfirmar] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
-  useEffect(() => {
+  // Devuelve el estado en vez de fijarlo: se fija en el .then (al abrir y en «Reintentar»).
+  const procesarLink = useCallback(async (): Promise<EstadoEnlace> => {
     const supabase = crearClienteSinAutoDeteccion();
-
-    async function procesarLink() {
+    try {
       const hash = window.location.hash.replace(/^#/, "");
-      const params = new URLSearchParams(hash);
-      const access_token = params.get("access_token");
-      const refresh_token = params.get("refresh_token");
-      const tipo = params.get("type");
-
-      if (access_token && refresh_token && (tipo === "invite" || tipo === "recovery")) {
-        await supabase.auth.signOut();
-        const { error: errSet } = await supabase.auth.setSession({
-          access_token,
-          refresh_token,
-        });
+      if (hash) {
+        const params = new URLSearchParams(hash);
+        const access_token = params.get("access_token");
+        const refresh_token = params.get("refresh_token");
+        const tipo = params.get("type");
+        if (access_token && refresh_token && (tipo === "invite" || tipo === "recovery")) {
+          tokensRef.current = { access_token, refresh_token };
+        }
         // Limpia los tokens de la URL: no deben quedar visibles ni reusables.
         window.history.replaceState(null, "", window.location.pathname);
-        if (errSet) {
-          setError(null);
-          setSinSesion(true);
-          setVerificando(false);
-          return;
-        }
       }
 
-      const { data } = await supabase.auth.getUser();
-      setSinSesion(!data.user);
-      setVerificando(false);
-    }
+      const tokens = tokensRef.current;
+      if (tokens) {
+        // Solo en este navegador: no hace falta red para soltar la sesión previa.
+        await supabase.auth.signOut({ scope: "local" });
+        const { error: errSet } = await supabase.auth.setSession(tokens);
+        if (errSet) {
+          return esSinSenal(errSet) ? "sin-senal" : "vencido";
+        }
+        tokensRef.current = null;
+      }
 
-    procesarLink();
+      const { data, error: errUser } = await supabase.auth.getUser();
+      if (!data.user && esSinSenal(errUser)) {
+        return "sin-senal";
+      }
+      return data.user ? "listo" : "vencido";
+    } catch {
+      return "sin-senal";
+    }
   }, []);
+
+  useEffect(() => {
+    void procesarLink().then(setEstado);
+  }, [procesarLink]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -79,10 +94,15 @@ export default function SetPasswordPage() {
 
     setPending(true);
     const supabase = crearClienteSinAutoDeteccion();
-    const { error: errUpdate } = await supabase.auth.updateUser({ password });
+    let errUpdate: Parameters<typeof mensajeClave>[0] = null;
+    try {
+      ({ error: errUpdate } = await supabase.auth.updateUser({ password }));
+    } catch {
+      errUpdate = { name: "TypeError", status: 0 };
+    }
     if (errUpdate) {
       setPending(false);
-      setError(errUpdate.message);
+      setError(mensajeClave(errUpdate));
       return;
     }
 
@@ -94,25 +114,45 @@ export default function SetPasswordPage() {
     router.refresh();
   }
 
+  // Fondo plano, como /login («Plano»: sin degradados; spec 033, link-vencido).
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand to-brand-dark p-4">
+    <div className="flex min-h-screen items-center justify-center bg-[#f4f0ec] p-4 text-[#221a15]">
       <div className="w-full max-w-sm">
-        <div className="mb-6 flex flex-col items-center text-center text-white">
-          <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25">
-            <KeyRound className="h-7 w-7" />
-          </div>
-          <h1 className="text-xl font-semibold">Gestión de encomiendas</h1>
-          <p className="text-sm text-white/70">Crea tu contraseña para continuar</p>
+        <div className="mb-6 flex flex-col items-center text-center">
+          <LogoDashund className="mb-3 h-20 w-20" titulo="" />
+          <h1 className="text-2xl font-extrabold tracking-tight">ARES</h1>
+          <p className="text-sm text-[#6b5f57]">Contraseña nueva</p>
         </div>
 
         <div className="rounded-2xl bg-card p-6 shadow-xl">
-          {verificando ? (
+          {estado === "verificando" ? (
             <p className="text-sm text-muted">Verificando enlace…</p>
-          ) : sinSesion ? (
-            <p className="rounded-lg border border-danger/20 bg-danger-bg px-3 py-2 text-sm text-danger">
-              Este enlace no es válido o ya expiró. Pide una nueva invitación al
-              administrador.
-            </p>
+          ) : estado === "sin-senal" ? (
+            <div className="space-y-4">
+              <p className="rounded-lg border border-danger/20 bg-danger-bg px-3 py-2 text-sm text-danger">
+                Sin señal: no se pudo comprobar el enlace.
+              </p>
+              <Button type="button" size="lg" className="w-full" onClick={() => {
+                  setEstado("verificando");
+                  void procesarLink().then(setEstado);
+                }}>
+                <RotateCw className="h-4 w-4" />
+                Reintentar
+              </Button>
+            </div>
+          ) : estado === "vencido" ? (
+            <div className="space-y-4">
+              <p className="rounded-lg border border-danger/20 bg-danger-bg px-3 py-2 text-sm text-danger">
+                Este enlace no es válido o ya venció.
+              </p>
+              <Link
+                href="/login"
+                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-brand text-sm font-semibold text-white"
+              >
+                <LogIn className="h-4 w-4" />
+                Ir a iniciar sesión
+              </Link>
+            </div>
           ) : (
             <form onSubmit={onSubmit} className="space-y-4">
               <Field label="Nueva contraseña" htmlFor="password">

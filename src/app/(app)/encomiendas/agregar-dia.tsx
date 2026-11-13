@@ -62,7 +62,7 @@ export function AgregarDia({
 }: {
   conductores: ConductorOpcion[];
   /** Mensaje si la lista de conductores no se pudo leer. Una lista vacía por
-   *  un error y una lista vacía porque nadie tiene la categoría se veían igual,
+   *  un error y una lista vacía porque no hay conductores activos se veían igual,
    *  y el aviso afirmaba lo segundo sin saberlo. */
   errorConductores?: string | null;
   /** La regla de pago, o null si todavía no se configuró (0031). Sin ella no se
@@ -92,7 +92,7 @@ export function AgregarDia({
     : errorConductores
       ? `No se pudo leer la lista de conductores: ${errorConductores}`
       : conductores.length === 0
-        ? "Ningún conductor tiene la categoría 'Encomiendas' asignada."
+        ? "No hay conductores activos: agrega uno o actívalo en Conductores."
         : null;
 
   return (

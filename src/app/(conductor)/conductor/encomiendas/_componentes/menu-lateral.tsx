@@ -26,14 +26,16 @@
 // entra la hoja de trabajo, y dos paneles con el mismo gesto y distinto
 // contenido se confunden.
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { Check, CircleHelp, LogOut, Menu, Search, Stethoscope, X } from "lucide-react";
+import { Check, CircleHelp, LogOut, Menu, RotateCw, Search, Stethoscope, X } from "lucide-react";
 import { LogoDashund } from "@/components/marca/logo-dashund";
 import { cn } from "@/lib/comun/utils";
 import { formatCLP, formatDateLong } from "@/lib/comun/format";
-import { borrarDatosDestinatarios, leerCola, type ResumenDia } from "@/lib/encomiendas/local/almacen";
+import type { ResumenDia } from "@/lib/encomiendas/local/almacen";
+import { lineaDelDia } from "@/lib/encomiendas/local/dias-del-menu";
+import { ConfirmarSalida, useCerrarSesion } from "../../../cerrar-sesion";
 
 /** El botón que lo abre. Vive acá, junto al panel, para que no haya dos lugares
  *  que decidir cómo se ve el menú. */
@@ -53,20 +55,30 @@ export function BotonMenu({ onAbrir }: { onAbrir: () => void }) {
 export function MenuLateral({
   nombreConductor,
   dias,
+  conDatos,
+  sinEnviar,
+  onReintentar,
+  enviando,
+  onReleer,
   fechaActiva,
   onCerrar,
-  logout,
   onBuscarOf,
   onAyuda,
 }: {
   nombreConductor: string;
   dias: ResumenDia[];
+  /** Fechas que todavía tienen pedidos o ruta en el teléfono. */
+  conDatos: ReadonlySet<string>;
+  /** Registros de la cola por fecha. */
+  sinEnviar: ReadonlyMap<string, number>;
+  /** El mismo envío de la cola que «Reintentar» en «Tu día». */
+  onReintentar: () => void;
+  enviando: boolean;
+  /** Vuelve a leer los días y la cola (al terminar un envío). */
+  onReleer: () => void;
   /** El día que la app está trabajando: se marca en la lista. */
   fechaActiva: string;
   onCerrar: () => void;
-  /** La acción de servidor que cierra la sesión. Llega como prop y no importada
-   *  acá para que este componente no dependa de una ruta del panel. */
-  logout: () => void | Promise<void>;
   /** Abre la búsqueda de un paquete por su OF (spec 003). */
   onBuscarOf: () => void;
   /** Cómo se usa la app, en corto (ver ayuda.tsx). */
@@ -85,35 +97,15 @@ export function MenuLateral({
     };
   }, [onCerrar]);
 
-  // null = sin pedir confirmación; un número = cuántos registros siguen sin enviar.
-  const [confirmandoSalida, setConfirmandoSalida] = useState<number | null>(null);
-  const [saliendo, setSaliendo] = useState(false);
-  const [errorSalida, setErrorSalida] = useState<string | null>(null);
+  // La confirmación de salida es la misma de la pantalla de error y la de cuenta
+  // sin vincular (spec 033, error-logout; ver (conductor)/cerrar-sesion.tsx).
+  const salida = useCerrarSesion();
 
-  async function pedirSalida() {
-    const cola = await leerCola().catch(() => []);
-    setConfirmandoSalida(cola.length);
-  }
-
-  async function salir() {
-    setSaliendo(true);
-    setErrorSalida(null);
-    try {
-      await borrarDatosDestinatarios();
-    } catch {
-      setSaliendo(false);
-      setErrorSalida("No se pudieron borrar los datos del teléfono. Intenta de nuevo.");
-      return;
-    }
-    try {
-      await logout();
-    } catch {
-      // Sin señal el cierre de sesión no llega al servidor: que no quede
-      // "Saliendo…" para siempre (spec 017, E12).
-      setSaliendo(false);
-      setErrorSalida("Los datos del teléfono ya se borraron, pero sin señal no se pudo cerrar la sesión. Intenta de nuevo con señal.");
-    }
-  }
+  // Al terminar un envío se vuelve a contar lo que quedó en la cola.
+  useEffect(() => {
+    if (!enviando) onReleer();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enviando]);
 
   if (typeof document === "undefined") return null;
 
@@ -180,6 +172,7 @@ export function MenuLateral({
             <ul className="overflow-hidden rounded-2xl bg-card shadow-soft">
               {dias.map((dia, i) => {
                 const esActivo = dia.fecha === fechaActiva;
+                const linea = lineaDelDia(dia, { fechaActiva, conDatos, sinEnviar });
                 return (
                   <li
                     key={dia.fecha}
@@ -193,16 +186,27 @@ export function MenuLateral({
                       <p className="truncate text-sm font-medium capitalize leading-tight">
                         {formatDateLong(dia.fecha)}
                       </p>
-                      {/* Un día sin cerrar es lo único que este resumen tiene
-                          que poder gritar: quedó una parada sin marcar y el
-                          servidor no valoró el día. */}
-                      <p className="mt-0.5 text-xs text-muted">
-                        {esActivo
-                          ? "Hoy"
-                          : dia.cierre == null
-                            ? "Quedó sin cerrar"
-                            : `${dia.paradas} ${dia.paradas === 1 ? "parada" : "paradas"}`}
+                      {/* «Quedó sin cerrar» solo si el día todavía tiene datos en
+                          el teléfono (spec 033, dia-sin-cerrar). */}
+                      <p className={cn("mt-0.5 text-xs", linea.alarma ? "font-medium text-warn" : "text-muted")}>
+                        {linea.texto}
                       </p>
+                      {/* Lo de ese día que el servidor todavía no tiene: el mismo
+                          envío de «Tu día», que manda toda la cola. */}
+                      {!esActivo && linea.sinEnviar > 0 ? (
+                        <p className="mt-0.5 flex items-center gap-2 text-xs font-medium text-warn">
+                          {linea.sinEnviar} sin enviar
+                          <button
+                            type="button"
+                            onClick={onReintentar}
+                            disabled={enviando}
+                            className="flex items-center gap-1 underline disabled:opacity-50"
+                          >
+                            <RotateCw className="h-3 w-3" />
+                            {enviando ? "Enviando…" : "Reintentar"}
+                          </button>
+                        </p>
+                      ) : null}
                       {/* Lo que se cobra en la puerta (spec 005): cobrado de lo
                           que había que cobrar, para cuadrar la plata. */}
                       {dia.porPagar > 0 ? (
@@ -237,43 +241,16 @@ export function MenuLateral({
           </p>
         </div>
 
-        {confirmandoSalida != null ? (
-          <div className="space-y-3 border-t border-divider px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
-            <p className="text-sm">
-              Se borran de este teléfono los pedidos y las rutas. Quedan solo las cifras de cada día.
-            </p>
-            {confirmandoSalida > 0 ? (
-              <p className="text-sm font-medium text-warn">
-                Hay {confirmandoSalida} {confirmandoSalida === 1 ? "registro" : "registros"} sin enviar:
-                salen cuando vuelvas a entrar con esta cuenta.
-              </p>
-            ) : null}
-            {errorSalida ? <p className="text-sm font-medium text-danger">{errorSalida}</p> : null}
-            <div className="flex gap-2">
-              <button
-                type="button"
-                disabled={saliendo}
-                onClick={() => void salir()}
-                className="flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-danger text-sm font-semibold text-white disabled:opacity-50"
-              >
-                <LogOut className="h-4 w-4" />
-                {saliendo ? "Saliendo…" : "Cerrar sesión"}
-              </button>
-              <button
-                type="button"
-                disabled={saliendo}
-                onClick={() => setConfirmandoSalida(null)}
-                className="h-11 rounded-full px-4 text-sm font-medium text-muted active:bg-card"
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
+        {salida.confirmando ? (
+          <ConfirmarSalida
+            salida={salida}
+            className="border-t border-divider px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3"
+          />
         ) : (
           <div className="flex items-center justify-between border-t border-divider px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
             <button
               type="button"
-              onClick={() => void pedirSalida()}
+              onClick={() => void salida.pedir()}
               className="flex items-center gap-2 rounded-xl px-1 py-2 text-sm font-medium text-muted active:text-danger"
             >
               <LogOut className="h-4 w-4" />

@@ -44,6 +44,9 @@ vienen de `AGENTS.md`; si este archivo no coincide con él o con `docs/`, valen 
   sin confirmar le quita plata al conductor. Un evento sale de la cola solo por:
   - `quitarDeCola`, después de que el servidor confirmó (`enviar.ts`);
   - `deshacerResultado`, mientras sigue retenido (`retenidoHasta`, spec 017 E2);
+  - `cambiarResultado` (spec 033, G5): si no salió (retenido o rechazado) se quita; si pudo salir,
+    se reemplaza por `{ id, borrar: true }`, que `enviar.ts` borra en el servidor por su id y tacha
+    con `quitarCorreccion` solo si allá ya no está. `quitarDeCola` nunca tacha una corrección;
   - `salirDelModoPrueba`, al que solo se entra con la cola vacía.
   - Lo que el servidor rechaza se aparta (`rechazado`) y se muestra; no se borra (spec 017, E8).
     La lectura de `choferId` en `cola.ts` se queda: hay eventos guardados con el nombre de antes.
@@ -69,7 +72,7 @@ vienen de `AGENTS.md`; si este archivo no coincide con él o con `docs/`, valen 
 | `fotos` | `id`, índice `por_fecha` | `Foto` (JPEG ≤ 1280 px) | sí (la etiqueta) | se borran las de esa fecha | se vacía | se vacía |
 | `propuestas` (v6) | `fecha` | `PropuestaGuardada`: la ruta propuesta sin aceptar | sí (puntos, avisos) | se borra la de esa fecha | se vacía | se vacía |
 | `cola` | `id` = `encomienda_actividad.id` | `ActividadPorEnviar` | no | queda | queda | se vacía |
-| `dias` | `fecha` | `ResumenDia`: solo cifras | no | recibe el resumen | recibe uno por día | queda |
+| `dias` | `fecha` | `ResumenDia`: solo cifras | no | recibe el resumen; se podan los de > 60 días sin cola (G5) | recibe uno por día | queda |
 
 | Qué | Archivo (`src/lib/encomiendas/local/…`) |
 |---|---|
@@ -83,7 +86,7 @@ vienen de `AGENTS.md`; si este archivo no coincide con él o con `docs/`, valen 
 | Cierre y borrado del día; cierre de sesión (`cerrarYBorrarDia`, `diasPorBorrar`, `borrarDatosDestinatarios`) | `almacen/borrado.ts` |
 | Pantalla del cierre («Listo, borrar del teléfono», «Ahora no») | `src/app/(conductor)/conductor/encomiendas/_hooks/use-cierre-dia.ts`, `_componentes/cierre-dia.tsx` |
 | Borrado por cuenta sin ficha o desactivada | `src/app/(conductor)/borrado-local.tsx` |
-| Cerrar sesión (avisa los «registros sin enviar») · contador en «Tu día» | `_componentes/menu-lateral.tsx` · `_componentes/tu-dia.tsx` |
+| Cerrar sesión (avisa los «registros sin enviar»; primero la sesión, después el borrado, spec 033) · contador en «Tu día» | `src/app/(conductor)/cerrar-sesion.tsx` + `local/salida.ts` · `_componentes/tu-dia.tsx` |
 | Modo prueba (Menú → Diagnóstico) | `modo-prueba.ts`, `src/app/(conductor)/conductor/diagnostico/page.tsx` |
 | Foto achicada antes de guardarla · guardar y purgar fotos | `foto.ts` · `almacen/paquete.ts` |
 

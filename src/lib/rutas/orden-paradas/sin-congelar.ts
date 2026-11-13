@@ -15,13 +15,20 @@ const MS_POR_TANDA = 30;
 const cederTurno = () => new Promise<void>((listo) => setTimeout(listo, 0));
 
 /** Corre una búsqueda que va por partes, devolviéndole el turno a la pantalla cada
- *  MS_POR_TANDA. La usan también la matriz y el orden con rumbo (spec 031). */
-export async function correrSinCongelar<T>(busqueda: Generator<void, T>): Promise<T> {
+ *  MS_POR_TANDA. La usan también la matriz y el orden con rumbo (spec 031).
+ *  `senal`: «Cancelar» mientras busca (spec 033, buscando-trabado). Se revisa en
+ *  cada turno cedido y lanza AbortError; sin cancelar, el resultado es el mismo. */
+export async function correrSinCongelar<T>(
+  busqueda: Generator<void, T>,
+  senal?: AbortSignal,
+): Promise<T> {
+  senal?.throwIfAborted();
   let desde = performance.now();
   let paso = busqueda.next();
   while (!paso.done) {
     if (performance.now() - desde > MS_POR_TANDA) {
       await cederTurno();
+      senal?.throwIfAborted();
       desde = performance.now();
     }
     paso = busqueda.next();
@@ -29,6 +36,10 @@ export async function correrSinCongelar<T>(busqueda: Generator<void, T>): Promis
   return paso.value;
 }
 
-export function optimizarSinCongelar(arranques: number[][], dia: DiaConHorarios): Promise<number[]> {
-  return correrSinCongelar(buscarConHorarios(arranques, dia));
+export function optimizarSinCongelar(
+  arranques: number[][],
+  dia: DiaConHorarios,
+  senal?: AbortSignal,
+): Promise<number[]> {
+  return correrSinCongelar(buscarConHorarios(arranques, dia), senal);
 }

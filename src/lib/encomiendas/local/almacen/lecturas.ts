@@ -40,3 +40,10 @@ export function pedidosEnOrden(ruta: Ruta | null, pedidos: Pedido[]): Pedido[] {
   const porId = new Map(pedidos.map((p) => [p.id, p] as const));
   return (ruta?.orden ?? []).flatMap((id) => porId.get(id) ?? []);
 }
+
+/** Las fechas que todavía tienen pedidos o ruta en el teléfono (spec 033,
+ *  dia-sin-cerrar): un día que ya se borró solo deja su resumen. */
+export async function fechasConDatos(): Promise<Set<string>> {
+  const [rutas, pedidos] = await Promise.all([leerTodos(STORES.rutas), leerTodos(STORES.pedidos)]);
+  return new Set([...rutas.map((r) => r.fecha), ...pedidos.map((p) => p.fecha)]);
+}

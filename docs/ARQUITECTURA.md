@@ -143,12 +143,12 @@ es solo para `admin`/`operador` y la app solo para `conductor`; RLS repite la re
 
 | Store | Clave | Contenido | Relación |
 |---|---|---|---|
-| `pedidos` | `id` | `Pedido`: destinatario, OF y referencia del paquete, llamada, resultado de la visita, su `aviso` de WhatsApp y sus ⚠ guardados (`problemas`, opcional, spec 022: incluye las opciones de lugar de una dirección en duda); `fecha` = su día | `aviso.codigo` ↔ `encomienda_whatsapp_correlaciones` |
+| `pedidos` | `id` | `Pedido`: destinatario, OF y referencia del paquete, llamada, resultado de la visita (con `eventoResultado`, el id de su evento, opcional, spec 033 G5), su `aviso` de WhatsApp y sus ⚠ guardados (`problemas`, opcional, spec 022: incluye las opciones de lugar de una dirección en duda); `fecha` = su día | `aviso.codigo` ↔ `encomienda_whatsapp_correlaciones` |
 | `rutas` | `fecha` | `Ruta`: `orden` de visita + trazado (cerrado: vuelve a `partida`) + `tramos` (dónde empieza y termina cada parada en el trazado; opcional, spec 020) + `inicioReparto` (cuándo salió a repartir; opcional, spec 027, no sale del teléfono) | `orden[]` → pedidos |
-| `cola` | `id` | `ActividadPorEnviar` | `id` = `encomienda_actividad.id` (sin duplicados) |
+| `cola` | `id` | `ActividadPorEnviar`; con `borrar: true` es una corrección: borra ese id en el servidor (spec 033, G5; campo opcional, sin subir la versión) | `id` = `encomienda_actividad.id` (sin duplicados) |
 | `fotos` | `id` (índice `por_fecha`) | `Foto` del paquete, JPEG ≤ 1280 px (spec 003) | `Pedido.fotoId`; se borra al cerrarse el pedido y con el día |
 | `propuestas` | `fecha` | `PropuestaGuardada`: la ruta propuesta a la vista y sin aceptar (v6, dueño 2026-11-09), con las paradas como id y punto, el trazado y los avisos; vuelve sola al abrir si los pendientes no cambiaron (`generar-ruta/propuesta-guardada.ts`) | paradas → pedidos; se borra al usarla o descartarla y con el día |
-| `dias` | `fecha` | `ResumenDia`: solo cifras de un día ya borrado (spec 007): entregas, cobros sumados y pedidos por origen de carga (005), sin datos de destinatarios | inicio y cierre → `encomienda_jornadas` si la ruta ya no está |
+| `dias` | `fecha` | `ResumenDia`: solo cifras de un día ya borrado (spec 007): entregas, cobros sumados y pedidos por origen de carga (005), sin datos de destinatarios. Quedan los últimos 60 días (`DIAS_DE_RESUMEN`), salvo uno con eventos en la `cola` | inicio y cierre → `encomienda_jornadas` si la ruta ya no está |
 
 Formas en `local/almacen/tipos.ts`; `idb.ts` (`FilaDe`) tipa cada store y solo `almacen/` lo usa.
 v3 (specs 009 y 011) fundió la parada y el aviso en el pedido y renombró los campos al glosario
@@ -160,9 +160,23 @@ lo no entregado se tacha y no pasa al siguiente; si vuelve a salir, se escanea d
 
 **Borrado (spec 007, `almacen/borrado.ts`).** Al cerrarse el día el conductor ve "No entregados"
 y confirma: en una transacción se escribe el `ResumenDia` y se borran pedidos y ruta de esa fecha
-(`STORES_DEL_DIA`). Un día anterior que quedó con datos se muestra y borra al abrir la app, antes
-del día nuevo. Cerrar sesión borra todo (con aviso), y también una cuenta sin ficha o desactivada,
+(`STORES_DEL_DIA`), poda los `dias` de más de 60 días y olvida lo que quedó en memoria con puntos de
+destinatarios (matriz, Google, accesos, fotos del mapa de cada dirección). Un día anterior que quedó con
+datos se muestra y borra al abrir la app, antes del día nuevo; las fotos y propuestas de días anteriores
+sin pedidos se borran sin mostrar nada (`borrarSueltos`, spec 033 G5). Cerrar sesión borra todo (con aviso), y también una cuenta sin ficha o desactivada,
 pero solo cuando el servidor lo confirmó: un error de red nunca borra. La `cola` no se toca.
+Cerrar sesión (spec 033, dueño 2026-11-13; antes al revés, spec 017 E12) va en este orden: la server
+action `cerrarSesion` (sin redirigir) → con `ok`, `borrarDatosDestinatarios` → `/login`. Sin señal no
+se cierra ni se borra nada. Si el borrado falla con la sesión ya cerrada, queda la marca
+`ares.borrado-pendiente` en localStorage (sin datos) y `/login` lo termina (`BorradoPendiente`).
+Es el mismo componente en el menú, «No se pudo abrir tu ruta» y la cuenta sin vincular
+(`(conductor)/cerrar-sesion.tsx`, `local/salida.ts`).
+
+**Service worker (`public/sw.js`).** Guarda solo el cascarón (páginas `/conductor/*` y `/_next/static/`,
+que incluye la red de calles y MapLibre); las teselas del mapa son de otro origen y no las guarda (quedan
+en la caché HTTP de la WebView, con su propio tope). Cada copia lleva el día de su último uso
+(`x-ares-usado`) y lo que no se usó en 30 días se borra una vez al día; la página de inicio nunca
+(spec 033, G5: cada deploy dejaba su JS para siempre).
 
 ## 3. Flujos
 
@@ -180,6 +194,9 @@ sequenceDiagram
   participant PG as Postgres
   T->>T: marcar entregado → ActividadPorEnviar (retenido para deshacer)
   T->>PG: upsert encomienda_actividad (mismo id)
+  T->>T: cambiar una parada cerrada (< 12 h) → en la cola: {id viejo, borrar} + evento nuevo
+  T->>PG: upsert del nuevo, después delete encomienda_actividad where id = viejo (RLS: los suyos, < 12 h)
+  PG-->>T: 0 filas y el evento sigue → rechazado («pasó el plazo», en «Tu día»)
   T->>PG: upsert encomienda_jornadas.cerrada_en
   PG->>PG: trigger → congelar_dia → encomienda_pagos
 ```
@@ -214,11 +231,11 @@ src/
 ├── app/api/                      whatsapp (send · status · webhook) · lectura (IA, solo la guía, spec 005 y 021) · geocodificar (Google, spec 016) · texto (Cloud Vision, la guía, spec 005)
 ├── components/                   ui (primitivas) · direccion (campo y vista previa: estampilla-mapa saca la foto del mapa y lo destruye, spec 019) · panel (marco del panel)
 ├── lib/                          una carpeta por dominio, sin archivos sueltos
-│   ├── auth/                     sesion · roles · acciones (login/logout) · api-conductor · conductor-de-usuario
+│   ├── auth/                     sesion · roles · acciones (login/logout/cerrarSesion) · errores (Auth en español) · api-conductor · conductor-de-usuario
 │   ├── supabase/                 server · client · admin · sesion-proxy
 │   ├── comun/                    fechas · format · forms · utils · uuid · deslizar · telefono · periodo · periodo-servidor
 │   ├── encomiendas/              catalogos · estados · pago · periodos · config · paquete · contrato-whatsapp · lectura/ (guía, etiqueta, código de barras)
-│   │   └── local/                idb · almacen/ (lecturas, pedidos, ruta, terreno…) · generar-ruta/ (partida, ubicar-pedidos, red-del-dia, estrategias, horarios, pesos, avisos, cambiar-propuesta…) · planificar · replanificar · sumar-a-ruta · corregir-direcciones · enviar · sincronizar-whatsapp
+│   │   └── local/                idb · almacen/ (lecturas, pedidos, ruta, terreno…) · generar-ruta/ (partida, ubicar-pedidos, red-del-dia, estrategias, horarios, pesos, avisos, cambiar-propuesta…) · planificar · replanificar · sumar-a-ruta · reubicar · corregir-direcciones · ubicar-carga · cargar-lineas · fecha-del-dia (sin uso desde G5) · enviar · sincronizar-whatsapp
 │   ├── geo/                      coordenada · trazado · hacia-parada (km a la parada activa por su tramo, spec 020) · plus-code · openrouteservice (MCP) · estilo-mapa (OpenFreeMap "Liberty" con edificios planos y el worker de MapLibre, que copia scripts/copiar-worker-mapa.mjs a public/) · matriz (distancias por calle con ORS, por bloques, en memoria) · ors/ (cliente · direcciones: línea del día y sus tramos por parada, sin reversa en calles estrechas · vuelta: tipo de calle) · acceso (la calle por donde se llega a una parada pegada a una troncal) · teselas (las calles de las teselas de OpenFreeMap) · geocoding/ (consulta · calles · calles-arica generado · google · nominatim · sugerir · codigo · completar-numero · ubicar) · direccion-ia/ (contrato · servidor · cliente: corregir con IA, spec 018) · red/ (spec 031: red-arica generado · codigo · grafo · pegar · caminos · tiempos · matriz-con-rumbo · trazado-propio · medir) · ruta-por-calles (la puerta al trazado: la red propia y, si falta, ORS)
 │   ├── rutas/orden-paradas/      exacto · construccion · mejora · perturbacion · descarga · con-horarios · sin-congelar · con-rumbo · con-rumbo-jugadas · con-rumbo-busqueda · descarga-con-rumbo (spec 031)
 │   ├── whatsapp/                 meta · correlacion

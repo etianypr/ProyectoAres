@@ -91,7 +91,7 @@ export function RutaMapa({
   onArrastre: () => void;
   /** Una parada cercana que el conductor tocó en su lista (spec 023): el mapa va
    *  a ella. `clave` cambia en cada toque, para volver aunque sea la misma. */
-  enfoque?: { lat: number; lng: number; clave: number } | null;
+  enfoque?: { lat: number; lng: number; clave: number; arriba?: boolean } | null; // arriba: sobre el panel (033)
 }) {
   const contenedorRef = useRef<HTMLDivElement>(null);
   const mapaRef = useRef<MapaGL | null>(null);
@@ -260,7 +260,7 @@ export function RutaMapa({
   useEffect(() => {
     const mapa = mapaRef.current;
     if (!mapa || !mapaListo || !enfoque) return;
-    mapa.easeTo({ center: [enfoque.lng, enfoque.lat], zoom: Math.max(mapa.getZoom(), ZOOM_ENFOQUE), duration: 600 });
+    mapa.easeTo({ center: [enfoque.lng, enfoque.lat], zoom: Math.max(mapa.getZoom(), ZOOM_ENFOQUE), duration: 600, offset: [0, enfoque.arriba ? -mapa.getContainer().clientHeight / 4 : 0] });
   }, [enfoque, mapaListo]);
 
   // Los dos trazados. Actualizar los datos de la fuente es todo lo que hace

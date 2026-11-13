@@ -38,11 +38,18 @@ export function CamaraBarrido({
   vista,
   conLinterna,
   onDetener,
+  onCerrar = onDetener,
+  pregunta,
 }: {
   /** null mientras prende la cámara. */
   vista: VistaBarrido | null;
   conLinterna: boolean;
+  /** «Terminar»: suma lo barrido. */
   onDetener: () => void;
+  /** La ✕ (spec 033): en «Cargar la guía» descarta lo barrido, no lo suma. */
+  onCerrar?: () => void;
+  /** «¿Descartar lo barrido?» en el lugar de «Terminar». */
+  pregunta?: React.ReactNode;
 }) {
   // Se monta con la cámara: al apagarla, la linterna se apaga con ella.
   const [linterna, setLinterna] = useState(false);
@@ -65,7 +72,7 @@ export function CamaraBarrido({
             {linterna ? <FlashlightOff className="h-5 w-5" /> : <Flashlight className="h-5 w-5" />}
           </button>
         ) : null}
-        <button type="button" onClick={onDetener} aria-label="Detener" className="flex h-11 w-11 items-center justify-center">
+        <button type="button" onClick={onCerrar} aria-label="Detener" className="flex h-11 w-11 items-center justify-center">
           <X className="h-5 w-5" />
         </button>
       </div>
@@ -102,13 +109,15 @@ export function CamaraBarrido({
             Prendiendo la cámara…
           </p>
         )}
-        <button
-          type="button"
-          onClick={onDetener}
-          className="flex h-12 w-full items-center justify-center rounded-full bg-brand text-sm font-semibold text-brand-foreground"
-        >
-          Terminar
-        </button>
+        {pregunta ?? (
+          <button
+            type="button"
+            onClick={onDetener}
+            className="flex h-12 w-full items-center justify-center rounded-full bg-brand text-sm font-semibold text-brand-foreground"
+          >
+            Terminar
+          </button>
+        )}
       </div>
     </div>,
     document.body,

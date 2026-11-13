@@ -12,8 +12,8 @@ import {
   normalizarConsulta,
   type Coincidencia,
 } from "./consulta";
-import { conGoogle } from "./google";
-import { conNominatim } from "./nominatim";
+import { preguntarAGoogle } from "./google";
+import { preguntarANominatim } from "./nominatim";
 import type { SugerenciaDireccion, TipoUbicacion } from "./tipos";
 
 // Dos coincidencias más separadas que esto son lugares DISTINTOS, no dos formas
@@ -43,6 +43,9 @@ export type ResultadoUbicacion = {
   elegida: SugerenciaDireccion | null;
   /** Mostrable tal cual, o null si no hay nada que advertir. */
   advertencia: string | null;
+  /** No se encontró porque ningún buscador contestó (sin señal), no porque no
+   *  exista: quien ubica una guía entera para ahí (spec 033). */
+  sinRespuesta?: boolean;
 };
 
 /** Busca una dirección ya escrita y dice qué se encontró, SIN elegir por su
@@ -58,7 +61,7 @@ export type ResultadoUbicacion = {
  *  listas para poder detectar que dos lugares distintos responden al mismo
  *  texto. Google va primero porque tiene los números de casa (ver ./google.ts;
  *  spec 019: antes era Mapbox) y OSM aporta las calles y los lugares. */
-export async function ubicarDireccion(direccion: string): Promise<ResultadoUbicacion> {
+export async function ubicarDireccion(direccion: string, senal?: AbortSignal): Promise<ResultadoUbicacion> {
   // Un Plus Code no tiene ambigüedad que resolver: ES la ubicación. Se contesta
   // sin consultar a nadie, y por eso va antes que todo lo demás.
   const codigo = comoPlusCode(direccion);
@@ -85,14 +88,14 @@ export async function ubicarDireccion(direccion: string): Promise<ResultadoUbica
   // En paralelo: son proveedores distintos y ninguno depende del otro. El
   // espaciado que pide OpenStreetMap lo garantiza su propia fila de turnos (ver
   // nominatim.ts), no una espera acá.
-  const [deGoogle, deOsm] = await Promise.all([conGoogle(q), conNominatim(q)]);
-  const primeraVuelta = combinarSugerencias(deGoogle, deOsm);
+  const [google, osm] = await Promise.all([preguntarAGoogle(q, senal), preguntarANominatim(q, senal)]);
+  const primeraVuelta = combinarSugerencias(google ?? [], osm ?? []);
 
   // El número que quedó colgando de un nombre de calle a medias ("Linderos
   // 3536"). Va acá y no adentro de cada proveedor porque necesita las DOS
   // listas: OSM y el catálogo tienen los nombres de calle correctos y Google los
   // números de casa.
-  const completadas = await completarNumeroEnCalles(q, primeraVuelta);
+  const completadas = await completarNumeroEnCalles(q, primeraVuelta, senal);
   const candidatos = aplicarPuertas(primeraVuelta, completadas);
 
   if (candidatos.length === 0) {
@@ -102,6 +105,9 @@ export async function ubicarDireccion(direccion: string): Promise<ResultadoUbica
       elegida: null,
       advertencia:
         "No encontramos esa dirección en el mapa. Revísala o marca el punto a mano.",
+      // OSM se pregunta siempre; Google solo con número. Sin ninguna respuesta
+      // de OSM y nada de Google, lo más probable es que no haya señal.
+      sinRespuesta: osm === null && (google === null || google.length === 0),
     };
   }
 

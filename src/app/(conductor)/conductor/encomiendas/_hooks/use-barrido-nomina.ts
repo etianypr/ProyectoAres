@@ -141,9 +141,10 @@ export function useBarridoDisponible(): boolean {
   return disponible;
 }
 
-/** La cámara del barrido. `alTerminar` recibe lo leído cuando se termina, con el botón
- *  o con atrás de Android. */
-export function useBarridoNomina(alTerminar: (b: Barrido) => void) {
+/** La cámara del barrido. `alTerminar` recibe lo leído cuando se termina con el botón
+ *  (o con atrás de Android, salvo `conAtras: false`: «Cargar la guía» lo atiende ella y
+ *  pregunta antes de descartar, spec 033). `descartar` apaga la cámara sin aplicar nada. */
+export function useBarridoNomina(alTerminar: (b: Barrido) => void, { conAtras = true }: { conAtras?: boolean } = {}) {
   const [activo, setActivo] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [conLinterna, setConLinterna] = useState(false);
@@ -193,12 +194,21 @@ export function useBarridoNomina(alTerminar: (b: Barrido) => void) {
     }
   }
 
-  async function terminar() {
+  async function cerrarCamara() {
     await apagar.current?.();
     apagar.current = null;
     document.documentElement.classList.remove(...CLASES_CAMARA);
     setActivo(false);
+  }
+
+  async function terminar() {
+    await cerrarCamara();
     terminarCon.current(barrido.current);
+  }
+
+  /** Cierra sin sumar lo barrido a la guía (spec 033, barrido-descartar). */
+  async function descartar() {
+    await cerrarCamara();
   }
 
   // Una vez por segundo: se decide qué OF quedaron firmes (dígito por dígito), suena
@@ -223,11 +233,12 @@ export function useBarridoNomina(alTerminar: (b: Barrido) => void) {
 
   // Atrás de Android termina igual que el botón: lo leído no se pierde.
   useEffect(() => {
-    if (!activo) return;
+    if (!activo || !conAtras) return;
     // `terminar` lee todo por referencias: basta con engancharlo al prender.
     const soltar = alBotonAtras(() => void terminar());
     return () => soltar();
-  }, [activo]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `terminar` lee por referencias (ver arriba)
+  }, [activo, conAtras]);
   // Salir de la pantalla con la cámara prendida la apaga, sin aplicar lo leído.
   useEffect(
     () => () => {
@@ -237,5 +248,5 @@ export function useBarridoNomina(alTerminar: (b: Barrido) => void) {
     [],
   );
 
-  return { activo, error, vista, conLinterna, iniciar, terminar };
+  return { activo, error, vista, conLinterna, iniciar, terminar, descartar };
 }

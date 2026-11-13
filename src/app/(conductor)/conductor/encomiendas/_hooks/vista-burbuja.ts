@@ -7,7 +7,8 @@ import { destinoParaNavegar } from "@/lib/geo/ruta-por-calles";
 import type { VistaBurbuja } from "@/lib/nativo/burbuja";
 import type { Parada } from "./dia-trabajo-tipos";
 import type { Fase } from "./fase-parada";
-import { botonesDeParada, estadoDeParada } from "./botones-parada";
+import { botonesDeParada, estadoDeParada, type ExtraBotones } from "./botones-parada";
+import { porPagarPorRevisar } from "./por-pagar";
 
 /** El aviso de abajo: lo último que se cerró (con "Deshacer") o una confirmación
  *  que ya no se puede deshacer. */
@@ -21,10 +22,25 @@ export type AvisoBurbuja = { texto: string; deshacer: boolean } | null;
 export function vistaDeBurbuja(
   activa: Parada,
   fase: Fase,
-  { whatsapp, aviso, nueva }: { whatsapp: boolean; aviso: AvisoBurbuja; nueva: boolean },
+  {
+    whatsapp,
+    aviso,
+    nueva,
+    extra,
+    adelante = null,
+  }: {
+    whatsapp: boolean;
+    aviso: AvisoBurbuja;
+    nueva: boolean;
+    extra?: ExtraBotones;
+    /** «⚠ En 2 paradas…» cuando el renglón de aviso está ocupado (un «Deshacer»):
+     *  va en el del estado, para que no se tape (spec 033, burbuja-permiso). */
+    adelante?: string | null;
+  },
 ): VistaBurbuja {
   const { pedido } = activa;
-  const estado = estadoDeParada(activa, whatsapp);
+  const estadoReceptor = estadoDeParada(activa, whatsapp);
+  const estado = adelante ? { texto: adelante, tono: "marca" as const } : estadoReceptor;
   return {
     secuencia: activa.secuencia,
     titulo: pedido.of ? `OF ${formatoOf(pedido.of)}` : `Parada ${activa.secuencia}`,
@@ -33,11 +49,13 @@ export function vistaDeBurbuja(
     // Nunca se supone $0: sin monto, se dice que hay que revisarlo (spec 005).
     porPagar: pedido.porPagar
       ? `POR PAGAR ${pedido.montoPorPagar != null ? formatCLP(pedido.montoPorPagar) : "· monto por revisar"}`
-      : null,
+      : porPagarPorRevisar(pedido)
+        ? "POR PAGAR por revisar ⚠"
+        : null,
     estado: estado ? { texto: estado.texto, tono: estado.tono } : null,
     // El «Navegar» de la burbuja: en un condominio, su entrada (spec 031).
     destino: pedido.lat != null && pedido.lng != null ? destinoParaNavegar({ lat: pedido.lat, lng: pedido.lng }) : null,
-    filas: botonesDeParada(activa, fase),
+    filas: botonesDeParada(activa, fase, extra),
     aviso,
     nueva,
   };

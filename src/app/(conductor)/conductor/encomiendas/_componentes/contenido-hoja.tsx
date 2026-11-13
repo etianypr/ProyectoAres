@@ -4,8 +4,10 @@
 // pantalla.tsx, spec 002 T037). Desde la spec 027 va solo lo del paso del día
 // que toca, con los ⚠ primero: la cabecera ya dice el paso y su botón.
 
-import { AlertTriangle } from "lucide-react";
-import type { Pedido } from "@/lib/encomiendas/local/almacen";
+import { AlertTriangle, ScanLine } from "lucide-react";
+import { volverACargar, type Pedido } from "@/lib/encomiendas/local/almacen";
+import { resultadoCerrado } from "@/lib/encomiendas/estados";
+import type { ResultadoVisita } from "@/lib/encomiendas/estados";
 import type { PropuestaRuta } from "@/lib/encomiendas/local/generar-ruta";
 import { problemasDelPedido } from "@/lib/encomiendas/problemas";
 import type { DiaEnCurso } from "../_hooks/use-dia-trabajo";
@@ -41,6 +43,7 @@ export function ContenidoHoja({
   faltan,
   onEliminar,
   onEditar,
+  onCambiar,
   onSumar,
   onCargarGuia,
   onAgregar,
@@ -66,6 +69,8 @@ export function ContenidoHoja({
   faltan: FaltaEscanear[];
   onEliminar: (pedidoId: string) => void;
   onEditar: (pedido: Pedido) => void;
+  /** Pasar una parada cerrada a otro estado (spec 033, G5). */
+  onCambiar: (pedidoId: string, nuevo: ResultadoVisita) => void;
   onSumar: () => Promise<void>;
   onCargarGuia: () => void;
   onAgregar: () => void;
@@ -103,6 +108,7 @@ export function ContenidoHoja({
       enviando={dia.enviando}
       onReintentar={dia.intentar}
       rechazados={dia.rechazados}
+      correccionesRechazadas={dia.correccionesRechazadas}
     />
   );
 
@@ -147,6 +153,7 @@ export function ContenidoHoja({
       entregadasDelDia={pedidos.filter((p) => p.resultado === "entregado").length}
       onEliminar={onEliminar}
       onEditar={onEditar}
+      onCambiar={onCambiar}
       soloLista={soloLista}
     />
   );
@@ -195,7 +202,7 @@ export function ContenidoHoja({
       <>
         {porResolver}
         <Seccion titulo={`Faltan · ${faltan.length}`}>
-          <FaltanEscanear faltan={faltan} />
+          <FaltanEscanear faltan={faltan} onAbrir={onEditar} />
         </Seccion>
         <AdvertenciasRuta advertencias={dia.ruta?.advertencias ?? []} />
         {fuera("Pedidos fuera de la ruta")}
@@ -208,9 +215,15 @@ export function ContenidoHoja({
   if (paso === "cierre") {
     const enRuta = paradas.map((p) => p.pedido);
     const ids = new Set(enRuta.map((p) => p.id));
-    const noEntregados = [...enRuta, ...pedidos.filter((p) => !ids.has(p.id))].filter((p) => p.resultado !== "entregado");
+    // Los que llegaron tarde con la ruta completa van arriba, para sumarlos
+    // (spec 033, llega-tarde); no son «no entregados» mientras se puedan sumar.
+    const tarde = new Set(sinRutear.map((p) => p.id));
+    const noEntregados = [...enRuta, ...pedidos.filter((p) => !ids.has(p.id))].filter(
+      (p) => p.resultado !== "entregado" && !tarde.has(p.id),
+    );
     return (
       <>
+        {fuera("Pedidos fuera de la ruta")}
         <Seccion titulo={`No entregados · ${noEntregados.length}`}>
           <ListaNoEntregados pedidos={noEntregados} />
         </Seccion>
@@ -238,8 +251,21 @@ export function ContenidoHoja({
           <Plegable
             resumen={faltan.length === 1 ? "1 paquete de la guía sin escanear" : `${faltan.length} paquetes de la guía sin escanear`}
           >
-            <FaltanEscanear faltan={faltan} />
+            <FaltanEscanear faltan={faltan} onAbrir={onEditar} />
           </Plegable>
+          {/* Salió a repartir antes de tiempo (spec 033, salir-repartir): mientras
+              no cierre ninguna parada, vuelve la cabecera de la carga. */}
+          {dia.ruta?.inicioReparto && !pedidos.some((p) => resultadoCerrado(p.resultado)) ? (
+            <button
+              type="button"
+              disabled={guardando}
+              onClick={() => void volverACargar(fecha).then(() => dia.recargar())}
+              className="mt-2 flex h-11 w-full items-center justify-center gap-1.5 rounded-full border border-separator bg-card text-sm font-semibold text-brand disabled:opacity-50"
+            >
+              <ScanLine className="h-4 w-4" />
+              Volver a cargar
+            </button>
+          ) : null}
         </Seccion>
       ) : null}
       {ruta()}

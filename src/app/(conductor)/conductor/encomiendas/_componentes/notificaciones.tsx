@@ -20,6 +20,7 @@
 // navegación son lo que se está leyendo para saber dónde doblar (ver ALTO_AVISO).
 
 import { useEffect, useRef } from "react";
+import { X } from "lucide-react";
 import { cn } from "@/lib/comun/utils";
 
 /** El aire entre el último aviso y lo que quedó debajo. */
@@ -44,6 +45,8 @@ export type Notificacion = {
     icono?: React.ReactNode;
     onClick: () => void;
   };
+  /** Una ✕ al final, para un aviso que se puede esconder (spec 033, apk-aviso). */
+  cerrar?: () => void;
 };
 
 export function PilaNotificaciones({
@@ -85,7 +88,7 @@ export function PilaNotificaciones({
           className={cn(
             "animate-slide-down flex items-center gap-3 rounded-2xl px-4 py-3 text-white shadow-lg",
             aviso.tono === "error" ? "bg-danger" : "bg-foreground",
-            !aviso.accion && "pointer-events-none",
+            !aviso.accion && !aviso.cerrar && "pointer-events-none",
           )}
         >
           <span className="flex shrink-0 items-center">{aviso.icono}</span>
@@ -105,6 +108,16 @@ export function PilaNotificaciones({
             >
               {aviso.accion.icono}
               {aviso.accion.etiqueta}
+            </button>
+          ) : null}
+          {aviso.cerrar ? (
+            <button
+              type="button"
+              onClick={aviso.cerrar}
+              aria-label="Esconder el aviso"
+              className="-mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full active:bg-white/15"
+            >
+              <X className="h-4 w-4" />
             </button>
           ) : null}
         </div>

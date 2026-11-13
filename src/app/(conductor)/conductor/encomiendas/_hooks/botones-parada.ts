@@ -6,9 +6,9 @@
 // Puro: qué botones van sale de la fase (fase-parada.ts) y del pedido. Qué hace
 // cada uno lo decide `atenderBoton`, con las mismas funciones para los dos.
 
-import { bloquePorId } from "@/lib/encomiendas/config";
+import { bloquePorId, type BloqueHorario } from "@/lib/encomiendas/config";
 import type { Parada } from "./dia-trabajo-tipos";
-import { SALIDAS, type Fase, type Salida } from "./fase-parada";
+import { OTRA_HORA, SALIDAS, type Fase, type Salida } from "./fase-parada";
 
 /** Qué hace el botón. Los tres últimos solo existen en la burbuja. */
 export type IdBoton =
@@ -19,6 +19,10 @@ export type IdBoton =
   | "no_se_pudo"
   | "pendiente"
   | "no_entregado"
+  | "otra_hora"
+  | `hora:${string}`
+  | "todos"
+  | "solo_este"
   | "volver"
   | "deshacer"
   | "navegar"
@@ -57,12 +61,30 @@ const b = (id: IdBoton, texto: string, tono: Tono, extra: Partial<BotonParada> =
  *  si contestó: hay quien no contesta y recibe igual, y llamar es solo para
  *  coordinar. Sin teléfono, el del medio escanea la etiqueta para sacarlo, y abajo
  *  queda escribirlo a mano si la etiqueta está dañada (spec 017, E3). */
-export function botonesDeParada(activa: Parada, fase: Fase): BotonParada[][] {
+export function botonesDeParada(activa: Parada, fase: Fase, extra: ExtraBotones = {}): BotonParada[][] {
+  const volver = [b("volver", "Volver", "neutro")];
   if (fase === "salidas") {
-    return [
-      ...SALIDAS.map((s) => [b(s.clave, s.etiqueta, "neutro", { detalle: s.detalle, escribe: true })]),
-      [b("volver", "Volver", "neutro")],
-    ];
+    // Con una sola pendiente, «Dejar como pendiente» la deja activa otra vez al
+    // instante: no se ofrece (spec 033, pendiente-ciclo).
+    const salidas = SALIDAS.filter((s) => s.clave !== "pendiente" || (extra.pendientes ?? 2) > 1).map((s) => [
+      b(s.clave, s.etiqueta, "neutro", { detalle: s.detalle, escribe: true }),
+    ]);
+    if (extra.bloques?.length) {
+      salidas.splice(salidas.length - 1, 0, [b("otra_hora", OTRA_HORA.etiqueta, "neutro", { detalle: OTRA_HORA.detalle })]);
+    }
+    return [...salidas, volver];
+  }
+  if (fase === "horas") {
+    const bloques = extra.bloques ?? [];
+    const filas: BotonParada[][] = [];
+    for (let i = 0; i < bloques.length; i += 2) {
+      filas.push(bloques.slice(i, i + 2).map((x) => b(`hora:${x.id}`, x.etiqueta, "neutro", { escribe: true })));
+    }
+    return [...filas, volver];
+  }
+  if (fase === "juntas") {
+    const n = (extra.juntas ?? 0) + 1;
+    return [[b("todos", `Los ${n}`, "ok", { escribe: true }), b("solo_este", "Solo este", "borde-ok", { escribe: true })], volver];
   }
   const entregado = b("entregado", "Pedido entregado", "ok", { escribe: true });
   const noSeEntrega = b("no_se_pudo", "No se entrega", "peligro");
@@ -74,6 +96,11 @@ export function botonesDeParada(activa: Parada, fase: Fase): BotonParada[][] {
     [b("telefono", "Teléfono a mano", "neutro", { abreAres: true })],
   ];
 }
+
+/** Lo que los botones necesitan además de la parada: cuántas pendientes quedan,
+ *  los bloques horarios que siguen hoy y cuántas paradas más hay en el mismo
+ *  punto (spec 033). Sin esto, los botones de siempre. */
+export type ExtraBotones = { pendientes?: number; bloques?: readonly BloqueHorario[]; juntas?: number };
 
 export type EstadoParada = { texto: string; tono: "marca" | "ok" | "neutro"; icono: "reloj" | "check" | "telefono" };
 
@@ -98,12 +125,19 @@ export type AccionesParada = {
   finalizar: () => void;
   noSePudo: () => void;
   salida: (salida: Salida) => void;
+  /** «Pidió otra hora»: muestra los bloques; `hora` anota el elegido. */
+  otraHora: () => void;
+  hora: (bloqueId: string) => void;
+  /** Con paradas en el mismo punto: entregar todas o solo esta. */
+  todos: () => void;
+  soloEste: () => void;
   volver: () => void;
   deshacer: () => void;
 };
 
 /** Atiende un botón. `navegar` y `ares` los resuelve quien los muestra. */
 export function atenderBoton(id: IdBoton, a: AccionesParada): void {
+  if (id.startsWith("hora:")) return a.hora(id.slice("hora:".length));
   switch (id) {
     case "llamar":
       return a.llamar();
@@ -121,6 +155,12 @@ export function atenderBoton(id: IdBoton, a: AccionesParada): void {
       if (salida) a.salida(salida);
       return;
     }
+    case "otra_hora":
+      return a.otraHora();
+    case "todos":
+      return a.todos();
+    case "solo_este":
+      return a.soloEste();
     case "volver":
       return a.volver();
     case "deshacer":

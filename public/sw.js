@@ -14,6 +14,29 @@ const CACHE = "ares-conductor-v1";
 // cualquier pantalla del conductor cae a esta copia.
 const INICIO = "/conductor/encomiendas";
 const MS_ESPERA_RED = 4000;
+// Lo guardado no puede crecer para siempre (spec 033, G5): cada deploy trae JS
+// nuevo (con otro hash) y el viejo quedaba en el teléfono. Cada copia lleva el
+// día de su último uso, y lo que no se usó en DIAS_SIN_USO se borra. Lo que se
+// usa (la red de calles, el mapa, la pantalla) se vuelve a sellar al usarlo, y
+// la página de inicio no se borra nunca: sin ella no abre sin señal.
+const DIAS_SIN_USO = 30;
+const SELLO = "x-ares-usado";
+let limpiadoEl = null;
+// El día de la última limpieza, guardado en la misma caché: el service worker se
+// apaga y prende muchas veces al día.
+const MARCA = "/__ares-limpieza";
+
+/** "YYYY-MM-DD" de hoy (UTC: solo cuenta días de diferencia). */
+function hoy() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/** ¿Una copia sellada el día `sello` ya lleva DIAS_SIN_USO sin usarse? Sin
+ *  sello (guardada antes de esto) no es vieja: se sella hoy. Pura. */
+function vencida(sello, dia) {
+  if (!sello) return false;
+  return Date.parse(dia) - Date.parse(sello) > DIAS_SIN_USO * 86_400_000;
+}
 
 /** "red" = no se intercepta · "red-primero" · "cache-primero". */
 function estrategiaPara(url, modo, metodo) {
@@ -35,6 +58,7 @@ self.addEventListener("activate", (evento) => {
         if (nombre !== CACHE) await caches.delete(nombre);
       }
       await self.clients.claim();
+      await limpiar();
     })(),
   );
 });
@@ -42,6 +66,7 @@ self.addEventListener("activate", (evento) => {
 self.addEventListener("fetch", (evento) => {
   const pedido = evento.request;
   const estrategia = estrategiaPara(new URL(pedido.url), pedido.mode, pedido.method);
+  if (estrategia !== "red" && limpiadoEl !== hoy()) evento.waitUntil(limpiar());
   if (estrategia === "cache-primero") evento.respondWith(cachePrimero(pedido));
   else if (estrategia === "red-primero") evento.respondWith(redPrimero(pedido));
 });
@@ -49,10 +74,48 @@ self.addEventListener("fetch", (evento) => {
 async function cachePrimero(pedido) {
   const cache = await caches.open(CACHE);
   const guardada = await cache.match(pedido);
-  if (guardada) return guardada;
+  if (guardada) {
+    // Una vez por día: lo que se usa no vence.
+    if (guardada.headers.get(SELLO) !== hoy()) sellar(cache, pedido, guardada.clone()).catch(() => {});
+    return guardada;
+  }
   const respuesta = await fetch(pedido);
-  if (respuesta.ok) await cache.put(pedido, respuesta.clone());
+  if (respuesta.ok) await sellar(cache, pedido, respuesta.clone());
   return respuesta;
+}
+
+/** Guarda la copia con el día de hoy en una cabecera propia. */
+async function sellar(cache, pedido, respuesta) {
+  const cabeceras = new Headers(respuesta.headers);
+  cabeceras.set(SELLO, hoy());
+  const cuerpo = await respuesta.blob();
+  await cache.put(pedido, new Response(cuerpo, { status: respuesta.status, statusText: respuesta.statusText, headers: cabeceras }));
+}
+
+/** Borra lo que no se usó en DIAS_SIN_USO (nunca la página de inicio) y sella lo
+ *  que se guardó antes de que hubiera sellos. A lo más una vez por día. */
+async function limpiar() {
+  const dia = hoy();
+  if (limpiadoEl === dia) return;
+  limpiadoEl = dia;
+  try {
+    const cache = await caches.open(CACHE);
+    const marca = await cache.match(MARCA);
+    if (marca && (await marca.text()) === dia) return;
+    for (const pedido of await cache.keys()) {
+      const ruta = new URL(pedido.url).pathname;
+      if (ruta === INICIO || ruta === MARCA) continue;
+      const guardada = await cache.match(pedido);
+      if (!guardada) continue;
+      const sello = guardada.headers.get(SELLO);
+      if (vencida(sello, dia)) await cache.delete(pedido);
+      else if (!sello) await sellar(cache, pedido, guardada);
+    }
+    await cache.put(MARCA, new Response(dia));
+  } catch {
+    // Sin poder limpiar no pasa nada: se intenta mañana.
+    limpiadoEl = null;
+  }
 }
 
 async function redPrimero(pedido) {
@@ -61,7 +124,7 @@ async function redPrimero(pedido) {
     // Solo páginas buenas y finales: una redirección (a /login, a /conductor/…)
     // no es una pantalla que se pueda mostrar sin red.
     if (respuesta.ok && respuesta.type === "basic" && !respuesta.redirected) {
-      await cache.put(pedido, respuesta.clone());
+      await sellar(cache, pedido, respuesta.clone());
     }
     return respuesta;
   });

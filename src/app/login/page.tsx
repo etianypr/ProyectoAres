@@ -1,4 +1,5 @@
 import { LoginForm } from "./login-form";
+import { BorradoPendiente } from "./borrado-pendiente";
 import { LogoDashund } from "@/components/marca/logo-dashund";
 
 // El nombre de la empresa NO se lee de la base acá: esta página es pública y
@@ -20,6 +21,8 @@ export default async function LoginPage({
     // El crema y el logo de Dashund, la empresa que desarrolla ARES (2026-10-28).
     // No dice de qué empresa es el sistema: eso sigue sin leerse antes de entrar.
     <div className="flex min-h-screen items-center justify-center bg-[#f4f0ec] p-4 text-[#221a15]">
+      {/* Un borrado del teléfono que quedó a medias al cerrar la sesión (spec 033). */}
+      <BorradoPendiente />
       <div className="w-full max-w-sm">
         <div className="animate-slide-up mb-6 flex flex-col items-center text-center">
           <LogoDashund className="mb-3 h-20 w-20" titulo="" />

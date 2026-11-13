@@ -20,6 +20,7 @@ export function CabeceraHoja({
   cargando,
   cifras: { pendientes, conProblema, entregadas, noEntregadas },
   diaCerrado,
+  cierre,
   nombreConductor,
   fecha,
   direccionEmpresa,
@@ -41,6 +42,8 @@ export function CabeceraHoja({
   /** Pendientes sin ruta y cuántos con ⚠; cómo terminó la ruta. */
   cifras: { pendientes: number; conProblema: number; entregadas: number; noEntregadas: number };
   diaCerrado: boolean;
+  /** Paso «cierre» (spec 033): pedidos que llegaron tarde y la cuenta del «Deshacer». */
+  cierre?: { fuera: number; deshacerHasta: number | null; onSumar: () => void };
   nombreConductor: string;
   fecha: string;
   direccionEmpresa: string | null;
@@ -56,7 +59,7 @@ export function CabeceraHoja({
   if (paso === "carga") return <CabeceraCarga carga={carga} guardando={guardando} onEscanear={onEscanear} onSalir={onSalir} />;
   if (paso === "cierre") {
     return (
-      <CabeceraCierre entregadas={entregadas} noEntregadas={noEntregadas} diaCerrado={diaCerrado} onCerrarDia={onCerrarDia} />
+      <CabeceraCierre entregadas={entregadas} noEntregadas={noEntregadas} diaCerrado={diaCerrado} onCerrarDia={onCerrarDia} {...cierre} />
     );
   }
   const armar = () => (

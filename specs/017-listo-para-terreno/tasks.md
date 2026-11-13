@@ -24,7 +24,9 @@ description: "Tareas: listo para terreno"
 - [x] T017 E8 errores de sincronización visibles; evento rechazado aislado (solo si los demás pasan; si fallan todos, es sesión o permisos y se informa) — `apartarRechazado`, `leerRechazados`
 - [x] T018 E9 tope de tiempo en todas las consultas (`lib/comun/tope.ts`: 8–15 s; lectura con IA 60 s)
 - [x] T019 E10–E11 fotos de la guía de a una; OF repetida queda la mejor; total de la guía se conserva
-- [x] T020 E12 promesas sin manejar (escáner, WhatsApp, cerrar sesión sin señal, botón atrás al ubicar)
+- [x] T020 E12 promesas sin manejar (escáner, WhatsApp, cerrar sesión sin señal, botón atrás al ubicar).
+  Desde la spec 033 (dueño, 2026-11-13) cerrar sesión va al revés: primero la sesión y después el
+  borrado; sin señal no se borra nada (`lib/encomiendas/local/salida.ts`).
 
 ## US2 · Navegación
 
