@@ -299,6 +299,29 @@ test("POR PAGAR sin «Total Monto»: vale el $ del mismo renglón o del siguient
   assert.equal(leerEtiqueta("DESTINATARIO: ANA\nPOR PAGAR\n$ 7.500").montoPorPagar, 7500);
 });
 
+test("el monto con coma en los miles se lee entero, no hasta la coma", () => {
+  // Terreno 2026-11-14: «$5,700» quedaba en $5 (la coma cortaba el número).
+  const con = (monto) => leerEtiqueta(`DESTINATARIO: ANA\nPOR PAGAR\nTotal Monto O.F. ${monto}`).montoPorPagar;
+  assert.equal(con("$5,700"), 5700);
+  assert.equal(con("$ 5,700"), 5700);
+  assert.equal(con("$ 12,990"), 12990);
+  assert.equal(con("$ 1,234,567"), 1234567);
+  assert.equal(con("$ 1.234,567"), 1234567, "ML Kit mezcla punto y coma");
+  assert.equal(con("$ 5, 700"), 5700, "un espacio de más tras el separador");
+  assert.equal(con("$\n5,700"), 5700, "en el renglón de abajo");
+  assert.equal(con("$ 5700"), 5700);
+  assert.equal(leerEtiqueta("DESTINATARIO: ANA\nPOR PAGAR $ 7,500").montoPorPagar, 7500);
+  assert.equal(leerEtiqueta("DESTINATARIO: ANA\nPOR PAGAR\n$ 7,500").montoPorPagar, 7500);
+});
+
+test("un monto con el separador mal puesto no se adivina: queda por revisar", () => {
+  for (const monto of ["$ 5,70", "$ 5.7000", "$ 5,7", "$ 12.99"]) {
+    const e = leerEtiqueta(`DESTINATARIO: ANA\nPOR PAGAR\nTotal Monto O.F. ${monto}`);
+    assert.equal(e.montoPorPagar, null, monto);
+    assert.ok(e.dudosos.includes("montoPorPagar"), monto);
+  }
+});
+
 test("sin palabra de pago, o con dos distintas, el pago queda por revisar", () => {
   assert.equal(pagoDe("DESTINATARIO: ANA"), "DESCONOCIDO");
   const e = leerEtiqueta("DESTINATARIO: ANA");

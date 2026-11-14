@@ -162,11 +162,12 @@ test("se borran el índice por estado y el store de avisos aparte", async () => 
     s.onerror = () => reject(s.error);
   });
   try {
-    // Las versiones siguientes llegan en la misma apertura: v2 → v3 → v4 (007) → v5 (003) → v6.
-    assert.equal(base.version, 6);
+    // Las versiones siguientes llegan en la misma apertura: v2 → v3 → v4 (007) → v5 (003) → v6 → v7.
+    assert.equal(base.version, 7);
     assert.equal(base.objectStoreNames.contains("dias"), true, "falta el store de días");
     assert.equal(base.objectStoreNames.contains("fotos"), true, "falta el store de fotos");
     assert.equal(base.objectStoreNames.contains("propuestas"), true, "falta el store de propuestas");
+    assert.equal(base.objectStoreNames.contains("borradoresGuia"), true, "falta el store de la guía sin crear");
     const tx = base.transaction("pedidos", "readonly");
     assert.equal(tx.objectStore("pedidos").indexNames.contains("por_estado"), false);
     assert.equal(base.objectStoreNames.contains("whatsapp"), false, "quedó el store de avisos aparte");

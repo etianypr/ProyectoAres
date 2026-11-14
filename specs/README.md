@@ -136,23 +136,34 @@ borraron y siguen en el historial de git.
 1. **Anotar en `main`.** Se crea la carpeta `NNN-nombre/` con su `spec.md` (un borrador alcanza),
    se agrega su fila aquí y se sube el «Próximo número». Así el número queda reservado y dos ramas
    no toman el mismo.
-2. **Empezar.** La rama sale de `main` y se llama igual que la carpeta. Después, aquí, en `main`:
+2. **Empezar.** La rama sale de `main` y se llama igual que la carpeta. Su primer commit pone aquí
    estado «en curso» y el nombre de la rama.
    ```powershell
    git switch main; git pull
    git switch -c NNN-nombre
    ```
 3. **Trabajar en la rama:**
-   - En la rama se tocan la carpeta de la feature y el código. **Este índice se edita solo en
-     `main`**, para que dos ramas no choquen aquí.
+   - En la rama se tocan la carpeta de la feature, el código y **solo la fila de la feature** en
+     este índice (estado, tareas, lo que falta). Las demás filas no se tocan desde la rama.
+   - **Nada de código directo en `main`**, tampoco un arreglo chico: va en su rama (o en una
+     `arreglo-nombre`) y pasa por el preview.
    - Para traer lo nuevo de `main`: `git merge main`.
    - Cada push publica un preview en Vercel.
    - Spec Kit busca la feature activa en `.specify/feature.json`, un archivo local que no se versiona.
      `/speckit-specify` lo escribe; si se retoma otra feature, se cambia a mano
      (`{ "feature_directory": "specs/NNN-nombre" }`).
-4. **Terminar.** Se corre la verificación de `AGENTS.md`, el dueño aprueba y se une a `main`. Un push
-   a `main` publica en producción: hacerlo con el día cerrado y la cola enviada. En ese mismo cambio
-   se borra la carpeta, se escribe su resumen en `docs/HOJA-DE-RUTA.md` y se quita su fila de aquí.
+4. **Terminar.** Se corre la verificación de `AGENTS.md`, el dueño aprueba y se une a `main`, siempre
+   con commit de merge (nunca fast-forward):
+   ```powershell
+   git switch main; git pull
+   git merge --no-ff NNN-nombre -m "Merge NNN-nombre: <qué trae>"
+   git push
+   git branch -d NNN-nombre; git push origin --delete NNN-nombre
+   ```
+   Un push a `main` publica en producción: hacerlo con el día cerrado y la cola enviada. Si la
+   feature terminó del todo, antes del merge, en la rama, se borra la carpeta, se escribe su resumen
+   en `docs/HOJA-DE-RUTA.md` y se quita su fila de aquí; si queda «falta día real», la fila sigue
+   con «en `main` desde <fecha>». La rama se borra igual: lo que falte se hace en una rama nueva.
 5. **Varias a la vez.** Cada una va en su rama. Lo que se comparte se reserva primero aquí, en
    `main`, anotándolo en la fila de la feature (por ejemplo «usa idb v6» o «migración 0008»): ver
    «Reglas compartidas».
@@ -166,7 +177,7 @@ así que se puede deshacer entera sin tocar las demás: `git revert -m 1 <commit
 ## Reglas compartidas entre features
 
 - **Base local (IndexedDB):** cada feature que agrega un store sube a la **siguiente versión libre**
-  de `idb.ts` (hoy v6, la libre es la v7). Si el store tiene datos de destinatarios, se registra en
+  de `idb.ts` (hoy v7, la libre es la v8). Si el store tiene datos de destinatarios, se registra en
   `STORES_DEL_DIA` (lo borra el cierre del día, spec 007).
 - **Migraciones SQL:** cada una toma el **siguiente número libre** de `supabase/migrations/` (hoy
   0008).

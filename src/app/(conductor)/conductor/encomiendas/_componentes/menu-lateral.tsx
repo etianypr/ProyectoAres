@@ -29,7 +29,7 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { Check, CircleHelp, LogOut, Menu, RotateCw, Search, Stethoscope, X } from "lucide-react";
+import { Accessibility, Check, CircleHelp, LogOut, Menu, RotateCw, Search, Stethoscope, X } from "lucide-react";
 import { LogoDashund } from "@/components/marca/logo-dashund";
 import { cn } from "@/lib/comun/utils";
 import { formatCLP, formatDateLong } from "@/lib/comun/format";
@@ -64,6 +64,7 @@ export function MenuLateral({
   onCerrar,
   onBuscarOf,
   onAyuda,
+  onAccesibilidad,
 }: {
   nombreConductor: string;
   dias: ResumenDia[];
@@ -83,6 +84,8 @@ export function MenuLateral({
   onBuscarOf: () => void;
   /** Cómo se usa la app, en corto (ver ayuda.tsx). */
   onAyuda: () => void;
+  /** Lo que el conductor deja a su gusto: las llamadas en altavoz (accesibilidad.tsx). */
+  onAccesibilidad: () => void;
 }) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -158,6 +161,14 @@ export function MenuLateral({
           >
             <CircleHelp className="h-4 w-4 shrink-0 text-brand" />
             Ayuda
+          </button>
+          <button
+            type="button"
+            onClick={onAccesibilidad}
+            className="mb-4 -mt-2 flex w-full items-center gap-2.5 rounded-2xl bg-card px-3.5 py-3 text-left text-sm font-medium shadow-soft active:bg-background"
+          >
+            <Accessibility className="h-4 w-4 shrink-0 text-brand" />
+            Accesibilidad
           </button>
 
           <p className="px-1 pb-2 text-xs font-medium text-muted">Tus días</p>

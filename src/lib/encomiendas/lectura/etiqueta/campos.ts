@@ -136,7 +136,17 @@ export function telefono(lista: Renglon[], zonasDe: Zona[], ofs: Set<string>): {
   return { telefono: null, dudoso: true };
 }
 
-const pesos = (v: string | undefined) => (v ? Number(v.replace(/\./g, "")) : null);
+/** Un monto en pesos: los miles van con punto o con coma («5.700», «5,700»: la
+ *  Starken normal imprime coma, y ML Kit confunde uno con otra), con un espacio
+ *  de más a lo sumo. Antes la coma cortaba el número y «$5,700» quedaba en $5
+ *  (terreno 2026-11-14). Un separador vale solo con 3 dígitos detrás: «5,70» o
+ *  «5.7000» no se adivinan, quedan sin leer («monto por revisar»). */
+const MONTO = String.raw`(\d{1,3}(?:[.,] ?\d{3})+|\d+)(?![.,]? ?\d)`;
+const MONTO_EN_SU_RENGLON = new RegExp(String.raw`^:?\s*\$?\s*${MONTO}`);
+const MONTO_SOLO = new RegExp(String.raw`^\$?\s*${MONTO}$`);
+const MONTO_CON_SIGNO = new RegExp(String.raw`\$\s*${MONTO}`);
+
+const pesos = (v: string | undefined) => (v ? Number(v.replace(/\D/g, "")) : null);
 
 /** El número de «Total Monto O.F.» tal como está impreso, 0 incluido (en su
  *  renglón o en el de abajo), o null si no se ve ninguno. */
@@ -144,8 +154,8 @@ export function totalImpreso(lista: Renglon[]): number | null {
   const i = lista.findIndex((r) => CLAVES.totalMonto.test(r.comparable));
   if (i < 0) return null;
   const resto = despues(lista[i], CLAVES.totalMonto) ?? "";
-  if (/\d/.test(resto)) return pesos(/^:?\s*\$?\s*(\d[\d.]*)/.exec(resto)?.[1]);
-  return pesos(/^\$?\s*(\d[\d.]*)$/.exec(lista[i + 1]?.texto ?? "")?.[1]);
+  if (/\d/.test(resto)) return pesos(MONTO_EN_SU_RENGLON.exec(resto)?.[1]);
+  return pesos(MONTO_SOLO.exec(lista[i + 1]?.texto ?? "")?.[1]);
 }
 
 /** Lo que hay que cobrar: «Total Monto O.F.» y, si no está, el $ del renglón de
@@ -156,7 +166,7 @@ export function monto(lista: Renglon[]): number | null {
   const i = lista.findIndex((r) => CLAVES.porPagar.test(r.comparable));
   if (i < 0) return null;
   const resto = despues(lista[i], CLAVES.porPagar) ?? "";
-  const n = pesos(/\$\s*(\d[\d.]*)/.exec(resto)?.[1] ?? /^\$?\s*(\d[\d.]*)$/.exec(lista[i + 1]?.texto ?? "")?.[1]);
+  const n = pesos(MONTO_CON_SIGNO.exec(resto)?.[1] ?? MONTO_SOLO.exec(lista[i + 1]?.texto ?? "")?.[1]);
   return n && n > 0 ? n : null;
 }
 

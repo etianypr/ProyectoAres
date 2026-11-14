@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
+import android.telecom.TelecomManager;
 import android.util.Base64;
 import android.view.WindowManager;
 
@@ -63,6 +64,11 @@ public class TelefonoPlugin extends Plugin {
     private void hacerLlamada(PluginCall call) {
         Intent intent = new Intent(Intent.ACTION_CALL, Uri.parse("tel:" + Uri.encode(call.getString("numero"))));
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        // En altavoz desde que empieza a marcar, si el conductor lo dejó activado en
+        // Menú → Accesibilidad (dueño, 2026-11-14): va manejando.
+        if (Boolean.TRUE.equals(call.getBoolean("altavoz", false))) {
+            intent.putExtra(TelecomManager.EXTRA_START_CALL_WITH_SPEAKERPHONE, true);
+        }
         // Llamando desde ARES, ARES vuelve adelante y la llamada queda de fondo (dueño,
         // 2026-11-09). Desde la burbuja ARES está atrás: vuelve Google Maps (BurbujaServicio).
         boolean desdeAres = getActivity() != null && getActivity().hasWindowFocus();

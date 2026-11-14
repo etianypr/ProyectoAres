@@ -219,3 +219,43 @@ test("corregirSinUbicar: sin IA en el servidor no sigue con las demás", async (
   assert.equal(r.sinIA, true);
   assert.equal(llamadas, 1);
 });
+
+test("corregirSinUbicar: la propuesta queda guardada y no se vuelve a pagar al reabrir (dueño, 2026-11-13)", async () => {
+  const mala = await pedido("AV STA MARIA 2150");
+  let llamadas = 0;
+  const corregir = async () => (
+    llamadas++,
+    { tipo: "propuesta", candidato: SANTA_MARIA, direccion: "Avenida Santa María 2150", confianza: "alta", motivo: "m" }
+  );
+  await corregirSinUbicar(HOY, { ids: [mala.id], corregir });
+  assert.equal(llamadas, 1);
+
+  // Se cerró la app: la propuesta sale del teléfono, sin preguntarle a la IA.
+  const { propuestasGuardadas } = await import("@/lib/encomiendas/local/corregir-direcciones");
+  const guardadas = await propuestasGuardadas(HOY, [mala.id]);
+  assert.equal(guardadas.length, 1);
+  assert.equal(guardadas[0].direccion, "Avenida Santa María 2150");
+  assert.equal(guardadas[0].original, "AV STA MARIA 2150");
+  assert.equal(guardadas[0].segura, true);
+
+  // Volver a tocar «Corregir con IA» no la paga de nuevo.
+  await corregirSinUbicar(HOY, { ids: [mala.id], corregir });
+  assert.equal(llamadas, 1, "le preguntó otra vez a la IA");
+
+  // Confirmada, ya no se muestra y el pedido queda sin la propuesta.
+  await aplicarCorreccion(guardadas[0]);
+  assert.deepEqual(await propuestasGuardadas(HOY, [mala.id]), []);
+  const p = (await almacen.leerPedidos(HOY)).find((x) => x.id === mala.id);
+  assert.equal(p.propuestaIA, undefined);
+});
+
+test("propuestasGuardadas: si el conductor cambió la dirección a mano, la propuesta ya no vale", async () => {
+  const mala = await pedido("PJE 9 CASA 4");
+  await corregirSinUbicar(HOY, {
+    ids: [mala.id],
+    corregir: async () => ({ tipo: "propuesta", candidato: SANTA_MARIA, direccion: "Pasaje 9 1200", confianza: "media", motivo: "m" }),
+  });
+  await almacen.cambiarDireccion(mala.id, "Pasaje 9 1204", null);
+  const { propuestasGuardadas } = await import("@/lib/encomiendas/local/corregir-direcciones");
+  assert.deepEqual(await propuestasGuardadas(HOY, [mala.id]), []);
+});

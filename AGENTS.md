@@ -46,7 +46,7 @@ comparten layout: el panel del jefe (escritorio) y la app del conductor (APK And
 - TypeScript estricto, React 19, Tailwind 4 (`cn()` de `lib/comun/utils`), íconos `lucide-react`.
 - Supabase: Postgres + RLS + `pg_cron`, un solo proyecto (gratis; se pausa si queda inactivo).
   Migraciones `supabase/migrations/0001–0007`; la siguiente es la 0008.
-- Teléfono: IndexedDB `dashund-encomiendas` v6 (la siguiente versión libre es la v7). Mapa:
+- Teléfono: IndexedDB `dashund-encomiendas` v7 (la siguiente versión libre es la v8). Mapa:
   MapLibre + OpenFreeMap.
 - APK: Capacitor 8, paquete `cl.dashund.ares`. Abre `https://proyecto-ares-five.vercel.app/conductor`,
   así que cada deploy le llega solo. Lo nativo está en `android/` (plugins `Telefono`, `Burbuja` y
@@ -166,8 +166,10 @@ enlaces: en un clon nuevo, `node scripts/enlazar-skills.mjs` los crea.
   Solo entra lo terminado y verificado.
 - Cada feature se desarrolla en su propia rama, creada desde `main` y con el nombre de su carpeta
   en `specs/` (`021-lector-etiquetas`). Vuelve a `main` cuando pasa la verificación
-  y el dueño lo aprueba. La feature se anota en `main` antes de empezar, y el índice se edita solo
-  ahí. Los pasos están en `specs/README.md`.
+  y el dueño lo aprueba, con `git merge --no-ff` (un commit de merge por feature, para poder
+  revertirla entera), y después la rama se borra (local y en `origin`). En `main` no se commitea
+  código directo; solo se anota ahí la feature nueva (reserva el número). En la rama se edita solo
+  la fila de su feature en el índice. Los pasos están en `specs/README.md`.
 - Cada rama genera un preview en Vercel (detrás del login de Vercel), para probar antes de pasar a
   `main`.
 - `respaldo-mapbox` guarda la última versión con Mapbox. En ella no se trabaja.

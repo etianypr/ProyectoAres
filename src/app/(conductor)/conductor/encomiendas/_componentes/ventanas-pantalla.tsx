@@ -5,8 +5,8 @@
 // pantalla.tsx, spec 002 T037). La de "ahora carga el auto" se fue con la spec
 // 027: lo pide la cabecera de la hoja.
 
-import { useState } from "react";
-import { avanceCarga, fechasConDatos, leerCola, leerDias, type Pedido, type ResumenDia } from "@/lib/encomiendas/local/almacen";
+import { useEffect, useState } from "react";
+import { avanceCarga, fechasConDatos, leerBorradorGuia, leerCola, leerDias, type Pedido, type ResumenDia } from "@/lib/encomiendas/local/almacen";
 import { sinEnviarPorFecha } from "@/lib/encomiendas/local/dias-del-menu";
 import type { PropuestaRuta } from "@/lib/encomiendas/local/generar-ruta";
 import { problemasDelPedido } from "@/lib/encomiendas/problemas";
@@ -14,6 +14,7 @@ import { fueraDeLaRuta } from "@/lib/encomiendas/local/sumar-a-ruta";
 import { usarEscanerVivo } from "@/lib/nativo/escaner-vivo";
 import type { DiaEnCurso, Parada } from "../_hooks/use-dia-trabajo";
 import type { useCierreDia } from "../_hooks/use-cierre-dia";
+import { Accesibilidad } from "./accesibilidad";
 import { Ayuda } from "./ayuda";
 import type { PaqueteEsperado } from "./aviso-otra-parada";
 import { BuscarOf } from "./buscar-of";
@@ -24,7 +25,7 @@ import { EscanerVivo } from "./escaner-vivo";
 import { GenerarRutaLocal } from "./generar-ruta-local";
 import { MenuLateral } from "./menu-lateral";
 
-export function useVentanas() {
+export function useVentanas(fecha: string) {
   // El cajón de la izquierda y los días que muestra. Los días se leen al abrir,
   // no al montar: es una consulta al teléfono que no hace falta para repartir, y
   // así la lista está fresca aunque el día se haya cerrado con el menú ya usado.
@@ -43,6 +44,19 @@ export function useVentanas() {
   const [cargandoGuia, setCargandoGuia] = useState(false);
   /** La carga de la guía está ubicando direcciones: no se puede cerrar. */
   const [guiaOcupada, setGuiaOcupada] = useState(false);
+  // Con una guía leída y sin crear (la app se cerró a medias), al abrir se vuelve
+  // a «Cargar la guía» en el mismo paso (dueño, 2026-11-13; use-borrador-guia.ts).
+  useEffect(() => {
+    let vigente = true;
+    leerBorradorGuia(fecha)
+      .then((b) => {
+        if (vigente && b && (b.lineas.length > 0 || b.texto.trim() !== "")) setCargandoGuia(true);
+      })
+      .catch(() => null);
+    return () => {
+      vigente = false;
+    };
+  }, [fecha]);
   const [escaneando, setEscaneando] = useState(false);
   /** Escaneando desde la parada: el paquete que se espera (spec 033, escanear-parada). */
   const [esperado, setEsperado] = useState<PaqueteEsperado | null>(null);
@@ -50,6 +64,8 @@ export function useVentanas() {
   const [escanerClasico, setEscanerClasico] = useState(false);
   /** Cómo se usa la app (ver ayuda.tsx). */
   const [ayudaAbierta, setAyudaAbierta] = useState(false);
+  /** Menú → Accesibilidad (accesibilidad.tsx). */
+  const [accesibilidadAbierta, setAccesibilidadAbierta] = useState(false);
 
   return {
     menuAbierto,
@@ -82,6 +98,8 @@ export function useVentanas() {
     setEscanerClasico,
     ayudaAbierta,
     setAyudaAbierta,
+    accesibilidadAbierta,
+    setAccesibilidadAbierta,
   };
 }
 
@@ -141,6 +159,10 @@ export function VentanasPantalla({
           onAyuda={() => {
             v.setMenuAbierto(false);
             v.setAyudaAbierta(true);
+          }}
+          onAccesibilidad={() => {
+            v.setMenuAbierto(false);
+            v.setAccesibilidadAbierta(true);
           }}
         />
       ) : null}
@@ -233,6 +255,7 @@ export function VentanasPantalla({
       ) : null}
 
       {v.ayudaAbierta ? <Ayuda onCerrar={() => v.setAyudaAbierta(false)} /> : null}
+      {v.accesibilidadAbierta ? <Accesibilidad onCerrar={() => v.setAccesibilidadAbierta(false)} /> : null}
 
       {cierreDia.pendiente ? (
         <CierreDia

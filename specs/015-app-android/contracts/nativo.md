@@ -20,7 +20,7 @@ comportamiento actual.
 
 | Método | Entrada | Salida | Permiso |
 |---|---|---|---|
-| `llamar` | `{ numero: string }` | `{}` | `CALL_PHONE` |
+| `llamar` | `{ numero: string, altavoz?: boolean }` (`altavoz`: desde la APK 1.8.1, la llamada parte en altavoz; Menú → Accesibilidad) | `{}` | `CALL_PHONE` |
 | `pantallaEncendida` | `{ encendida: boolean }` | `{}` | — |
 | `leerTexto` | `{ imagen: string }` (JPEG en base64) | `{ texto: string }` (renglones en orden de lectura) | — |
 | `checkPermissions` | — | `{ llamadas, ubicacion }` (`granted` · `denied` · `prompt`); `ubicacion` = `ACCESS_FINE_LOCATION`, solo para el diagnóstico (el WebView no trae `navigator.permissions`) | — |

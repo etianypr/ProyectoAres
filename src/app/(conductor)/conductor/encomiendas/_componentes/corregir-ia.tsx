@@ -7,10 +7,13 @@
 // propuesta a la vista (antes se escondía mientras quedara alguna en la lista,
 // aunque ya estuviera confirmada); y sin señal lo dice, en vez de «no encontró
 // cómo corregirlas».
+//
+// Las propuestas quedan guardadas en el pedido (dueño, 2026-11-13): si la app se
+// cierra con ellas a la vista, al volver se muestran sin preguntarle otra vez a la IA.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2, Sparkles } from "lucide-react";
-import { corregirSinUbicar, type PropuestaCorreccion } from "@/lib/encomiendas/local/corregir-direcciones";
+import { corregirSinUbicar, propuestasGuardadas, type PropuestaCorreccion } from "@/lib/encomiendas/local/corregir-direcciones";
 import { ConfirmarCorrecciones } from "./confirmar-correcciones";
 
 export function BotonCorregirIA({
@@ -38,6 +41,27 @@ export function BotonCorregirIA({
   const [propuestas, setPropuestas] = useState<PropuestaCorreccion[]>([]);
   const [aviso, setAviso] = useState<string | null>(null);
   const sinPropuesta = Math.max(0, cuantas - propuestas.length);
+  const claveSolo = solo?.join(",");
+
+  useEffect(() => {
+    let vigente = true;
+    void propuestasGuardadas(fecha, claveSolo?.split(","))
+      .then((guardadas) => {
+        if (!vigente) return;
+        const fuera = new Set(excluir);
+        setPropuestas((antes) => {
+          const ya = new Set(antes.map((p) => p.pedidoId));
+          const nuevas = guardadas.filter((p) => !ya.has(p.pedidoId) && !fuera.has(p.pedidoId));
+          return nuevas.length > 0 ? [...antes, ...nuevas] : antes;
+        });
+      })
+      .catch(() => null);
+    return () => {
+      vigente = false;
+    };
+    // `excluir` es una lista nueva en cada render: basta leerla al montar.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fecha, claveSolo]);
 
   async function corregir() {
     setAviso(null);

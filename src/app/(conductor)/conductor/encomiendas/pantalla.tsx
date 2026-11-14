@@ -105,7 +105,7 @@ export function PantallaEncomiendas({
   // El formulario abierto en la hoja: "nuevo", el pedido que se corrige, o null.
   const [formPedido, setFormPedido] = useState<"nuevo" | Pedido | null>(null);
   // Las ventanas que se abren encima (ver _componentes/ventanas-pantalla.tsx).
-  const ventanas = useVentanas();
+  const ventanas = useVentanas(fecha);
   const { setCargandoGuia, setEscaneando } = ventanas;
   // Llamar, las salidas, entregar, deshacer y cada botón de la parada, para la
   // tarjeta y la burbuja (ver _hooks/use-parada-en-curso.ts).

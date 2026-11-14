@@ -38,6 +38,7 @@ export function useBotonAtras({
       if (atenderAtrasPropio()) return;
       const abiertos: Abierto[] = [
         [v.ayudaAbierta, () => v.setAyudaAbierta(false)],
+        [v.accesibilidadAbierta, () => v.setAccesibilidadAbierta(false)],
         [v.buscandoOf, () => v.setBuscandoOf(false)],
         [v.escaneando, () => v.setEscaneando(false)],
         // Mientras se ubican las direcciones la X está deshabilitada; el botón
