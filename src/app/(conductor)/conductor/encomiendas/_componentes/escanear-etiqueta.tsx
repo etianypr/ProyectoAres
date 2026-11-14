@@ -82,6 +82,7 @@ export function EscanearEtiqueta({
         return;
       }
       onCambio();
+      setCodigoEscrito("");
       setFase({ tipo: "resultado", r, codigo });
     },
     [fecha, onCambio],
@@ -182,6 +183,18 @@ export function EscanearEtiqueta({
             >
               <PackagePlus className="h-4 w-4" />
               Agregarlo como pedido
+            </button>
+            {/* La OF salió con un dígito mal (leída o escrita): vuelve al campo con
+                ella puesta, para cambiar solo ese dígito (terreno 2026-11-14). */}
+            <button
+              type="button"
+              onClick={() => {
+                if (leerCodigoEtiqueta(codigoEscrito)?.of !== fase.of) setCodigoEscrito(formatoOf(fase.of));
+                setFase({ tipo: "escribir", error: null });
+              }}
+              className="mx-auto block h-11 px-5 text-sm font-semibold text-brand"
+            >
+              Corregir la OF
             </button>
           </div>
         ) : null}

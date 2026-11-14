@@ -15,7 +15,7 @@ export type PermisosApp = { llamadas: EstadoPermiso; ubicacion: EstadoPermiso };
 
 type PluginTelefono = {
   checkPermissions(): Promise<PermisosApp>;
-  llamar(opciones: { numero: string }): Promise<void>;
+  llamar(opciones: { numero: string; altavoz: boolean }): Promise<void>;
   pantallaEncendida(opciones: { encendida: boolean }): Promise<void>;
   leerTexto(opciones: { imagen: string }): Promise<{ texto: string }>;
 };
@@ -27,13 +27,38 @@ function limpiar(numero: string): string {
   return numero.replace(/[^\d+]/g, "");
 }
 
+// Las llamadas en altavoz (dueño, 2026-11-14): el conductor va manejando y llama
+// con un toque. Lo elige en Menú → Accesibilidad; se guarda en el teléfono, no
+// es un dato del día (sobrevive al cierre). Solo vale para la llamada directa de
+// la APK 1.8.1 o posterior: una anterior ignora el dato, y el marcador no lo
+// recibe.
+const CLAVE_SIN_ALTAVOZ = "ares-llamar-sin-altavoz";
+
+/** ¿Las llamadas salen en altavoz? Activado mientras no se apague. */
+export function altavozAlLlamar(): boolean {
+  try {
+    return globalThis.localStorage?.getItem(CLAVE_SIN_ALTAVOZ) !== "si";
+  } catch {
+    return true;
+  }
+}
+
+export function elegirAltavozAlLlamar(activado: boolean): void {
+  try {
+    if (activado) globalThis.localStorage?.removeItem(CLAVE_SIN_ALTAVOZ);
+    else globalThis.localStorage?.setItem(CLAVE_SIN_ALTAVOZ, "si");
+  } catch {
+    // Sin localStorage queda en altavoz.
+  }
+}
+
 /** Llama al número. "directa" = la llamada ya salió desde la APK; "marcador" =
  *  se abrió el marcador (navegador, o la APK sin permiso de llamadas). */
 export async function llamar(numero: string): Promise<"directa" | "marcador"> {
   const limpio = limpiar(numero);
   if (esApp()) {
     try {
-      await Telefono.llamar({ numero: limpio });
+      await Telefono.llamar({ numero: limpio, altavoz: altavozAlLlamar() });
       return "directa";
     } catch {
       // Sin permiso o sin soporte: se sigue con el marcador, como en la web.

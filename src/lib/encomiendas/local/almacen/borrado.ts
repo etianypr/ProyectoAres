@@ -37,20 +37,23 @@ export async function diasPorBorrar(hoy: string): Promise<string[]> {
  *  mostrar nada: no son un día trabajado. Devuelve cuántas fechas limpió. */
 export function borrarSueltos(hoy: string): Promise<number> {
   return enFila(async () => {
-    const [rutas, pedidos, fotos, propuestas] = await Promise.all([
+    const [rutas, pedidos, fotos, propuestas, borradores] = await Promise.all([
       leerTodos(STORES.rutas),
       leerTodosLosPedidos(),
       fechasDeFotos(),
       leerTodos(STORES.propuestas),
+      leerTodos(STORES.borradoresGuia),
     ]);
     const conDatos = new Set([...rutas.map((r) => r.fecha), ...pedidos.map((p) => p.fecha)]);
-    const sueltas = [...new Set([...fotos, ...propuestas.map((p) => p.fecha)])].filter((f) => f < hoy && !conDatos.has(f));
+    const conPropuesta = new Set(propuestas.map((p) => p.fecha));
+    const conBorrador = new Set(borradores.map((b) => b.fecha));
+    const sueltas = [...new Set([...fotos, ...conPropuesta, ...conBorrador])].filter((f) => f < hoy && !conDatos.has(f));
     if (sueltas.length === 0) return 0;
     const claves = (await Promise.all(sueltas.map(clavesFotosDe))).flat();
-    const conPropuesta = new Set(propuestas.map((p) => p.fecha));
-    await escribir([STORES.fotos, STORES.propuestas], ({ borrar }) => {
+    await escribir([STORES.fotos, STORES.propuestas, STORES.borradoresGuia], ({ borrar }) => {
       for (const id of claves) borrar(STORES.fotos, id);
       for (const f of sueltas) if (conPropuesta.has(f)) borrar(STORES.propuestas, f);
+      for (const f of sueltas) if (conBorrador.has(f)) borrar(STORES.borradoresGuia, f);
     });
     return sueltas.length;
   });
@@ -72,22 +75,24 @@ export function resumenesQueSobran(fechas: string[], conCola: Set<string>, hoy: 
  *  transacción: o queda el resumen sin los datos, o queda todo como estaba. */
 export function cerrarYBorrarDia(fecha: string): Promise<ResumenDia | null> {
   return enFila(async () => {
-    const [ruta, pedidos, guardado, fotos, propuesta, dias, cola] = await Promise.all([
+    const [ruta, pedidos, guardado, fotos, propuesta, borrador, dias, cola] = await Promise.all([
       leerRuta(fecha),
       leerPedidos(fecha),
       leerDiaGuardado(fecha),
       clavesFotosDe(fecha),
       leerUno(STORES.propuestas, fecha),
+      leerUno(STORES.borradoresGuia, fecha),
       leerTodos(STORES.dias),
       leerTodos(STORES.cola),
     ]);
     if (!ruta && pedidos.length === 0) {
-      // Una propuesta o unas fotos sueltas no son un día trabajado: se borran sin
-      // dejar resumen.
-      if (propuesta || fotos.length > 0) {
-        await escribir([STORES.propuestas, STORES.fotos], ({ borrar }) => {
+      // Una propuesta, una guía sin crear o unas fotos sueltas no son un día
+      // trabajado: se borran sin dejar resumen.
+      if (propuesta || borrador || fotos.length > 0) {
+        await escribir([STORES.propuestas, STORES.fotos, STORES.borradoresGuia], ({ borrar }) => {
           for (const id of fotos) borrar(STORES.fotos, id);
           if (propuesta) borrar(STORES.propuestas, fecha);
+          if (borrador) borrar(STORES.borradoresGuia, fecha);
         });
       }
       return guardado;
@@ -106,6 +111,7 @@ export function cerrarYBorrarDia(fecha: string): Promise<ResumenDia | null> {
       for (const id of fotos) borrar(STORES.fotos, id);
       if (ruta) borrar(STORES.rutas, fecha);
       if (propuesta) borrar(STORES.propuestas, fecha);
+      if (borrador) borrar(STORES.borradoresGuia, fecha);
     });
     // Las distancias y las respuestas de Google guardan puntos y direcciones de
     // destinatarios (en memoria).

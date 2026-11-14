@@ -14,8 +14,8 @@ vienen de `AGENTS.md`; si este archivo no coincide con él o con `docs/`, valen 
 1. `MEMORY.md` y, de `AGENTS.md`, «Datos de destinatarios», «Ramas y publicación» y «Verificación».
 2. Lee entero `src/lib/encomiendas/local/idb.ts` y las cabeceras de `almacen/index.ts` (las dos
    invariantes) y `almacen/fila.ts` (por qué existe la fila).
-3. ¿Store, índice o versión nueva? Revisa en `specs/README.md` si otra rama reservó la v6 («usa
-   idb v6» en su fila) y sigue `references/agregar-store.md`.
+3. ¿Store, índice o versión nueva? Revisa en `specs/README.md` si otra rama reservó la v8 («usa
+   idb v8» en su fila) y sigue `references/agregar-store.md`.
 4. ¿Borrado o lo que sale del teléfono? Skill `privacidad-destinatarios` y `docs/PRIVACIDAD.md`.
 5. ¿Falla en el teléfono (no abre el día, se perdió algo, no se envía)? `references/fallas.md`.
 
@@ -23,7 +23,7 @@ vienen de `AGENTS.md`; si este archivo no coincide con él o con `docs/`, valen 
 - **El nombre `dashund-encomiendas` no cambia.** IndexedDB se encuentra por nombre: otro nombre es
   una base nueva y vacía. El cambio desde `pucarani-encomiendas` (2026-10-30) borró la vieja sin
   copiarla, `cola` incluida. `NOMBRE_ANTERIOR` y su `deleteDatabase` se pueden quitar desde 2027.
-- **La versión solo sube.** Hoy `VERSION = 6`; la libre es la v7. Abrir con una versión menor que
+- **La versión solo sube.** Hoy `VERSION = 7`; la libre es la v8. Abrir con una versión menor que
   la del teléfono da `VersionError` (comprobado con `fake-indexeddb`): volver a un código con v5
   deja al conductor sin su día. Se revierte hacia adelante, con la misma versión.
 - **Cuándo sube:** al agregar o quitar un store o un índice, o al mover datos entre stores. Un
@@ -53,7 +53,7 @@ vienen de `AGENTS.md`; si este archivo no coincide con él o con `docs/`, valen 
 - **Un error de red nunca borra.** `enviarActividadPendiente` lanza y deja la cola intacta.
   `BorradoLocal` se monta solo si el servidor respondió que la cuenta no tiene ficha o está
   desactivada (spec 007, FR-007).
-- **Datos de destinatarios solo en `STORES_DEL_DIA`** (`pedidos`, `rutas`, `fotos`, `propuestas`), que se borran
+- **Datos de destinatarios solo en `STORES_DEL_DIA`** (`pedidos`, `rutas`, `fotos`, `propuestas`, `borradoresGuia`), que se borran
   con el día (spec 007). `cola` y `dias` no tienen datos de personas y sobreviven. La matriz de
   distancias vive en memoria y se olvida al borrar (`olvidarMatriz`), nunca en IndexedDB.
 - **Un pedido es de un día** (`fecha` «YYYY-MM-DD» en hora de Chile, `hoyChile`): no hay arrastre
@@ -71,6 +71,7 @@ vienen de `AGENTS.md`; si este archivo no coincide con él o con `docs/`, valen 
 | `rutas` | `fecha` | `Ruta`: orden, trazado, partida | sí (puntos) | se borra la de esa fecha | se vacía | se vacía |
 | `fotos` | `id`, índice `por_fecha` | `Foto` (JPEG ≤ 1280 px) | sí (la etiqueta) | se borran las de esa fecha | se vacía | se vacía |
 | `propuestas` (v6) | `fecha` | `PropuestaGuardada`: la ruta propuesta sin aceptar | sí (puntos, avisos) | se borra la de esa fecha | se vacía | se vacía |
+| `borradoresGuia` (v7) | `fecha` | `BorradorGuia`: «Cargar la guía» leída y sin crear | sí (OF, destinos, teléfono) | se borra la de esa fecha | se vacía | se vacía |
 | `cola` | `id` = `encomienda_actividad.id` | `ActividadPorEnviar` | no | queda | queda | se vacía |
 | `dias` | `fecha` | `ResumenDia`: solo cifras | no | recibe el resumen; se podan los de > 60 días sin cola (G5) | recibe uno por día | queda |
 
@@ -96,7 +97,7 @@ Fuera de IndexedDB, en `localStorage` y sin datos de destinatarios: `ares-modo-p
 ## Agregar o cambiar un store
 El paso a paso, con el patrón de `idb.ts` y la prueba de versión, está en
 `references/agregar-store.md`. Lo mínimo:
-1. Preguntar al dueño (cambia el formato de datos) y reservar «usa idb v6» en `specs/README.md`.
+1. Preguntar al dueño (cambia el formato de datos) y reservar «usa idb v8» en `specs/README.md`.
 2. `VERSION = 6` con su línea en el comentario de versiones; el store en `FilaDe` y `STORES`; el
    `createObjectStore` dentro de `if (!base.objectStoreNames.contains(…))`.
 3. Si mueve datos, una función pura en `almacen/migrar.ts`, que corre dentro de la transacción de

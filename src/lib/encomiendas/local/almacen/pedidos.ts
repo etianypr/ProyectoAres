@@ -4,7 +4,7 @@ import { enFila } from "./fila";
 import { leerPedido, leerPedidos, leerRuta } from "./lecturas";
 import { avisoVacio } from "./migrar";
 import { PROBLEMAS_DE_LUGAR, type ProblemaGuardado } from "@/lib/encomiendas/problemas";
-import type { OrigenCarga, Pedido, Ruta } from "./tipos";
+import type { OrigenCarga, Pedido, PropuestaIAGuardada, Ruta } from "./tipos";
 
 /** Los del día que todavía hay que visitar: la entrada para armar la ruta.
  *
@@ -120,6 +120,8 @@ export function cambiarDireccion(
       // Los ⚠ del lugar de antes ya no valen (spec 022).
       problemas: pedido.problemas.filter((x) => !PROBLEMAS_DE_LUGAR.has(x.tipo)),
     };
+    // La propuesta de la IA era para la dirección de antes: ya no vale.
+    delete cambiado.propuestaIA;
     await escribir([STORES.pedidos], ({ guardar }) => guardar(STORES.pedidos, cambiado));
     return cambiado;
   });
@@ -128,6 +130,18 @@ export function cambiarDireccion(
 /** Anota el teléfono del receptor (ya normalizado) sin tocar el resto: al
  *  confirmar una corrección de la IA en «Cargar la guía» (dueño, 2026-11-13).
  *  Solo en el teléfono, como el del formulario. */
+/** Guarda en el pedido lo que propuso la IA (dueño, 2026-11-13): si la app se
+ *  cierra con la propuesta a la vista, al volver sigue ahí sin preguntar de nuevo. */
+export function guardarPropuestaIA(id: string, propuesta: PropuestaIAGuardada): Promise<Pedido | null> {
+  return enFila(async () => {
+    const pedido = await leerPedido(id);
+    if (!pedido) return null;
+    const cambiado: Pedido = { ...pedido, propuestaIA: propuesta };
+    await escribir([STORES.pedidos], ({ guardar }) => guardar(STORES.pedidos, cambiado));
+    return cambiado;
+  });
+}
+
 export function fijarTelefono(id: string, telefono: string): Promise<Pedido | null> {
   return enFila(async () => {
     const pedido = await leerPedido(id);

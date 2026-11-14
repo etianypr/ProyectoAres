@@ -150,6 +150,8 @@ las tablas llevan `empresa_id` y RLS. Tipos de servidor: `src/types/db.ts`; del 
 | Cifras de un día ya borrado | Teléfono · `dias` (sobrevive) | `ResumenDia` |
 | Foto del paquete | Teléfono · `fotos` (se borra al cerrarse el pedido y con el día) | `Foto` |
 | Ruta propuesta sin aceptar | Teléfono · `propuestas` (una por día; se borra al usarla o descartarla y con el día) | `PropuestaGuardada` |
+| Guía leída sin crear los pedidos | Teléfono · `borradoresGuia` (una por día; se borra al crear, al descartar y con el día) | `BorradorGuia` |
+| Corrección de la IA sin confirmar | Teléfono · `pedidos` (campo opcional; se quita al confirmar o cambiar la dirección) | `Pedido.propuestaIA` |
 | Hecho de entregar u omitir | Teléfono · `cola` → Postgres (mismo id) | `ActividadPorEnviar` → `Actividad` |
 | Aviso esperando respuesta | Postgres, máx. 72 h (solo código, estado y respuesta) | `Aviso` |
 | Inicio y cierre del día | Postgres | `DiaTrabajo` |

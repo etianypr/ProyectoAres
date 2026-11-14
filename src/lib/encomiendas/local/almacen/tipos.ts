@@ -7,6 +7,7 @@ import type {
   TipoEvento,
 } from "@/lib/encomiendas/catalogos";
 import type { ReferenciaPaquete } from "@/lib/encomiendas/paquete";
+import type { LineaGuia } from "@/lib/encomiendas/lectura/guia";
 import type { ProblemaGuardado } from "@/lib/encomiendas/problemas";
 import type { ResultadoVisita, ResultadoLlamada } from "@/lib/encomiendas/estados";
 import type { Coordenada, Trazado } from "@/lib/geo/coordenada";
@@ -78,6 +79,24 @@ export type Pedido = {
    *  OF) no se guarda: ver problemasDelPedido. Los pedidos de antes no lo tienen
    *  (alDia). */
   problemas: ProblemaGuardado[];
+  /** La corrección que propuso la IA y el conductor no confirmó todavía (spec 018):
+   *  guardada para que cerrar la app no obligue a preguntarle de nuevo (y pagar dos
+   *  veces; dueño, 2026-11-13). Vale solo mientras `direccion` siga siendo
+   *  `original`; cambiar la dirección la quita. Los pedidos de antes no la tienen. */
+  propuestaIA?: PropuestaIAGuardada;
+};
+
+/** Lo que contestó la IA para un pedido sin ubicar (corregir-direcciones.ts). */
+export type PropuestaIAGuardada = {
+  /** La dirección del pedido cuando se preguntó. */
+  original: string;
+  direccion: string;
+  lat: number;
+  lng: number;
+  enLaCuadra: boolean;
+  soloCalle: boolean;
+  segura: boolean;
+  motivo: string;
 };
 
 /** guia_foto: la foto de la guía leída en el teléfono, sin IA (spec 005). */
@@ -259,4 +278,24 @@ export type Aviso = {
   horariosEnviados: boolean;
   /** Ids de mensaje de respuesta ya aplicados: no se aplican dos veces. */
   respuestasAplicadas: string[];
+};
+
+/** «Cargar la guía» a medio hacer (store `borradoresGuia`, v7; dueño, 2026-11-13):
+ *  lo leído de las fotos, la nómina o el texto pegado, todavía sin «Crear pedidos».
+ *  Si la app se cierra, al volver se abre la ventana en el mismo paso y no se lee
+ *  (ni se paga) otra vez. Las fotos sin leer no se guardan. Tiene direcciones:
+ *  se borra con el día (STORES_DEL_DIA). */
+export type BorradorGuia = {
+  /** "YYYY-MM-DD". Es la clave del store: uno por día. */
+  fecha: string;
+  paso: "fotos" | "pegar" | "revisar";
+  lineas: LineaGuia[];
+  avisos: string[];
+  folio: string | null;
+  /** MONTO NETO de la guía, si se leyó. */
+  total: number | null;
+  /** El texto pegado y todavía sin leer. */
+  texto: string;
+  /** Quién leyó lo que hay (decide el origen de los pedidos); null = texto pegado. */
+  fuente: "texto" | "ia" | null;
 };

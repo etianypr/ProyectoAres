@@ -22,6 +22,8 @@ antes de las autorizaciones (el contrato con Starken aplica desde ya; la ley des
 | OF, destino, nombre, teléfono, por pagar, monto | teléfono | cierre del día |
 | Descripción y foto del paquete, ruta | teléfono | cierre del día |
 | Ruta propuesta sin aceptar (paradas como id y punto, trazado y avisos; store `propuestas`) | teléfono | al usarla o descartarla, y al cierre del día |
+| Guía leída sin crear los pedidos (OF, destino y teléfono anotado; store `borradoresGuia`, v7) | teléfono | al crear los pedidos o descartar lo leído, y al cierre del día |
+| Corrección de la IA sin confirmar (`Pedido.propuestaIA`: dirección y punto propuestos) | teléfono | al confirmarla o cambiar la dirección, y al cierre del día con el pedido |
 | Cuadros del escáner en vivo (spec 028, APK 1.6.0): la etiqueta en cámara y su texto | memoria del teléfono, mientras está abierto; la captura en alta queda como foto del paquete | se olvidan al pasar a la siguiente; la foto, con el día |
 | Cuadros al barrer la nómina («Cargar la guía» → «Barrer la nómina», 2026-11-11): la nómina en cámara, con el nombre del destinatario | memoria del teléfono, mientras está abierto; solo la OF y la dirección pasan a las líneas de la guía (el nombre no se lee) | se olvidan al terminar; las líneas, como las de la guía |
 | Teléfono del receptor anotado al revisar una línea de la guía o una corrección de la IA («Cargar la guía», dueño 2026-11-13; lo saca de Infologistic) | memoria del teléfono (la línea, sin IndexedDB) y, al crear, el `telefono` del pedido. No va a la IA, a Cloud Vision ni a los buscadores: la guía ya se leyó, y al ubicar sale solo la dirección (`lectura/telefono-linea.ts`, prueba `guia-telefono.test.mjs`) | la línea, al cerrar la ventana; el pedido, al cierre del día |

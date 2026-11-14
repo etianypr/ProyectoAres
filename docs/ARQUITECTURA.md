@@ -139,7 +139,7 @@ es solo para `admin`/`operador` y la app solo para `conductor`; RLS repite la re
 | Conteos de entregadas y no entregadas | los suyos | de todos |
 | Reglas de pago, bonos y bloques horarios | los lee | los configura |
 
-### Teléfono (IndexedDB `dashund-encomiendas` v6)
+### Teléfono (IndexedDB `dashund-encomiendas` v7)
 
 | Store | Clave | Contenido | Relación |
 |---|---|---|---|
@@ -148,6 +148,7 @@ es solo para `admin`/`operador` y la app solo para `conductor`; RLS repite la re
 | `cola` | `id` | `ActividadPorEnviar`; con `borrar: true` es una corrección: borra ese id en el servidor (spec 033, G5; campo opcional, sin subir la versión) | `id` = `encomienda_actividad.id` (sin duplicados) |
 | `fotos` | `id` (índice `por_fecha`) | `Foto` del paquete, JPEG ≤ 1280 px (spec 003) | `Pedido.fotoId`; se borra al cerrarse el pedido y con el día |
 | `propuestas` | `fecha` | `PropuestaGuardada`: la ruta propuesta a la vista y sin aceptar (v6, dueño 2026-11-09), con las paradas como id y punto, el trazado y los avisos; vuelve sola al abrir si los pendientes no cambiaron (`generar-ruta/propuesta-guardada.ts`) | paradas → pedidos; se borra al usarla o descartarla y con el día |
+| `borradoresGuia` | `fecha` | `BorradorGuia`: «Cargar la guía» leída y sin «Crear pedidos» (v7, dueño 2026-11-13): paso, líneas (OF, destino, teléfono anotado), folio, total, texto pegado y quién leyó. Al abrir la app con uno, se vuelve a esa ventana en su paso (`_hooks/use-borrador-guia.ts`); las fotos sin leer no se guardan | se borra al crear los pedidos o descartar lo leído y con el día |
 | `dias` | `fecha` | `ResumenDia`: solo cifras de un día ya borrado (spec 007): entregas, cobros sumados y pedidos por origen de carga (005), sin datos de destinatarios. Quedan los últimos 60 días (`DIAS_DE_RESUMEN`), salvo uno con eventos en la `cola` | inicio y cierre → `encomienda_jornadas` si la ruta ya no está |
 
 Formas en `local/almacen/tipos.ts`; `idb.ts` (`FilaDe`) tipa cada store y solo `almacen/` lo usa.

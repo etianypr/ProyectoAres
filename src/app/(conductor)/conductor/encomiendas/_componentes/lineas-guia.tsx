@@ -25,6 +25,11 @@ export const lineaConProblema = (l: LineaGuia) => lineaMala(l) || Boolean(l.porC
 /** OF y destino de una línea, editables. */
 export function CamposLinea({ linea, onCambiar }: { linea: LineaGuia; onCambiar: (cambio: Partial<LineaGuia>) => void }) {
   const of = ofValida(linea.of);
+  // Mientras se escribe, el campo muestra lo escrito tal cual: darle formato en
+  // cada tecla («123 456 789») mandaba el cursor al final y no dejaba borrar un
+  // dígito del medio; había que escribir la OF entera de nuevo (terreno
+  // 2026-11-14). El formato vuelve al salir del campo.
+  const [escrita, setEscrita] = useState<string | null>(null);
   /** «Teléfono · opcional» se abre con el botón; con uno ya anotado, de entrada. */
   const [conTelefono, setConTelefono] = useState(() => (linea.telefono ?? "").trim() !== "");
   return (
@@ -33,8 +38,12 @@ export function CamposLinea({ linea, onCambiar }: { linea: LineaGuia; onCambiar:
         compacto
         etiqueta="OF"
         inputMode="numeric"
-        value={of ? formatoOf(of) : linea.of}
-        onChange={(e) => onCambiar({ of: e.target.value })}
+        value={escrita !== null && escrita === linea.of ? escrita : of ? formatoOf(of) : linea.of}
+        onChange={(e) => {
+          setEscrita(e.target.value);
+          onCambiar({ of: e.target.value });
+        }}
+        onBlur={() => setEscrita(null)}
         tono={of ? "normal" : "aviso"}
         className="font-mono font-semibold tabular-nums"
       />

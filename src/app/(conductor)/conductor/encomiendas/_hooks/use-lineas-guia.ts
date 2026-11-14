@@ -62,10 +62,21 @@ export function useLineasGuia() {
     setQuitada(null);
   }
 
+  /** Vuelve a lo guardado en el borrador (use-borrador-guia.ts). */
+  function restaurar(b: { lineas: LineaGuia[]; avisos: string[]; folio: string | null; total: number | null }) {
+    setLineas(b.lineas);
+    setAvisos(b.avisos);
+    setFolio(b.folio);
+    setTotal(b.total);
+    setQuitada(null);
+  }
+
   return {
     lineas,
     avisos,
     folio,
+    total,
+    restaurar,
     hayQuitada: quitada != null,
     sumar,
     cambiar,

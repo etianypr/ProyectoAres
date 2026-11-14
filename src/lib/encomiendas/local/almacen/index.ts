@@ -21,10 +21,12 @@
 export type {
   Aviso,
   ActividadPorEnviar,
+  BorradorGuia,
   Foto,
   OrigenCarga,
   Pedido,
   PropuestaGuardada,
+  PropuestaIAGuardada,
   ReferenciaPaquete,
   ResumenDia,
   Ruta,
@@ -37,6 +39,7 @@ export {
   fijarCoordenadas,
   fijarTelefono,
   guardarPedido,
+  guardarPropuestaIA,
   pedidosPendientes,
   restaurarPedido,
   type DatosPedido,
@@ -86,6 +89,7 @@ export {
 export { cambiarResultado, PLAZO_CORREGIR_MS, sePuedeCambiar } from "./correccion";
 export { apartarRechazado, leerCola, leerRechazados, MOTIVO_PLAZO, quitarCorreccion, quitarDeCola, retenerEvento } from "./cola";
 export { borrarPropuestaGuardada, guardarPropuesta, leerPropuestaGuardada } from "./propuesta";
+export { borrarBorradorGuia, guardarBorradorGuia, leerBorradorGuia } from "./borrador-guia";
 export {
   aplicarLecturaEtiqueta,
   crearDesdeGuia,

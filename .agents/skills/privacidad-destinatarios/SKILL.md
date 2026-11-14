@@ -91,7 +91,7 @@ GPS simulado, voz) y `public/sw.js` (nunca guarda `/api` ni otros orígenes).
 - [ ] Migración: preguntar antes (hay un solo proyecto y es producción).
 
 **Store nuevo, o un dato de personas en otro lugar del teléfono**
-- [ ] Sumarlo a `STORES_DEL_DIA` (`idb.ts`), en la siguiente versión libre (v6), con prueba en
+- [ ] Sumarlo a `STORES_DEL_DIA` (`idb.ts`), en la siguiente versión libre (v8), con prueba en
       `idb-version.test.mjs`. Detalle: skill `base-local-idb`.
 - [ ] **Ojo:** `STORES_DEL_DIA` solo alcanza al vaciado entero (`borrarDatosDestinatarios`,
       `salirDelModoPrueba`). `cerrarYBorrarDia` borra por fecha, clave por clave: el store nuevo

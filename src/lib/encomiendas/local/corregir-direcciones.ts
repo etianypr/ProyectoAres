@@ -10,7 +10,7 @@ import { nombreVisible } from "@/lib/encomiendas/paquete";
 import { corregirConIA, IANoDisponible } from "@/lib/geo/direccion-ia/cliente";
 import { MAX_DIRECCIONES_POR_TANDA, type ResultadoIA } from "@/lib/geo/direccion-ia/contrato";
 import { telefonoParaGuardar } from "@/lib/comun/telefono";
-import { cambiarDireccion, fijarTelefono, leerPedidos, type Pedido } from "./almacen";
+import { cambiarDireccion, fijarTelefono, guardarPropuestaIA, leerPedidos, type Pedido } from "./almacen";
 import { hastaAbortar, hayRed } from "./ubicar-carga";
 
 /** Una corrección a confirmar. */
@@ -52,6 +52,23 @@ const FALLOS_PARA_PARAR = 2;
 
 const sinUbicar = (p: Pedido) => p.resultado === "pendiente" && (p.lat == null || p.lng == null) && p.direccion.trim() !== "";
 
+/** La propuesta guardada sigue valiendo: el pedido sigue sin ubicar y con la
+ *  misma dirección que se le preguntó a la IA. */
+const conPropuestaVigente = (p: Pedido) => sinUbicar(p) && p.propuestaIA != null && p.propuestaIA.original === p.direccion;
+
+function propuestaDe(p: Pedido, guardada: NonNullable<Pedido["propuestaIA"]>): PropuestaCorreccion {
+  return { pedidoId: p.id, nombre: nombreVisible(p), telefono: p.telefono, ...guardada };
+}
+
+/** Las propuestas de la IA guardadas y sin confirmar (dueño, 2026-11-13): al
+ *  volver a la app se muestran de nuevo sin preguntarle otra vez. */
+export async function propuestasGuardadas(fecha: string, ids?: string[]): Promise<PropuestaCorreccion[]> {
+  const soloEstos = ids ? new Set(ids) : null;
+  return (await leerPedidos(fecha))
+    .filter((p) => conPropuestaVigente(p) && (!soloEstos || soloEstos.has(p.id)))
+    .map((p) => propuestaDe(p, p.propuestaIA!));
+}
+
 /** La puerta, o la cuadra con el número dentro. La calle entera, nunca: su
  *  punto es la mitad de la calle (terreno 2026-10-28). */
 export function esSegura(r: Extract<ResultadoIA, { tipo: "propuesta" }>): boolean {
@@ -85,7 +102,8 @@ export async function corregirSinUbicar(
 ): Promise<ResumenCorreccion> {
   const soloEstos = ids ? new Set(ids) : null;
   const pendientes = (await leerPedidos(fecha))
-    .filter((p) => sinUbicar(p) && (!soloEstos || soloEstos.has(p.id)) && !excluir.includes(p.id))
+    // Los que ya tienen una propuesta guardada no se vuelven a pagar.
+    .filter((p) => sinUbicar(p) && !conPropuestaVigente(p) && (!soloEstos || soloEstos.has(p.id)) && !excluir.includes(p.id))
     .slice(0, MAX_DIRECCIONES_POR_TANDA);
   const resumen: ResumenCorreccion = { propuestas: [], sinArreglo: 0, sinIA: false, sinSenal: 0 };
   if (!enLinea()) return { ...resumen, sinSenal: pendientes.length };
@@ -112,10 +130,7 @@ export async function corregirSinUbicar(
     }
     seguidas = 0;
     if (r.tipo === "propuesta" && r.candidato.confianza !== "baja") {
-      resumen.propuestas.push({
-        pedidoId: p.id,
-        nombre: nombreVisible(p),
-        telefono: p.telefono,
+      const guardada = {
         original: p.direccion,
         direccion: r.direccion,
         lat: r.candidato.lat,
@@ -124,7 +139,11 @@ export async function corregirSinUbicar(
         soloCalle: r.candidato.soloCalle,
         segura: esSegura(r),
         motivo: r.motivo,
-      });
+      };
+      // Se guarda apenas llega: cerrar la app a mitad de la tanda no pierde lo pagado.
+      // Si no se puede guardar, la propuesta se muestra igual.
+      await guardarPropuestaIA(p.id, guardada).catch(() => null);
+      resumen.propuestas.push(propuestaDe(p, guardada));
     } else {
       resumen.sinArreglo++;
     }

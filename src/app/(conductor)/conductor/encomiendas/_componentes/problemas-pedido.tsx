@@ -7,9 +7,13 @@
 // se hace en el formulario de abajo, pero también se nombra acá (spec 033): sin
 // «Va igual», porque siguen siendo ⚠. Con un teléfono válido escrito, «Llamar»
 // al receptor sin salir del ⚠ (spec 033, llamar-resolver).
+//
+// Cerrados en una sola línea «⚠ N por resolver» que se abre al tocarla (dueño,
+// 2026-11-13: abiertos ocupaban la pantalla y tapaban el formulario). «Llamar»
+// queda siempre a la vista.
 
 import { useState } from "react";
-import { AlertTriangle, Phone } from "lucide-react";
+import { AlertTriangle, ChevronDown, Phone } from "lucide-react";
 import { MapaPunto } from "@/components/direccion/mapa-punto";
 import {
   elegirLugar,
@@ -37,6 +41,7 @@ export function ProblemasPedido({
   const [ocupado, setOcupado] = useState(false);
   const [llamando, setLlamando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [abierto, setAbierto] = useState(false);
   const pendientes = pedido.problemas.filter((x) => !("revisado" in x && x.revisado));
   // Los que se deducen del pedido (sin punto, sin OF): solo se nombran.
   const deducidos = problemasDelPedido(pedido).filter((x) => x.tipo === "sin_ubicar" || x.tipo === "sin_of");
@@ -74,15 +79,29 @@ export function ProblemasPedido({
           Llamar
         </button>
       ) : null}
-      {deducidos.map((x) => (
-        <p key={x.tipo} className="flex items-start gap-1.5 rounded-2xl bg-warn-bg px-3.5 py-3 text-sm font-semibold text-warn">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>{x.texto}</span>
-        </p>
-      ))}
-      {pendientes.map((x) => (
-        <Problema key={x.tipo} problema={x} pedido={pedido} ocupado={ocupado} hacer={hacer} />
-      ))}
+      <button
+        type="button"
+        aria-expanded={abierto}
+        onClick={() => setAbierto((a) => !a)}
+        className="flex w-full items-center gap-1.5 rounded-2xl bg-warn-bg px-3.5 py-3 text-left text-sm font-semibold text-warn active:scale-[0.99]"
+      >
+        <AlertTriangle className="h-4 w-4 shrink-0" />
+        <span className="flex-1">{deducidos.length + pendientes.length} por resolver</span>
+        <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${abierto ? "rotate-180" : ""}`} />
+      </button>
+      {abierto ? (
+        <>
+          {deducidos.map((x) => (
+            <p key={x.tipo} className="flex items-start gap-1.5 rounded-2xl bg-warn-bg px-3.5 py-3 text-sm font-semibold text-warn">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{x.texto}</span>
+            </p>
+          ))}
+          {pendientes.map((x) => (
+            <Problema key={x.tipo} problema={x} pedido={pedido} ocupado={ocupado} hacer={hacer} />
+          ))}
+        </>
+      ) : null}
       {error ? <p className="rounded-lg bg-danger-bg px-3 py-2 text-xs text-danger">{error}</p> : null}
     </div>
   );

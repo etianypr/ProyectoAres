@@ -13,6 +13,7 @@ import { AlertTriangle, Check, Flashlight, FlashlightOff, Loader2, PackagePlus, 
 import { Campo } from "@/components/ui/campo";
 import { cn } from "@/lib/comun/utils";
 import { formatCLP } from "@/lib/comun/format";
+import { leerCodigoEtiqueta } from "@/lib/encomiendas/lectura/codigo-barras";
 import { formatoOf } from "@/lib/encomiendas/paquete";
 import { sePuedeQuitarBulto } from "@/lib/encomiendas/local/almacen";
 import { useAtrasPropio } from "../_hooks/use-atras-propio";
@@ -82,10 +83,21 @@ export function EscanerVivo({
       setErrorCodigo("Ese código no es de una etiqueta de Starken.");
       return;
     }
+    // Lo escrito se queda: si la OF no está en el día (un dígito mal), «Escribir
+    // la OF» la trae de vuelta para corregirla, sin escribirla entera de nuevo
+    // (terreno 2026-11-14).
     campoOf.current?.blur();
     setErrorCodigo(null);
-    setCodigoEscrito("");
     setEscribiendo(false);
+  }
+
+  /** «Escribir la OF»: vacío, salvo con una OF que no está en el día (leída o
+   *  escrita): viene puesta, para cambiarle solo el dígito malo («270…» por
+   *  «280…») en vez de escribirla entera (terreno 2026-11-14). */
+  function abrirEscribir() {
+    if (estado.tipo !== "noEsta") setCodigoEscrito("");
+    else if (leerCodigoEtiqueta(codigoEscrito)?.of !== estado.of) setCodigoEscrito(formatoOf(estado.of));
+    setEscribiendo(true);
   }
 
   if (typeof document === "undefined") return null;
@@ -268,8 +280,8 @@ export function EscanerVivo({
               </button>
             </div>
           ) : (
-            <button type="button" onClick={() => setEscribiendo(true)} className="h-11 w-full text-sm font-semibold text-brand">
-              Escribir la OF
+            <button type="button" onClick={abrirEscribir} className="h-11 w-full text-sm font-semibold text-brand">
+              {estado.tipo === "noEsta" ? "Corregir la OF" : "Escribir la OF"}
             </button>
           )
         ) : null}

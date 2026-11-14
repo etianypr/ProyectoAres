@@ -36,6 +36,7 @@ import { useLineasGuia } from "../_hooks/use-lineas-guia";
 import { resultadoDelBarrido, useBarridoDisponible, useBarridoNomina, type Barrido } from "../_hooks/use-barrido-nomina";
 import { useCargarLineas } from "../_hooks/use-cargar-lineas";
 import { useAtrasPropio } from "../_hooks/use-atras-propio";
+import { useBorradorGuia } from "../_hooks/use-borrador-guia";
 
 export function CargarGuia({
   fecha,
@@ -94,6 +95,12 @@ export function CargarGuia({
   const carga = useCargarLineas({ fecha, lecturaIA, onCreados });
   const { fin } = carga;
 
+  const borrador = useBorradorGuia({
+    fecha,
+    estado: { paso, lineas, avisos, folio, total: guia.total, texto, fuente },
+    creando: fin != null,
+    onRecuperado: (b) => (guia.restaurar(b), setTexto(b.texto), setFuente(b.fuente), setPaso(b.paso === "fotos" && !conFoto ? "pegar" : b.paso)),
+  });
   const malas = useMemo(() => lineas.filter(lineaMala).length, [lineas]);
   const porConfirmar = useMemo(() => lineas.filter((l) => l.porConfirmar).length, [lineas]);
   const ocupado = fin?.tipo === "ubicando" || fin?.tipo === "corrigiendo";
@@ -356,7 +363,7 @@ export function CargarGuia({
           onSumar={onSumar}
           onEscanear={onEscanearPaquetes}
           armar={armar}
-          onDescartar={onCerrar}
+          onDescartar={() => void borrador.descartar().then(onCerrar)}
           onDeshacer={() => void deshacerCarga()}
           onSeguir={() => setPregunta(null)}
         />
