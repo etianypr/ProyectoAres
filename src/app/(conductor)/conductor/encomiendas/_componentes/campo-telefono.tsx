@@ -1,7 +1,8 @@
 "use client";
 
-// «Teléfono · opcional» y «Llamar» en «Cargar la guía» (dueño, 2026-11-13): en la
-// línea con ⚠ (paso 2) y en cada corrección de la IA (paso 3). «Llamar» aparece
+// El teléfono (opcional, sin rótulo: solo la dirección lleva *) y «Llamar» en «Cargar
+// la guía» (dueño, 2026-11-13): en la línea con ⚠ (paso 2) y en cada corrección de
+// la IA (paso 3). «Llamar» aparece
 // solo con un número válido y usa la misma llamada que la parada: de fondo en la
 // APK, `tel:` sin ella. El número no sale del teléfono.
 
@@ -22,7 +23,6 @@ export function CampoTelefono({ valor, onCambiar }: { valor: string; onCambiar: 
       <Campo
         compacto
         etiqueta="Teléfono"
-        extra="opcional"
         type="tel"
         inputMode="tel"
         autoComplete="off"
@@ -52,7 +52,7 @@ export function CampoTelefono({ valor, onCambiar }: { valor: string; onCambiar: 
   );
 }
 
-/** El botón que abre y cierra «Teléfono · opcional» (dueño, 2026-11-13): el campo
+/** El botón que abre y cierra el campo del teléfono (dueño, 2026-11-13): el campo
  *  no está siempre a la vista; con un teléfono ya anotado se abre de entrada. */
 export function BotonTelefono({ abierto, onClick }: { abierto: boolean; onClick: () => void }) {
   return (

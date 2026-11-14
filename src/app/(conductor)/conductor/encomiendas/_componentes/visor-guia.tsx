@@ -2,7 +2,7 @@
 
 // Paso 1 de «Cargar la guía», «Como el papel» (dueño, 2026-11-13, maqueta B): un
 // recuadro oscuro con el marco de la hoja, las fotos tomadas apiladas abajo y, en
-// el pie, la cámara y «Scan físico» (lee las fotos juntas); lo demás, tras «Otra
+// el pie, la cámara y «Leer direcciones» (lee las fotos juntas); lo demás, tras «Otra
 // forma» (versión simple, dueño 2026-11-14).
 //
 // El recuadro NO es una cámara en vivo: con la cámara de ARES abierta la app se
@@ -94,10 +94,11 @@ export function VisorGuia({
   );
 }
 
-const ENLACE = "rounded-full px-2 py-1.5 text-sm font-semibold text-brand active:bg-card disabled:opacity-50";
+const ENLACE =
+  "flex h-10 items-center justify-center rounded-full border border-separator bg-card px-3 text-sm font-semibold text-brand active:scale-[0.97] disabled:opacity-50";
 
 /** El pie del paso 1, versión simple (dueño, 2026-11-14): la cámara y, con fotos,
- *  «Scan físico» (lee las fotos juntas). Los otros caminos —Galería, Nómina y
+ *  «Leer direcciones» (lee las fotos juntas). Los otros caminos —Galería, Nóminas físicas y
  *  Pegar texto— quedan tras «Otra forma», que se despliega en el mismo lugar. */
 export function PieFotos({
   fotos,
@@ -115,7 +116,7 @@ export function PieFotos({
   onCamara: () => void;
   onGaleria: () => void;
   onLeer: () => void;
-  /** «Nómina» (barrer la nómina), solo en una APK que lo trae. */
+  /** «Nóminas físicas» (barrer la nómina), solo en una APK que lo trae. */
   onBarrer?: () => void;
   onPegar: () => void;
 }) {
@@ -145,8 +146,8 @@ export function PieFotos({
             className="flex h-12 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full bg-brand text-[15px] font-semibold text-brand-foreground transition-transform active:scale-[0.97] disabled:opacity-50"
           >
             {leyendo ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            {/* Nombre del dueño (2026-11-13). */}
-            Scan físico
+            {/* Nombre del dueño (2026-11-14): lee las fotos y saca OF y direcciones. */}
+            Leer direcciones
           </button>
         ) : null}
       </div>
@@ -155,7 +156,7 @@ export function PieFotos({
           deshabilitado={leyendo}
           enlaces={[
             lleno ? null : { texto: "Galería", onClick: onGaleria },
-            onBarrer ? { texto: "Nómina", onClick: onBarrer } : null,
+            onBarrer ? { texto: "Nóminas físicas", onClick: onBarrer } : null,
             { texto: "Pegar texto", onClick: onPegar },
           ]}
         />
@@ -176,18 +177,16 @@ export function PieFotos({
 
 type Enlace = { texto: string; onClick: () => void };
 
-/** Los otros caminos, chicos y separados por «·». */
+/** Los otros caminos, en botones chicos centrados (si no caben en un renglón, el
+ *  siguiente también queda centrado). */
 export function EnlacesGuia({ enlaces, deshabilitado = false }: { enlaces: (Enlace | null)[]; deshabilitado?: boolean }) {
   const lista = enlaces.filter((e): e is Enlace => e != null);
   return (
-    <div className="flex flex-wrap items-center justify-center gap-x-1 text-muted">
-      {lista.map((e, i) => (
-        <span key={e.texto} className="flex items-center gap-x-1">
-          {i > 0 ? <span aria-hidden>·</span> : null}
-          <button type="button" disabled={deshabilitado} onClick={e.onClick} className={ENLACE}>
-            {e.texto}
-          </button>
-        </span>
+    <div className="flex flex-wrap items-center justify-center gap-2">
+      {lista.map((e) => (
+        <button key={e.texto} type="button" disabled={deshabilitado} onClick={e.onClick} className={ENLACE}>
+          {e.texto}
+        </button>
       ))}
     </div>
   );

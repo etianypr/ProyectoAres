@@ -1,16 +1,13 @@
 "use client";
 
 // El formulario de un pedido dentro de la hoja (sale de pantalla.tsx, spec 002
-// T037). Spec 033: con cambios sin guardar, ←, ✕ y atrás preguntan («Cambios sin
-// guardar · Guardar · Descartar»); resolviendo los ⚠, «Siguiente» pasa al que
-// viene sin guardar.
+// T037). Resolviendo los ⚠, «Siguiente» pasa al que viene sin guardar. ←, ✕ y
+// atrás cierran sin preguntar (dueño, 2026-11-14: «Guardar o descartar» no sirve).
 
 import { useCallback, useState } from "react";
 import { ArrowLeft, ChevronRight, X } from "lucide-react";
 import type { Pedido } from "@/lib/encomiendas/local/almacen";
-import { ID_FORM_PEDIDO, PedidoFormLocal, type CambiosForm } from "./pedido-form-local";
-import { FranjaConfirmar } from "./franja-confirmar";
-import { useAtrasPropio } from "../_hooks/use-atras-propio";
+import { PedidoFormLocal, type CambiosForm } from "./pedido-form-local";
 import { ProblemasPedido } from "./problemas-pedido";
 
 /** El formulario de un pedido, DENTRO de la hoja deslizable (ver BottomSheet,
@@ -63,12 +60,8 @@ export function VistaPedido({
   onGuardado: (aviso?: string | null) => void;
 }) {
   const [escribiendo, setEscribiendo] = useState(false);
-  const [cambios, setCambios] = useState<CambiosForm>({ sucio: false, telefono: null });
-  /** Lo que se iba a hacer cuando apareció «Cambios sin guardar». */
-  const [pendiente, setPendiente] = useState<(() => void) | null>(null);
+  const [cambios, setCambios] = useState<CambiosForm>({ telefono: null });
   const alCambiar = useCallback((c: CambiosForm) => setCambios(c), []);
-  const salir = (accion: () => void) => (cambios.sucio ? setPendiente(() => accion) : accion());
-  useAtrasPropio(cambios.sucio, () => (pendiente ? setPendiente(null) : setPendiente(() => onCerrar)));
   return (
     <>
       {/* Dos controles que hacen lo mismo, a propósito: la flecha de la
@@ -79,7 +72,7 @@ export function VistaPedido({
       <div className="flex shrink-0 items-center gap-1 border-b border-divider px-2 py-2">
         <button
           type="button"
-          onClick={() => salir(onCerrar)}
+          onClick={onCerrar}
           aria-label="Volver"
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted active:bg-background"
         >
@@ -91,7 +84,7 @@ export function VistaPedido({
         {onSiguiente ? (
           <button
             type="button"
-            onClick={() => salir(onSiguiente)}
+            onClick={onSiguiente}
             className="flex h-9 shrink-0 items-center gap-0.5 rounded-full px-2.5 text-sm font-semibold text-brand active:bg-background"
           >
             Siguiente
@@ -100,7 +93,7 @@ export function VistaPedido({
         ) : null}
         <button
           type="button"
-          onClick={() => salir(onCerrar)}
+          onClick={onCerrar}
           aria-label="Cerrar"
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted active:bg-background"
         >
@@ -112,24 +105,6 @@ export function VistaPedido({
           Resolver uno cuenta como guardar: resolviendo los ⚠, abre el siguiente.
           Escribiendo se esconden: con el teclado arriba tapaban el campo y sus
           sugerencias (dueño, 2026-11-09). */}
-      {pendiente ? (
-        <FranjaConfirmar
-          className="shrink-0 border-b border-divider px-4 py-3"
-          texto="Cambios sin guardar"
-          si="Descartar"
-          no="Guardar"
-          onSi={() => {
-            const accion = pendiente;
-            setPendiente(null);
-            accion();
-          }}
-          onNo={() => {
-            setPendiente(null);
-            (document.getElementById(ID_FORM_PEDIDO) as HTMLFormElement | null)?.requestSubmit();
-          }}
-        />
-      ) : null}
-
       {pedido && !escribiendo ? (
         <ProblemasPedido pedido={pedido} telefono={cambios.telefono} onResuelto={() => onGuardado(null)} />
       ) : null}

@@ -137,7 +137,7 @@ export function CargarGuia({
     sumar(leida.lineas, leida.folio, leida.totalDeclarado);
   }
 
-  /** Suma fotos a las juntadas, sin leerlas: se leen juntas con «Scan físico». */
+  /** Suma fotos a las juntadas, sin leerlas: se leen juntas con «Leer direcciones». */
   function agregarFotos(archivos: File[]) {
     if (entradaFoto.current) entradaFoto.current.value = "";
     if (entradaFotos.current) entradaFotos.current.value = "";

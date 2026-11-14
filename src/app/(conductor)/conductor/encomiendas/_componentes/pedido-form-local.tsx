@@ -15,9 +15,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ResolverDireccion, type PorResolver } from "./resolver-direccion";
-import { MarcarPunto } from "./marcar-punto";
 import { SeccionPaquete, usePaqueteForm } from "./seccion-paquete";
-import { plusCodeDe } from "@/lib/geo/plus-code";
 import { Check, Save, StickyNote } from "lucide-react";
 import { Campo, CampoArea, NotaCampo } from "@/components/ui/campo";
 import { DireccionInput } from "@/components/direccion/direccion-input";
@@ -30,11 +28,9 @@ import { ofValida } from "@/lib/encomiendas/paquete";
 
 const VACIO = { nombre: "", telefono: "", direccion: "", notas: "" };
 
-/** El id del formulario: «Cambios sin guardar · Guardar» lo envía desde afuera. */
-export const ID_FORM_PEDIDO = "pedido-form-local";
-
-/** Lo que la vista que lo contiene necesita saber del formulario (spec 033). */
-export type CambiosForm = { sucio: boolean; telefono: string | null };
+/** Lo que la vista que lo contiene necesita saber del formulario (spec 033): el
+ *  teléfono escrito, si es válido, para el «Llamar» de los ⚠. */
+export type CambiosForm = { telefono: string | null };
 
 /** Dirección que el conductor eligió de la lista de sugerencias: el texto tal cual
  *  lo devolvió el buscador y sus coordenadas. Mientras el campo diga exactamente
@@ -64,7 +60,7 @@ export function PedidoFormLocal({
    *  guardar era un segundo camino para lo mismo, ocupando la mitad del ancho
    *  que le hacía falta al único botón que importa. */
   onGuardado: (aviso?: string | null) => void;
-  /** Hay algo escrito sin guardar, y el teléfono escrito si es válido (spec 033). */
+  /** El teléfono escrito, si es válido (spec 033). */
   onCambios?: (c: CambiosForm) => void;
 }) {
   const editando = pedido != null;
@@ -133,20 +129,10 @@ export function PedidoFormLocal({
   const telefono = useMemo(() => normalizarTelefono(campos.telefono), [campos.telefono]);
   const telefonoEscrito = campos.telefono.trim().length > 0;
 
-  // Algo escrito que se perdería al cerrar: contra el pedido guardado, o contra
-  // el formulario vacío si es uno nuevo (spec 033, form-pierde).
-  const base = pedido
-    ? { nombre: pedido.nombre, telefono: pedido.telefono, direccion: pedido.direccion, notas: pedido.notas ?? "" }
-    : VACIO;
-  const sucio =
-    (Object.keys(VACIO) as (keyof typeof VACIO)[]).some((k) => campos[k].trim() !== base[k].trim()) ||
-    ofEscrita !== (pedido?.of ?? ofInicial ?? "").trim() ||
-    elegida != null ||
-    (editando && paquete.sucio);
   const telefonoValido = telefono.ok ? telefono.telefono.e164 : null;
   useEffect(() => {
-    onCambios?.({ sucio, telefono: telefonoValido });
-  }, [sucio, telefonoValido, onCambios]);
+    onCambios?.({ telefono: telefonoValido });
+  }, [telefonoValido, onCambios]);
 
   // Editando y con un número distinto del guardado: hay una respuesta previa que
   // ya no corresponde a este destinatario. Se compara contra el NORMALIZADO para
@@ -229,14 +215,10 @@ export function PedidoFormLocal({
     onGuardado(avisoFinal);
   }
 
-  /** Lo que falta para poder guardar, o null si está todo. */
+  /** Lo que falta para poder guardar, o null si está todo. Solo la dirección es
+   *  obligatoria (*): el destinatario y el teléfono son opcionales (dueño,
+   *  2026-11-14); llegan al escanear la etiqueta o se anotan a mano. */
   function loQueFalta(): string | null {
-    // Con OF (pedido de la guía), el nombre y el teléfono llegan al escanear la
-    // etiqueta: no se piden para corregir la dirección (terreno 2026-10-27).
-    // Sin OF son lo único que identifica al pedido.
-    const conOf = Boolean(of ?? pedido?.of);
-    if (!conOf && !campos.nombre.trim()) return "El nombre del destinatario es obligatorio.";
-    if (!conOf && !campos.telefono.trim()) return "El teléfono es obligatorio.";
     if (!campos.direccion.trim()) return "La dirección es obligatoria.";
     if (ofEscrita && !of) return "La OF lleva solo números. Revísala o déjala vacía.";
     return null;
@@ -279,7 +261,7 @@ export function PedidoFormLocal({
       if (aceptadaAMano === direccion) {
         await guardar(
           { lat: null, lng: null },
-          "Guardado SIN ubicar, como pediste: no entra en la ruta hasta que marques el punto.",
+          "Guardado SIN ubicar, como pediste: no entra en la ruta hasta que corrijas la dirección.",
         );
         return;
       }
@@ -348,21 +330,20 @@ export function PedidoFormLocal({
     // debajo del borde y hubiera que deslizar para llegar a él con el pedido ya
     // escrito. Un formulario que se llena treinta veces al día no puede pedir
     // un gesto extra para cerrarse.
-    <form id={ID_FORM_PEDIDO} onSubmit={onSubmit} className="flex h-full min-h-0 flex-col">
+    <form onSubmit={onSubmit} className="flex h-full min-h-0 flex-col">
       {/* La etiqueta va dentro de cada caja (ui/campo.tsx): sin el renglón de
           encima, los campos entran de una sin deslizar.
           content-start porque una rejilla que scrollea estira sus filas para
           llenar el hueco cuando sobra alto, y los campos se irían separando
           solos en un teléfono grande. */}
       <div className="grid min-h-0 flex-1 content-start gap-2.5 overflow-y-auto px-4 pt-3">
-        {/* OF y teléfono, cortos y de números, comparten renglón. La OF es
-            opcional: normalmente llega sola desde la guía o el código de barras
-            (spec 005). */}
+        {/* OF y teléfono, cortos y de números, comparten renglón. Solo la dirección
+            lleva * (obligatoria): la OF llega sola desde la guía o el código de
+            barras (spec 005). */}
         <div className="grid grid-cols-2 gap-2.5">
           <Campo
             id="pl_of"
             etiqueta="OF"
-            extra="opcional"
             inputMode="numeric"
             placeholder="123 456 789"
             value={ofTexto}
@@ -434,7 +415,7 @@ export function PedidoFormLocal({
             de abajo, en un espacio reservado desde el principio. */}
         <DireccionInput
           id="pl_direccion"
-          etiqueta="Dirección"
+          etiqueta="Dirección *"
           value={campos.direccion}
           onChange={(texto) => set("direccion", texto)}
           onSeleccionar={(s) => {
@@ -447,18 +428,6 @@ export function PedidoFormLocal({
           onConfirmarManual={(texto) => {
             setAceptadaAMano(texto);
             setElegida(null);
-            setPorResolver(null);
-          }}
-        />
-        {/* Sin buscador que la encuentre: el punto a mano o con el GPS (spec 033). Sin
-            dirección escrita, va el Plus Code del punto. */}
-        <MarcarPunto
-          inicial={puntoPreview}
-          onPunto={(p) => {
-            const texto = direccionEscrita || plusCodeDe(p) || "";
-            setCampos((c) => ({ ...c, direccion: texto }));
-            setElegida({ texto, lat: p.lat, lng: p.lng });
-            setAceptadaAMano(null);
             setPorResolver(null);
           }}
         />

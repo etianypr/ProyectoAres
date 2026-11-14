@@ -11,8 +11,8 @@ const SECCIONES: { titulo: string; pasos: string[] }[] = [
   {
     titulo: "Cargar la guía",
     pasos: [
-      "Fotos: el botón de la cámara (o el recuadro) saca una foto de cada parte de la guía, que se superpongan un poco; ✕ en la miniatura la quita → «Scan físico» las lee juntas.",
-      "«Otra forma»: «Galería» elige fotos ya sacadas; «Nómina» barre la hoja (✓ es una OF confirmada, «Terminar» suma, ✕ descarta); «Pegar texto» recibe el texto copiado con Google Lens (otro texto pegado se suma).",
+      "Fotos: el botón de la cámara (o el recuadro) saca una foto de cada parte de la guía, que se superpongan un poco; ✕ en la miniatura la quita → «Leer direcciones» las lee juntas.",
+      "«Otra forma»: «Galería» elige fotos ya sacadas; «Nóminas físicas» barre la hoja (✓ es una OF confirmada, «Terminar» suma, ✕ descarta); «Pegar texto» recibe el texto copiado con Google Lens (otro texto pegado se suma).",
       "Revisar: las líneas con ⚠ (sin OF, OF mal leída, sin destino o por confirmar) salen de a una; el botón del teléfono anota el número y «Llamar»; «Quitar» / «Confirmar»; «Siguiente» pasa a la otra. «Ver las n líneas» muestra todas: tocar una la abre para corregirla → «Crear n pedidos».",
       "Arriba, tocar «1 Fotos» vuelve a sumar fotos o texto, y «2 Revisar», a las líneas.",
       "Ubicando: «Dejar de ubicar» deja el resto sin ubicar. Al terminar, tocar un no ubicado abre su pedido; «Corregir con IA» vuelve a intentarlo con señal, y cada propuesta de la IA se confirma de a una. «Deshacer esta carga» borra lo recién creado; con la ruta ya armada, «Sumar n a la ruta».",
@@ -22,10 +22,10 @@ const SECCIONES: { titulo: string; pasos: string[] }[] = [
     titulo: "Pedidos con ⚠",
     pasos: [
       "«N por resolver» abre el primero; al guardarlo, pasa al siguiente. También se toca el pedido en la lista.",
-      "«Corregir con IA»: confirma cada una mirando el mapa; si no es ahí, toca la dirección, elige otra de la lista y «Confirmar». El botón del teléfono abre «Teléfono · opcional» y, con un número válido, «Llamar» (también en las líneas con ⚠ de la guía).",
+      "«Corregir con IA»: confirma cada una mirando el mapa; si no es ahí, toca la dirección, elige otra de la lista y «Confirmar». El botón del teléfono abre el campo del teléfono y, con un número válido, «Llamar» (también en las líneas con ⚠ de la guía).",
       "Si no se resuelve: «Armar la ruta» → «Armar igual». Después, «Resolver los ⚠» sigue adentro de la hoja.",
       "Arriba del pedido va su ⚠: una calle en varios lugares se elige entre sus opciones; «Va igual» (lejana, horario) y «Es así» (no estaba en la guía) lo dan por revisado.",
-      "Resolviendo: «Siguiente» pasa al próximo ⚠ sin guardar; con un teléfono escrito, «Llamar». Sin dirección que sirva: «Marcar en el mapa» o «Aquí» (GPS).",
+      "Resolviendo: «Siguiente» pasa al próximo ⚠ sin guardar; con un teléfono escrito, «Llamar». Del pedido solo la dirección (*) es obligatoria; el destinatario y el teléfono son opcionales.",
       "Recorriendo, dos paradas antes de un ⚠ aparece arriba de la parada, con «Llamar».",
     ],
   },

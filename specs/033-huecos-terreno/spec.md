@@ -33,6 +33,12 @@ claude.ai/artifact/Eq2W1BS56jYPi5g76ym7a6. Cada caso se nombra por su id de la m
   letra ya no se pierde (⚠ «OF mal leída», con la letra marcada) y «Corregir con IA» del paso 3
   pregunta solo por esa carga.
 
+## Quitado después (dueño, 2026-11-14)
+- «Marcar en el mapa» y «Aquí» (GPS) del formulario del pedido: se borró `marcar-punto.tsx`.
+- «Cambios sin guardar · Guardar · Descartar» al cerrar el formulario: ←, ✕ y atrás cierran sin preguntar.
+- En el formulario del pedido solo la dirección es obligatoria (`Dirección *`); el destinatario y el
+  teléfono son opcionales y ya no llevan «opcional» en cada campo.
+
 ## Decidido no hacer (dueño, 2026-11-13)
 - medianoche (nunca se sale a ruta de noche; se quitó la versión mínima de G1), danado (lo respalda la
   máquina que ya se usa), propuesta-borra (que se borre, como hoy), propuesta-mover, «Ahora no» (queda
