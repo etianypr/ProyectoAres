@@ -104,11 +104,12 @@ export function distancia(a: string, b: string): number {
   return fila[b.length];
 }
 
-/** ¿La misma palabra leída con alguna diferencia? Hasta un 15 % de letras. */
-export function parecidos(a: string, b: string): boolean {
+/** ¿La misma palabra leída con alguna diferencia? Hasta un 15 % de letras (`tolerancia`:
+ *  el barrido de la nómina usa una más ancha para reconocer la lectura de un cuadro movido). */
+export function parecidos(a: string, b: string, tolerancia = 0.15): boolean {
   const x = comparable(a);
   const y = comparable(b);
-  return distancia(x, y) <= Math.max(1, Math.floor(Math.max(x.length, y.length) * 0.15));
+  return distancia(x, y) <= Math.max(1, Math.floor(Math.max(x.length, y.length) * tolerancia));
 }
 
 /** Como `elegir`, pero las variantes parecidas suman juntas (nombre, dirección).

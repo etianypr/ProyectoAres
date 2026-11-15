@@ -14,6 +14,10 @@ const { leerNomina } = await import("@/lib/encomiendas/lectura/nomina");
 const renglon = (texto, x, y) => ({ texto, x, y, ancho: 150, alto: 20 });
 const sumar = (cuadros) => cuadros.reduce((v, texto) => sumarCuadroNomina(v, texto), votosNominaVacios());
 const barrer = (cuadros) => resultadoNomina(sumar(cuadros));
+// Contando también las piezas (las OF que entran al cuadro sin su dirección): apagadas
+// desde el 2026-11-15 (spec 034), se siguen midiendo en Diagnóstico.
+const conPiezas = (cuadros) =>
+  resultadoNomina(cuadros.reduce((v, t) => sumarCuadroNomina(v, t, undefined, { piezas: true }), votosNominaVacios()));
 const guia = (of, destino = "21 DE MAYO 123") => `OF:${of} DESTINO:${destino}`;
 
 test("una tabla leída por columnas vuelve a quedar con cada OF al lado de su destino", () => {
@@ -136,7 +140,9 @@ test("un número corto que el lector de la guía toma por OF no cuenta", () => {
 test("los números largos se cuentan aunque la nómina no tenga «OF … DESTINO …»", () => {
   const cuadro = "200000001 21 DE MAYO 123\n200000002 AV SANTA MARIA 2000";
   const r = barrer([cuadro, cuadro, cuadro]);
+  // No tienen la forma de la fila de un encargo: no son piezas ni quedan «a medias».
   assert.equal(r.lineas.length, 0);
+  assert.deepEqual(r.lista, []);
   assert.equal(r.numerosFirmes, 2);
 });
 
@@ -220,6 +226,12 @@ test("el barrido junta las OF de la nómina entre cuadros", () => {
     ["200000002", "AV SANTA MARIA 2000, A301", true],
     ["200000003", "PATRICIO LYNCH 45 BLOCK C DEPTO 12", true],
   ]);
+  // Con las piezas, el encargo cortado en el borde vota su número y la dirección, que
+  // puede venir cortada, queda por confirmar.
+  const p = conPiezas([CUADRO_NOMINA, CUADRO_NOMINA, CUADRO_NOMINA]);
+  assert.deepEqual([p.lineas[3].of, p.lineas[3].destino, p.lineas[3].destinoFirme], ["200000004", "BOLOGNESI 300", false]);
+  assert.equal(p.lista[3].estado, "porConfirmar");
+  assert.deepEqual(p.conteo, { enteros: 9, sueltas: 0, abiertas: 3 });
 });
 
 test("cada bloque dice en qué renglones están su OF y su dirección (las marcas sobre la cámara)", async () => {
@@ -310,4 +322,221 @@ test("al juntar con lo que ya había, una OF por confirmar no pisa una firme y u
 test("el total de la nómina sale del MONTO NETO más leído", () => {
   const r = barrer([`${guia("200000001")} MONTO NETO 87`, "MONTO NETO 87", "MONTO NETO 81"]);
   assert.equal(r.total, 87);
+});
+
+test("una OF sin dirección o vista una sola vez queda «a medias» en la lista y no se pierde (spec 034)", () => {
+  const sinDestino = (of) => `OF:${of} DESTINO:`;
+  const r = barrer([
+    `${guia("200000001")}\n${guia("200000002", "AV SANTA MARIA 2000")}\n${guia("200000009", "PATRICIO LYNCH 45")}`,
+    `${guia("200000001")}\n${guia("200000002", "AV SANTA MARIA 2000")}`,
+    `${guia("200000001")}\n${guia("200000002", "AV SANTA MARIA 2000")}`,
+    // La 279000500 sale 3 veces pero nunca con su dirección.
+    sinDestino("279000500"),
+    sinDestino("279000500"),
+    sinDestino("279000500"),
+  ]);
+  assert.deepEqual(
+    r.lista.map((l) => [l.of, l.estado, l.motivo ?? null]),
+    [
+      ["200000001", "firme", null],
+      ["200000002", "firme", null],
+      ["200000009", "aMedias", "unaVez"],
+      ["279000500", "aMedias", "sinDireccion"],
+    ],
+  );
+  assert.equal(r.unaVez, 1, "el conteo de Diagnóstico sigue igual");
+});
+
+test("lo «a medias» pasa a «Cargar la guía» sin dirección y por confirmar; al leerse entero deja de estarlo (spec 034)", async () => {
+  const { lineasDelBarrido } = await import("@/lib/encomiendas/lectura/barrido-nomina");
+  const sinDireccion = "OF:279000500 DESTINO:";
+  const medias = lineasDelBarrido(barrer([guia("200000001"), sinDireccion, sinDireccion, sinDireccion]));
+  assert.deepEqual(medias.lineas, [
+    { of: "200000001", destino: "21 DE MAYO 123" },
+    { of: "279000500", destino: "" },
+  ]);
+  assert.deepEqual([...medias.porConfirmar].sort(), ["200000001", "279000500"]);
+  // Se vuelve a pasar por el encargo y esta vez se lee entero, 3 veces: firme.
+  const entera = lineasDelBarrido(barrer([guia("279000500", "BAQUEDANO 488"), guia("279000500", "BAQUEDANO 488"), guia("279000500", "BAQUEDANO 488")]));
+  assert.deepEqual(entera.lineas, [{ of: "279000500", destino: "BAQUEDANO 488" }]);
+  assert.equal(entera.porConfirmar.size, 0);
+});
+
+// ------------------------------------------------- lectura por piezas (spec 034; apagadas, se miden en Diagnóstico)
+
+const ENTERO = (of, direccion) => [`${of} 1 0 1 ANA SOTO ARICA`, "DIRECCION", `${direccion} .`, "VALOR $ FORMA PAGO DD", "0 CTAC 0"].join("\n");
+const SUELTA = (of) => ["VALOR $ FORMA PAGO DD", "0 CTAC 0", "NUMERO ENCARGOS", `${of} 1 0 1 ANA SOTO ARICA`].join("\n");
+
+test("la OF que entra al cuadro sin su dirección vota sus dígitos: el encargo queda firme antes", () => {
+  const cuadros = [ENTERO("200000001", "21 DE MAYO 123"), SUELTA("200000001"), SUELTA("200000001")];
+  const con = conPiezas(cuadros);
+  assert.deepEqual(con.lineas.map((l) => [l.of, l.destino, l.firme, l.cuadros]), [["200000001", "21 DE MAYO 123", true, 3]]);
+  // Como antes (solo encargos enteros): un cuadro, y no se muestra.
+  const sin = resultadoNomina(cuadros.reduce((v, t) => sumarCuadroNomina(v, t, undefined, { piezas: false }), votosNominaVacios()));
+  assert.equal(sin.lineas.length, 0);
+});
+
+test("una OF suelta con un dígito mal se suma a su encargo, y con dos encargos parecidos no vota", () => {
+  const uno = conPiezas([ENTERO("200000123", "21 DE MAYO 123"), ENTERO("200000123", "21 DE MAYO 123"), SUELTA("200000128")]);
+  assert.equal(uno.deLectura["200000128"], "200000123");
+  assert.equal(uno.ambiguas, 0);
+  // 200000123 y 200000124 son dos encargos de verdad (salen juntos en la hoja): la
+  // lectura suelta 200000128 calza con los dos y no se sabe de cuál es.
+  const juntos = `${ENTERO("200000123", "21 DE MAYO 123")}\n${ENTERO("200000124", "PATRICIO LYNCH 45")}`;
+  const dos = conPiezas([juntos, juntos, juntos, SUELTA("200000128")]);
+  assert.equal(dos.ambiguas, 1);
+  assert.deepEqual(dos.lista.map((l) => [l.of, l.estado]), [["200000123", "firme"], ["200000124", "firme"]]);
+});
+
+test("una dirección sin cerrar no pisa a la cerrada: solo suma si es la misma", () => {
+  const cortada = ["200000001 1 0 1 ANA SOTO ARICA", "DIRECCION", "PATRICIO LYNCH 45 BLOCK C"].join("\n");
+  const entera = ["200000001 1 0 1 ANA SOTO ARICA", "DIRECCION", "PATRICIO LYNCH 45 BLOCK C", "DEPTO 12 .", "VALOR $ FORMA PAGO DD"].join("\n");
+  const r = conPiezas([cortada, cortada, cortada, entera]);
+  assert.equal(r.lineas[0].destino, "PATRICIO LYNCH 45 BLOCK C DEPTO 12");
+  assert.equal(r.lineas[0].destinoFirme, false, "la entera salió una sola vez: por confirmar");
+  // Nunca se leyó cerrada: se muestra la abierta, sin firmar.
+  const solo = conPiezas([cortada, cortada, cortada]);
+  assert.deepEqual([solo.lineas[0].destino, solo.lineas[0].firme, solo.lineas[0].destinoFirme], ["PATRICIO LYNCH 45 BLOCK C", true, false]);
+});
+
+test("lo que falta volver a pasar: la OF sin firmar o a medias, no la dirección dudosa", () => {
+  const abierta = ["200000004 1 0 1 ANA SOTO ARICA", "DIRECCION", "BOLOGNESI 300"].join("\n");
+  const suelta = SUELTA("279000500");
+  const r = conPiezas([abierta, abierta, abierta, suelta, suelta, suelta]);
+  assert.deepEqual(r.lista.map((l) => [l.of, l.estado, l.ofFirme]), [
+    ["200000004", "porConfirmar", true],
+    ["279000500", "aMedias", true],
+  ]);
+});
+
+test("un número suelto visto una o dos veces es una fila mal leída: no se lista (terreno 2026-11-15)", () => {
+  const entero = ENTERO("200000004", "BOLOGNESI 300");
+  const r = conPiezas([entero, entero, entero, SUELTA("279000500"), SUELTA("281999000"), SUELTA("281999000")]);
+  assert.deepEqual(r.lista.map((l) => l.of), ["200000004"]);
+  assert.equal(r.ruido, 2);
+  assert.equal(r.unaVez, 0);
+});
+
+// ------------------------------------------- seguir la misma lectura (spec 034)
+
+test("los votos guardados y retomados dan lo mismo que un barrido seguido", () => {
+  const cuadros = [
+    ENTERO("200000001", "21 DE MAYO 123"),
+    ENTERO("200000001", "21 DE MAYO 123"),
+    ENTERO("200000002", "PATRICIO LYNCH 45"),
+    ENTERO("200000001", "21 DE MAYO 123"),
+    ENTERO("200000002", "PATRICIO LYNCH 45"),
+    ENTERO("200000002", "PATRICIO LYNCH 45"),
+  ];
+  // El celular se bloquea después del tercer cuadro: los votos van a IndexedDB (JSON) y vuelven.
+  const guardados = JSON.parse(JSON.stringify(sumar(cuadros.slice(0, 3))));
+  const retomado = resultadoNomina(cuadros.slice(3).reduce((v, t) => sumarCuadroNomina(v, t), guardados));
+  assert.deepEqual(retomado, barrer(cuadros));
+  assert.equal(retomado.firmes, 2);
+});
+
+test("al seguir la lectura entran solo las OF nuevas y las que quedaron firmes; una borrada en la revisión no vuelve", async () => {
+  const { lineasDelBarrido } = await import("@/lib/encomiendas/lectura/barrido-nomina");
+  const uno = [ENTERO("200000001", "21 DE MAYO 123"), ENTERO("200000001", "21 DE MAYO 123"), ENTERO("200000001", "21 DE MAYO 123")];
+  const dos = [ENTERO("200000002", "PATRICIO LYNCH 45"), ENTERO("200000002", "PATRICIO LYNCH 45")];
+  const primera = lineasDelBarrido(barrer([...uno, ...dos]));
+  assert.deepEqual(primera.lineas.map((l) => l.of), ["200000001", "200000002"]);
+  assert.deepEqual(primera.entregadas, { 200000001: true, 200000002: false });
+  // El conductor borra la 200000001 en la revisión y sigue barriendo: la 2 se confirma y llega la 3.
+  const tres = [ENTERO("279000500", "BAQUEDANO 488"), ENTERO("279000500", "BAQUEDANO 488")];
+  const segunda = lineasDelBarrido(barrer([...uno, ...dos, dos[0], ...tres]), primera.entregadas);
+  assert.deepEqual(segunda.lineas.map((l) => l.of), ["200000002", "279000500"]);
+  assert.deepEqual([...segunda.porConfirmar], ["279000500"]);
+  assert.deepEqual(segunda.sobran, []);
+});
+
+test("una OF entregada por confirmar que resultó ser otra mal leída sobra", async () => {
+  const { lineasDelBarrido } = await import("@/lib/encomiendas/lectura/barrido-nomina");
+  const mala = [ENTERO("200000128", "21 DE MAYO 123"), ENTERO("200000128", "21 DE MAYO 123")];
+  const primera = lineasDelBarrido(barrer(mala));
+  assert.deepEqual(primera.entregadas, { 200000128: false });
+  const buena = Array.from({ length: 5 }, () => ENTERO("200000123", "21 DE MAYO 123"));
+  const segunda = lineasDelBarrido(barrer([...mala, ...buena]), primera.entregadas);
+  assert.deepEqual(segunda.lineas.map((l) => l.of), ["200000123"]);
+  assert.deepEqual(segunda.sobran, ["200000128"]);
+  assert.deepEqual(segunda.entregadas, { 200000123: true });
+});
+
+test("los números del encabezado y del pie de la nómina no son una OF (terreno 2026-11-15)", async () => {
+  const { piezasNomina } = await import("@/lib/encomiendas/lectura/nomina");
+  // El comienzo de la nómina: el RUT, el número de la nómina y el furgón, antes del detalle.
+  const encabezado = ["NOMINA DE REPARTO", "000123456", "12345678 - 5 JUAN PEREZ SOTO", "Auxiliar:", "MEDIO DE TRASPORTE", "12345 FURGON", "DETALLE DE LOS ENCARGOS"];
+  assert.deepEqual(piezasNomina(encabezado).piezas, []);
+  const r = barrer(Array.from({ length: 5 }, () => encabezado.join("\n")));
+  assert.deepEqual(r.lista, []);
+  // La fila de un encargo sí: por su forma (OF, TOTAL, DOCTOS, BULTOS) o por venir bajo los títulos.
+  assert.deepEqual(piezasNomina(["0 CTAC 0", "200000001 1 0 1 ANA SOTO ARICA"]).piezas.map((p) => p.of), ["200000001"]);
+  assert.deepEqual(piezasNomina(["OF TOTAL DOCTOS BULTOS DESTINATARIO COMUNA", "ANA SOTO ARICA", "200000001"]).piezas.map((p) => p.of), ["200000001"]);
+});
+
+test("una mala lectura de una OF que ya quedó firme se borra sola (terreno 2026-11-15)", () => {
+  const bien = ENTERO("281000276", "21 DE MAYO 123");
+  // El cuadro movido: un dígito cambiado, otro perdido y la dirección también mal leída.
+  const movido = ENTERO("26100026", "Z1 OE HAY0 I2");
+  const r = barrer([bien, movido, bien, movido, bien, bien]);
+  assert.deepEqual(r.lista.map((l) => [l.of, l.estado]), [["281000276", "firme"]]);
+  assert.equal(r.malLeidas, 1);
+  assert.equal(r.deLectura["26100026"], "281000276", "si vuelve a salir, se marca como la buena");
+  // Antes de que la buena quede firme, la mala sigue a la vista: no se bota nada a ciegas.
+  assert.equal(barrer([bien, movido, movido]).lista.length, 2);
+});
+
+test("un encargo de verdad con un número parecido, en otra parte de la nómina, no se borra", () => {
+  const una = ENTERO("281000276", "21 DE MAYO 123");
+  const otra = ENTERO("281000216", "PATRICIO LYNCH 45");
+  const lejos = Array.from({ length: 30 }, () => ENTERO("279000500", "BAQUEDANO 488"));
+  // La otra se leyó solo dos veces, mucho después: sigue por confirmar.
+  const r = barrer([una, una, una, ...lejos, otra, otra]);
+  assert.deepEqual(r.lista.map((l) => [l.of, l.estado]), [["281000276", "firme"], ["279000500", "firme"], ["281000216", "porConfirmar"]]);
+  // Y juntas en la hoja (mismo cuadro) tampoco, aunque una vaya atrasada.
+  const juntas = barrer([una, una, una, `${una}\n${otra}`, `${una}\n${otra}`]);
+  assert.equal(juntas.malLeidas, 0);
+  assert.equal(juntas.lista.length, 2);
+});
+
+// ------------------------------- la misma fila leída de dos formas (terreno 2026-11-15)
+
+test("una lectura parecida a una OF firme, con otra dirección y menos cuadros, es la misma fila mal leída", () => {
+  const bien = `${ENTERO("281000276", "21 DE MAYO 123")}\n${ENTERO("279000500", "PATRICIO LYNCH 45")}`;
+  // El cuadro movido leyó mal un dígito y tomó la dirección del encargo de al lado.
+  const mal = ENTERO("281000216", "PATRICIO LYNCH 45");
+  const r = barrer([bien, mal, bien, bien, mal, bien, bien, bien, bien]);
+  assert.deepEqual(r.lista.map((l) => [l.of, l.estado]), [["281000276", "firme"], ["279000500", "firme"]]);
+  assert.equal(r.malLeidas, 1);
+  // Con una dirección propia y firme es otro encargo, de número seguido: no se toca.
+  const otro = ENTERO("281000216", "BAQUEDANO 488");
+  assert.equal(barrer([bien, otro, bien, bien, otro, bien, bien, bien, bien]).lista.length, 3);
+});
+
+test("dos firmes que parecen la misma fila quedan las dos, por confirmar con el papel", () => {
+  const una = ENTERO("281000276", "21 DE MAYO 123");
+  const otra = ENTERO("281000278", "21 DE MAYO 123 B");
+  const r = barrer([una, otra, una, otra, una, otra, una]);
+  assert.deepEqual(r.lista.map((l) => [l.of, l.estado, l.ofFirme]), [
+    ["281000276", "porConfirmar", true],
+    ["281000278", "porConfirmar", true],
+  ]);
+  assert.deepEqual([r.firmes, r.porConfirmar, r.dobles], [0, 2, 2]);
+});
+
+test("una lectura de un solo cuadro a tres dígitos de una firme a la vista es un fallo de lectura", () => {
+  const bien = ENTERO("281000276", "21 DE MAYO 123");
+  const r = barrer([bien, bien, ENTERO("281999276", "Z1 OE HAY0"), bien]);
+  assert.deepEqual(r.lista.map((l) => l.of), ["281000276"]);
+  // Con más cuadros a esa distancia ya no: es otra OF por confirmar.
+  const tres = ENTERO("281999276", "BAQUEDANO 488");
+  assert.equal(barrer([bien, bien, tres, bien, tres, tres]).lista.length, 2);
+});
+
+test("de las dos formas de juntar los renglones gana la que armó más encargos enteros", async () => {
+  const { mejorResultado } = await import("@/lib/encomiendas/lectura/barrido-nomina");
+  const pocos = barrer([ENTERO("200000001", "21 DE MAYO 123")]);
+  const muchos = barrer([ENTERO("200000001", "21 DE MAYO 123"), ENTERO("200000001", "21 DE MAYO 123")]);
+  assert.equal(mejorResultado(pocos, muchos), muchos);
+  assert.equal(mejorResultado(muchos, pocos), muchos);
 });

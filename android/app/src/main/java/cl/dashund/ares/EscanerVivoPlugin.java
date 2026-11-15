@@ -8,18 +8,27 @@ import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Rect;
 import android.graphics.RectF;
+import android.hardware.camera2.CameraCharacteristics;
+import android.hardware.camera2.CaptureRequest;
 import android.media.Image;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.util.Base64;
+import android.util.Range;
+import android.util.Rational;
 import android.util.Size;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
 import androidx.annotation.OptIn;
+import androidx.camera.camera2.interop.Camera2CameraInfo;
+import androidx.camera.camera2.interop.Camera2Interop;
+import androidx.camera.camera2.interop.ExperimentalCamera2Interop;
 import androidx.camera.core.Camera;
+import androidx.camera.core.CameraInfo;
 import androidx.camera.core.CameraSelector;
 import androidx.camera.core.ExperimentalGetImage;
+import androidx.camera.core.ExposureState;
 import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageCapture;
 import androidx.camera.core.ImageCaptureException;
@@ -60,9 +69,12 @@ import org.json.JSONObject;
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 
 /**
  * Escáner de etiquetas en vivo (spec 028). La cámara queda DEBAJO de la WebView, que
@@ -95,6 +107,8 @@ public class EscanerVivoPlugin extends Plugin {
     private BarcodeScanner codigos;
     private TextRecognizer lector;
     private ExecutorService hilo;
+    /** La nómina no trae códigos de barras: al barrerla no se buscan (spec 034). */
+    private volatile boolean leerCodigos = true;
     /** Del cuadro ya derecho (las cajas que van a la web) al sensor: con la del sensor a
      *  la vista previa, las marcas de la web quedan encima del texto aunque la vista
      *  previa y el análisis tengan otra forma. La pone cada cuadro. */
@@ -269,9 +283,16 @@ public class EscanerVivoPlugin extends Plugin {
      *  alta: con las tres salidas, el V2430 baja los cuadros de análisis a 720×960
      *  (medido 2026-11-11, pide 1920×1080), poco para la letra chica de la nómina.
      *  Sin ella se piden cuadros 16:9. Por defecto, como siempre (la etiqueta, 028). */
+    @OptIn(markerClass = ExperimentalCamera2Interop.class)
     private void arrancar(PluginCall call) {
         apagar();
         boolean conFoto = !Boolean.FALSE.equals(call.getBoolean("captura", true));
+        leerCodigos = !Boolean.FALSE.equals(call.getBoolean("codigos", true));
+        // "corta": nunca más de 1/30 s por cuadro; "cortaOscura": además un punto menos
+        // de exposición. El celular y la boleta se mueven, y con poca luz la cámara
+        // alarga la exposición y el texto sale movido (spec 034).
+        String exposicion = call.getString("exposicion", "auto");
+        boolean corta = "corta".equals(exposicion) || "cortaOscura".equals(exposicion);
         codigos = BarcodeScanning.getClient();
         lector = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS);
         hilo = Executors.newSingleThreadExecutor();
@@ -279,11 +300,9 @@ public class EscanerVivoPlugin extends Plugin {
         ResolutionSelector.Builder resolucion = new ResolutionSelector.Builder()
             .setResolutionStrategy(new ResolutionStrategy(RESOLUCION, ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER));
         if (!conFoto) resolucion.setAspectRatioStrategy(AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY);
-        ImageAnalysis analisis = new ImageAnalysis.Builder()
+        ImageAnalysis.Builder conAnalisis = new ImageAnalysis.Builder()
             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-            .setResolutionSelector(resolucion.build())
-            .build();
-        analisis.setAnalyzer(hilo, this::analizar);
+            .setResolutionSelector(resolucion.build());
 
         ListenableFuture<ProcessCameraProvider> futuro = ProcessCameraProvider.getInstance(getContext());
         futuro.addListener(() -> {
@@ -301,7 +320,15 @@ public class EscanerVivoPlugin extends Plugin {
                 padre.addView(marcas, 1);
                 getBridge().getWebView().setBackgroundColor(Color.TRANSPARENT);
 
-                Preview previa = new Preview.Builder().build();
+                Preview.Builder conPrevia = new Preview.Builder();
+                Range<Integer> cuadros = corta ? cuadrosFijos(proveedor) : null;
+                if (cuadros != null) {
+                    new Camera2Interop.Extender<>(conPrevia).setCaptureRequestOption(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, cuadros);
+                    new Camera2Interop.Extender<>(conAnalisis).setCaptureRequestOption(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, cuadros);
+                }
+                ImageAnalysis analisis = conAnalisis.build();
+                analisis.setAnalyzer(hilo, this::analizar);
+                Preview previa = conPrevia.build();
                 previa.setSurfaceProvider(vista.getSurfaceProvider());
                 ImageCapture conCaptura = new ImageCapture.Builder().setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY).build();
                 if (!conFoto) {
@@ -318,15 +345,49 @@ public class EscanerVivoPlugin extends Plugin {
                         captura = null;
                     }
                 }
+                if ("cortaOscura".equals(exposicion)) unPuntoMenos(camara);
                 JSObject respuesta = new JSObject();
                 respuesta.put("linterna", camara.getCameraInfo().hasFlashUnit());
                 respuesta.put("captura", captura != null);
+                // Lo que de verdad quedó puesto, para Diagnóstico: los cuadros por segundo fijos.
+                respuesta.put("cuadrosFijos", cuadros != null ? cuadros.getUpper() : 0);
                 call.resolve(respuesta);
             } catch (Exception e) {
                 apagar();
                 call.reject("sin_camara");
             }
         }, ContextCompat.getMainExecutor(getContext()));
+    }
+
+    /** El rango fijo de cuadros por segundo más alto que da la cámara de atrás, hasta 30:
+     *  con él la exposición automática no puede alargar un cuadro más de 1/30 s. Null si
+     *  la cámara no dice sus rangos o no tiene ninguno fijo. */
+    @OptIn(markerClass = ExperimentalCamera2Interop.class)
+    private static Range<Integer> cuadrosFijos(ProcessCameraProvider proveedor) {
+        try {
+            List<CameraInfo> atras = CameraSelector.DEFAULT_BACK_CAMERA.filter(proveedor.getAvailableCameraInfos());
+            if (atras.isEmpty()) return null;
+            Range<Integer>[] rangos = Camera2CameraInfo.from(atras.get(0))
+                .getCameraCharacteristic(CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES);
+            Range<Integer> mejor = null;
+            for (Range<Integer> r : rangos != null ? rangos : new Range[0]) {
+                if (!r.getLower().equals(r.getUpper()) || r.getUpper() > 30) continue;
+                if (mejor == null || r.getUpper() > mejor.getUpper()) mejor = r;
+            }
+            return mejor;
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    /** Baja la exposición un punto (1 EV), si la cámara lo permite: tiempos más cortos. */
+    private static void unPuntoMenos(Camera camara) {
+        ExposureState estado = camara.getCameraInfo().getExposureState();
+        if (!estado.isExposureCompensationSupported()) return;
+        Rational paso = estado.getExposureCompensationStep();
+        if (paso.floatValue() <= 0) return;
+        int indice = Math.max(estado.getExposureCompensationRange().getLower(), -Math.round(1f / paso.floatValue()));
+        camara.getCameraControl().setExposureCompensationIndex(indice);
     }
 
     /** Un cuadro: códigos y texto a la vez sobre la misma imagen. El cuadro se suelta
@@ -347,9 +408,21 @@ public class EscanerVivoPlugin extends Plugin {
         int alto = acostado ? cuadro.getWidth() : cuadro.getHeight();
         derechoASensor = derechoASensor(cuadro, giro);
         InputImage entrada = InputImage.fromMediaImage(imagen, giro);
-        Task<List<Barcode>> conCodigos = codigosAhora.process(entrada);
+        Task<List<Barcode>> conCodigos = leerCodigos ? codigosAhora.process(entrada) : Tasks.forResult(Collections.emptyList());
         Task<Text> conTexto = lectorAhora.process(entrada);
-        Tasks.whenAllComplete(conCodigos, conTexto).addOnCompleteListener(listo -> {
+        // El resultado se arma en el hilo del análisis, no en el de la pantalla: con la
+        // cámara encendida cada redibujo de la WebView lo ocupa 1 a 5 s (spec 028), y el
+        // cuadro siguiente no entra hasta soltar este (medido el 2026-11-15: 3 cuadros
+        // por segundo con la pantalla cambiando, contra ~8).
+        ExecutorService enHilo = hilo;
+        Executor fueraDePantalla = tarea -> {
+            try {
+                enHilo.execute(tarea);
+            } catch (RejectedExecutionException | NullPointerException apagado) {
+                tarea.run();
+            }
+        };
+        Tasks.whenAllComplete(conCodigos, conTexto).addOnCompleteListener(fueraDePantalla, listo -> {
             try {
                 JSArray valores = new JSArray();
                 if (conCodigos.isSuccessful()) {

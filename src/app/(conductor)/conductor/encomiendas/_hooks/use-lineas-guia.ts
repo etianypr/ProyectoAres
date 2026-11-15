@@ -37,6 +37,13 @@ export function useLineasGuia() {
     setQuitada(null);
   }
 
+  /** Saca las líneas por confirmar de estas OF: el barrido las entregó y después resultaron
+   *  ser una mala lectura de otra (spec 034). Una ya confirmada o corregida no se toca. */
+  function quitarOfs(ofs: string[]) {
+    if (ofs.length === 0) return;
+    setLineas((ls) => ls.filter((l) => !(l.porConfirmar && ofs.includes(l.of))));
+  }
+
   function cambiar(i: number, cambio: Partial<LineaGuia>) {
     setLineas((ls) => ls.map((l, j) => (j === i ? { ...l, ...cambio } : l)));
   }
@@ -79,6 +86,7 @@ export function useLineasGuia() {
     restaurar,
     hayQuitada: quitada != null,
     sumar,
+    quitarOfs,
     cambiar,
     agregar,
     quitar,

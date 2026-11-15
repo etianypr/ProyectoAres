@@ -22,7 +22,6 @@ import { leerGuia } from "@/lib/encomiendas/lectura/guia";
 import { lineasParaCrear } from "@/lib/encomiendas/lectura/telefono-linea";
 import { leerFotosGuia, type FuenteLectura } from "@/lib/encomiendas/local/lectura-cliente";
 import { esApp } from "@/lib/nativo/entorno";
-import { lineasDelBarrido } from "@/lib/encomiendas/lectura/barrido-nomina";
 import { useFotosGuia } from "./fotos-guia";
 import { PieFotos, VisorGuia } from "./visor-guia";
 import { PasosGuia } from "./pasos-guia";
@@ -33,7 +32,7 @@ import { CamaraBarrido } from "./camara-barrido";
 import { FranjaConfirmar } from "./franja-confirmar";
 import { PieGuia, plural, type PasoGuia, type PreguntaGuia } from "./pie-guia";
 import { useLineasGuia } from "../_hooks/use-lineas-guia";
-import { resultadoDelBarrido, useBarridoDisponible, useBarridoNomina, type Barrido } from "../_hooks/use-barrido-nomina";
+import { useBarridoDeGuia } from "../_hooks/use-barrido-de-guia";
 import { useCargarLineas } from "../_hooks/use-cargar-lineas";
 import { useAtrasPropio } from "../_hooks/use-atras-propio";
 import { useBorradorGuia } from "../_hooks/use-borrador-guia";
@@ -90,17 +89,31 @@ export function CargarGuia({
   /** Fotos juntadas y todavía sin leer (ver fotos-guia.tsx). */
   const bandeja = useFotosGuia();
   const { fotos } = bandeja;
-  const barrer = useBarridoNomina(agregarBarrido, { conAtras: false });
-  const onBarrer = useBarridoDisponible() ? () => void barrer.iniciar() : undefined;
+  // El barrido de la nómina: una sola lectura por guía, guardada con el borrador (spec 034).
+  const guardarYa = useRef<ReturnType<typeof useBorradorGuia>["guardarYa"]>(() => undefined);
+  const barridoGuia = useBarridoDeGuia({
+    alSumar: (nuevas, total, porConfirmar) => {
+      sumar(nuevas, null, total, porConfirmar);
+      setFuente((antes) => (antes === "ia" ? "ia" : "texto"));
+    },
+    alSobrar: guia.quitarOfs,
+    alVacio: () => setError("No se leyó ninguna OF de la nómina."),
+    guardarYa: (b) => guardarYa.current(b),
+  });
+  const { barrer, onBarrer } = barridoGuia;
   const carga = useCargarLineas({ fecha, lecturaIA, onCreados });
   const { fin } = carga;
 
   const borrador = useBorradorGuia({
     fecha,
     estado: { paso, lineas, avisos, folio, total: guia.total, texto, fuente },
+    barrido: barridoGuia.guardado,
     creando: fin != null,
-    onRecuperado: (b) => (guia.restaurar(b), setTexto(b.texto), setFuente(b.fuente), setPaso(b.paso === "fotos" && !conFoto ? "pegar" : b.paso)),
+    onRecuperado: (b) => (
+      guia.restaurar(b), barridoGuia.restaurar(b.barrido), setTexto(b.texto), setFuente(b.fuente), setPaso(b.paso === "fotos" && !conFoto ? "pegar" : b.paso)
+    ),
   });
+  useEffect(() => void (guardarYa.current = borrador.guardarYa));
   const malas = useMemo(() => lineas.filter(lineaMala).length, [lineas]);
   const porConfirmar = useMemo(() => lineas.filter((l) => l.porConfirmar).length, [lineas]);
   const ocupado = fin?.tipo === "ubicando" || fin?.tipo === "corrigiendo";
@@ -112,7 +125,7 @@ export function CargarGuia({
   /** Lo leído que se perdería al cerrar: líneas sin crear, fotos sin leer o texto pegado. */
   const sinGuardar = fin ? 0 : lineas.length;
   const hayAlgo = sinGuardar > 0 || fotos.length > 0 || (paso === "pegar" && texto.trim() !== "" && !fin);
-  const leidoEnBarrido = (barrer.vista?.firmes ?? 0) + (barrer.vista?.porConfirmar ?? 0);
+  const leidoEnBarrido = (barrer.vista?.firmes ?? 0) + (barrer.vista?.porConfirmar ?? 0) + (barrer.vista?.aMedias ?? 0);
 
   function pedirCerrar() {
     if (ocupado) return;
@@ -171,22 +184,10 @@ export function CargarGuia({
     }
   }
 
-  /** Lo barrido de la nómina se suma a lo que ya hay, como una foto más; lo que no
-   *  quedó firme llega por confirmar. Lo leyó el teléfono: origen `guia_foto`. */
-  function agregarBarrido(b: Barrido) {
-    const leido = lineasDelBarrido(resultadoDelBarrido(b));
-    if (leido.lineas.length === 0) {
-      setError("No se leyó ninguna OF de la nómina.");
-      return;
-    }
-    sumar(leido.lineas, null, leido.total, leido.porConfirmar);
-    setFuente((antes) => (antes === "ia" ? "ia" : "texto"));
-    setError(null);
-  }
-
   async function crear() {
     setError(null);
     guia.olvidarQuitada();
+    barridoGuia.olvidar(); // lo leído pasa a ser pedidos: otra guía parte de cero
     // El teléfono anotado pasa al pedido (+569); a los buscadores y a la IA va
     // solo la dirección (dueño, 2026-11-13).
     const falla = await carga.crear(lineasParaCrear(lineas), {

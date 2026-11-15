@@ -8,6 +8,7 @@ import type {
 } from "@/lib/encomiendas/catalogos";
 import type { ReferenciaPaquete } from "@/lib/encomiendas/paquete";
 import type { LineaGuia } from "@/lib/encomiendas/lectura/guia";
+import type { BarridoGuardado } from "@/lib/encomiendas/lectura/barrido-a-guia";
 import type { ProblemaGuardado } from "@/lib/encomiendas/problemas";
 import type { ResultadoVisita, ResultadoLlamada } from "@/lib/encomiendas/estados";
 import type { Coordenada, Trazado } from "@/lib/geo/coordenada";
@@ -298,4 +299,8 @@ export type BorradorGuia = {
   texto: string;
   /** Quién leyó lo que hay (decide el origen de los pedidos); null = texto pegado. */
   fuente: "texto" | "ia" | null;
+  /** El barrido de la nómina en curso (spec 034; dueño, 2026-11-15): sus votos, para
+   *  seguir la misma lectura si el celular se bloquea o Android cierra ARES. OF y
+   *  direcciones, sin nombres. Opcional: un borrador anterior no lo trae. */
+  barrido?: BarridoGuardado;
 };

@@ -52,12 +52,27 @@ export function ofDeRenglon(renglon: string): string | null {
  *  foto). Un bloque cortado en el borde (sin su OF o sin el renglón que cierra la
  *  dirección) no se toma: otro cuadro lo trae entero. */
 export function bloquesNomina(renglones: string[]): BloqueNomina[] {
+  return piezasNomina(renglones).bloques;
+}
+
+/** Un encargo que no entró entero al cuadro (spec 034: el celular y la boleta se mueven,
+ *  y exigir el encargo entero botaba casi todos los cuadros). `destino`: la dirección
+ *  llegó al borde del cuadro sin el renglón que la cierra, así que puede venir cortada;
+ *  null si solo se vio la fila de la OF. */
+export type PiezaNomina = { of: string; destino: string | null; filaOf: number };
+
+/** Los encargos enteros de un cuadro y, aparte, las piezas: las OF que se leyeron sin su
+ *  dirección entera. Las piezas votan los dígitos de la OF (barrido-nomina.ts). */
+export function piezasNomina(renglones: string[]): { bloques: BloqueNomina[]; piezas: PiezaNomina[] } {
   const bloques: BloqueNomina[] = [];
+  const abiertas = new Map<number, string>();
+  const filasOf: { valor: string; fila: number }[] = [];
   let of: { valor: string | null; fila: number } | null = null;
   for (let i = 0; i < renglones.length; i++) {
     const renglon = renglones[i];
     if (FILA_OF.test(renglon)) {
       of = { valor: ofDeRenglon(renglon), fila: i };
+      if (of.valor) filasOf.push({ valor: of.valor, fila: i });
       continue;
     }
     const direccion = renglon.match(DIRECCION);
@@ -84,11 +99,33 @@ export function bloquesNomina(renglones: string[]): BloqueNomina[] {
         if (valores != null && !FILA_OF.test(valores) && !DIRECCION.test(valores) && !ENCABEZADO.test(valores)) hasta = j + 1;
       }
       bloques.push({ of: of.valor, destino, filaOf: of.fila, filasDireccion: Array.from({ length: j - i }, (_, k) => i + k), hasta });
+    } else if (of?.valor && destino && j >= renglones.length && partes.length <= MAX_RENGLONES) {
+      // La dirección llegó al final del cuadro: no se sabe si sigue en otro renglón.
+      abiertas.set(of.fila, destino);
     }
     of = null;
     i = j - 1;
   }
-  return bloques;
+  const enBloque = new Set(bloques.map((b) => b.filaOf));
+  const piezas = filasOf
+    .filter((f) => !enBloque.has(f.fila) && (abiertas.has(f.fila) || esFilaDeEncargo(renglones, f.fila)))
+    .map((f): PiezaNomina => ({ of: f.valor, destino: abiertas.get(f.fila) ?? null, filaOf: f.fila }));
+  return { bloques, piezas };
+}
+
+/** La fila de un encargo: la OF y después TOTAL, DOCTOS y BULTOS («200000001 1 0 1 …»). */
+const FILA_DE_DATOS = /^\s*\d{7,10}(\s+\d{1,2}){2,3}(?=\s|$)/;
+/** El renglón de los títulos de las columnas, justo antes de la fila del encargo. */
+const COLUMNAS = /T[O0]TAL|D[O0]CT[O0]S|BULT[O0]S|DESTINATAR|C[O0]MUNA/i;
+
+/** ¿Este renglón que empieza con un número largo, y que no trae su dirección en el cuadro,
+ *  es la fila de un encargo? Solo si tiene la forma de la fila de datos o viene justo
+ *  después de los títulos de las columnas. El encabezado de la nómina (el RUT, el número
+ *  de la nómina) y su pie también traen números largos, y sin esto quedaban como una OF
+ *  «a medias» que nunca se confirmaba (terreno 2026-11-15). */
+function esFilaDeEncargo(renglones: string[], fila: number): boolean {
+  if (FILA_DE_DATOS.test(renglones[fila])) return true;
+  return [renglones[fila - 1], renglones[fila - 2]].some((r) => r != null && COLUMNAS.test(r));
 }
 
 /** Las OF y sus destinos de un texto de la nómina. */

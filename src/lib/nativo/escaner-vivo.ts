@@ -31,7 +31,13 @@ export type CuadroVivo = {
 };
 
 /** Lo que tiene la cámara de este teléfono. */
-export type CamaraViva = { linterna: boolean; captura: boolean };
+export type CamaraViva = {
+  linterna: boolean;
+  captura: boolean;
+  /** Con exposición corta: los cuadros por segundo que quedaron fijos (0 si la cámara
+   *  no dejó, o con una APK anterior a la 034). */
+  cuadrosFijos: number;
+};
 
 /** La captura en alta, ya leída por ML Kit en el teléfono. */
 export type CapturaViva = { imagen: Blob; codigos: string[]; texto: string };
@@ -49,8 +55,17 @@ export type MarcaViva = {
   etiqueta?: string;
 };
 
+/** Cómo expone la cámara al barrer (spec 034: el celular y la boleta se mueven, y con
+ *  poca luz la cámara alarga la exposición y el texto sale movido). `corta`: nunca más
+ *  de 1/30 s por cuadro; `cortaOscura`: además un punto menos de exposición. */
+export type ExposicionViva = "auto" | "corta" | "cortaOscura";
+
+/** `codigos: false`: no se buscan códigos de barras en cada cuadro (la nómina no trae).
+ *  Una APK anterior a la de la 034 ignora `codigos` y `exposicion`. */
+export type OpcionesEscanerVivo = { captura?: boolean; codigos?: boolean; exposicion?: ExposicionViva };
+
 type PluginEscanerVivo = {
-  iniciar(opciones?: { captura?: boolean }): Promise<CamaraViva>;
+  iniciar(opciones?: OpcionesEscanerVivo): Promise<CamaraViva>;
   detener(): Promise<void>;
   linterna(opciones: { encendida: boolean }): Promise<void>;
   avisar(): Promise<void>;
@@ -94,6 +109,28 @@ export function elegirEscanerClasico(elegido: boolean): void {
   }
 }
 
+const CLAVE_EXPOSICION = "ares.barrido-exposicion";
+const EXPOSICIONES: ExposicionViva[] = ["auto", "corta", "cortaOscura"];
+
+/** La exposición con que barre la nómina. Se cambia en Diagnóstico para comparar con la
+ *  misma nómina; por defecto, corta. */
+export function exposicionDelBarrido(): ExposicionViva {
+  try {
+    const guardada = globalThis.localStorage?.getItem(CLAVE_EXPOSICION) as ExposicionViva | null;
+    return guardada && EXPOSICIONES.includes(guardada) ? guardada : "corta";
+  } catch {
+    return "corta";
+  }
+}
+
+export function elegirExposicionDelBarrido(exposicion: ExposicionViva): void {
+  try {
+    globalThis.localStorage?.setItem(CLAVE_EXPOSICION, exposicion);
+  } catch {
+    // Sin localStorage queda la exposición por defecto.
+  }
+}
+
 /** ¿«Cargar el auto» y «Escanear la etiqueta» abren la cámara en vivo? */
 export function usarEscanerVivo(): boolean {
   return escanerVivoDisponible() && !escanerClasicoElegido();
@@ -106,7 +143,7 @@ export function usarEscanerVivo(): boolean {
  *  nómina; una APK anterior lo ignora). */
 export async function iniciarEscanerVivo(
   alCuadro: (cuadro: CuadroVivo) => void,
-  opciones: { captura?: boolean } = {},
+  opciones: OpcionesEscanerVivo = {},
 ): Promise<{ camara: CamaraViva; apagar: () => Promise<void> }> {
   const escucha = await EscanerVivo.addListener("cuadro", alCuadro);
   let camara: CamaraViva;
@@ -117,7 +154,7 @@ export async function iniciarEscanerVivo(
     throw e;
   }
   return {
-    camara: { linterna: Boolean(camara?.linterna), captura: Boolean(camara?.captura) },
+    camara: { linterna: Boolean(camara?.linterna), captura: Boolean(camara?.captura), cuadrosFijos: Number(camara?.cuadrosFijos) || 0 },
     apagar: async () => {
       await escucha.remove();
       await EscanerVivo.detener().catch(() => undefined);
