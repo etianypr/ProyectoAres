@@ -15,11 +15,11 @@ export async function comprimirFoto(archivo: Blob, ladoMaximo = LADO_MAXIMO): Pr
     lienzo.width = Math.round(imagen.width * escala);
     lienzo.height = Math.round(imagen.height * escala);
     const contexto = lienzo.getContext("2d");
-    if (!contexto) throw new Error("Este teléfono no pudo procesar la foto.");
+    if (!contexto) throw new Error("El dispositivo no pudo procesar la foto.");
     contexto.drawImage(imagen, 0, 0, lienzo.width, lienzo.height);
     return await new Promise<Blob>((listo, falla) =>
       lienzo.toBlob(
-        (blob) => (blob ? listo(blob) : falla(new Error("Este teléfono no pudo procesar la foto."))),
+        (blob) => (blob ? listo(blob) : falla(new Error("El dispositivo no pudo procesar la foto."))),
         "image/jpeg",
         CALIDAD,
       ),

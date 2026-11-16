@@ -4,8 +4,7 @@
 // "Pedidos fuera de la ruta" (sale de pantalla.tsx, spec 002 T037).
 
 import { AlertTriangle, MapPinOff } from "lucide-react";
-import { cn } from "@/lib/comun/utils";
-import { nombreVisible } from "@/lib/encomiendas/paquete";
+import { nombreVisible, subtituloPedido } from "@/lib/encomiendas/paquete";
 import { problemasDelPedido, type TipoProblema } from "@/lib/encomiendas/problemas";
 import type { Pedido } from "@/lib/encomiendas/local/almacen";
 import { FilaDeslizable } from "./fila-deslizable";
@@ -13,7 +12,6 @@ import { FilaDeslizable } from "./fila-deslizable";
 /** Qué se hace con cada ⚠ al tocar la fila (siempre abre la edición). */
 const ACCION: Record<TipoProblema, string> = {
   sin_ubicar: "Corregir",
-  sin_of: "Escribir",
   calle_repetida: "Elegir",
   solo_calle: "Elegir",
   lejana: "Revisar",
@@ -57,10 +55,9 @@ export function FilaPedido({
         className="flex w-full items-center gap-3 px-3.5 py-3 text-left text-sm transition-colors active:bg-background"
       >
         <div className="min-w-0 flex-1">
-          <p className={cn("truncate font-medium leading-tight", !pedido.nombre && "font-mono tabular-nums")}>
-            {nombreVisible(pedido)}
-          </p>
-          <p className="truncate text-xs text-muted">{pedido.direccion}</p>
+          {/* Lo principal es la dirección; la OF es el id (dueño, 2026-11-16). */}
+          <p className="truncate font-medium leading-tight">{pedido.direccion || "Sin dirección"}</p>
+          <p className="truncate text-xs text-muted">{subtituloPedido(pedido)}</p>
           {problemas.map((p) => {
             const Icono = p.tipo === "sin_ubicar" ? MapPinOff : AlertTriangle;
             return (

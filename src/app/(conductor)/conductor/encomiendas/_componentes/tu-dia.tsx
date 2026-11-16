@@ -29,7 +29,7 @@ export function TuDia({
 }) {
   if (!motivoNoCerrar && sinEnviar === 0 && rechazados === 0 && correccionesRechazadas === 0) return null;
   return (
-    <Seccion titulo="Tu día">
+    <Seccion titulo="Estado del día">
           <div className="space-y-2">
             {/* Los tres contadores grandes (entregadas / sin entregar /
                 pendientes) se fueron: eso mismo está arriba en el carril, dentro
@@ -45,7 +45,7 @@ export function TuDia({
               <div className="flex items-start gap-2.5 rounded-2xl bg-warn-bg px-3.5 py-3 text-sm text-warn">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium">El día no se cerró todavía</p>
+                  <p className="font-medium">Día sin cerrar</p>
                   <p className="mt-0.5 text-xs">{motivoNoCerrar}</p>
                 </div>
               </div>
@@ -64,8 +64,8 @@ export function TuDia({
                     {/* Un rechazo del servidor no es "falta señal": se dice lo
                         que pasó, para que avise a la oficina (spec 017, E8). */}
                     {errorEnvio && !/fetch|network|red|señal|timeout|abort/i.test(errorEnvio)
-                      ? `El servidor no lo aceptó: ${errorEnvio}. Avisa a la oficina.`
-                      : "Se envía solo con señal."}
+                      ? `Registro rechazado por el servidor: ${errorEnvio}. Contacta a la oficina.`
+                      : "Se enviará automáticamente al recuperar la conexión."}
                   </p>
                 </div>
                 <button
@@ -84,8 +84,8 @@ export function TuDia({
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                 <p className="min-w-0 flex-1">
                   {rechazados === 1
-                    ? "1 registro rechazado por el servidor. Avisa a la oficina."
-                    : `${rechazados} registros rechazados por el servidor. Avisa a la oficina.`}
+                    ? "1 registro rechazado por el servidor. Contacta a la oficina."
+                    : `${rechazados} registros rechazados por el servidor. Contacta a la oficina.`}
                 </p>
               </div>
             ) : null}
@@ -96,8 +96,8 @@ export function TuDia({
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                 <p className="min-w-0 flex-1">
                   {correccionesRechazadas === 1
-                    ? "No se pudo corregir: pasó el plazo. Avisa a la oficina."
-                    : `${correccionesRechazadas} correcciones no se pudieron hacer: pasó el plazo. Avisa a la oficina.`}
+                    ? "No se pudo corregir: plazo vencido. Contacta a la oficina."
+                    : `${correccionesRechazadas} correcciones no se pudieron aplicar: plazo vencido. Contacta a la oficina.`}
                 </p>
               </div>
             ) : null}

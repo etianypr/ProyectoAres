@@ -113,13 +113,13 @@ export async function replanificarRuta(
   return respuestas.flatMap(({ pedidoId, tipo }) => {
     const pedido = porId.get(pedidoId);
     if (!pedido) return [];
-    if (tipo === "manana") return [`${pedido.nombre} pidió mañana: sale de la ruta de hoy.`];
+    if (tipo === "manana") return [`${pedido.nombre} solicitó entrega para mañana: sale de la ruta de hoy.`];
 
     const bloque = bloquePorId(pedido.bloqueHorarioId)?.etiqueta ?? "otro horario";
     const lugar = secuencia.indexOf(pedidoId) + 1;
-    if (lugar === 0) return [`${pedido.nombre} eligió ${bloque}.`];
+    if (lugar === 0) return [`${pedido.nombre} solicitó ${bloque}.`];
     if (fuera.has(pedidoId)) {
-      return [`${pedido.nombre} eligió ${bloque} y no se alcanza: llámalo. Quedó en la parada ${lugar}.`];
+      return [`${pedido.nombre} solicitó ${bloque} y no se alcanza a cumplir. Se recomienda llamar. Quedó en la parada ${lugar}.`];
     }
     return [`${pedido.nombre} (${bloque}) pasa a la parada ${lugar}.`];
   });

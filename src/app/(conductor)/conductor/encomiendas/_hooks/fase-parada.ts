@@ -33,13 +33,13 @@ export const SALIDAS = [
     clave: "pendiente",
     etiqueta: "Dejar como pendiente",
     aviso: "Se reintenta más tarde",
-    detalle: "Se reintenta más tarde, de pasada",
+    detalle: "Se reintenta más tarde, al pasar cerca",
   },
   {
     clave: "no_entregado",
     etiqueta: "No entregado",
-    aviso: "Marcado: no entregado",
-    detalle: "Se tacha por hoy",
+    aviso: "Marcado como no entregado",
+    detalle: "Sin más intentos hoy",
   },
 ] as const;
 
@@ -64,7 +64,7 @@ export function faseDeParada(
 
 /** «Pidió otra hora» (spec 033): una disponibilidad, no un motivo. Va entre las
  *  salidas solo si queda algún bloque por delante hoy. */
-export const OTRA_HORA = { etiqueta: "Pidió otra hora", detalle: "Elegir el bloque" } as const;
+export const OTRA_HORA = { etiqueta: "Solicitó otro horario", detalle: "Elegir bloque horario" } as const;
 
 /** Los bloques horarios que todavía no terminan (minuto del día de ahora). */
 export function bloquesPorDelante(minuto: number, bloques: readonly BloqueHorario[] = BLOQUES_HORARIOS): BloqueHorario[] {

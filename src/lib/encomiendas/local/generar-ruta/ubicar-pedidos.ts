@@ -1,6 +1,6 @@
 // Volver a ubicar, antes de armar la ruta, los pedidos que quedaron sin punto.
 
-import { ubicarDireccion } from "@/lib/geo/geocoding";
+import { elegirConLaRuta, ubicarDireccion } from "@/lib/geo/geocoding";
 import { puntoDeAcceso, type Acceso } from "@/lib/geo/acceso";
 import { nombreVisible } from "@/lib/encomiendas/paquete";
 import { lugarProvisorio, type ProblemaGuardado } from "@/lib/encomiendas/problemas";
@@ -47,8 +47,10 @@ export async function reintentarUbicar(
   // segundo de OpenStreetMap. El espaciado ya no se hace acá — lo garantiza el
   // propio geocodificador (ver la fila de turnos en lib/geo/geocoding), y así una
   // dirección que Google resuelve sola no paga ninguna espera.
+  // Los puntos del día: una calle repetida se queda con el lugar de la zona de la ruta (spec 035).
+  const puntosDelDia = pendientes.filter(tieneCoordenadas).map((p) => ({ lat: p.lat, lng: p.lng }));
   for (const pedido of aIntentar) {
-    const r = await ubicarDireccion(pedido.direccion);
+    const r = elegirConLaRuta(await ubicarDireccion(pedido.direccion), puntosDelDia);
     if (r.elegida) {
       encontradas.push({ id: pedido.id, lat: r.elegida.lat, lng: r.elegida.lng });
       // Entró a la ruta, pero puede haber entrado con la puerta interpolada
@@ -64,7 +66,7 @@ export async function reintentarUbicar(
     const provisorio = lugarProvisorio(r);
     if (provisorio) {
       enDuda.push({ id: pedido.id, ...provisorio });
-      advertencias.push(`${nombreVisible(pedido)}: en duda, entra con la primera opción (⚠).`);
+      advertencias.push(`${nombreVisible(pedido)}: con dudas, se incluye con la primera opción (⚠).`);
       continue;
     }
     // Sin ubicación confirmada. La advertencia nombra al destinatario porque es
@@ -78,7 +80,7 @@ export async function reintentarUbicar(
   const sinIntentar = sinUbicar.length - aIntentar.length;
   if (sinIntentar > 0) {
     advertencias.push(
-      `Quedaron ${sinIntentar} pedido(s) sin intentar ubicar en esta pasada. Vuelve a armar la ruta para seguir.`,
+      `Quedaron ${sinIntentar} pedido(s) sin intentar ubicar. Vuelve a optimizar la ruta para continuar.`,
     );
   }
 
@@ -148,7 +150,7 @@ export async function corregirAccesos(
     }),
     advertencias: movidos.map(
       ({ pedido, acceso }) =>
-        `"${nombreVisible(pedido)}" quedaba pegado a ${acceso.carretera ?? "la carretera"}: se ubicó en ${acceso.calle ?? "la calle de al lado"}, por donde se llega.`,
+        `"${nombreVisible(pedido)}" quedaba junto a ${acceso.carretera ?? "la carretera"}: se ubicó en ${acceso.calle ?? "la calle de al lado"}, por donde se accede.`,
     ),
   };
 }

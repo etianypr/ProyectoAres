@@ -14,8 +14,20 @@
 
 import type { ResultadoUbicacion } from "@/lib/geo/geocoding";
 
-/** Un lugar posible para una dirección en duda: lo que trajo la búsqueda. */
-export type OpcionLugar = { direccion: string; detalle: string | null; lat: number; lng: number };
+/** Un lugar posible para una dirección en duda: lo que trajo la búsqueda. Con una calle
+ *  repetida (spec 035) trae además su población, su sector y si calzó con la guía (opcionales:
+ *  los pedidos guardados antes siguen sirviendo). */
+export type OpcionLugar = {
+  direccion: string;
+  detalle: string | null;
+  lat: number;
+  lng: number;
+  poblacion?: string | null;
+  sector?: string;
+  calza?: boolean;
+  /** Las calles que cruzan ese lugar (hasta 3). */
+  cruces?: string[];
+};
 
 /** Un ⚠ guardado en el pedido. `revisado` = el conductor dijo «Va igual» o «Es
  *  así»: sigue anotado, pero ya no pide nada. */
@@ -25,7 +37,7 @@ export type ProblemaGuardado =
   | { tipo: "etiqueta_otra_direccion"; direccion: string }
   | { tipo: "fuera_de_guia"; revisado?: boolean };
 
-export type TipoProblema = "sin_ubicar" | "sin_of" | ProblemaGuardado["tipo"];
+export type TipoProblema = "sin_ubicar" | ProblemaGuardado["tipo"];
 
 export type ProblemaPedido = {
   tipo: TipoProblema;
@@ -54,9 +66,9 @@ function textoGuardado(p: ProblemaGuardado): string {
     case "horario":
       return p.texto;
     case "etiqueta_otra_direccion":
-      return "La etiqueta dice otra dirección";
+      return "La etiqueta indica otra dirección";
     case "fuera_de_guia":
-      return "No estaba en la guía";
+      return "No figura en la guía";
   }
 }
 
@@ -74,12 +86,21 @@ export function problemasDelPedido(p: {
     if ("revisado" in g && g.revisado) continue;
     problemas.push({ tipo: g.tipo, texto: textoGuardado(g), avisaAntes: g.tipo !== "fuera_de_guia" });
   }
-  // Uno cargado a mano puede no tener OF y no es un problema. Uno de la guía sin
-  // OF no se va a poder enlazar con su etiqueta al escanear.
-  if (!p.of && p.origenCarga.startsWith("guia")) {
-    problemas.push({ tipo: "sin_of", texto: "No se leyó la OF", avisaAntes: false });
-  }
+  // Sin OF no es algo que resolver (dueño, 2026-11-16): la OF es solo el id del paquete; la
+  // parada vale por su dirección. Se completa al escanear la etiqueta.
   return problemas;
+}
+
+/** Spec 035, para el aviso dos paradas antes: «Va a Pob. Linderos · Sur; hay 3 lugares más».
+ *  La opción es la más cercana al punto con que el pedido entró a la ruta. null si el pedido no
+ *  tiene una calle repetida con poblaciones. */
+export function lugarSupuesto(p: { lat: number | null; lng: number | null; problemas?: ProblemaGuardado[] }): string | null {
+  const g = p.problemas?.find((x) => x.tipo === "calle_repetida");
+  if (!g || !("opciones" in g) || p.lat == null || p.lng == null || !g.opciones.some((o) => o.sector)) return null;
+  const { lat, lng } = p;
+  const cerca = [...g.opciones].sort((a, b) => Math.hypot(a.lat - lat, a.lng - lng) - Math.hypot(b.lat - lat, b.lng - lng))[0];
+  const otros = g.opciones.length - 1;
+  return `Va a ${cerca.detalle ?? cerca.direccion}; hay ${otros === 1 ? "1 lugar más" : `${otros} lugares más`}`;
 }
 
 /** Cuántas opciones se guardan de una dirección en duda: las que se alcanzan a
@@ -94,11 +115,12 @@ export function lugarProvisorio(
   r: Pick<ResultadoUbicacion, "tipo" | "candidatos" | "elegida">,
 ): { punto: { lat: number; lng: number }; problema: ProblemaGuardado } | null {
   if (r.elegida || (r.tipo !== "ambigua" && r.tipo !== "solo_calle")) return null;
-  const opciones = r.candidatos.slice(0, MAX_OPCIONES).map((c) => ({
+  const opciones: OpcionLugar[] = r.candidatos.slice(0, MAX_OPCIONES).map((c) => ({
     direccion: c.direccion,
     detalle: c.detalle ?? null,
     lat: c.lat,
     lng: c.lng,
+    ...(c.sector ? { poblacion: c.poblacion ?? null, sector: c.sector, calza: c.calza ?? false, cruces: c.cruces ?? [] } : {}),
   }));
   if (opciones.length === 0) return null;
   return {

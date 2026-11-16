@@ -62,7 +62,7 @@ export function useCargarLineas({
     const { quedan } = await deshacerCarga(fin.ids, fecha);
     onCreados();
     setFin(null);
-    return quedan > 0 ? `${quedan} ya ${quedan === 1 ? "estaba en la ruta o escaneado: quedó" : "estaban en la ruta o escaneados: quedaron"}.` : null;
+    return quedan > 0 ? `${quedan} ya ${quedan === 1 ? "estaba en la ruta o escaneado: se conserva" : "estaban en la ruta o escaneados: se conservan"}.` : null;
   }
 
   return { fin, crear, dejar, deshacer };

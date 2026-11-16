@@ -29,11 +29,11 @@ export function EnlacesHoja({
           Agregar pedido
         </button>
         <button type="button" onClick={onCargarGuia} className={enlace}>
-          Sumar otra guía
+          Agregar guía
         </button>
         {rehacer ? (
           <button type="button" onClick={() => setRehaciendo((v) => !v)} aria-expanded={rehaciendo} className={enlace}>
-            Rehacer la ruta
+            Recalcular ruta
           </button>
         ) : null}
       </div>

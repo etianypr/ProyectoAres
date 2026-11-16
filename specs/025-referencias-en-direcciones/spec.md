@@ -1,6 +1,6 @@
 # Spec 025 · Referencias en las direcciones
 
-**Creada**: 2026-11-05 · **Estado**: borrador (falta definirla) · **Rama**: sin empezar ·
+**Creada**: 2026-11-05 · **Estado**: borrador; la separación de referencias la hizo la spec 035 (`geo/geocoding/referencias.ts`) · **Rama**: sin empezar ·
 **Pedido del dueño** (`AGENTS.md`, «Direcciones en Arica» → «Referencias»).
 
 ## Hoy

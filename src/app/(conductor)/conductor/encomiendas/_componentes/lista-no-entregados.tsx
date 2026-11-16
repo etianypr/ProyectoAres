@@ -10,7 +10,7 @@ export function ListaNoEntregados({ pedidos }: { pedidos: Pedido[] }) {
   if (pedidos.length === 0) {
     return (
       <p className="rounded-2xl bg-card px-4 py-3 text-sm text-muted shadow-soft">
-        Se entregó todo. No hay nada que devolver.
+        Todos los pedidos fueron entregados. Sin devoluciones.
       </p>
     );
   }

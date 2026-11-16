@@ -47,7 +47,7 @@ export type LecturaFoto = { tipo: "guia"; guia: GuiaLeida; fuente: FuenteLectura
 export async function leerFotoEtiqueta(foto: Blob): Promise<LecturaEtiqueta> {
   const leida = await leerFotoEtiquetaDoble(foto);
   if (!leida) {
-    throw new ErrorLectura("No se pudo leer el texto de la foto. Saca otra más derecha y con luz, o pega el texto.", 422);
+    throw new ErrorLectura("No se pudo leer el texto de la foto. Toma otra, de frente y con buena luz, o pega el texto.", 422);
   }
   return leida.lectura;
 }
@@ -103,7 +103,7 @@ export async function leerFotosGuia(fotos: Blob[], { ia }: { ia: boolean }): Pro
     const texto = await textos();
     const local = texto ? desdeTexto(texto) : null;
     if (local && suficiente(local)) return local;
-    throw new ErrorLectura("No se pudo leer el texto de las fotos. Sácalas más derechas y con luz, o pega el texto.", 422);
+    throw new ErrorLectura("No se pudo leer el texto de las fotos. Tómalas de frente y con buena luz, o pega el texto.", 422);
   }
 
   const [lectura, texto] = await Promise.all([
@@ -176,7 +176,7 @@ async function pedirIA(fotos: Blob[], { revisar = false } = {}): Promise<Respues
     // Varias fotos con el modelo grande tardan ~10 s; releer, otro tanto.
     respuesta = await fetch("/api/lectura", { method: "POST", body: datos, signal: tope(60_000) });
   } catch {
-    throw new ErrorLectura("Sin señal: no se pudo leer la foto. Pega el texto o intenta con señal.", 0);
+    throw new ErrorLectura("Sin conexión. No se pudo leer la foto. Pega el texto o vuelve a intentarlo con conexión.", 0);
   }
   const cuerpo = (await respuesta.json().catch(() => null)) as RespuestaLectura | { error?: string } | null;
   if (!respuesta.ok || !cuerpo || !("tipo" in cuerpo)) {

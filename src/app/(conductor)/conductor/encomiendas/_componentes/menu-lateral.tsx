@@ -44,7 +44,7 @@ export function BotonMenu({ onAbrir }: { onAbrir: () => void }) {
     <button
       type="button"
       onClick={onAbrir}
-      aria-label="Abrir el menú"
+      aria-label="Abrir menú"
       className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-card shadow-md active:bg-background"
     >
       <Menu className="h-4 w-4" />
@@ -138,7 +138,7 @@ export function MenuLateral({
           <button
             type="button"
             onClick={onCerrar}
-            aria-label="Cerrar el menú"
+            aria-label="Cerrar menú"
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted active:bg-card"
           >
             <X className="h-5 w-5" />
@@ -152,7 +152,7 @@ export function MenuLateral({
             className="mb-4 flex w-full items-center gap-2.5 rounded-2xl bg-card px-3.5 py-3 text-left text-sm font-medium shadow-soft active:bg-background"
           >
             <Search className="h-4 w-4 shrink-0 text-brand" />
-            Buscar un paquete por su OF
+            Buscar paquete por OF
           </button>
           <button
             type="button"
@@ -171,13 +171,13 @@ export function MenuLateral({
             Accesibilidad
           </button>
 
-          <p className="px-1 pb-2 text-xs font-medium text-muted">Tus días</p>
+          <p className="px-1 pb-2 text-xs font-medium text-muted">Días de trabajo</p>
 
           {dias.length === 0 ? (
             // Sin ninguna ruta armada todavía. Se dice, en vez de dejar el hueco
             // vacío: un panel en blanco parece algo que no cargó.
             <p className="rounded-2xl bg-card px-3.5 py-3 text-sm text-muted shadow-soft">
-              Sin días todavía.
+              Sin días registrados.
             </p>
           ) : (
             <ul className="overflow-hidden rounded-2xl bg-card shadow-soft">
@@ -248,7 +248,7 @@ export function MenuLateral({
               conductor no vuelve a repartir uno pasado (ver encomiendas/page.tsx).
               El historial completo, pedido por pedido, lo mira la oficina. */}
           <p className="px-1 pb-4 pt-2 text-xs text-muted">
-            Los días anteriores son solo para mirar.
+            Los días anteriores son solo de consulta.
           </p>
         </div>
 

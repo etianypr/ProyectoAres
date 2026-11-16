@@ -138,8 +138,8 @@ export function armarGuia(
   if (repetidas > 0) {
     avisos.push(
       repetidas === 1
-        ? "Una OF estaba repetida (fotos superpuestas): quedó una sola vez."
-        : `${repetidas} OF estaban repetidas (fotos superpuestas): quedó cada una una sola vez.`,
+        ? "Una OF repetida (fotos superpuestas): se dejó una sola vez."
+        : `${repetidas} OF repetidas (fotos superpuestas): se dejó cada una una sola vez.`,
     );
   }
   const dudosas = lineas.filter((l) => l.dudosa).length;
@@ -153,8 +153,8 @@ export function armarGuia(
   if (totalDeclarado != null && totalDeclarado !== lineas.length) {
     avisos.push(
       totalDeclarado > lineas.length
-        ? `La guía dice ${totalDeclarado} y se leyeron ${lineas.length}: pueden faltar ${totalDeclarado - lineas.length}. Revisa si quedó alguna fuera de la foto.`
-        : `La guía dice ${totalDeclarado} y se leyeron ${lineas.length}. Revisa que no haya líneas de más.`,
+        ? `La guía indica ${totalDeclarado} y se leyeron ${lineas.length}: pueden faltar ${totalDeclarado - lineas.length}. Revisa si alguna quedó fuera de la foto.`
+        : `La guía indica ${totalDeclarado} y se leyeron ${lineas.length}. Revisa que no haya líneas de más.`,
     );
   }
   if (lineas.length === 0) avisos.push("No se leyó ninguna línea con OF.");

@@ -7,7 +7,6 @@
 
 import { useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { cn } from "@/lib/comun/utils";
 import { formatCLP, formatDistancia, formatDuracion, formatTime } from "@/lib/comun/format";
 import { AlertTriangle, Navigation, Package } from "lucide-react";
 import { formatoOf, textoReferencia } from "@/lib/encomiendas/paquete";
@@ -39,7 +38,6 @@ export function TarjetaParada({
   onNavegar?: () => void;
 }) {
   const referencia = textoReferencia(pedido.referencia);
-  const conPaquete = pedido.of != null || referencia != null;
   const urlFoto = useFotoGuardada(pedido.fotoId);
   const [ampliada, setAmpliada] = useState(false);
 
@@ -49,29 +47,64 @@ export function TarjetaParada({
         {secuencia}
       </span>
       <div className="min-w-0 flex-1">
-        {pedido.of ? (
-          <p className="font-mono text-[22px] font-semibold leading-tight tracking-tight">
-            OF {formatoOf(pedido.of)}
-          </p>
+        {/* Lo principal es la dirección: siempre hay una y es adonde se va; la OF es el id del
+            paquete (dueño, 2026-11-16). */}
+        {/* La distancia y la foto van solo al lado de la dirección: lo de abajo usa todo el
+            ancho, así la OF y el POR PAGAR caben en una línea (dueño, 2026-11-16). */}
+        <div className="flex items-start gap-3">
+          <p className="min-w-0 flex-1 text-[19px] font-semibold leading-tight tracking-tight">{pedido.direccion || "Sin dirección"}</p>
+          <div className="flex shrink-0 flex-col items-end gap-1.5">
+            {(faltan && faltan.metros > 0) || onNavegar ? (
+              <div className="flex flex-col items-end">
+                <button
+                  type="button"
+                  disabled={!onNavegar}
+                  onClick={onNavegar}
+                  aria-label="Navegar con Google Maps"
+                  className="flex items-center gap-1 rounded-full bg-brand-soft px-2.5 py-1 text-xs font-semibold tabular-nums text-brand active:scale-[0.97] disabled:active:scale-100"
+                >
+                  {onNavegar ? <Navigation className="h-3 w-3 shrink-0" /> : null}
+                  {faltan && faltan.metros > 0 ? formatDistancia(faltan.metros) : "Navegar"}
+                </button>
+                {faltan?.segundos != null && faltan.segundos > 0 ? (
+                  <span className="mt-0.5 text-[11px] tabular-nums text-muted">
+                    {formatDuracion(faltan.segundos)}
+                    {faltan.llegada != null ? ` · ${formatTime(new Date(faltan.llegada))}` : ""}
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
+            {urlFoto ? (
+              <button type="button" onClick={() => setAmpliada(true)} aria-label="Ver foto del paquete">
+                {/* eslint-disable-next-line @next/next/no-img-element -- URL local del teléfono */}
+                <img src={urlFoto} alt="" className="h-14 w-14 rounded-xl object-cover shadow-soft" />
+              </button>
+            ) : null}
+          </div>
+        </div>
+        {/* La OF y, a su derecha, el POR PAGAR (dueño, 2026-11-16): lo que hay que cobrar
+            se ve con el id del paquete, en la misma línea. Si no cabe, baja solo. */}
+        {pedido.of || pedido.porPagar || porPagarPorRevisar(pedido) ? (
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1">
+            {pedido.of ? <p className="font-mono text-sm font-semibold tabular-nums">OF {formatoOf(pedido.of)}</p> : null}
+            {/* Spec 005: lo que hay que cobrar, en palabras y no solo en color. */}
+            {pedido.porPagar ? (
+              <p className="rounded-lg bg-danger-bg px-2 py-0.5 text-sm font-bold text-danger">
+                POR PAGAR {pedido.montoPorPagar != null ? formatCLP(pedido.montoPorPagar) : "· monto por revisar"}
+              </p>
+            ) : porPagarPorRevisar(pedido) ? (
+              // Sin leer si se cobra (spec 033): nunca se supone que no.
+              <p className="flex items-center gap-1 text-xs font-semibold text-warn">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                POR PAGAR por revisar
+              </p>
+            ) : null}
+          </div>
         ) : null}
-        {referencia ? (
-          <p className={cn("font-semibold leading-tight text-brand", pedido.of ? "text-base" : "text-lg")}>
-            {referencia}
-          </p>
-        ) : null}
+        {referencia ? <p className="text-sm font-semibold leading-tight text-brand">{referencia}</p> : null}
         {/* Sin nombre todavía (llega al escanear la etiqueta) no se dice nada: el
             aviso que había acá estorbaba más de lo que ayudaba (terreno 2026-10-29). */}
-        {pedido.nombre ? (
-          <p
-            className={cn(
-              "truncate",
-              conPaquete ? "mt-0.5 text-sm font-medium" : "text-lg font-semibold leading-tight",
-            )}
-          >
-            {pedido.nombre}
-          </p>
-        ) : null}
-        <p className="truncate text-sm text-muted">{pedido.direccion}</p>
+        {pedido.nombre ? <p className="mt-0.5 truncate text-sm text-muted">{pedido.nombre}</p> : null}
         {/* Su ⚠, en palabras (spec 022): al llegar se ve qué estaba en duda. */}
         {problemasDelPedido(pedido).map((x) => (
           <p key={x.tipo} className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-warn">
@@ -79,18 +112,6 @@ export function TarjetaParada({
             {x.texto}
           </p>
         ))}
-        {/* Spec 005: lo que hay que cobrar, en palabras y no solo en color. */}
-        {pedido.porPagar ? (
-          <p className="mt-1 inline-block rounded-lg bg-danger-bg px-2 py-0.5 text-sm font-bold text-danger">
-            POR PAGAR {pedido.montoPorPagar != null ? formatCLP(pedido.montoPorPagar) : "· monto por revisar"}
-          </p>
-        ) : porPagarPorRevisar(pedido) ? (
-          // Sin leer si se cobra (spec 033): nunca se supone que no.
-          <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-warn">
-            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-            POR PAGAR por revisar
-          </p>
-        ) : null}
         {juntas.length > 0 ? (
           <p className="mt-1 flex items-center gap-1 text-sm font-semibold text-brand">
             <Package className="h-4 w-4 shrink-0" />
@@ -110,41 +131,13 @@ export function TarjetaParada({
         ) : null}
         {estado}
       </div>
-      <div className="flex shrink-0 flex-col items-end gap-1.5">
-        {(faltan && faltan.metros > 0) || onNavegar ? (
-          <div className="flex flex-col items-end">
-            <button
-              type="button"
-              disabled={!onNavegar}
-              onClick={onNavegar}
-              aria-label="Navegar con Google Maps"
-              className="flex items-center gap-1 rounded-full bg-brand-soft px-2.5 py-1 text-xs font-semibold tabular-nums text-brand active:scale-[0.97] disabled:active:scale-100"
-            >
-              {onNavegar ? <Navigation className="h-3 w-3 shrink-0" /> : null}
-              {faltan && faltan.metros > 0 ? formatDistancia(faltan.metros) : "Navegar"}
-            </button>
-            {faltan?.segundos != null && faltan.segundos > 0 ? (
-              <span className="mt-0.5 text-[11px] tabular-nums text-muted">
-                {formatDuracion(faltan.segundos)}
-                {faltan.llegada != null ? ` · ${formatTime(new Date(faltan.llegada))}` : ""}
-              </span>
-            ) : null}
-          </div>
-        ) : null}
-        {urlFoto ? (
-          <button type="button" onClick={() => setAmpliada(true)} aria-label="Ver la foto del paquete">
-            {/* eslint-disable-next-line @next/next/no-img-element -- URL local del teléfono */}
-            <img src={urlFoto} alt="" className="h-14 w-14 rounded-xl object-cover shadow-soft" />
-          </button>
-        ) : null}
-      </div>
 
       {ampliada && urlFoto && typeof document !== "undefined"
         ? createPortal(
             <button
               type="button"
               onClick={() => setAmpliada(false)}
-              aria-label="Cerrar la foto"
+              aria-label="Cerrar foto"
               className="animate-fade-in fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
             >
               {/* eslint-disable-next-line @next/next/no-img-element -- URL local del teléfono */}

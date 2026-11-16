@@ -155,7 +155,7 @@ export async function pedirOtraHora(
 ): Promise<{ parada: number | null } & Reorden> {
   const ordenAntes = await leerOrdenPendiente(fecha);
   const antes = await anotarHorario(pedidoId, { disponibilidad: "horario_indicado", bloqueHorarioId });
-  if (!antes) throw new Error("Ese pedido ya no está pendiente.");
+  if (!antes) throw new Error("El pedido ya no está pendiente.");
   // Sin el trazado: lo rehace la pantalla en segundo plano (retrazarRuta).
   await replanificarRuta(fecha, [{ pedidoId, tipo: "horario_indicado" }], ahora, { trazar: false });
   return { parada: await paradaDe(fecha, pedidoId), ordenAntes, horarioAntes: { id: pedidoId, ...antes } };

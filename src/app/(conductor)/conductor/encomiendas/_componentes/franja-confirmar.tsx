@@ -1,7 +1,7 @@
 "use client";
 
 // Una pregunta antes de perder algo (spec 033): «¿Descartar 6 líneas leídas? ·
-// Descartar · Seguir». Va en el lugar del botón principal, así el pulgar la
+// Descartar · Continuar». Va en el lugar del botón principal, así el pulgar la
 // encuentra donde iba a tocar. Lo que se descarta, en rojo y escrito.
 
 import { cn } from "@/lib/comun/utils";
@@ -9,7 +9,7 @@ import { cn } from "@/lib/comun/utils";
 export function FranjaConfirmar({
   texto,
   si,
-  no = "Seguir",
+  no = "Continuar",
   onSi,
   onNo,
   className,

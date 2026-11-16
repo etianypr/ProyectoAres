@@ -195,7 +195,7 @@ async function unIntento(
     // Timeout o red caída. Es lo más reintentable que hay.
     return {
       ok: false,
-      error: "No se pudo contactar a WhatsApp. Reintentá en un momento.",
+      error: "No se pudo contactar a WhatsApp. Vuelve a intentarlo en un momento.",
       codigo: null,
       reintentable: true,
     };

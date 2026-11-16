@@ -66,8 +66,8 @@ export function armarNotificaciones(d: DatosNotificaciones): Notificacion[] {
     notificaciones.push({
       id: "apk-vieja",
       icono: <Download className="h-4 w-4 text-white/70" />,
-      texto: "Hay una actualización disponible.",
-      ...(d.apkUrl ? { accion: { etiqueta: "Bajar", onClick: () => window.open(d.apkUrl!, "_blank") } } : {}),
+      texto: "Actualización disponible.",
+      ...(d.apkUrl ? { accion: { etiqueta: "Descargar", onClick: () => window.open(d.apkUrl!, "_blank") } } : {}),
       cerrar: d.onEsconderApk,
     });
   }
@@ -75,7 +75,7 @@ export function armarNotificaciones(d: DatosNotificaciones): Notificacion[] {
     notificaciones.push({
       id: "whatsapp",
       icono: <MessageCircleOff className="h-4 w-4 text-white/70" />,
-      texto: "WhatsApp no está disponible: llama a los clientes que no respondieron.",
+      texto: "WhatsApp no disponible. Contacta por teléfono a los clientes sin respuesta.",
       tono: "error",
     });
   }

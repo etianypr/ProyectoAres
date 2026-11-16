@@ -20,8 +20,8 @@ export async function updateSession(request: NextRequest) {
       .filter(Boolean)
       .join(" y ");
     const aviso =
-      `Falta ${faltan} en el entorno. Copiá .env.example como .env.local y ` +
-      "completá los datos del proyecto Supabase de ares (Project Settings > API).";
+      `Falta ${faltan} en el entorno. Copia .env.example como .env.local y ` +
+      "completa los datos del proyecto Supabase de ares (Project Settings > API).";
 
     // En producción NO se deja pasar: sin sesión que verificar, seguir sería
     // abrir el panel de la oficina entero sin login.
@@ -101,7 +101,7 @@ export async function updateSession(request: NextRequest) {
     // app puede decir "volvé a entrar" y no perder lo que tenía guardado.
     if (path.startsWith("/api/")) {
       return NextResponse.json(
-        { error: "Sesión vencida. Volvé a entrar a la app." },
+        { error: "Sesión vencida. Vuelve a iniciar sesión." },
         { status: 401 },
       );
     }

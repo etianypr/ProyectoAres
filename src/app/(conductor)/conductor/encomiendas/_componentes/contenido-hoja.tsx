@@ -181,17 +181,17 @@ export function ContenidoHoja({
           onEliminar={onEliminar}
           onRecargar={() => void dia.recargar()}
         />
-        {enlaces(false)}
         {tuDia}
       </>
     );
   }
 
+  // Antes de armar la ruta, «Sumar otra guía» y «Agregar pedido» van en la cabecera, a la
+  // vista (cabecera-sin-parada.tsx): aquí abajo no se repiten.
   if (paso === "ruta") {
     return (
       <>
         {fuera(`Pedidos · ${sinRutear.length}`)}
-        {enlaces(false)}
         {tuDia}
       </>
     );
@@ -263,7 +263,7 @@ export function ContenidoHoja({
               className="mt-2 flex h-11 w-full items-center justify-center gap-1.5 rounded-full border border-separator bg-card text-sm font-semibold text-brand disabled:opacity-50"
             >
               <ScanLine className="h-4 w-4" />
-              Volver a cargar
+              Reanudar carga
             </button>
           ) : null}
         </Seccion>

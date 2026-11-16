@@ -4,13 +4,15 @@
 // que no se ubicaron (spec 018) y el paso 3, versión simple (dueño, 2026-11-14): una
 // línea («27 pedidos · ⚠ 3 no ubicados»), la IA en su bloque (lo que propuso para
 // confirmar y «Corregir con IA» para volver a intentarlo con señal), los no
-// ubicados —la fila abre el pedido— y «Deshacer esta carga» mientras nadie la haya
+// ubicados —la fila abre el pedido— y «Deshacer carga» mientras nadie la haya
 // tocado (spec 033). Lo confirmado sale de los no ubicados.
 
-import { useState } from "react";
-import { AlertTriangle, Check, ChevronRight, Loader2, Undo2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { AlertTriangle, Check, Loader2, Undo2 } from "lucide-react";
 import type { ResumenCarga } from "@/lib/encomiendas/local/cargar-lineas";
+import { leerPedidos, type Pedido } from "@/lib/encomiendas/local/almacen";
 import { ConfirmarCorrecciones } from "./confirmar-correcciones";
+import { PorConfirmar, sePuedeResolverAqui } from "./por-confirmar";
 import { BotonCorregirIA } from "./corregir-ia";
 
 export type FinGuia =
@@ -25,7 +27,6 @@ export function VistaFinGuia({
   onAplicada,
   onDejar,
   onDeshacer,
-  onCorregir,
 }: {
   paso: FinGuia;
   fecha: string;
@@ -33,15 +34,30 @@ export function VistaFinGuia({
   lecturaIA: boolean;
   /** Se confirmó una corrección: la pantalla vuelve a leer los pedidos. */
   onAplicada: () => void;
-  /** «Dejar de ubicar»: lo que falta queda sin ubicar. */
+  /** «Detener ubicación»: lo que falta queda sin ubicar. */
   onDejar: () => void;
-  /** «Deshacer esta carga» (pregunta antes). */
+  /** «Deshacer carga» (pregunta antes). */
   onDeshacer: () => void;
   /** «Corregir» una sin ubicar: abre su pedido. */
   onCorregir: (pedidoId: string) => void;
 }) {
   /** Las que la IA propuso y el conductor confirmó: ya están ubicadas. */
   const [confirmadas, setConfirmadas] = useState<Set<string>>(new Set());
+  /** Los pedidos de esta carga, para resolver aquí los en duda (2026-11-16). Se releen al resolver uno. */
+  const [deLaCarga, setDeLaCarga] = useState<Pedido[]>([]);
+  const [lectura, setLectura] = useState(0);
+  const ids = paso.tipo === "listo" ? paso.ids.join(",") : "";
+  useEffect(() => {
+    if (!ids) return;
+    let vigente = true;
+    const estos = new Set(ids.split(","));
+    void leerPedidos(fecha)
+      .then((ps) => vigente && setDeLaCarga(ps.filter((p) => estos.has(p.id))))
+      .catch(() => null);
+    return () => {
+      vigente = false;
+    };
+  }, [fecha, ids, lectura]);
 
   if (paso.tipo !== "listo") {
     const corrigiendo = paso.tipo === "corrigiendo";
@@ -64,7 +80,7 @@ export function VistaFinGuia({
           onClick={onDejar}
           className="flex h-11 items-center justify-center rounded-full border border-separator bg-card px-5 text-sm font-semibold text-brand active:scale-[0.97]"
         >
-          Dejar de ubicar
+          Detener ubicación
         </button>
       </div>
     );
@@ -77,24 +93,28 @@ export function VistaFinGuia({
   const conPropuesta = paso.propuestas.map((p) => p.pedidoId).filter((id) => !confirmadas.has(id));
   const sinPropuesta = noUbicados.filter((s) => !conPropuesta.includes(s.id)).length;
   const confirmar = (id: string) => setConfirmadas((c) => new Set(c).add(id));
+  // Lo que se resuelve en esta misma pantalla: lugar en duda, o sin ubicar y sin propuesta.
+  const aResolver = deLaCarga.filter((p) => sePuedeResolverAqui(p) && !conPropuesta.includes(p.id));
+  // Hasta que se lean los pedidos de la carga, los no ubicados de siempre.
+  const pendientes = deLaCarga.length > 0 ? aResolver.length + conPropuesta.length : faltan;
 
   return (
     <div className="space-y-3">
       {/* Una línea en vez de tres cajas (versión simple, dueño 2026-11-14). */}
       <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[15px] font-bold">
         <span className="flex items-baseline gap-1.5">
-          {faltan === 0 && creados > 0 ? <Check aria-label="todos ubicados" className="h-4 w-4 self-center text-ok" /> : null}
+          {pendientes === 0 && creados > 0 ? <Check aria-label="todos ubicados" className="h-4 w-4 self-center text-ok" /> : null}
           <span className="font-mono text-xl font-semibold tabular-nums">{creados}</span>
           {creados === 1 ? "pedido" : "pedidos"}
         </span>
-        {faltan > 0 ? (
+        {pendientes > 0 ? (
           <span className="flex items-baseline gap-1.5 text-warn">
             <span aria-hidden className="text-muted">
               ·
             </span>
             <AlertTriangle className="h-4 w-4 self-center" />
-            <span className="font-mono text-xl font-semibold tabular-nums">{faltan}</span>
-            {faltan === 1 ? "no ubicado" : "no ubicados"}
+            <span className="font-mono text-xl font-semibold tabular-nums">{pendientes}</span>
+            por confirmar
           </span>
         ) : null}
       </p>
@@ -118,23 +138,15 @@ export function VistaFinGuia({
         />
       ) : null}
 
-      {faltan > 0 ? (
-        // Los no ubicados: la fila entera abre el pedido para corregirlo.
-        <ul aria-label="No ubicados" className="divide-y divide-divider overflow-hidden rounded-2xl bg-card shadow-soft">
-          {noUbicados.map((s) => (
-            <li key={s.id}>
-              <button
-                type="button"
-                onClick={() => onCorregir(s.id)}
-                aria-label={`Corregir ${s.direccion || "el pedido sin dirección"}`}
-                className="flex w-full items-center gap-2 px-3.5 py-3 text-left active:bg-background"
-              >
-                <span className="min-w-0 flex-1 truncate text-sm">{s.direccion || "Sin dirección"}</span>
-                <ChevronRight className="h-4 w-4 shrink-0 text-muted" />
-              </button>
-            </li>
-          ))}
-        </ul>
+      {aResolver.length > 0 ? (
+        <PorConfirmar
+          pedidos={aResolver}
+          onResuelto={(id) => {
+            confirmar(id);
+            setLectura((n) => n + 1);
+            onAplicada();
+          }}
+        />
       ) : null}
       {creados > 0 ? (
         <button
@@ -143,7 +155,7 @@ export function VistaFinGuia({
           className="mx-auto flex h-10 items-center gap-1.5 rounded-full px-4 text-sm font-medium text-muted active:bg-card"
         >
           <Undo2 className="h-4 w-4" />
-          Deshacer esta carga
+          Deshacer carga
         </button>
       ) : null}
     </div>

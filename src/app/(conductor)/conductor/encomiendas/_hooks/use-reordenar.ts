@@ -63,7 +63,7 @@ export function useReordenar({
     const r = await correr(async () => ({ lugar: await dia.dejarParaElFinal(pedidoId) }));
     if (!r) return;
     // La parada desaparece de arriba: se dice DÓNDE quedó, con «Deshacer».
-    const texto = r.lugar == null ? "Se reintenta al final de la ruta" : `Se reintenta más tarde: quedó ${r.lugar}.ª en la fila`;
+    const texto = r.lugar == null ? "Se reintenta al final de la ruta" : `Se reintenta más tarde: posición ${r.lugar} en la ruta`;
     if (ordenAntes) ofrecer(texto, { ordenAntes });
     retrazar();
   }
@@ -80,7 +80,7 @@ export function useReordenar({
     // Uno de afuera de la ruta no se saca con «Deshacer» (volver al orden lo
     // dejaría al final): se avisa sin él.
     if (c.secuencia != null && ordenAntes) ofrecer(`${quien} queda como la próxima`, { ordenAntes });
-    else avisar(c.secuencia == null ? `${quien} entró a la ruta como la próxima` : `${quien} queda como la próxima`);
+    else avisar(c.secuencia == null ? `${quien} se agregó a la ruta como la próxima` : `${quien} queda como la próxima`);
     retrazar();
     return true;
   }
@@ -90,7 +90,7 @@ export function useReordenar({
     if (!r) return;
     await recargar();
     const bloque = bloquePorId(bloqueId)?.etiqueta ?? "otro horario";
-    ofrecer(r.parada == null ? `Pidió ${bloque}` : `Pidió ${bloque}: pasa a la parada ${r.parada}`, r);
+    ofrecer(r.parada == null ? `Solicitó ${bloque}` : `Solicitó ${bloque}: pasa a la parada ${r.parada}`, r);
     retrazar();
   }
 

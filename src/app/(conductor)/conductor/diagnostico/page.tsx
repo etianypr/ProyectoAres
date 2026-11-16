@@ -132,7 +132,7 @@ export default function DiagnosticoPage() {
 
       {ors ? (
         <p className="text-xs text-muted">
-          OpenRouteService hoy, desde este teléfono: <span className="font-mono">{ors.matriz}</span> matrices y{" "}
+          OpenRouteService hoy, desde este dispositivo: <span className="font-mono">{ors.matriz}</span> matrices y{" "}
           <span className="font-mono">{ors.trazado}</span> trazados.
         </p>
       ) : null}
@@ -140,8 +140,8 @@ export default function DiagnosticoPage() {
       <div className="space-y-1.5">
         <p className="text-xs text-muted">
           Mapa de calles propio: {rutaConOrs ? "apagado" : fechaRed ? <span className="font-mono">{fechaRed}</span> : "sin cargar"}.
-          {origenDelUltimoTrazado() === "red" ? " La última ruta la dibujó el mapa propio." : null}
-          {origenDelUltimoTrazado() === "ors" ? " La última ruta la dibujó OpenRouteService." : null}
+          {origenDelUltimoTrazado() === "red" ? " Última ruta trazada con el mapa propio." : null}
+          {origenDelUltimoTrazado() === "ors" ? " Última ruta trazada con OpenRouteService." : null}
         </p>
         <label className="flex items-center gap-2 px-1 text-sm font-medium">
           <input
@@ -153,12 +153,12 @@ export default function DiagnosticoPage() {
             }}
             className="h-4 w-4 accent-[var(--brand)]"
           />
-          Armar la ruta con OpenRouteService
+          Optimizar ruta con OpenRouteService
         </label>
       </div>
 
       <p className="text-xs text-muted">
-        Los permisos sin decidir se piden la primera vez que se usan. Un permiso negado se cambia en
+        Los permisos sin decidir se solicitan la primera vez que se usan. Un permiso denegado se cambia en
         Ajustes → Apps → ARES → Permisos.
       </p>
 
@@ -195,7 +195,7 @@ export default function DiagnosticoPage() {
         </div>
         <p className="text-xs text-muted">
           {modoPrueba
-            ? "Nada se envía a la oficina ni por WhatsApp. Al salir se borran los pedidos de prueba de este teléfono."
+            ? "Nada se envía a la oficina ni por WhatsApp. Al salir se borran los pedidos de prueba de este dispositivo."
             : "Nada se envía a la oficina ni por WhatsApp mientras esté encendido."}
         </p>
         {errorPrueba ? <p className="text-xs text-danger">{errorPrueba}</p> : null}

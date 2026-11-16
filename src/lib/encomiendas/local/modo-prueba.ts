@@ -55,7 +55,7 @@ export async function asegurarModoPrueba(version: string | null): Promise<void> 
 export async function entrarAlModoPrueba(): Promise<void> {
   const cola = await leerTodos(STORES.cola);
   if (cola.length > 0) {
-    throw new Error("Hay actividad sin enviar a la oficina. Espera a que se envíe (con señal) y vuelve a intentar.");
+    throw new Error("Hay actividad sin enviar a la oficina. Espera a que se envíe (requiere conexión) y vuelve a intentarlo.");
   }
   fijar(true);
 }

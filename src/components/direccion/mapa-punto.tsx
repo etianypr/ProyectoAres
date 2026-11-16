@@ -166,7 +166,7 @@ export function MapaPunto({
             <ImageOff className="h-4 w-4 shrink-0 text-muted" />
             {conTexto ? (
               <p className="text-[11px] leading-tight text-muted">
-                Sin señal para dibujar el mapa. La ubicación no se pierde: se guarda igual.
+                Sin conexión para mostrar el mapa. La ubicación se guarda de todos modos.
               </p>
             ) : null}
           </div>

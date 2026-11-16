@@ -57,7 +57,7 @@ export function CabeceraCarga({
         }
       >
         <Truck className="h-4 w-4" />
-        {salida.armado ? `Faltan ${faltan} · Salir igual` : "Salir a repartir"}
+        {salida.armado ? `Faltan ${faltan} · Iniciar de todos modos` : "Iniciar ruta"}
       </button>
     </div>
   );

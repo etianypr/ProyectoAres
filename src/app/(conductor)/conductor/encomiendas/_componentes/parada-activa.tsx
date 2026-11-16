@@ -15,6 +15,7 @@ import { botonesDeParada, estadoDeParada, type BotonParada, type ExtraBotones, t
 import { TarjetaParada } from "./tarjeta-parada";
 import { FranjaConfirmar } from "./franja-confirmar";
 import { tituloAvisoAdelante, type AvisoAdelante } from "../_hooks/aviso-adelante";
+import { lugarSupuesto } from "@/lib/encomiendas/problemas";
 
 // Botones de la hoja: a ancho completo y de 48 px. Es lo que el conductor aprieta
 // manejando, con el pulgar y sin mirar mucho.
@@ -107,8 +108,18 @@ export function ParadaActiva({
           <AlertTriangle className="h-4 w-4 shrink-0" />
           <div className="min-w-0 flex-1 text-xs">
             <p className="truncate text-[13px] font-semibold">{tituloAvisoAdelante(adelante)}</p>
-            <p className="truncate">{adelante.problema.texto}</p>
+            <p className="truncate">{lugarSupuesto(adelante.parada.pedido) ?? adelante.problema.texto}</p>
           </div>
+          {/* Spec 035: con la calle en duda, cambiar el lugar sin buscar el pedido (abre su ⚠). */}
+          {adelante.problema.tipo === "calle_repetida" && adelante.parada.pedido.telefono ? (
+            <button
+              type="button"
+              onClick={() => onVer?.(adelante.parada.pedido)}
+              className="flex h-9 shrink-0 items-center rounded-full px-2.5 text-xs font-semibold text-brand active:scale-[0.97]"
+            >
+              Cambiar lugar
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() =>
@@ -117,12 +128,12 @@ export function ParadaActiva({
             className="flex h-9 shrink-0 items-center gap-1 rounded-full border border-warn/30 bg-card px-3 text-xs font-semibold active:scale-[0.97]"
           >
             {adelante.parada.pedido.telefono ? <Phone className="h-3.5 w-3.5" /> : null}
-            {adelante.parada.pedido.telefono ? "Llamar" : "Ver"}
+            {adelante.parada.pedido.telefono ? "Llamar" : adelante.problema.tipo === "calle_repetida" ? "Cambiar lugar" : "Ver"}
           </button>
         </div>
       ) : null}
       {moverActiva ? (
-        <FranjaConfirmar texto="Cambió la dirección" si="Moverla" no="Seguir con esta" onSi={moverActiva.onMover} onNo={moverActiva.onSeguir} />
+        <FranjaConfirmar texto="Dirección modificada" si="Reordenar parada" no="Mantener orden" onSi={moverActiva.onMover} onNo={moverActiva.onSeguir} />
       ) : null}
       <TarjetaParada
         secuencia={activa.secuencia}
@@ -149,8 +160,8 @@ export function ParadaActiva({
           no lleva instrucciones (dueño, 2026-11-09). Llamar sigue en el botón. */}
       <div className="space-y-2">
         {/* Las salidas de la parada, en una sola pantalla. */}
-        {fase === "salidas" ? <p className="text-xs text-muted">¿Qué hacemos con esta parada?</p> : null}
-        {fase === "horas" ? <p className="text-xs text-muted">Pidió otra hora</p> : null}
+        {fase === "salidas" ? <p className="text-xs text-muted">Resultado de la parada</p> : null}
+        {fase === "horas" ? <p className="text-xs text-muted">Solicitó otro horario</p> : null}
         {fase === "juntas" ? <p className="text-xs text-muted">{juntas.length + 1} paquetes aquí</p> : null}
         {filas.map((fila, i) => (
           <Fila key={i} fila={fila} guardando={guardando} onBoton={onBoton} />
@@ -161,7 +172,7 @@ export function ParadaActiva({
           <MapPinOff className="h-3.5 w-3.5 shrink-0" />
           <span className="min-w-0 flex-1">Sin burbuja</span>
           <button type="button" onClick={onDarPermiso} className="h-9 shrink-0 rounded-full px-3 text-xs font-semibold text-brand active:bg-background">
-            Dar permiso
+            Conceder permiso
           </button>
         </p>
       ) : null}

@@ -238,7 +238,12 @@ test("A7: ningún archivo pasa de 400 líneas", () => {
 test("A8: \"chofer\" no aparece en src/, pruebas/ ni mcp/ (spec 002 US2, FR-012)", () => {
   // Excepciones permanentes: leer los eventos que quedaron en la cola del teléfono
   // con el nombre de antes de la migración 0006, y su prueba.
-  const PERMITIDOS = ["src/lib/encomiendas/local/almacen/cola.ts", "pruebas/renombrado-conductor.test.mjs"];
+  // El plano municipal tiene una población que se llama «Choferes de Taxi» (spec 035): es su nombre.
+  const PERMITIDOS = [
+    "src/lib/encomiendas/local/almacen/cola.ts",
+    "pruebas/renombrado-conductor.test.mjs",
+    "src/lib/geo/geocoding/poblaciones-arica.ts",
+  ];
   const todos = (dir) =>
     readdirSync(dir).flatMap((n) => {
       const ruta = join(dir, n);

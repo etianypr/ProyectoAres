@@ -22,11 +22,11 @@ export function guardarPaquete(
 ): Promise<{ ofRepetida: boolean }> {
   return enFila(async () => {
     const pedido = await leerPedido(pedidoId);
-    if (!pedido) throw new Error("Ese pedido ya no existe en este teléfono.");
+    if (!pedido) throw new Error("El pedido ya no existe en este dispositivo.");
     let of = pedido.of;
     if (cambios.of !== undefined) {
       of = cambios.of === null ? null : ofValida(cambios.of);
-      if (cambios.of !== null && of === null) throw new Error("La OF lleva solo números.");
+      if (cambios.of !== null && of === null) throw new Error("La OF admite solo números.");
     }
     const actualizado: Pedido = {
       ...pedido,
@@ -42,7 +42,7 @@ export function guardarPaquete(
 export function guardarFoto(pedidoId: string, blob: Blob): Promise<string> {
   return enFila(async () => {
     const pedido = await leerPedido(pedidoId);
-    if (!pedido) throw new Error("Ese pedido ya no existe en este teléfono.");
+    if (!pedido) throw new Error("El pedido ya no existe en este dispositivo.");
     const foto: Foto = { id: uuidv7(), pedidoId, fecha: pedido.fecha, blob };
     await escribir([STORES.fotos, STORES.pedidos], ({ guardar, borrar }) => {
       if (pedido.fotoId) borrar(STORES.fotos, pedido.fotoId);

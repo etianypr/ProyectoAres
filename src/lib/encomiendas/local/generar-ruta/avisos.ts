@@ -8,18 +8,18 @@ import type { Alternativa } from "./tipos";
  *  se mostraba como «Sin señal»). */
 export function avisoSinTrazado(motivo: FallaOrs | null | undefined): string {
   if (motivo === "cupo") {
-    return "Sin trazado por calles: OpenRouteService no lo dio, y lo más probable es que se haya acabado su cupo gratis de hoy. El orden de las paradas está listo igual.";
+    return "Sin trazado por calles: OpenRouteService no respondió, probablemente por haberse agotado la cuota gratuita de hoy. El orden de las paradas no cambia.";
   }
   if (motivo === "error") {
-    return "Sin trazado por calles: el servicio de rutas no respondió. El orden de las paradas está listo igual.";
+    return "Sin trazado por calles: el servicio de rutas no respondió. El orden de las paradas no cambia.";
   }
-  return "Sin trazado por calles: no hay señal. El orden de las paradas está listo igual y el mapa lo dibuja en cuanto haya conexión.";
+  return "Sin trazado por calles: no hay conexión. El orden de las paradas no cambia y el mapa lo trazará al recuperar la conexión.";
 }
 
 /** El aviso de la propuesta si con este orden se llega fuera del horario de alguien. */
 export function avisoDeHorario(a: Alternativa): string | null {
   if (a.bloquesIncumplidos === 0) return null;
   return a.fueraDeHorario.length === 1
-    ? `Con este orden se llegaría fuera del horario que eligió ${a.fueraDeHorario[0]}. Conviene llamarlo.`
+    ? `Con este orden se llegaría fuera del horario solicitado por ${a.fueraDeHorario[0]}. Se recomienda llamar.`
     : `Con este orden se llegaría fuera de horario a ${a.fueraDeHorario.length} clientes: ${a.fueraDeHorario.join(", ")}.`;
 }

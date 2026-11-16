@@ -21,13 +21,33 @@ function diaEscrito(fecha: string): string {
 }
 
 const TITULO = "text-[21px] font-extrabold leading-tight tracking-tight";
+const SECUNDARIO =
+  "flex h-10 items-center justify-center gap-1.5 rounded-full border border-separator bg-card text-sm font-semibold text-brand active:scale-[0.97]";
+
+/** Con pedidos ya cargados, sumar más queda a la vista con la hoja cerrada, como al empezar
+ *  el día (dueño, 2026-11-15: «ahora que tengo 21 pedidos listos debería existir la
+ *  posibilidad de agregar más»). Antes eran dos enlaces chicos al final de la lista, dentro
+ *  de la hoja (enlaces-hoja.tsx), y no se veían. */
+function MasPedidos({ onCargarGuia, onAgregar }: { onCargarGuia: () => void; onAgregar: () => void }) {
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      <button type="button" onClick={onCargarGuia} className={SECUNDARIO}>
+        <Camera className="h-4 w-4" />
+        Agregar guía
+      </button>
+      <button type="button" onClick={onAgregar} className={SECUNDARIO}>
+        <Plus className="h-4 w-4" />
+        Agregar pedido
+      </button>
+    </div>
+  );
+}
 
 export function CabeceraSinParada({
   paso,
   cargando,
   pendientes,
   conProblema,
-  nombreConductor,
   fecha,
   onCargarGuia,
   onAgregar,
@@ -41,7 +61,6 @@ export function CabeceraSinParada({
   pendientes: number;
   /** Cuántos de ellos tienen un ⚠. */
   conProblema: number;
-  nombreConductor: string;
   fecha: string;
   onCargarGuia: () => void;
   onAgregar: () => void;
@@ -60,7 +79,7 @@ export function CabeceraSinParada({
           <p className="text-sm font-semibold leading-tight">
             {pendientes === 1 ? "1 pedido pendiente" : `${pendientes} pedidos pendientes`}
           </p>
-          <p className="text-xs text-muted">Sin ruta armada.</p>
+          <p className="text-xs text-muted">Sin ruta asignada.</p>
         </div>
       </div>
     );
@@ -69,15 +88,17 @@ export function CabeceraSinParada({
   if (paso === "guia") {
     return (
       <div className="space-y-2.5">
+        {/* Sin saludo: el estado y la fecha, como una app de transportes (dueño,
+            2026-11-15, lenguaje de pantalla). El nombre del conductor está en el menú. */}
         <div>
-          <p className={TITULO}>Hola, {nombreConductor.split(" ")[0]}</p>
-          <p className="text-sm text-muted">{diaEscrito(fecha)} · sin pedidos</p>
+          <p className={TITULO}>Sin pedidos para hoy</p>
+          <p className="text-sm text-muted">{diaEscrito(fecha)}</p>
         </div>
-        {/* Un solo «Cargar la guía» (antes estaba también adentro de la hoja y
+        {/* Un solo «Cargar guía» (antes estaba también adentro de la hoja y
             no se sabía si era lo mismo). El día empieza por la guía (spec 005). */}
         <button type="button" onClick={onCargarGuia} className={BOTON_PRINCIPAL}>
           <Camera className="h-4 w-4" />
-          Cargar la guía
+          Cargar guía
         </button>
         <button
           type="button"
@@ -85,7 +106,7 @@ export function CabeceraSinParada({
           className="flex w-full items-center justify-center gap-1 py-1 text-sm text-muted active:text-foreground"
         >
           <Plus className="h-3.5 w-3.5" />
-          Agregar un pedido a mano
+          Agregar pedido manualmente
         </button>
       </div>
     );
@@ -109,6 +130,7 @@ export function CabeceraSinParada({
           </button>
         </div>
         {armarRuta}
+        <MasPedidos onCargarGuia={onCargarGuia} onAgregar={onAgregar} />
       </div>
     );
   }
@@ -123,6 +145,7 @@ export function CabeceraSinParada({
         </p>
       </div>
       {armarRuta}
+      <MasPedidos onCargarGuia={onCargarGuia} onAgregar={onAgregar} />
     </div>
   );
 }

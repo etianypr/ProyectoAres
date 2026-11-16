@@ -186,7 +186,7 @@ test("aplicarCorreccion: corregida con el lápiz, queda la que eligió el conduc
   const p1 = (await almacen.leerPedidos(HOY)).find((p) => p.id === mala.id);
   assert.equal(p1.direccion, elegida.direccion);
   assert.deepEqual([p1.lat, p1.lng], [elegida.lat, elegida.lng]);
-  assert.match(p1.notas, /corregida a mano sobre la de la IA; decía «AV STA MARIA 2150»/);
+  assert.match(p1.notas, /corregida manualmente sobre la de la IA; decía «AV STA MARIA 2150»/);
 
   // Abrió el lápiz y dejó la de la IA: cuenta como la de la IA.
   await aplicarCorreccion(de(igual.id), { direccion: SANTA_MARIA.direccion, lat: SANTA_MARIA.lat, lng: SANTA_MARIA.lng });
@@ -258,4 +258,48 @@ test("propuestasGuardadas: si el conductor cambió la dirección a mano, la prop
   await almacen.cambiarDireccion(mala.id, "Pasaje 9 1204", null);
   const { propuestasGuardadas } = await import("@/lib/encomiendas/local/corregir-direcciones");
   assert.deepEqual(await propuestasGuardadas(HOY, [mala.id]), []);
+});
+
+// ---- 2026-11-16: la IA revisa también los dudosos, sin tope de 15 ----
+const propuestaEn = (lat, lng) => async () => ({
+  tipo: "propuesta",
+  candidato: { ...SANTA_MARIA, lat, lng },
+  direccion: "Avenida Santa María 2150",
+  confianza: "alta",
+  motivo: "m",
+});
+
+test("corregirDirecciones: un dudoso de la carga (con punto) recibe propuesta, y al confirmarla se mueve y pierde el ⚠", async () => {
+  const { corregirDirecciones } = await import("@/lib/encomiendas/local/corregir-direcciones");
+  const dudoso = await pedido("PASAJE 1 1450", { lat: -18.43, lng: -70.29 });
+  await almacen.ubicarConDuda([{ id: dudoso.id, punto: { lat: -18.43, lng: -70.29 }, problema: { tipo: "calle_repetida", opciones: [{ direccion: "Pasaje 1", detalle: null, lat: -18.43, lng: -70.29 }] } }]);
+  const r = await corregirDirecciones(HOY, { ids: [dudoso.id], corregir: propuestaEn(SANTA_MARIA.lat, SANTA_MARIA.lng) });
+  assert.equal(r.propuestas.length, 1);
+  await aplicarCorreccion(r.propuestas[0]);
+  const p = (await almacen.leerPedidos(HOY)).find((x) => x.id === dudoso.id);
+  assert.equal(p.lat, SANTA_MARIA.lat);
+  assert.deepEqual(p.problemas, [], "el ⚠ del lugar de antes se va");
+});
+
+test("corregirDirecciones: sin ids revisa los sin ubicar y los de lugar en duda; una propuesta en el mismo punto no se muestra", async () => {
+  const { corregirDirecciones } = await import("@/lib/encomiendas/local/corregir-direcciones");
+  const enDuda = await pedido("PJE 2 900", { lat: -18.5, lng: -70.3 });
+  await almacen.ubicarConDuda([{ id: enDuda.id, punto: { lat: -18.5, lng: -70.3 }, problema: { tipo: "solo_calle", opciones: [{ direccion: "Pasaje 2", detalle: null, lat: -18.5, lng: -70.3 }] } }]);
+  const bien = await pedido("Calle Real 1", { lat: -18.47, lng: -70.3 });
+  const vistos = [];
+  const r = await corregirDirecciones(HOY, {
+    corregir: async (d) => (vistos.push(d), propuestaEn(-18.50001, -70.30001)()),
+  });
+  assert.deepEqual(vistos, ["PJE 2 900"], "el bien ubicado no se paga");
+  assert.equal(r.propuestas.length, 0, "a 1 m del punto que ya tenía: no cambia nada");
+  void bien;
+});
+
+test("corregirDirecciones: pasa de 15 pedidos en una carga", async () => {
+  const { corregirDirecciones } = await import("@/lib/encomiendas/local/corregir-direcciones");
+  const ids = [];
+  for (let i = 0; i < 20; i++) ids.push((await pedido(`CALLE INVENTADA ${900 + i}`)).id);
+  let preguntas = 0;
+  await corregirDirecciones(HOY, { ids, corregir: async () => (preguntas++, { tipo: "sin_arreglo", motivo: "m" }) });
+  assert.equal(preguntas, 20);
 });

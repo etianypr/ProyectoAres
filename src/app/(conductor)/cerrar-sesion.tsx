@@ -46,8 +46,8 @@ export function useCerrarSesion() {
     setSaliendo(false);
     setError(
       r.estado === "sin-senal"
-        ? "Sin señal: no se cerró la sesión. No se borró nada."
-        : "No se pudo cerrar la sesión. No se borró nada.",
+        ? "Sin conexión. La sesión sigue abierta y no se borró ningún dato."
+        : "No se pudo cerrar la sesión. No se borró ningún dato.",
     );
   }
 
@@ -62,10 +62,10 @@ export function ConfirmarSalida({ salida, className }: { salida: CerrarSesion; c
   return (
     <div className={cn("space-y-3 text-left", className)}>
       <p className="text-sm">
-        Se borran de este teléfono los pedidos y las rutas. Quedan solo las cifras de cada día.
+        Se borran de este dispositivo los pedidos y las rutas. Se conservan solo las cifras de cada día.
       </p>
       {sinEnviar == null ? (
-        <p className="text-sm font-medium text-warn">No se pudo leer el teléfono: puede haber registros sin enviar.</p>
+        <p className="text-sm font-medium text-warn">No se pudo leer el dispositivo. Puede haber registros sin enviar.</p>
       ) : sinEnviar > 0 ? (
         <p className="text-sm font-medium text-warn">
           Hay {sinEnviar} {sinEnviar === 1 ? "registro" : "registros"} sin enviar: salen cuando vuelvas a entrar
@@ -81,7 +81,7 @@ export function ConfirmarSalida({ salida, className }: { salida: CerrarSesion; c
           className="flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-danger text-sm font-semibold text-white disabled:opacity-50"
         >
           {salida.error ? <RotateCw className="h-4 w-4" /> : <LogOut className="h-4 w-4" />}
-          {salida.saliendo ? "Saliendo…" : salida.error ? "Reintentar" : "Cerrar sesión"}
+          {salida.saliendo ? "Cerrando sesión…" : salida.error ? "Reintentar" : "Cerrar sesión"}
         </button>
         <button
           type="button"

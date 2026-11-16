@@ -307,7 +307,7 @@ test("una parada lejos de todas se avisa con lo que suma; un día normal no avis
   assert.equal(nombres(p.paradas.filter((x) => x.id === l.pedidoId))[0], "Lejos");
   assert.ok(l.metrosAlResto > 6000, `queda a ${l.metrosAlResto} m`);
   assert.ok(l.metrosQueSuma > 10000, `suma ${l.metrosQueSuma} m`);
-  assert.ok(p.advertencias.some((a) => /del resto y suma .* km a la ruta/.test(a)), "la ruta guardada también lo dice");
+  assert.ok(p.advertencias.some((a) => /del resto y agrega .* km a la ruta/.test(a)), "la ruta guardada también lo dice");
 });
 
 test("spec 022: la parada lejana queda como ⚠ en su pedido; «Va igual» se conserva al rehacer", async () => {
@@ -340,7 +340,7 @@ test("spec 022: la ruta que sale del caché no pierde el aviso de la parada leja
   const primera = await calcularRutaLocal(HOY, inicio);
   const segunda = await calcularRutaLocal(HOY, inicio);
   assert.equal(consultasDeMatriz(), 1, "la segunda salió del caché");
-  const lejana = (p) => p.advertencias.filter((a) => /del resto y suma/.test(a));
+  const lejana = (p) => p.advertencias.filter((a) => /del resto y agrega/.test(a));
   assert.equal(lejana(primera).length, 1);
   assert.deepEqual(lejana(segunda), lejana(primera), "antes se perdía al salir del caché");
 });

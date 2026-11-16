@@ -32,7 +32,7 @@ export function lineaDelDia(
   const pendientes = sinEnviar.get(dia.fecha) ?? 0;
   if (dia.fecha === fechaActiva) return { texto: "Hoy", alarma: false, sinEnviar: pendientes };
   if (dia.cierre == null && conDatos.has(dia.fecha)) {
-    return { texto: "Quedó sin cerrar", alarma: true, sinEnviar: pendientes };
+    return { texto: "Sin cerrar", alarma: true, sinEnviar: pendientes };
   }
   return {
     texto: `${dia.paradas} ${dia.paradas === 1 ? "parada" : "paradas"}`,

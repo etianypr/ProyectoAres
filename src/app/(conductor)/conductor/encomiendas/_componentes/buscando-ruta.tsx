@@ -29,7 +29,7 @@ export function BuscandoRuta({ onCancelar }: { onCancelar?: () => void }) {
     >
       <LogoDashund animado titulo="" className="h-24 w-24" />
       {/* Ya no es la de menos km sino la que menos cuesta en km y tiempo (spec 024). */}
-      <p className="text-lg font-extrabold tracking-tight">Buscando la mejor ruta</p>
+      <p className="text-lg font-extrabold tracking-tight">Optimizando ruta</p>
       <div aria-hidden className="h-1.5 w-44 overflow-hidden rounded-full bg-border">
         <div className="barra-buscando h-full w-1/3 rounded-full bg-brand" />
       </div>

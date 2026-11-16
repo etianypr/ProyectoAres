@@ -51,7 +51,7 @@ export function BuscarOf({
         <button
           type="button"
           onClick={onCerrar}
-          aria-label="Cerrar la búsqueda"
+          aria-label="Cerrar búsqueda"
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted active:bg-card"
         >
           <X className="h-5 w-5" />

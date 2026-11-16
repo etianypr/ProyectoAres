@@ -43,7 +43,7 @@ export function CifrasRuta({
             <span className="block font-mono text-[22px] font-semibold leading-tight tracking-tight">
               {formatDistancia(distanciaM)}
             </span>
-            <span className="text-xs text-muted">con la vuelta</span>
+            <span className="text-xs text-muted">incluye regreso</span>
           </span>
           {/* El tiempo de ruta, con su reloj (terreno 2026-10-28). Es manejando,
               sin las entregas: lo dice la Ayuda, no la pantalla. Ocupa el resto,

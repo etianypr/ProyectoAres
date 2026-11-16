@@ -84,7 +84,7 @@ export function ResolverDireccion({
           ) : (
             <p className="mt-1 flex items-center gap-1.5 text-xs text-warn">
               <SearchX className="h-3.5 w-3.5 shrink-0" />
-              Ningún proveedor de mapas la reconoció.
+              Ningún proveedor de mapas reconoció la dirección.
             </p>
           )}
     
@@ -94,7 +94,7 @@ export function ResolverDireccion({
             onClick={onGuardarSinUbicar}
             className="mt-2 w-full rounded-lg px-3 py-2 text-sm font-medium text-warn underline decoration-warn/40 underline-offset-2 disabled:opacity-60"
           >
-            Guardar sin ubicar y corregir después
+            Guardar sin ubicación y corregir después
           </button>
         </div>
   );

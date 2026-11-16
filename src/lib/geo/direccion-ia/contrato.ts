@@ -22,7 +22,7 @@ export const HERRAMIENTA = {
 /** Idas y vueltas con la IA por dirección, como mucho. */
 export const MAX_VUELTAS = 6;
 /** Direcciones por tanda: el resto queda para corregir a mano. */
-export const MAX_DIRECCIONES_POR_TANDA = 15;
+export const MAX_DIRECCIONES_POR_TANDA = 100;
 /** Tamaño máximo de la conversación que acepta el servidor (caracteres). */
 export const MAX_CARACTERES_CONVERSACION = 60_000;
 

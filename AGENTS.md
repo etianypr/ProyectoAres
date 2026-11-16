@@ -205,6 +205,20 @@ enlaces: en un clon nuevo, `node scripts/enlazar-skills.mjs` los crea.
   - Tipografía: Manrope, más IBM Plex Mono solo para OF, km y horas.
   - Ningún estado depende solo del color.
   - Nada de degradados, neón, Inter/Roboto ni tarjetas con franja lateral.
+- Lenguaje de pantalla del conductor (dueño, 2026-11-15: «más profesional, como una aplicación
+  corporativa de transportes»; referencia: Spoke y Google Maps):
+  - Botones: infinitivo + objeto, sin artículo («Optimizar ruta», «Cargar guía», «Encender linterna»).
+  - Estados y avisos: cortos e impersonales. La app no habla en primera persona («No se detecta
+    texto», no «No veo texto») ni le cuenta al conductor lo que hizo («como pediste»).
+  - Errores: qué pasó y qué hacer («No se pudo guardar. Vuelve a intentarlo.»).
+  - Vocabulario: conexión (no «señal»; «señal de GPS» sí), dispositivo (el aparato; «Teléfono» es
+    el del destinatario), cuota (no «cupo»), encender, agregar (no «sumar»), aquí, vehículo,
+    escanear la nómina (no «barrer»), optimizar y recalcular la ruta (no «armar» ni «rehacer»),
+    descargar, manualmente, «de todos modos» (no «igual»), tomar una foto. Trato de «tú» neutro o
+    impersonal, sin voseo ni «usted».
+  - Es solo lo que se lee en pantalla: en el código, los comentarios y los docs se sigue diciendo
+    armar la ruta, barrido, cupo, cargar el auto. Los nombres de antes y los de ahora, en
+    `docs/CLASES.md` §0 (las specs y skills anteriores citan los de antes).
 - Las pantallas no llevan instrucciones: solo estados, datos y botones. El cómo se usa va en una o
   dos líneas de `_componentes/ayuda.tsx`. Si cambia el nombre de un botón, se cambia también la
   Ayuda.
@@ -244,8 +258,9 @@ y un agente no debe "corregir".
   con la de la guía. En el paquete no se escribe nada; la parada muestra la OF y su descripción.
 - **Pedidos con problemas (⚠).** Se marcan con ⚠ desde el momento en que aparecen, y se resuelven
   en ese mismo paso del flujo:
-  - **Al leer la guía, antes de armar la ruta:** una línea sin OF (ilegible), y una dirección sin ubicar o con una calle que existe en dos o más
-    lugares (ver "Direcciones en Arica"). Si no se resuelve, el pedido entra igual a la ruta, con
+  - **Al leer la guía, antes de armar la ruta:** una dirección sin ubicar o con una calle que existe en dos o más
+    lugares (ver "Direcciones en Arica"). Un pedido sin OF no es ⚠ (dueño, 2026-11-16): la OF es solo el id;
+    en pantalla se muestra «OF» sola, sin «Sin OF». Si no se resuelve, el pedido entra igual a la ruta, con
     la primera dirección que encontró la búsqueda y con ⚠. La app avisa **dos paradas antes** de
     llegar a él, para confirmar antes de gastar combustible y tiempo en ir.
   - **Al armar la ruta:** una parada muy lejos de las demás, o que no alcanza su horario.
@@ -253,8 +268,8 @@ y un agente no debe "corregir".
     está en la guía (se agrega como pedido); y bultos o paquetes de la guía sin escanear (si no
     vienen en el auto, quedan en «No entregados» al cerrar el día y vuelven a Starken).
   - Los ⚠ quedan en el pedido (`Pedido.problemas`, spec 022) y se resuelven arriba de su
-    formulario: elegir el lugar entre las opciones guardadas (sin volver a buscar), «Va igual»
-    (lejana, horario), «Es así» (fuera de la guía) o qué dirección vale. El aviso dos paradas antes
+    formulario: elegir el lugar entre las opciones guardadas (sin volver a buscar), «Mantener en
+    ruta» (lejana, horario), «Confirmar» (fuera de la guía) o qué dirección vale. El aviso dos paradas antes
     va en la cabecera de ARES y en la línea de aviso de la burbuja (solo se ve abierta).
   - Una dirección sin ninguna opción de lugar sigue fuera de la ruta: no hay punto adonde ir.
 - **Escaneo de la etiqueta de Starken (spec 005).** Tiene dos partes que no se mezclan: el código
@@ -264,7 +279,7 @@ y un agente no debe "corregir".
     del conductor (auditoría, 2026-11-10). Con la cámara en vivo, ARES se traba 1 a 5 s en cada
     redibujo y puede cerrarse (ANR). Con el de Google, Android cierra ARES por memoria en 5 de 7
     escaneos y el código se pierde. Por eso queda en vivo, como lo dejó el dueño, y Diagnóstico
-    → «Cargar el auto con el escáner de Google» es la salida si la cámara se traba
+    → «Cargar vehículo con el escáner de Google» es la salida si la cámara se traba
     (`usarEscanerVivo`). La cámara de ARES queda abierta
     debajo de la pantalla y lee el código y el texto de cada etiqueta con ML Kit, sin toques ni red.
     Un dato vale cuando sale igual en ≥ 2 cuadros (`votos.ts`) y al pedido va solo lo firme. Suena
@@ -276,14 +291,14 @@ y un agente no debe "corregir".
     23 son la OF y los 24 a 26, el bulto. Cualquier otro número se toma como una OF escrita a mano.
   - La OF sale solo del código o de lo que escribe el conductor, nunca del texto ni de la IA: es la
     llave que une la etiqueta, el pedido y la parada, y un dígito mal leído enlazaría otro paquete.
-  - Si la OF está en el día, se muestra «PARADA n de N» (o «SIN RUTA TODAVÍA») y la descripción
+  - Si la OF está en el día, se muestra «PARADA n de N» (o «SIN RUTA ASIGNADA») y la descripción
     del paquete en lo más grande, y se suma el bulto («Bultos: 1 de 2»). Funciona sin señal.
     Escanear dos veces el mismo bulto no lo duplica: el código trae su número y es la misma caja.
   - **La OF escrita a mano** (código dañado) suma un bulto cada vez que se escribe, con el primer
-    número libre, y cuenta para «Cargar el auto». Si después se lee la etiqueta de esa caja (foto o
+    número libre, y cuenta para «Cargar vehículo». Si después se lee la etiqueta de esa caja (foto o
     texto) con su número, ese número reemplaza al provisorio. Más bultos escaneados que los que se
     sabían suben el total del envío (dueño, spec 027).
-  - Si la OF no está en el día: «Este paquete no está en los pedidos de hoy» y el botón «Agregarlo
+  - Si la OF no está en el día: «Este paquete no está en los pedidos de hoy» y el botón «Agregar
     como pedido».
   - Al cargar el auto, un contador muestra los escaneados sobre el total. Los de la guía que quedan
     sin escanear son los que faltan, y hay que avisarle a Starken.
@@ -344,7 +359,7 @@ y un agente no debe "corregir".
     - Medido en la ruta real de 87 paradas: el orden de antes «creía» 36,6 km y con rumbo eran 42,1;
       el nuevo mide 41,4 km. El motor calza con ORS (mediana 0 % en metros; `red-contra-ors.test.mjs`).
     - Armar la ruta no necesita señal ni cupo, y los puntos de las paradas no salen del teléfono.
-      ORS queda de respaldo: red sin bajar, punto lejos de toda calle, o «Armar la ruta con
+      ORS queda de respaldo: red sin bajar, punto lejos de toda calle, o «Optimizar ruta con
       OpenRouteService» en Diagnóstico. No se quita el respaldo ni se vuelve a ordenar «sin rumbo».
   - Con un solo conductor, sectorizar (k-means, HSAC) alarga la ruta entre 4 % y 20 %, y el orden
     ya está en el óptimo práctico: no proponer ALNS, Tabu ni colonias de hormigas. Lo que mejora la
@@ -369,8 +384,11 @@ y un agente no debe "corregir".
   - Mapbox sale entero y no se vuelve a proponer.
   - Todo servicio de pago lleva una cuota que lo deje en US$0. Google Geocoding tiene tope diario,
     y Cloud Vision está apagada en la clave (se usa ML Kit).
+  - La IA de direcciones cuesta ~US$0,02 por dirección. Revisa los pedidos sin ubicar y los dudosos de
+    cada carga (la cuadra y no la puerta, o solo la calle), hasta 100 por carga (dueño, 2026-11-16): un
+    día con 30 dudosas son ~US$0,60. Una calle repetida no va a la IA. Cada propuesta se confirma.
   - ORS es gratis: 500 consultas de matriz al día. Sin cupo contesta 429, o un 403 que el navegador
-    ve como un corte: si ARES contesta, la app lo toma como cupo y no como «Sin señal» (spec 024).
+    ve como un corte: si ARES contesta, la app lo toma como cupo y no como «Sin conexión» (spec 024).
     La ruta sigue en línea recta con aviso. Diagnóstico cuenta las consultas del día.
 - **WhatsApp.** Queda en pausa hasta que el dueño tenga el chip y el token de Meta
   (`WHATSAPP_EN_PAUSA`). Sin las variables, la app funciona sin avisos (spec 013); no se empuja
@@ -388,8 +406,12 @@ y un agente no debe "corregir".
     casa: «calle X con calle Y», «frente a…», «al lado de…». La dirección real es la que lleva la
     numeración; lo demás es referencia. Para ubicar el pedido se usa solo la calle con su número
     (los buscadores y también la IA de la spec 018), y la referencia queda en el pedido para el
-    conductor. *Pendiente:* la limpieza de la consulta (`geocoding/consulta.ts`) no quita las
-    referencias con «con», y a la IA no se le dice esta regla (spec 025).
+    conductor (en Notas, «Ref.: …»; `geocoding/referencias.ts`, spec 035).
+  - **Calles repetidas** («Pasaje 1», «Calle 2»; spec 035): la app lleva cada lugar de esos nombres
+    (`lugares-calles.ts`, OSM) y las poblaciones del Plano de Poblaciones municipal
+    (`poblaciones-arica.ts`). La población o la calle que cruza, escritas en la guía, eligen el lugar
+    sin preguntar; si no, el ⚠ ofrece solo los de la zona de la ruta (mismo sector o ≤ 1 km de otro
+    pedido del día), cada uno con «Pob. X · Sector». Sin consultas de más a Google.
 - **Proveedores de direcciones.** Cambian sin avisar, y un fixture viejo pasa en verde igual. Si las
   direcciones fallan, primero se mide con `npm run sondear` (avisando lo que gasta) y después se
   toca código.

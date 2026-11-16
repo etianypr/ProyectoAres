@@ -128,7 +128,7 @@ export async function calcularRutaLocal(
   const pendientesIniciales = delDia.filter((p) => p.resultado === "pendiente");
   const cerradas = pedidosEnOrden(rutaActual, delDia).filter((p) => resultadoCerrado(p.resultado));
   if (pendientesIniciales.length === 0) {
-    throw new Error("No hay pedidos pendientes para armar una ruta.");
+    throw new Error("No hay pedidos pendientes para optimizar una ruta.");
   }
 
   const reintento = await reintentarUbicar(pendientesIniciales);
@@ -170,8 +170,8 @@ export async function calcularRutaLocal(
   if (sinUbicar.length > 0) {
     advertencias.push(
       sinUbicar.length === 1
-        ? `"${nombreVisible(sinUbicar[0])}" no entra en la ruta: su dirección no está ubicada en el mapa.`
-        : `${sinUbicar.length} pedidos no entran en la ruta porque su dirección no está ubicada en el mapa.`,
+        ? `"${nombreVisible(sinUbicar[0])}" queda fuera de la ruta: su dirección no está ubicada en el mapa.`
+        : `${sinUbicar.length} pedidos quedan fuera de la ruta: su dirección no está ubicada en el mapa.`,
     );
   }
   // Misma partida y mismos pedidos que la vez anterior: la ruta ya está
@@ -226,13 +226,13 @@ export async function calcularRutaLocal(
   // tiempos y los avisos que se muestran siguen con los metros.
   const costo = matriz ? matrizDeCosto(matriz, segundos) : null;
   if (calle.metros === null && calle.motivo === "cupo") {
-    advertencias.push("Hoy ya se usaron las distancias por calle gratuitas: el orden se calculó en línea recta.");
+    advertencias.push("Cuota diaria de distancias por calle agotada: el orden se calculó en línea recta.");
   } else if (calle.metros === null && calle.motivo === "sin_token") {
     advertencias.push("Sin distancias por calle configuradas: el orden se calculó en línea recta.");
   } else if (calle.metros === null && calle.motivo === "sin_respuesta") {
-    advertencias.push("Sin señal para las distancias por calle: el orden se calculó en línea recta.");
+    advertencias.push("Sin conexión para las distancias por calle: el orden se calculó en línea recta.");
   } else if (calle.metros !== null && !calle.completa) {
-    advertencias.push("Algunas distancias por calle no llegaron: parte del orden se calculó en línea recta.");
+    advertencias.push("Algunas distancias por calle no se recibieron: parte del orden se calculó en línea recta.");
   }
   await cederTurno();
   seguir();
@@ -338,7 +338,7 @@ export async function calcularRutaLocal(
   const lejanas = paradasLejanas(paradas, base, metros, vuelta);
   for (const l of lejanas) {
     advertencias.push(
-      `${l.direccion} queda a ${(l.metrosAlResto / 1000).toFixed(1)} km del resto y suma ${(l.metrosQueSuma / 1000).toFixed(1)} km a la ruta: revisa la dirección.`,
+      `${l.direccion} queda a ${(l.metrosAlResto / 1000).toFixed(1)} km del resto y agrega ${(l.metrosQueSuma / 1000).toFixed(1)} km a la ruta: revisa la dirección.`,
     );
   }
 

@@ -147,7 +147,7 @@ export function useWhatsappDia({
       }
     } catch (e) {
       // Sin esto el rechazo quedaba sin manejar (spec 017, E12).
-      setErrorWhatsapp(e instanceof Error ? e.message : "No se pudo revisar WhatsApp.");
+      setErrorWhatsapp(e instanceof Error ? e.message : "No se pudo consultar WhatsApp.");
     } finally {
       whatsappEnVueloRef.current = false;
     }

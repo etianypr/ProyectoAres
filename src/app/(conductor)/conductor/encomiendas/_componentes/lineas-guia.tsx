@@ -162,7 +162,7 @@ export function LineasGuia({
         className="mx-auto flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-muted active:bg-card"
       >
         <Plus className="h-4 w-4" />
-        Agregar una línea
+        Agregar línea
       </button>
     </>
   );

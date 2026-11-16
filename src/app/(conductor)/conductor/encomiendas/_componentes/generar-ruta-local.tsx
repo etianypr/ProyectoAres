@@ -116,7 +116,7 @@ export function GenerarRutaLocal({
       const propuesta = await calcularRutaLocal(fecha, puntoInicio, fin, control.signal);
       if (!control.signal.aborted) onPropuesta(propuesta);
     } catch (e) {
-      if (!control.signal.aborted) setError(e instanceof Error ? e.message : "No se pudo armar la ruta.");
+      if (!control.signal.aborted) setError(e instanceof Error ? e.message : "No se pudo optimizar la ruta.");
     } finally {
       if (controlRef.current === control) {
         controlRef.current = null;
@@ -144,7 +144,7 @@ export function GenerarRutaLocal({
     if (opcion === "gps") {
       const fuente = fuenteUbicacion();
       if (!fuente) {
-        setError("Este dispositivo no puede obtener tu ubicación.");
+        setError("Este dispositivo no puede obtener la ubicación.");
         return;
       }
       setObteniendoUbicacion(true);
@@ -156,7 +156,7 @@ export function GenerarRutaLocal({
         () => {
           setObteniendoUbicacion(false);
           setError(
-            "No se pudo obtener tu ubicación. Revisa el permiso de ubicación del navegador.",
+            "No se pudo obtener la ubicación. Revisa el permiso de ubicación del navegador.",
           );
         },
         { enableHighAccuracy: true, timeout: 10_000 },
@@ -167,7 +167,7 @@ export function GenerarRutaLocal({
     if (opcion === "direccion") {
       const texto = direccion.trim();
       if (!texto) {
-        setError("Escribe la dirección de partida.");
+        setError("Ingresa la dirección de partida.");
         return;
       }
       const elegida = coordPartida?.texto === texto ? coordPartida : null;
@@ -188,10 +188,10 @@ export function GenerarRutaLocal({
       <div className="space-y-2 rounded-2xl bg-warn-bg p-3">
         <p className="flex items-center gap-1.5 text-sm font-semibold text-warn">
           <AlertTriangle className="h-4 w-4 shrink-0" />
-          {conProblema === 1 ? "1 pedido en precaución" : `${conProblema} pedidos en precaución`}
+          {conProblema === 1 ? "1 pedido con advertencia" : `${conProblema} pedidos con advertencia`}
         </p>
         <button type="button" onClick={onClick} className={BOTON_PRINCIPAL}>
-          Armar igual
+          Optimizar ahora
         </button>
         <button
           type="button"
@@ -215,14 +215,14 @@ export function GenerarRutaLocal({
         {obteniendoUbicacion
           ? "Obteniendo ubicación…"
           : armando
-            ? "Armando la ruta…"
+            ? "Optimizando ruta…"
             : regenerar
-              ? "Rehacer la ruta"
-              : "Armar la ruta"}
+              ? "Recalcular ruta"
+              : "Optimizar ruta"}
       </Button>
       {/* El interruptor de Diagnóstico, a la vista donde gasta (spec 033, interruptores). */}
       {conOrs ? (
-        <p className="text-center text-xs font-medium text-warn">Con OpenRouteService (gasta cupo)</p>
+        <p className="text-center text-xs font-medium text-warn">Usar OpenRouteService (consume cuota)</p>
       ) : null}
 
       {sinDesde ? null : (

@@ -289,7 +289,7 @@ test("Escanear desde la parada: si el paquete es de otra, lo dice; si es el mism
   const esperado = { pedidoId: "a", secuencia: 4, of: "900104" };
   assert.equal(tituloEsperado(esperado), "Parada 4 · OF 900 104");
   assert.equal(textoOtraParada(esperado, { pedido: { id: "a" }, parada: { n: 4, total: 9 } }), null);
-  assert.equal(textoOtraParada(esperado, { pedido: { id: "b" }, parada: { n: 7, total: 9 } }), "Este paquete es de la parada 7, no de esta.");
+  assert.equal(textoOtraParada(esperado, { pedido: { id: "b" }, parada: { n: 7, total: 9 } }), "Este paquete corresponde a la parada 7, no a esta.");
   assert.match(textoOtraParada(esperado, { pedido: { id: "c" }, parada: null }), /no está en la ruta/);
   assert.equal(textoOtraParada(null, { pedido: { id: "b" }, parada: { n: 7, total: 9 } }), null, "desde la carga no compara");
 });

@@ -99,10 +99,10 @@ test("se cuentan las consultas del día, matrices y trazados por separado", asyn
 });
 
 test("el aviso de la propuesta dice cupo o sin señal según el motivo", () => {
-  assert.match(avisoSinTrazado("cupo"), /cupo gratis de hoy/);
-  assert.match(avisoSinTrazado("sin_senal"), /no hay señal/);
-  assert.match(avisoSinTrazado(null), /no hay señal/);
-  assert.doesNotMatch(avisoSinTrazado("error"), /señal|cupo/);
+  assert.match(avisoSinTrazado("cupo"), /cuota gratuita de hoy/);
+  assert.match(avisoSinTrazado("sin_senal"), /no hay conexión/);
+  assert.match(avisoSinTrazado(null), /no hay conexión/);
+  assert.doesNotMatch(avisoSinTrazado("error"), /señal|cupo|cuota|no hay conexión/);
 });
 
 test("calcularRutaLocal: matriz que llega y trazado bloqueado → la propuesta dice cupo", async (t) => {

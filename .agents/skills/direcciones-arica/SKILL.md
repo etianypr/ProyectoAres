@@ -77,6 +77,7 @@ con ese archivo, vale `AGENTS.md`, y hay que avisar la diferencia.
 | Proponer y aplicar (`corregirSinUbicar`, `esSegura`, `aplicarCorreccion`) | `lib/encomiendas/local/corregir-direcciones.ts` |
 | Reintento al armar (`reintentarUbicar`, máx. 5) y punto pegado a carretera (`corregirAccesos`, con las calles de las teselas de OpenFreeMap) | `generar-ruta/ubicar-pedidos.ts` + `geo/acceso.ts` + `geo/teselas.ts` |
 | Pantallas: campo con sugerencias · dudas · «Sin ubicar» · IA | `components/direccion/` · `_componentes/resolver-direccion.tsx`, `fila-pedido.tsx`, `corregir-ia.tsx`, `confirmar-correcciones.tsx`, `cargar-guia.tsx` |
+| Calle repetida (spec 035): referencia, lugares, poblaciones del plano, filtro por la ruta | `geocoding/referencias.ts`, `lugares.ts` + `lugares-calles.ts`, `poblaciones.ts` + `poblaciones-arica.ts`, `calle-repetida.ts` |
 | Catálogo y sondeo (solo leer; gastan red) | `scripts/generar-calles.mjs`, `scripts/sondear-proveedores.mjs` |
 
 **Orden real de `ubicarDireccion`** (spec 019, sin Mapbox):
@@ -86,7 +87,12 @@ con ese archivo, vale `AGENTS.md`, y hay que avisar la diferencia.
 3. Sin puerta con ese número: `completarNumeroEnCalles` arma hasta 3 calles (buscadores +
    catálogo, solo el grupo con menos letras corregidas) y le pregunta a Google «nombre oficial +
    número».
-4. Clasifica: puertas a > 300 m o el mismo texto en dos lugares → `ambigua`; solo la calle →
+4. Calle con nombre genérico («Pasaje 1», «Calle 2»), o sin puerta segura y con el nombre en
+   `lugares-calles.ts`: una opción por lugar con población y sector; la referencia de la guía
+   (población o calle que cruza) elige; si no, `ambigua`, y `elegirConLaRuta` deja solo las de la
+   zona de la ruta al terminar la carga (spec 035). Antes, `separarReferencias` deja en la consulta
+   solo la calle con su número.
+5. Clasifica: puertas a > 300 m o el mismo texto en dos lugares → `ambigua`; solo la calle →
    `aproximada` si la calle escrita mide ≤ 300 m, si no `solo_calle`; puerta interpolada →
    `aproximada`; puerta → `exacta`; nada → `no_encontrada`.
 
@@ -111,7 +117,7 @@ tocar la IA, sumar un proveedor) en `references/cambios.md`. Lo común a todos:
 | Nominatim | gratis; política: máx. 1 consulta/s, nada en volumen | fila en `nominatim.ts` (`MS_ENTRE_CONSULTAS_OSM` = 1,2 s): 100 direcciones son ≥ 2 min |
 | Google Geocoding | 10.000 gratis al mes; un día usa ~100; decidido: ~300 al día | **en la consola de Google Cloud, no en el código**: no hay contador. La cuota la crea el dueño (019 T012, *pendiente*) |
 | OpenFreeMap (mapa y calles alrededor de cada parada) | gratis, sin clave ni límite | — |
-| Anthropic (IA 018) | ~US$0,02 por dirección (`claude-sonnet-5`, `DIRECCION_MODELO`) | `MAX_DIRECCIONES_POR_TANDA` = 15, `MAX_VUELTAS` = 6 |
+| Anthropic (IA 018) | ~US$0,02 por dirección (`claude-sonnet-5`, `DIRECCION_MODELO`) | `MAX_DIRECCIONES_POR_TANDA` = 100, `MAX_VUELTAS` = 6. Revisa los sin ubicar y los dudosos de cada carga (la cuadra, solo la calle; spec 035) |
 | Overpass (`npm run calles`) | gratis; solo recibe el recuadro | uso razonable |
 
 - Google se pide por cada dirección con número (menos los Plus Codes), por cada «nombre oficial
@@ -144,9 +150,9 @@ tocar la IA, sumar un proveedor) en `references/cambios.md`. Lo común a todos:
   borra `NEXT_PUBLIC_MAPBOX_TOKEN` en Vercel y anula el token en Mapbox. **T014**: día real.
 - **022**: el ⚠ queda en el pedido y entra a la ruta con la primera dirección encontrada; aviso dos
   paradas antes. Hoy, `ambigua`/`solo_calle`/`no_encontrada` → sin punto → fuera de la ruta.
-- **025**: ubicar solo por calle y número; la referencia queda para el conductor. Hoy «con…» y
-  «al lado de…» llegan al buscador (ver `references/cadena.md`), y `SISTEMA` de la IA no tiene
-  la regla.
+- **025**: la 035 ya separa la referencia (`separarReferencias`: la población de antes y «con…»,
+  «esq.», «frente a…», «pob…» de después) y la deja en Notas; `SISTEMA` de la IA tiene la regla de
+  la calle junto al número. Falta medir con `npm run sondear` (gasta: se pregunta).
 - Día real: 016 T013 (≤ 3 a corregir) y 018 T008.
 
 ## Docs que hoy no calzan con el código
