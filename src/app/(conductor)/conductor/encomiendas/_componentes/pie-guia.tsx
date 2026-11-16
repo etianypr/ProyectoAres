@@ -16,7 +16,7 @@ export const BOTON_GUIA =
 export const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`;
 
 export type PasoGuia = "fotos" | "pegar" | "revisar";
-export type PreguntaGuia = "cerrar" | "barrido" | "deshacer";
+export type PreguntaGuia = "cerrar" | "barrido" | "medias" | "deshacer";
 
 export function PieGuia({
   fin,
@@ -30,6 +30,7 @@ export function PieGuia({
   malas,
   porConfirmar,
   fotos,
+  aMedias,
   pieFotos,
   onLeer,
   onLeerFotos,
@@ -39,6 +40,8 @@ export function PieGuia({
   armar,
   onDescartar,
   onDeshacer,
+  onDescartarBarrido,
+  onTerminarBarrido,
   onSeguir,
 }: {
   fin: FinGuia | null;
@@ -52,6 +55,8 @@ export function PieGuia({
   malas: number;
   porConfirmar: number;
   fotos: number;
+  /** Encargos a medias del barrido en curso (la pregunta al terminar). */
+  aMedias: number;
   /** El pie del paso 1 (PieFotos). */
   pieFotos: React.ReactNode;
   onLeer: () => void;
@@ -65,6 +70,10 @@ export function PieGuia({
   onDescartar: () => void;
   /** Borrar los pedidos de la carga. */
   onDeshacer: () => void;
+  /** «¿Descartar lo escaneado?»: sí. */
+  onDescartarBarrido: () => void;
+  /** «N a medias»: terminar igual. */
+  onTerminarBarrido: () => void;
   onSeguir: () => void;
 }) {
   const [sumando, setSumando] = useState(false);
@@ -77,6 +86,21 @@ export function PieGuia({
           ? `¿Descartar ${plural(fotos, "foto", "fotos")}?`
           : "¿Descartar el texto pegado?";
     return <FranjaConfirmar texto={texto} si="Descartar" onSi={onDescartar} onNo={onSeguir} />;
+  }
+  // Las dos preguntas del barrido de la nómina, que ahora va en esta misma ventana.
+  if (pregunta === "barrido") {
+    return <FranjaConfirmar texto="¿Descartar lo escaneado?" si="Descartar" onSi={onDescartarBarrido} onNo={onSeguir} />;
+  }
+  if (pregunta === "medias") {
+    return (
+      <FranjaConfirmar
+        texto={`${aMedias} sin completar: se agregan sin dirección para completarlas`}
+        si="Terminar ahora"
+        no="Seguir escaneando"
+        onSi={onTerminarBarrido}
+        onNo={onSeguir}
+      />
+    );
   }
   if (pregunta === "deshacer" && fin?.tipo === "listo") {
     const n = fin.ids.length;
@@ -116,7 +140,7 @@ export function PieGuia({
     return (
       <button type="button" disabled={!hayTexto || leyendo} onClick={onLeer} className={BOTON_GUIA}>
         <ClipboardPaste className="h-4 w-4" />
-        Leer la guía
+        Leer guía
       </button>
     );
   }

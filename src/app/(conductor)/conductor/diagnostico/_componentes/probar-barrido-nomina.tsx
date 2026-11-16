@@ -1,6 +1,6 @@
 "use client";
 
-// Diagnóstico → «Probar barrido de nómina» (dueño, 2026-11-11): el mismo barrido de
+// Diagnóstico → «Probar escaneo de nómina» (dueño, 2026-11-11): el mismo barrido de
 // «Cargar la guía» → «Barrer la nómina» (use-barrido-nomina), pero sin crear pedidos:
 // al terminar muestra lo leído y las cifras para medirlo en terreno (cuántas OF, cuántas
 // lecturas con dígitos mal, la confianza de ML Kit, si juntar los renglones por fila
@@ -120,10 +120,10 @@ export function ProbarBarridoNomina({ enApp }: { enApp: boolean }) {
         className="flex h-12 w-full items-center justify-center gap-2 rounded-full border border-separator bg-card text-sm font-semibold text-brand disabled:opacity-50"
       >
         <ScrollText className="h-4 w-4" />
-        Probar barrido de nómina
+        Probar escaneo de nómina
       </button>
       {/* Spec 034: la misma nómina con cada exposición, para elegir con cifras. */}
-      <div role="radiogroup" aria-label="Exposición al barrer" className="grid grid-cols-3 gap-2">
+      <div role="radiogroup" aria-label="Exposición al escanear" className="grid grid-cols-3 gap-2">
         {EXPOSICIONES.map((e) => (
           <button
             key={e.valor}
@@ -144,7 +144,7 @@ export function ProbarBarridoNomina({ enApp }: { enApp: boolean }) {
         ))}
       </div>
       {!disponible ? (
-        <p className="text-xs text-muted">{enApp ? "Esta app no trae el escáner en vivo (APK 1.6.0)." : "Solo en la app."}</p>
+        <p className="text-xs text-muted">{enApp ? "Esta versión no incluye el escáner en vivo (APK 1.6.0)." : "Solo en la app."}</p>
       ) : null}
       {barrido.error ? <p className="text-sm text-danger">{barrido.error}</p> : null}
 

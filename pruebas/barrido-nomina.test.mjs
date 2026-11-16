@@ -5,7 +5,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-const { textoPorFilas, sumarCuadroNomina, resultadoNomina, votosNominaVacios, VOTOS_PARA_FIRME } = await import(
+const { textoPorFilas, sumarCuadroNomina, resultadoNomina, votosDeLoLeido, votosNominaVacios, VOTOS_PARA_FIRME } = await import(
   "@/lib/encomiendas/lectura/barrido-nomina"
 );
 const { leerGuia } = await import("@/lib/encomiendas/lectura/guia");
@@ -539,4 +539,104 @@ test("de las dos formas de juntar los renglones gana la que armó más encargos 
   const muchos = barrer([ENTERO("200000001", "21 DE MAYO 123"), ENTERO("200000001", "21 DE MAYO 123")]);
   assert.equal(mejorResultado(pocos, muchos), muchos);
   assert.equal(mejorResultado(muchos, pocos), muchos);
+});
+
+// ---------------- otra pasada: lo que faltaba confirmar no perdura (dueño, 2026-11-15)
+
+test("al empezar otra pasada sigue lo leído y lo que faltaba confirmar parte de cero", () => {
+  const leida = ENTERO("200000001", "21 DE MAYO 123");
+  const dudosa = ENTERO("279000500", "BAQUEDANO 488");
+  const unaVez = ENTERO("281999000", "PATRICIO LYNCH 45");
+  const antes = sumar([leida, leida, leida, dudosa, dudosa, unaVez]);
+  assert.deepEqual(resultadoNomina(antes).lista.map((l) => [l.of, l.estado]), [
+    ["200000001", "firme"],
+    ["279000500", "porConfirmar"],
+    ["281999000", "aMedias"],
+  ]);
+  const limpio = votosDeLoLeido(antes);
+  assert.deepEqual(resultadoNomina(limpio).lista.map((l) => [l.of, l.estado]), [["200000001", "firme"]]);
+  assert.equal(limpio.cuadros, antes.cuadros, "los cuadros siguen contando desde donde iban");
+  // La dudosa se vuelve a leer en la pasada nueva, desde cero: con tres lecturas queda firme.
+  const otra = [dudosa, dudosa, dudosa].reduce((v, t) => sumarCuadroNomina(v, t), limpio);
+  assert.deepEqual(resultadoNomina(otra).lista.map((l) => [l.of, l.estado]), [["200000001", "firme"], ["279000500", "firme"]]);
+});
+
+test("lo leído conserva sus malas lecturas apuntando a la buena, y el orden de la nómina", () => {
+  const una = ENTERO("200000123", "21 DE MAYO 123");
+  const mal = ENTERO("200000128", "21 DE MAYO 123");
+  const dos = ENTERO("279000500", "BAQUEDANO 488");
+  const pendiente = ENTERO("281999000", "PATRICIO LYNCH 45");
+  const limpio = votosDeLoLeido(sumar([pendiente, pendiente, una, mal, una, una, dos, dos, dos]));
+  const r = resultadoNomina(limpio);
+  assert.deepEqual(r.lista.map((l) => l.of), ["200000123", "279000500"]);
+  assert.equal(r.deLectura["200000128"], "200000123");
+  // Una OF nueva queda después de las que ya estaban.
+  const tres = ENTERO("281000111", "BOLOGNESI 300");
+  const conNueva = resultadoNomina([tres, tres, tres].reduce((v, t) => sumarCuadroNomina(v, t), limpio));
+  assert.deepEqual(conNueva.lista.map((l) => l.of), ["200000123", "279000500", "281000111"]);
+});
+
+test("una línea entregada por confirmar no se quita de la guía porque se empezó otra pasada", async () => {
+  const { lineasDelBarrido } = await import("@/lib/encomiendas/lectura/barrido-nomina");
+  const leida = ENTERO("200000001", "21 DE MAYO 123");
+  const dudosa = ENTERO("279000500", "BAQUEDANO 488");
+  const pasada1 = sumar([leida, leida, leida, dudosa, dudosa]);
+  const primera = lineasDelBarrido(resultadoNomina(pasada1));
+  assert.deepEqual(primera.entregadas, { 200000001: true, 279000500: false });
+  // Segunda pasada: la dudosa ya no está en la lectura y no se volvió a leer.
+  const segunda = lineasDelBarrido(resultadoNomina(sumarCuadroNomina(votosDeLoLeido(pasada1), leida)), primera.entregadas);
+  assert.deepEqual(segunda.sobran, [], "su línea sigue en la revisión, por confirmar");
+  assert.deepEqual(segunda.lineas, []);
+  // Y si en la pasada nueva se lee bien, entra firme.
+  const releida = [dudosa, dudosa, dudosa].reduce((v, t) => sumarCuadroNomina(v, t), votosDeLoLeido(pasada1));
+  const tercera = lineasDelBarrido(resultadoNomina(releida), primera.entregadas);
+  assert.deepEqual(tercera.lineas.map((l) => l.of), ["279000500"]);
+  assert.equal(tercera.porConfirmar.size, 0);
+});
+
+// ----------------------- «DD» no es de la dirección; el informe en el orden de la hoja (dueño, 2026-11-15)
+
+test("«DD», el título de la última columna del pie, no se pega a la dirección", () => {
+  // Con el papel inclinado, «DD» queda a la altura del renglón de la dirección.
+  const pegado = ["200000001 1 0 1 ANA SOTO ARICA", "DIRECCION", "21 DE MAYO 123 . DD", "VALOR $ FORMA PAGO", "0 CTAC 0"].join("\n");
+  assert.deepEqual(leerNomina(pegado), [{ of: "200000001", destino: "21 DE MAYO 123" }]);
+  // O queda como un renglón aparte, entre la dirección y el pie.
+  const aparte = ["200000001 1 0 1 ANA SOTO ARICA", "DIRECCION", "21 DE MAYO 123 .", "DD", "VALOR $ FORMA PAGO", "0 CTAC 0"].join("\n");
+  assert.deepEqual(leerNomina(aparte), [{ of: "200000001", destino: "21 DE MAYO 123" }]);
+  // Con «DD» y sin él es la misma dirección: los votos se juntan y queda firme.
+  const limpio = ENTERO("200000001", "21 DE MAYO 123");
+  const r = barrer([pegado, limpio, aparte]);
+  assert.deepEqual(r.lista.map((l) => [l.of, l.destino, l.estado]), [["200000001", "21 DE MAYO 123", "firme"]]);
+});
+
+test("el informe sale en el orden de la hoja, aunque un encargo se haya leído al repasar", async () => {
+  const { lineasDelBarrido, enOrdenDeLaNomina } = await import("@/lib/encomiendas/lectura/barrido-nomina");
+  const a = ENTERO("200000001", "21 DE MAYO 123");
+  const b = ENTERO("279000500", "BAQUEDANO 488");
+  const c = ENTERO("281000111", "BOLOGNESI 300");
+  const d = ENTERO("283000222", "PATRICIO LYNCH 45");
+  // Primera pasada: la B se salta (solo se ven A, C y D). Al repasar sale entre la A y la C.
+  const cuadros = [a, a, `${a}\n${c}`, `${c}\n${d}`, `${c}\n${d}`, d, `${a}\n${b}`, `${a}\n${b}\n${c}`, `${b}\n${c}`];
+  const r = barrer(cuadros);
+  assert.deepEqual(r.lista.map((l) => l.of), ["200000001", "279000500", "281000111", "283000222"]);
+  assert.deepEqual(r.lineas.map((l) => l.of), ["200000001", "279000500", "281000111", "283000222"]);
+  // Así llega a «Cargar la guía», y las líneas que ya estaban ahí se reordenan igual.
+  const leido = lineasDelBarrido(r);
+  assert.deepEqual(leido.orden, ["200000001", "279000500", "281000111", "283000222"]);
+  const linea = (of) => ({ of, destino: "X 1", dudosa: false });
+  const enGuia = [linea("7000123"), linea("281000111"), linea("200000001"), linea("283000222"), linea("279000500")];
+  assert.deepEqual(enOrdenDeLaNomina(enGuia, leido.orden).map((l) => l.of), ["7000123", "200000001", "279000500", "281000111", "283000222"]);
+});
+
+test("el orden de la hoja no depende de cómo entregue los renglones ML Kit, y sobrevive a otra pasada", () => {
+  const a = ENTERO("200000001", "21 DE MAYO 123");
+  const b = ENTERO("279000500", "BAQUEDANO 488");
+  // El texto llega con la B antes que la A, pero en la hoja la A va arriba (`vertical`).
+  const alReves = `${b}\n${a}`;
+  const v = [alReves, alReves, alReves].reduce((x, t) => sumarCuadroNomina(x, t, undefined, { vertical: ["200000001", "279000500"] }), votosNominaVacios());
+  assert.deepEqual(resultadoNomina(v).lista.map((l) => l.of), ["200000001", "279000500"]);
+  // Sin `vertical` vale el orden del texto.
+  assert.deepEqual(barrer([alReves, alReves, alReves]).lista.map((l) => l.of), ["279000500", "200000001"]);
+  // Al empezar otra pasada el orden de lo ya leído se conserva.
+  assert.deepEqual(resultadoNomina(votosDeLoLeido(v)).lista.map((l) => l.of), ["200000001", "279000500"]);
 });

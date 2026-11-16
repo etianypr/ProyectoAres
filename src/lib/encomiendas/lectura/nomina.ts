@@ -26,7 +26,12 @@ const FILA_OF = /^\s*(\d{7,10})(?=\s|$)/;
 const DIRECCION = /^\s*D[I1L]RECC[I1L][O0Ó]N\b\s*:?\s*(.*)$/i;
 /** Lo que viene después de la dirección: el pie del bloque o el encabezado del
  *  siguiente. Un renglón vacío o de signos («=====») también la cierra. */
-const FIN_DIRECCION = /VAL[O0]R|F[O0]RMA|PAG[O0]|NUMER[O0]|ENCARG|DESTINATAR|C[O0]MUNA|^[\s=_.-]*$/i;
+const FIN_DIRECCION = /VAL[O0]R|F[O0]RMA|PAG[O0]|NUMER[O0]|ENCARG|DESTINATAR|C[O0]MUNA|^\s*DD\s*$|^[\s=_.-]*$/i;
+/** «DD» es el título de la última columna del pie («VALOR $ FORMA PAGO DD»), a la derecha.
+ *  Con el papel inclinado queda a la altura del renglón de la dirección y se le pegaba al
+ *  final («… 4501 DD»; dueño, 2026-11-15). Con «DD» y sin él eran dos direcciones distintas
+ *  para los votos, y en la guía ganaba la más larga: la que traía el «DD». */
+const DD_AL_FINAL = /\s+DD\s*$/i;
 /** El encabezado de un bloque: la OF que venía antes ya no es de este bloque. */
 const ENCABEZADO = /NUMER[O0]|ENCARG|D[O0]CT[O0]S|BULT[O0]S|^[\s=_-]{4,}$/i;
 /** Una dirección más larga que esto (en renglones) es que se mezcló otra cosa. */
@@ -88,7 +93,7 @@ export function piezasNomina(renglones: string[]): { bloques: BloqueNomina[]; pi
       partes.push(s);
     }
     const cerrada = j < renglones.length && partes.length <= MAX_RENGLONES;
-    const destino = limpiarDestino(partes.join(" "));
+    const destino = limpiarDestino(partes.join(" ").replace(DD_AL_FINAL, ""));
     if (of?.valor && destino && cerrada) {
       // El pie es del bloque, y el renglón que le sigue (sus valores) también, si no
       // empieza el bloque siguiente.

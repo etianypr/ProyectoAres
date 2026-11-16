@@ -177,3 +177,44 @@ export function revisarParecidas(bloques: Bloque[], decididos: Decidido[]): { ma
   for (const i of malas.keys()) dobles.delete(i);
   return { malas, dobles };
 }
+
+/** Los encargos en el orden en que van en la hoja (dueño, 2026-11-15: el informe de lo leído
+ *  en el orden de la boleta, para compararlo con el papel). El orden en que se vio cada
+ *  número no alcanza: un encargo que se saltó y se leyó al repasar quedaba al final. Aquí
+ *  manda la posición: en cada cuadro se anotó quién estaba arriba de quién (`arriba`, por
+ *  número leído; `duenio` dice de qué encargo es cada número), y un encargo va antes que
+ *  otro si salió arriba de él más veces que abajo. Entre dos que nunca se vieron juntos, o
+ *  si las posiciones se contradicen, decide cuál se vio primero (`primeroVisto`). */
+export function ordenEnLaHoja(primeroVisto: number[], arriba: Record<string, Record<string, number>>, duenio: Map<string, number>): number[] {
+  const n = primeroVisto.length;
+  const veces = Array.from({ length: n }, () => new Map<number, number>());
+  for (const [a, abajo] of Object.entries(arriba)) {
+    const i = duenio.get(a);
+    if (i == null) continue;
+    for (const [b, cuantas] of Object.entries(abajo)) {
+      const j = duenio.get(b);
+      if (j != null && j !== i) veces[i].set(j, (veces[i].get(j) ?? 0) + cuantas);
+    }
+  }
+  // i va antes que j si salió arriba de j más veces que abajo.
+  const siguen: number[][] = Array.from({ length: n }, () => []);
+  const adelante = new Array<number>(n).fill(0);
+  for (let i = 0; i < n; i++) {
+    for (const [j, cuantas] of veces[i]) {
+      if (cuantas > (veces[j].get(i) ?? 0)) {
+        siguen[i].push(j);
+        adelante[j] += 1;
+      }
+    }
+  }
+  const faltan = new Set(primeroVisto.map((_, i) => i));
+  const orden: number[] = [];
+  while (faltan.size > 0) {
+    const libres = [...faltan].filter((i) => adelante[i] === 0);
+    const sigue = (libres.length > 0 ? libres : [...faltan]).sort((a, b) => primeroVisto[a] - primeroVisto[b])[0];
+    orden.push(sigue);
+    faltan.delete(sigue);
+    for (const j of siguen[sigue]) adelante[j] -= 1;
+  }
+  return orden;
+}

@@ -23,6 +23,7 @@ import {
   mejorResultado,
   resultadoNomina,
   sumarCuadroNomina,
+  votosDeLoLeido,
   votosNominaVacios,
   type VotosNomina,
 } from "@/lib/encomiendas/lectura/barrido-nomina";
@@ -214,7 +215,8 @@ export function useBarridoNomina(alTerminar: (b: Barrido) => void, opciones: Opc
     const porFilas = filas.map((f) => f.texto).join("\n");
     const confianzas = confianzasDelCuadro(c.renglones);
     b.porFilas = sumarCuadroNomina(b.porFilas, porFilas, confianzas);
-    b.comoLlegan = sumarCuadroNomina(b.comoLlegan, c.renglones.map((r) => r.texto).join("\n"), confianzas);
+    // Como los entrega ML Kit el texto no viene de arriba abajo: el orden en la hoja sale del de por filas.
+    b.comoLlegan = sumarCuadroNomina(b.comoLlegan, c.renglones.map((r) => r.texto).join("\n"), confianzas, { vertical: b.porFilas.delUltimo });
     if (b.conPiezas) b.conPiezas = sumarCuadroNomina(b.conPiezas, porFilas, confianzas, { piezas: true });
     if (c.renglones.length > b.muestra.renglones) b.muestra = { texto: porFilas, renglones: c.renglones.length };
     marcarEscanerVivo(marcasDe(c, filas, marcado.current));
@@ -242,11 +244,14 @@ export function useBarridoNomina(alTerminar: (b: Barrido) => void, opciones: Opc
   async function iniciar() {
     setError(null);
     // La misma lectura: lo que ya hay en memoria o, recién abierta la app, lo guardado.
-    const antes = con.current.seguir
+    const guardada = con.current.seguir
       ? barrido.current.porFilas.cuadros > 0
         ? votosDe(barrido.current)
         : (con.current.previo?.() ?? null)
       : null;
+    // De la pasada anterior sigue solo lo ya leído; lo que faltaba confirmar parte de cero
+    // (dueño, 2026-11-15: no debe perdurar al salir del barrido y volver a entrar).
+    const antes = guardada && { porFilas: votosDeLoLeido(guardada.porFilas), comoLlegan: votosDeLoLeido(guardada.comoLlegan) };
     alPrender.current = antes;
     barrido.current = nuevo(antes, con.current.comparar);
     guardado.current = { cuadros: barrido.current.porFilas.cuadros, en: Date.now() };
@@ -265,7 +270,7 @@ export function useBarridoNomina(alTerminar: (b: Barrido) => void, opciones: Opc
     } catch (e) {
       document.documentElement.classList.remove(...CLASES_CAMARA);
       setActivo(false);
-      setError(e instanceof Error && /permiso/.test(e.message) ? "Sin permiso de cámara." : "La cámara no abrió.");
+      setError(e instanceof Error && /permiso/.test(e.message) ? "Sin permiso de cámara." : "No se pudo abrir la cámara.");
     }
   }
 
@@ -334,7 +339,7 @@ export function useBarridoNomina(alTerminar: (b: Barrido) => void, opciones: Opc
             await prender();
           } catch {
             await cerrarCamara();
-            setError("La cámara no volvió. Lo barrido quedó guardado.");
+            setError("No se pudo reanudar la cámara. Lo escaneado quedó guardado.");
           }
         })();
       }, ESPERA_CAMARA_MS);

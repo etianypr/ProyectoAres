@@ -17,7 +17,7 @@ export function useBarridoDeGuia({
   guardarYa,
 }: {
   /** Las líneas nuevas del barrido, para sumarlas a la guía. */
-  alSumar: (lineas: { of: string; destino: string }[], total: number | null, porConfirmar: Set<string>) => void;
+  alSumar: (lineas: { of: string; destino: string }[], total: number | null, porConfirmar: Set<string>, orden: string[]) => void;
   /** OF entregadas por confirmar que resultaron ser una mala lectura de otra. */
   alSobrar: (ofs: string[]) => void;
   /** Se terminó sin leer ninguna OF. */
@@ -46,7 +46,7 @@ export function useBarridoDeGuia({
     const leido = lineasDelBarrido(resultadoDelBarrido(b), ultimo.current?.entregadas);
     anotar(b, leido.entregadas);
     alSobrar(leido.sobran);
-    if (leido.lineas.length > 0) alSumar(leido.lineas, leido.total, leido.porConfirmar);
+    if (leido.lineas.length > 0) alSumar(leido.lineas, leido.total, leido.porConfirmar, leido.orden);
     else if (Object.keys(leido.entregadas).length === 0) alVacio();
   }
 

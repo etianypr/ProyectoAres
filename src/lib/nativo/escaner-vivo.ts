@@ -37,6 +37,8 @@ export type CamaraViva = {
   /** Con exposición corta: los cuadros por segundo que quedaron fijos (0 si la cámara
    *  no dejó, o con una APK anterior a la 034). */
   cuadrosFijos: number;
+  /** Se pidió el visor y esta APK lo trae (false con una anterior, que lo ignora). */
+  visor: boolean;
 };
 
 /** La captura en alta, ya leída por ML Kit en el teléfono. */
@@ -62,14 +64,24 @@ export type ExposicionViva = "auto" | "corta" | "cortaOscura";
 
 /** `codigos: false`: no se buscan códigos de barras en cada cuadro (la nómina no trae).
  *  Una APK anterior a la de la 034 ignora `codigos` y `exposicion`. */
-export type OpcionesEscanerVivo = { captura?: boolean; codigos?: boolean; exposicion?: ExposicionViva };
+export type OpcionesEscanerVivo = {
+  captura?: boolean;
+  codigos?: boolean;
+  exposicion?: ExposicionViva;
+  /** El visor de «Cargar la guía» (spec 034): la vista previa y la foto en alta, sin leer
+   *  cada cuadro (no llega ningún `cuadro`). */
+  visor?: boolean;
+};
+
+/** Una zona de la pantalla en fracciones 0–1: el recuadro por el que se ve la cámara. */
+export type ZonaViva = { x: number; y: number; ancho: number; alto: number };
 
 type PluginEscanerVivo = {
   iniciar(opciones?: OpcionesEscanerVivo): Promise<CamaraViva>;
   detener(): Promise<void>;
   linterna(opciones: { encendida: boolean }): Promise<void>;
   avisar(): Promise<void>;
-  capturar(): Promise<{ imagen: string; codigos: string[]; texto: string }>;
+  capturar(opciones?: { leer?: boolean; recorte?: ZonaViva }): Promise<{ imagen: string; codigos: string[]; texto: string }>;
   marcar(opciones: { cajas: MarcaViva[] }): Promise<void>;
   addListener(evento: "cuadro", alCuadro: (cuadro: CuadroVivo) => void): Promise<PluginListenerHandle>;
 };
@@ -131,6 +143,33 @@ export function elegirExposicionDelBarrido(exposicion: ExposicionViva): void {
   }
 }
 
+const CLAVE_CAMARA_TELEFONO = "ares.guia-camara-telefono";
+
+/** ¿El conductor eligió en Diagnóstico sacar las fotos de la guía con la cámara del
+ *  teléfono? Es la salida si la cámara en vivo de «Cargar la guía» se traba (spec 028). */
+export function camaraDelTelefonoElegida(): boolean {
+  try {
+    return globalThis.localStorage?.getItem(CLAVE_CAMARA_TELEFONO) === "si";
+  } catch {
+    return false;
+  }
+}
+
+export function elegirCamaraDelTelefono(elegida: boolean): void {
+  try {
+    if (elegida) globalThis.localStorage?.setItem(CLAVE_CAMARA_TELEFONO, "si");
+    else globalThis.localStorage?.removeItem(CLAVE_CAMARA_TELEFONO);
+  } catch {
+    // Sin localStorage queda la cámara en vivo.
+  }
+}
+
+/** ¿«Cargar la guía» muestra la cámara en vivo en el recuadro? Si la APK no trae el
+ *  visor se sabe recién al prenderla (`CamaraViva.visor`). */
+export function usarVisorVivo(): boolean {
+  return escanerVivoDisponible() && !camaraDelTelefonoElegida();
+}
+
 /** ¿«Cargar el auto» y «Escanear la etiqueta» abren la cámara en vivo? */
 export function usarEscanerVivo(): boolean {
   return escanerVivoDisponible() && !escanerClasicoElegido();
@@ -154,7 +193,12 @@ export async function iniciarEscanerVivo(
     throw e;
   }
   return {
-    camara: { linterna: Boolean(camara?.linterna), captura: Boolean(camara?.captura), cuadrosFijos: Number(camara?.cuadrosFijos) || 0 },
+    camara: {
+      linterna: Boolean(camara?.linterna),
+      captura: Boolean(camara?.captura),
+      cuadrosFijos: Number(camara?.cuadrosFijos) || 0,
+      visor: Boolean(camara?.visor),
+    },
     apagar: async () => {
       await escucha.remove();
       await EscanerVivo.detener().catch(() => undefined);
@@ -205,9 +249,9 @@ export async function avisarLectura(): Promise<void> {
 
 /** La foto del paquete en alta, sin toque, con lo que ML Kit leyó de ella. null
  *  si este teléfono no da la captura o falló: el texto queda de los cuadros. */
-export async function capturarViva(): Promise<CapturaViva | null> {
+export async function capturarViva(opciones?: { leer?: boolean; recorte?: ZonaViva }): Promise<CapturaViva | null> {
   try {
-    const { imagen, codigos, texto } = await EscanerVivo.capturar();
+    const { imagen, codigos, texto } = await EscanerVivo.capturar(opciones);
     const bytes = Uint8Array.from(atob(imagen), (c) => c.charCodeAt(0));
     return { imagen: new Blob([bytes], { type: "image/jpeg" }), codigos, texto };
   } catch {

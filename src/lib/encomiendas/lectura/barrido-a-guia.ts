@@ -33,10 +33,15 @@ export function lineasDelBarrido(
   total: number | null;
   entregadas: Record<string, boolean>;
   sobran: string[];
+  /** Todas las OF de la lectura, en el orden de la hoja. */
+  orden: string[];
 } {
   const nuevas = r.lista.filter((l) => !(l.of in entregadas) || (!entregadas[l.of] && l.estado === "firme"));
   const vistas = new Set(r.lista.map((l) => l.of));
-  const sobran = Object.keys(entregadas).filter((of) => !entregadas[of] && !vistas.has(of));
+  // Sobra solo la que ahora es parte de otra OF. Una que ya no está en la lectura porque
+  // se empezó otra pasada (votosDeLoLeido) no sobra: su línea sigue en la guía, por confirmar.
+  const absorbida = (of: string) => r.deLectura[of] != null && r.deLectura[of] !== of;
+  const sobran = Object.keys(entregadas).filter((of) => !entregadas[of] && !vistas.has(of) && absorbida(of));
   const ahora = Object.fromEntries(Object.entries(entregadas).filter(([of]) => !sobran.includes(of)));
   for (const l of r.lista) ahora[l.of] = ahora[l.of] === true || l.estado === "firme";
   return {
@@ -45,6 +50,7 @@ export function lineasDelBarrido(
     total: r.total,
     entregadas: ahora,
     sobran,
+    orden: r.lista.map((l) => l.of),
   };
 }
 
@@ -67,4 +73,17 @@ export function conPorConfirmar(
     const pendiente = (pendientesAntes.has(of) && !firmesNuevas.has(of)) || (porConfirmar.has(of) && !firmesAntes.has(of));
     return pendiente ? { ...l, porConfirmar: true } : l;
   });
+}
+
+/** Las líneas de la guía con las del barrido en el orden de la hoja (dueño, 2026-11-15: la
+ *  primera de la boleta, primera en el informe de lo leído, para comparar con el papel). Las
+ *  que no son del barrido (fotos, texto pegado, escritas a mano) quedan antes, como estaban. */
+export function enOrdenDeLaNomina(lineas: LineaGuia[], orden: string[]): LineaGuia[] {
+  const clave = (of: string) => ofValida(of) ?? of;
+  const lugar = new Map(orden.map((of, i) => [clave(of), i]));
+  const delBarrido = lineas.filter((l) => lugar.has(clave(l.of)));
+  return [
+    ...lineas.filter((l) => !lugar.has(clave(l.of))),
+    ...delBarrido.sort((a, b) => lugar.get(clave(a.of))! - lugar.get(clave(b.of))!),
+  ];
 }

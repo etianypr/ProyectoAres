@@ -16,23 +16,22 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, CircleHelp, X } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { CampoArea } from "@/components/ui/campo";
 import { leerGuia } from "@/lib/encomiendas/lectura/guia";
 import { lineasParaCrear } from "@/lib/encomiendas/lectura/telefono-linea";
 import { leerFotosGuia, type FuenteLectura } from "@/lib/encomiendas/local/lectura-cliente";
 import { esApp } from "@/lib/nativo/entorno";
 import { useFotosGuia } from "./fotos-guia";
-import { PieFotos, VisorGuia } from "./visor-guia";
-import { PasosGuia } from "./pasos-guia";
+import { PieFotos, VisorGuia, type ModoGuia } from "./visor-guia";
+import { CabeceraGuia } from "./pasos-guia";
 import { RevisionGuia } from "./revision-guia";
 import { lineaMala } from "./lineas-guia";
 import { VistaFinGuia } from "./fin-guia";
-import { CamaraBarrido } from "./camara-barrido";
-import { FranjaConfirmar } from "./franja-confirmar";
 import { PieGuia, plural, type PasoGuia, type PreguntaGuia } from "./pie-guia";
 import { useLineasGuia } from "../_hooks/use-lineas-guia";
 import { useBarridoDeGuia } from "../_hooks/use-barrido-de-guia";
+import { useVisorVivo } from "../_hooks/use-visor-vivo";
 import { useCargarLineas } from "../_hooks/use-cargar-lineas";
 import { useAtrasPropio } from "../_hooks/use-atras-propio";
 import { useBorradorGuia } from "../_hooks/use-borrador-guia";
@@ -77,6 +76,7 @@ export function CargarGuia({
   const conFoto = lecturaIA || esApp();
   const [paso, setPaso] = useState<PasoGuia>(conFoto ? "fotos" : "pegar");
   const [texto, setTexto] = useState("");
+  const [modo, setModo] = useState<ModoGuia>("foto");
   const guia = useLineasGuia();
   const { lineas, avisos, folio } = guia;
   const [error, setError] = useState<string | null>(null);
@@ -92,10 +92,7 @@ export function CargarGuia({
   // El barrido de la nómina: una sola lectura por guía, guardada con el borrador (spec 034).
   const guardarYa = useRef<ReturnType<typeof useBorradorGuia>["guardarYa"]>(() => undefined);
   const barridoGuia = useBarridoDeGuia({
-    alSumar: (nuevas, total, porConfirmar) => {
-      sumar(nuevas, null, total, porConfirmar);
-      setFuente((antes) => (antes === "ia" ? "ia" : "texto"));
-    },
+    alSumar: (nuevas, total, porConfirmar, orden) => (sumar(nuevas, null, total, porConfirmar, orden), setFuente((antes) => (antes === "ia" ? "ia" : "texto"))),
     alSobrar: guia.quitarOfs,
     alVacio: () => setError("No se leyó ninguna OF de la nómina."),
     guardarYa: (b) => guardarYa.current(b),
@@ -103,7 +100,11 @@ export function CargarGuia({
   const { barrer, onBarrer } = barridoGuia;
   const carga = useCargarLineas({ fecha, lecturaIA, onCreados });
   const { fin } = carga;
-
+  // La cámara en vivo del recuadro (spec 034): solo en el paso de las fotos y nunca a la
+  // vez que el barrido, que usa la misma cámara.
+  const recuadro = useRef<HTMLDivElement>(null);
+  const visor = useVisorVivo(paso === "fotos" && !fin && !leyendo && !barrer.activo);
+  const barrerNomina = onBarrer ? () => void visor.detener().then(onBarrer) : undefined;
   const borrador = useBorradorGuia({
     fecha,
     estado: { paso, lineas, avisos, folio, total: guia.total, texto, fuente },
@@ -129,6 +130,7 @@ export function CargarGuia({
 
   function pedirCerrar() {
     if (ocupado) return;
+    if (barrer.activo) return cerrarBarrido(); // la ✕ con el barrido andando lo descarta, como «atrás»
     if (hayAlgo) setPregunta("cerrar");
     else onCerrar();
   }
@@ -136,9 +138,15 @@ export function CargarGuia({
     if (leidoEnBarrido > 0) setPregunta("barrido");
     else void barrer.descartar();
   }
+  /** «Terminar»: con encargos a medias pregunta antes; después, lo de siempre. */
+  function terminarBarrido(igual = false) {
+    if (!igual && (barrer.vista?.aMedias ?? 0) > 0) return setPregunta("medias");
+    setPregunta(null);
+    void barrer.terminar();
+  }
   // Atrás de Android: el barrido, la pregunta a la vista o cerrar (spec 033).
   useAtrasPropio(true, () => {
-    if (barrer.activo) return pregunta === "barrido" ? setPregunta(null) : cerrarBarrido();
+    if (barrer.activo) return pregunta ? setPregunta(null) : cerrarBarrido();
     if (pregunta) return setPregunta(null);
     pedirCerrar();
   });
@@ -155,6 +163,14 @@ export function CargarGuia({
     const leida = leerGuia(texto);
     setTexto(""); // ya leído: «Pegar texto» vuelve vacío para pegar la otra parte
     sumar(leida.lineas, leida.folio, leida.totalDeclarado);
+  }
+
+  /** El botón redondo: la foto de lo que se ve en el recuadro o, sin la cámara en vivo,
+   *  la cámara del teléfono. */
+  async function sacarFoto() {
+    if (!visor.vivo) return entradaFoto.current?.click();
+    const foto = await visor.sacar(recuadro.current);
+    if (foto) agregarFotos([foto]);
   }
 
   /** Suma fotos a las juntadas, sin leerlas: se leen juntas con «Leer direcciones». */
@@ -202,7 +218,7 @@ export function CargarGuia({
     try {
       setError(await carga.deshacer());
     } catch {
-      setError("No se pudo deshacer la carga. Intenta de nuevo.");
+      setError("No se pudo deshacer la carga. Vuelve a intentarlo.");
     }
     setPaso("revisar");
   }
@@ -213,38 +229,23 @@ export function CargarGuia({
 
   return createPortal(
     <div
-      className="animate-fade-in fixed inset-0 z-50 flex flex-col bg-background pt-[max(0.75rem,env(safe-area-inset-top))]"
+      // Siempre `capa-camara`: con una cámara prendida, lo que no la lleva queda oculto, y
+      // esta ventana no puede desaparecer aunque la cámara quede a medio prender. El fondo
+      // se quita solo cuando el recuadro muestra la cámara.
+      className={`capa-camara animate-fade-in fixed inset-0 z-50 flex flex-col ${visor.vivo || barrer.activo ? "" : "bg-background"}`}
       role="dialog"
       aria-modal="true"
-      aria-label="Cargar la guía"
+      aria-label="Cargar guía"
     >
-      <div className="flex items-center gap-2 px-4 pb-2">
-        <h2 className="min-w-0 flex-1 text-lg font-semibold">Cargar la guía</h2>
-        <button
-          type="button"
-          onClick={onAyuda}
-          aria-label="Ayuda"
-          className="flex h-10 w-10 items-center justify-center rounded-full text-muted active:bg-card"
-        >
-          <CircleHelp className="h-5 w-5" />
-        </button>
-        <button
-          type="button"
-          onClick={pedirCerrar}
-          disabled={ocupado}
-          aria-label="Cerrar"
-          className="flex h-10 w-10 items-center justify-center rounded-full text-muted active:bg-card disabled:opacity-40"
-        >
-          <X className="h-5 w-5" />
-        </button>
-      </div>
       {/* Tocar el paso vuelve a él: a sumar fotos o texto, o a revisar lo leído. */}
-      <PasosGuia
+      <CabeceraGuia
+        onAyuda={onAyuda}
+        onCerrar={pedirCerrar}
+        ocupado={ocupado}
         actual={fin ? 3 : paso === "revisar" ? 2 : 1}
-        puede={{ 1: !fin && !leyendo, 2: !fin && !leyendo && lineas.length > 0 }}
+        puede={{ 1: !fin && !leyendo, 2: !fin && !leyendo && !barrer.activo && lineas.length > 0 }}
         onIr={(n) => setPaso(n === 2 ? "revisar" : conFoto ? "fotos" : "pegar")}
       />
-
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 pb-4 pt-1">
         <input
           ref={entradaFoto}
@@ -263,15 +264,18 @@ export function CargarGuia({
           className="hidden"
           onChange={(e) => agregarFotos([...(e.target.files ?? [])])}
         />
-        {errorVisible && !fin ? <p className="text-sm text-danger">{errorVisible}</p> : null}
+        {errorVisible && !fin ? <p className="relative z-[1] text-sm text-danger">{errorVisible}</p> : null}
 
         {!fin && paso === "fotos" ? (
           <VisorGuia
             fotos={fotos}
             leyendo={leyendo}
             lleno={bandeja.lleno}
-            onCamara={() => entradaFoto.current?.click()}
-            onQuitar={bandeja.quitar}
+            nomina={modo === "nomina" && onBarrer != null}
+            recuadro={recuadro}
+            vivo={visor.vivo ? visor : undefined}
+            barrido={barrer.activo ? barrer : undefined}
+            onCamara={modo === "nomina" && barrerNomina ? barrerNomina : () => void sacarFoto()}
           />
         ) : null}
 
@@ -333,7 +337,7 @@ export function CargarGuia({
         ) : null}
       </div>
 
-      <div className="border-t border-divider px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
+      <div className="border-t border-divider bg-background px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
         <PieGuia
           fin={fin}
           paso={paso}
@@ -346,15 +350,22 @@ export function CargarGuia({
           malas={malas}
           porConfirmar={porConfirmar}
           fotos={fotos.length}
+          aMedias={barrer.vista?.aMedias ?? 0}
           pieFotos={
             <PieFotos
-              fotos={fotos.length}
+              fotos={fotos}
+              onQuitar={bandeja.quitar}
               leyendo={leyendo}
               lleno={bandeja.lleno}
-              onCamara={() => entradaFoto.current?.click()}
+              modo={modo}
+              onModo={setModo}
+              barriendo={barrer.activo}
+              onTerminar={() => terminarBarrido()}
+              onDescartar={cerrarBarrido}
+              onCamara={() => void sacarFoto()}
               onGaleria={() => entradaFotos.current?.click()}
               onLeer={() => void leerFotos()}
-              onBarrer={onBarrer}
+              onBarrer={barrerNomina}
               onPegar={() => setPaso("pegar")}
             />
           }
@@ -366,33 +377,11 @@ export function CargarGuia({
           armar={armar}
           onDescartar={() => void borrador.descartar().then(onCerrar)}
           onDeshacer={() => void deshacerCarga()}
+          onDescartarBarrido={() => (setPregunta(null), void barrer.descartar())}
+          onTerminarBarrido={() => terminarBarrido(true)}
           onSeguir={() => setPregunta(null)}
         />
       </div>
-      {barrer.activo ? (
-        <CamaraBarrido
-          vista={barrer.vista}
-          conLinterna={barrer.conLinterna}
-          onDetener={() => {
-            setPregunta(null);
-            void barrer.terminar();
-          }}
-          onCerrar={cerrarBarrido}
-          pregunta={
-            pregunta === "barrido" ? (
-              <FranjaConfirmar
-                texto="¿Descartar lo barrido?"
-                si="Descartar"
-                onSi={() => {
-                  setPregunta(null);
-                  void barrer.descartar();
-                }}
-                onNo={() => setPregunta(null)}
-              />
-            ) : undefined
-          }
-        />
-      ) : null}
     </div>,
     document.body,
   );

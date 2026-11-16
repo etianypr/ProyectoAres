@@ -15,6 +15,8 @@ import { leerEtiqueta, type LecturaEtiqueta } from "@/lib/encomiendas/lectura/et
 import { formatoOf } from "@/lib/encomiendas/paquete";
 import { alBotonAtras } from "@/lib/nativo/entorno";
 import {
+  camaraDelTelefonoElegida,
+  elegirCamaraDelTelefono,
   elegirEscanerClasico,
   escanerVivoDisponible,
   escanerClasicoElegido,
@@ -47,6 +49,7 @@ export function ProbarEscanerVivo({ enApp }: { enApp: boolean }) {
   // En el servidor da false (sin localStorage), pero la casilla recién se ve con
   // la APK detectada, después de hidratar: no hay diferencia que corregir.
   const [elegido, setElegido] = useState(escanerClasicoElegido);
+  const [delTelefono, setDelTelefono] = useState(camaraDelTelefonoElegida);
   const [activo, setActivo] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [medida, setMedida] = useState<Medida | null>(null);
@@ -93,7 +96,7 @@ export function ProbarEscanerVivo({ enApp }: { enApp: boolean }) {
     } catch (e) {
       document.documentElement.classList.remove("camara-viva");
       setActivo(false);
-      setError(e instanceof Error && /permiso/.test(e.message) ? "Sin permiso de cámara." : "La cámara no abrió.");
+      setError(e instanceof Error && /permiso/.test(e.message) ? "Sin permiso de cámara." : "No se pudo abrir la cámara.");
     }
   }
 
@@ -135,7 +138,7 @@ export function ProbarEscanerVivo({ enApp }: { enApp: boolean }) {
         Probar escáner en vivo
       </button>
       {!disponible ? (
-        <p className="text-xs text-muted">{enApp ? "Esta app no trae el escáner en vivo (APK 1.6.0)." : "Solo en la app."}</p>
+        <p className="text-xs text-muted">{enApp ? "Esta versión no incluye el escáner en vivo (APK 1.6.0)." : "Solo en la app."}</p>
       ) : null}
       {disponible ? (
         <label className="flex items-center gap-2 px-1 text-sm font-medium">
@@ -148,7 +151,22 @@ export function ProbarEscanerVivo({ enApp }: { enApp: boolean }) {
             }}
             className="h-4 w-4 accent-[var(--brand)]"
           />
-          Cargar el auto con el escáner de Google
+          Cargar vehículo con el escáner de Google
+        </label>
+      ) : null}
+      {/* La salida si la cámara en vivo de «Cargar la guía» se traba ese día (spec 034). */}
+      {disponible ? (
+        <label className="flex items-center gap-2 px-1 text-sm font-medium">
+          <input
+            type="checkbox"
+            checked={delTelefono}
+            onChange={(e) => {
+              elegirCamaraDelTelefono(e.target.checked);
+              setDelTelefono(e.target.checked);
+            }}
+            className="h-4 w-4 accent-[var(--brand)]"
+          />
+          Tomar las fotos de la guía con la cámara del dispositivo
         </label>
       ) : null}
       {error ? <p className="text-sm text-danger">{error}</p> : null}
@@ -189,7 +207,7 @@ export function ProbarEscanerVivo({ enApp }: { enApp: boolean }) {
                 ) : (
                   <p className="flex items-center gap-2 text-muted">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Prendiendo la cámara…
+                    Iniciando cámara…
                   </p>
                 )}
               </div>

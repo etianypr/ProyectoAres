@@ -1,12 +1,12 @@
 "use client";
 
-// Los tres pasos de «Cargar la guía» bajo el título (dueño, 2026-11-13, maqueta A):
+// Los tres pasos de «Cargar guía» bajo el título (dueño, 2026-11-13, maqueta A):
 // Fotos · Revisar · Listo. La raya de color marca los hechos y el actual; además
 // del color, el hecho lleva ✓ y el actual va en negrita (ningún estado solo por color).
 // Versión simple (dueño, 2026-11-14): el paso se toca para volver a él, en vez de
 // los enlaces «Más fotos» y «‹ n líneas».
 
-import { Check } from "lucide-react";
+import { Check, CircleHelp, X } from "lucide-react";
 import { cn } from "@/lib/comun/utils";
 
 const PASOS = ["Fotos", "Revisar", "Listo"] as const;
@@ -60,5 +60,45 @@ export function PasosGuia({
         );
       })}
     </ol>
+  );
+}
+
+/** La cabecera de «Cargar guía»: el título, la Ayuda, cerrar y los pasos. Pinta su
+ *  fondo: con la cámara en vivo la ventana es transparente (spec 034). */
+export function CabeceraGuia({
+  onAyuda,
+  onCerrar,
+  ocupado,
+  ...pasos
+}: {
+  onAyuda: () => void;
+  onCerrar: () => void;
+  /** Ubicando direcciones: no se puede cerrar. */
+  ocupado: boolean;
+} & React.ComponentProps<typeof PasosGuia>) {
+  return (
+    <div className="bg-background pt-[max(0.75rem,env(safe-area-inset-top))]">
+      <div className="flex items-center gap-2 px-4 pb-2">
+        <h2 className="min-w-0 flex-1 text-lg font-semibold">Cargar guía</h2>
+        <button
+          type="button"
+          onClick={onAyuda}
+          aria-label="Ayuda"
+          className="flex h-10 w-10 items-center justify-center rounded-full text-muted active:bg-card"
+        >
+          <CircleHelp className="h-5 w-5" />
+        </button>
+        <button
+          type="button"
+          onClick={onCerrar}
+          disabled={ocupado}
+          aria-label="Cerrar"
+          className="flex h-10 w-10 items-center justify-center rounded-full text-muted active:bg-card disabled:opacity-40"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+      <PasosGuia {...pasos} />
+    </div>
   );
 }
