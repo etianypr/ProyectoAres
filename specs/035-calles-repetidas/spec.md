@@ -1,6 +1,6 @@
 # 035 · Calles repetidas: la referencia de la guía elige el lugar
 
-Estado: en curso (en la rama `034-barrido-sin-saltos`, junto a la 034; probada en el V2430 en modo prueba, falta una guía real) · paso 2 del
+Estado: en `main` desde 2026-11-16, unida junto a la 034 (probada en el V2430 en modo prueba; falta una guía real en terreno) · paso 2 del
 flujo (resolver los ⚠ de la guía) · dueño, 2026-11-15. Toma de la 025 lo de separar referencias.
 
 ## Qué y por qué
@@ -65,8 +65,8 @@ flujo (resolver los ⚠ de la guía) · dueño, 2026-11-15. Toma de la 025 lo de
 
 ## Falta
 - Probar con una guía real: en modo prueba ya se vio con y sin referencia (2026-11-16).
-- Pasarla a su propia rama (`035-calles-repetidas`) y reservar el número en `main`: se hizo sobre la
-  rama de la 034 porque comparte archivos con lo pendiente de esa rama.
+- Se hizo sobre la rama de la 034 porque comparte archivos con lo pendiente de esa rama y entró a `main` en el
+  mismo merge; lo que falte va en una rama nueva.
 - OSM no tiene nombrados muchos pasajes de las poblaciones: los que no están en `lugares-calles.ts`
   siguen como antes. Se suman corrigiendo OSM y corriendo `npm run calles`.
 - Si el plano municipal cambia, se vuelve a sacar `poblaciones-arica.ts` (el método está en su cabecera).

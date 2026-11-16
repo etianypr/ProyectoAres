@@ -1,7 +1,7 @@
 # 034 · Barrer la nómina sin saltarse un encargo
 
-Estado: en curso (rama `034-barrido-sin-saltos`; hecha en la web y en `android/` y medida
-con una nómina real: 15 de 15; falta probar el guardado y la velocidad de los cuadros) · paso 1 del flujo («Cargar la guía» → «Barrer la nómina»,
+Estado: en `main` desde 2026-11-16 (la rama se borró; hecha en la web y en `android/`, APK 1.9.0, y medida
+con una nómina real: 15 de 15; falta probar en terreno el guardado y la velocidad de los cuadros) · paso 1 del flujo («Cargar la guía» → «Barrer la nómina»,
 spec 029) · dueño, 2026-11-14/15.
 
 ## Qué y por qué
