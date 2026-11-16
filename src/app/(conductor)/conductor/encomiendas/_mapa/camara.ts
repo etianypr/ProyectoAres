@@ -58,6 +58,19 @@ export function zoomDeSeguimiento(velocidad: number | null | undefined, llegando
 }
 
 // ----------------------------------------------------------------------------
+// En ruta: el auto y la parada a la vez (dueño, 2026-11-16, como Spoke)
+// ----------------------------------------------------------------------------
+// Con una parada activa, «Centrar» no se pega al auto: encuadra el auto y la
+// parada que sigue, y lo sigue haciendo con cada lectura del GPS, así que al
+// acercarse el mapa se va acercando solo. Sin inclinación: con perspectiva el
+// encuadre no calza y lo de arriba se achica. Guía Google Maps (spec 020); esto
+// es para mirar dónde queda la parada.
+/** Tope de zoom del encuadre: con el auto encima de la parada, la cuadra. */
+export const ZOOM_MAXIMO_ENCUADRE = 17;
+/** Margen a los lados del encuadre (arriba y abajo los pone la pantalla). */
+export const RELLENO_LADOS_ENCUADRE = 48;
+
+// ----------------------------------------------------------------------------
 // Dónde queda el punto del conductor en la pantalla
 // ----------------------------------------------------------------------------
 // En el centro del contenedor, sin relleno. Con el mapa girado al rumbo, lo que

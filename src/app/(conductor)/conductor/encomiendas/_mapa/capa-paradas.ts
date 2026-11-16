@@ -18,6 +18,7 @@ import type { LugarMapa } from "./marcadores-dom";
 
 export const FUENTE_PARADAS = "paradas";
 const CAPA_PINES = "paradas-pines";
+const CAPA_DIRECCIONES = "paradas-direcciones";
 
 /** Los colores de la pastilla, como en el tema Dashund. */
 const COLORES = {
@@ -66,7 +67,30 @@ export function cifraDelLugar(etiquetas: string[]): string {
   return `${etiquetas[0]}+${etiquetas.length - 1}`;
 }
 
-type Propiedades = { i: number; imagen: string; encima: number };
+/** Largo de la dirección escrita sobre la parada: la calle y el número. */
+const LARGO_DIRECCION = 26;
+
+/** Lo que va escrito sobre el lugar (dueño, 2026-11-16, como Spoke): la
+ *  dirección corta, hasta la primera coma y sin cortar una palabra. Las hechas no
+ *  llevan: ya no hay que ir. Pura. */
+export function textoDelLugar(l: LugarMapa, previa: boolean): string {
+  if (!previa && l.puntos.every((p) => p.completada)) return "";
+  const d = (l.puntos[0]?.direccion ?? "").split(",")[0].replace(/\s+/g, " ").trim();
+  if (d.length <= LARGO_DIRECCION) return d;
+  const corta = d.slice(0, LARGO_DIRECCION).replace(/\s+\S*$/, "");
+  return `${corta || d.slice(0, LARGO_DIRECCION)}…`;
+}
+
+/** Quién gana el lugar cuando dos direcciones chocan: la activa, la cercana y
+ *  después la que viene antes en la ruta. Menor = primero. */
+function ordenDelTexto(l: LugarMapa, estado: Estado): number {
+  if (estado === "activa") return -2;
+  if (estado === "cercana") return -1;
+  const n = Math.min(...l.puntos.map((p) => Number(p.label)).filter(Number.isFinite));
+  return Number.isFinite(n) ? n : 9999;
+}
+
+type Propiedades = { i: number; imagen: string; encima: number; texto: string; orden: number };
 type Punto = { type: "Feature"; geometry: { type: "Point"; coordinates: [number, number] }; properties: Propiedades };
 export type DatosParadas = { type: "FeatureCollection"; features: Punto[] };
 
@@ -86,9 +110,11 @@ export function datosParadas(lugares: LugarMapa[], previa: boolean, central: Coo
       i,
       imagen: idImagen(estado, cifraDelLugar(l.puntos.map((p) => p.label))),
       encima: ENCIMA[estado],
+      texto: textoDelLugar(l, previa),
+      orden: ordenDelTexto(l, estado),
     });
   });
-  if (central) features.push(punto(central.lng, central.lat, { i: -1, imagen: idImagen("central", "C"), encima: ENCIMA.central }));
+  if (central) features.push(punto(central.lng, central.lat, { i: -1, imagen: idImagen("central", "C"), encima: ENCIMA.central, texto: "", orden: 9999 }));
   return { type: "FeatureCollection", features };
 }
 
@@ -112,6 +138,31 @@ export function fuentesDelTema(): { cifras: string; texto: string } {
 /** Una pastilla con punta: 26 px de alto (32 la activa y la central), tan ancha
  *  como pida la cifra, anillo claro de 2 px, punta de 7 px y sombra suave. */
 function dibujarPin(estado: Estado, cifra: string, escala: number): ImageData {
+  const lienzo = lienzoDelPin(estado, cifra, escala);
+  return lienzo.getContext("2d")!.getImageData(0, 0, lienzo.width, lienzo.height);
+}
+
+/** La pastilla de la parada activa como elemento de la página, idéntica a la del
+ *  mapa y en el mismo lugar (dueño, 2026-11-16: el punto del auto le tapaba la
+ *  ubicación). El punto del auto es del DOM y el mapa dibuja debajo de todo el
+ *  DOM: la única forma de dejar la parada encima es otro elemento, después de él.
+ *  No recibe toques: el toque lo sigue resolviendo la capa del mapa. */
+export function elementoPinActiva(cifra: string): HTMLElement {
+  const escala = Math.min(3, Math.max(1, window.devicePixelRatio || 1));
+  const lienzo = lienzoDelPin("activa", cifra, escala);
+  lienzo.style.width = `${lienzo.width / escala}px`;
+  lienzo.style.height = `${lienzo.height / escala}px`;
+  const el = document.createElement("div");
+  el.style.pointerEvents = "none";
+  el.style.zIndex = "2";
+  el.append(lienzo);
+  return el;
+}
+
+/** Margen bajo la punta de la pastilla: el ancla lo descuenta. */
+export const MARGEN_PIN = MARGEN;
+
+function lienzoDelPin(estado: Estado, cifra: string, escala: number): HTMLCanvasElement {
   const grande = estado === "activa" || estado === "central";
   const alto = grande ? 32 : 26;
   const tamano = estado === "central" ? 14 : grande ? 13 : 11.5;
@@ -170,7 +221,7 @@ function dibujarPin(estado: Estado, cifra: string, escala: number): ImageData {
   }
   ctx.fillText(cifra, x + ancho / 2, y + alto / 2 + 0.5);
 
-  return ctx.getImageData(0, 0, lienzo.width, lienzo.height);
+  return lienzo;
 }
 
 /** Agrega las pastillas que falten (una por cifra y estado: se dibujan una vez). */
@@ -184,9 +235,42 @@ function asegurarImagenes(mapa: maplibregl.Map, datos: DatosParadas): void {
   }
 }
 
-/** La capa de las pastillas. Va encima de las líneas. */
+/** La capa de las pastillas y, debajo, la de las direcciones. Van encima de las líneas. */
 export function agregarParadas(mapa: maplibregl.Map): void {
   mapa.addSource(FUENTE_PARADAS, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+  // Las direcciones sobre las paradas (dueño, 2026-11-16: «como Spoke, limpias,
+  // nunca una arriba de la otra»). Las dibuja el mapa como el nombre de una calle:
+  // si una choca con otra o con una pastilla no se muestra, y vuelve al acercar.
+  // Es la misma capa WebGL, sin elementos en la página (ver arriba el rendimiento).
+  // Las pastillas se ubican primero (están encima), así ninguna dirección las tapa.
+  mapa.addLayer({
+    id: CAPA_DIRECCIONES,
+    type: "symbol",
+    source: FUENTE_PARADAS,
+    minzoom: 13.5,
+    filter: ["!=", ["get", "texto"], ""],
+    layout: {
+      "text-field": ["get", "texto"],
+      "text-font": ["Noto Sans Bold"],
+      "text-size": 11.5,
+      "text-max-width": 9,
+      "text-line-height": 1.1,
+      // Arriba de la pastilla; si no cabe, a su derecha o a su izquierda. Fuera
+      // del recuadro de la pastilla con su margen de sombra (54 px de alto la
+      // activa, 44 de ancho la de una cifra): si lo pisa, el mapa la esconde.
+      "text-variable-anchor-offset": ["literal", ["bottom", [0, -4.4], "left", [2.3, -1.9], "right", [-2.3, -1.9]]],
+      "text-justify": "auto",
+      "symbol-sort-key": ["get", "orden"],
+      "text-pitch-alignment": "viewport",
+      "text-rotation-alignment": "viewport",
+      "text-padding": 1,
+    },
+    paint: {
+      "text-color": "#221a15",
+      "text-halo-color": "#fdfbf9",
+      "text-halo-width": 1.6,
+    },
+  });
   mapa.addLayer({
     id: CAPA_PINES,
     type: "symbol",
@@ -198,7 +282,9 @@ export function agregarParadas(mapa: maplibregl.Map): void {
       "icon-anchor": "bottom",
       "icon-offset": [0, MARGEN],
       "icon-allow-overlap": true,
-      "icon-ignore-placement": true,
+      // Siempre se ven, pero ocupan su lugar: las direcciones no se les ponen encima.
+      "icon-ignore-placement": false,
+      "icon-padding": 0,
       "symbol-sort-key": ["get", "encima"],
       // Derechas aunque el mapa esté inclinado, como eran los marcadores.
       "icon-pitch-alignment": "viewport",

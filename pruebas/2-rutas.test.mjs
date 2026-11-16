@@ -666,7 +666,31 @@ test("puntoDeAcceso: sin señal, la parada queda donde estaba", async () => {
 });
 
 // ------------------------------------------------- el número de un lugar
-const { cifraDelLugar } = await import("@/app/(conductor)/conductor/encomiendas/_mapa/capa-paradas");
+const { cifraDelLugar, textoDelLugar, datosParadas } = await import("@/app/(conductor)/conductor/encomiendas/_mapa/capa-paradas");
+
+// Dirección escrita sobre la parada (dueño, 2026-11-16, como Spoke). Calles reales, números inventados.
+const lugarCon = (direccion, extra = {}) => ({ lat: -18.48, lng: -70.31, puntos: [{ id: "a", lat: -18.48, lng: -70.31, label: "4", direccion, activa: false, completada: false, ...extra }] });
+
+test("textoDelLugar: la calle y el número, corta y sin cortar palabras", () => {
+  assert.equal(textoDelLugar(lugarCon("Ginebra 4081, Arica"), false), "Ginebra 4081");
+  assert.equal(textoDelLugar(lugarCon("  Avenida  Santa María 2150 "), false), "Avenida Santa María 2150");
+  const larga = textoDelLugar(lugarCon("Pasaje Los Aromos del Valle de Azapa 1234"), false);
+  assert.ok(larga.endsWith("…") && larga.length <= 27, larga);
+  assert.ok(!/\s…$/.test(larga), "no queda un espacio antes de los puntos");
+});
+
+test("textoDelLugar: la hecha no lleva texto, salvo en una propuesta", () => {
+  assert.equal(textoDelLugar(lugarCon("Ginebra 4081", { completada: true }), false), "");
+  assert.equal(textoDelLugar(lugarCon("Ginebra 4081", { completada: true }), true), "Ginebra 4081");
+});
+
+test("datosParadas: la activa gana el lugar del texto y la central no lleva", () => {
+  const datos = datosParadas([lugarCon("Ginebra 4081"), lugarCon("Diego Portales 900", { activa: true, label: "9" })], false, { lat: -18.47, lng: -70.3 });
+  const [normal, activa, central] = datos.features.map((f) => f.properties);
+  assert.equal(normal.orden, 4);
+  assert.ok(activa.orden < normal.orden, "la activa se ubica primero aunque venga después");
+  assert.equal(central.texto, "");
+});
 
 test("cifraDelLugar: varias paradas en el mismo punto se escriben cortas", () => {
   assert.equal(cifraDelLugar(["7"]), "7");
