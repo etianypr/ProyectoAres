@@ -75,17 +75,17 @@ export function BotonCorregirIA({
       setPropuestas((antes) => [...antes, ...r.propuestas]);
       setAviso(
         r.sinIA
-          ? "IA apagada en el servidor."
+          ? "IA desactivada en el servidor."
           : r.sinSenal > 0
-            ? `Sin señal: ${r.sinSenal === 1 ? "1 sin preguntar" : `${r.sinSenal} sin preguntar`} a la IA.`
+            ? `Sin conexión: ${r.sinSenal === 1 ? "1 sin consultar" : `${r.sinSenal} sin consultar`} a la IA.`
             : r.propuestas.length === 0
-              ? "La IA no encontró cómo corregirlas."
+              ? "La IA no encontró correcciones."
               : r.sinArreglo > 0
-                ? `${r.sinArreglo} sin arreglo.`
+                ? `${r.sinArreglo} sin corrección.`
                 : null,
       );
     } catch {
-      setAviso("Sin señal: no se preguntó a la IA.");
+      setAviso("Sin conexión. No se consultó a la IA.");
     } finally {
       setAvance(null);
     }
@@ -104,8 +104,8 @@ export function BotonCorregirIA({
           {avance
             ? `Corrigiendo con IA: ${avance.hechos} de ${avance.total}`
             : sinPropuesta === 1
-              ? "Corregir la dirección con IA"
-              : `Corregir las ${sinPropuesta} direcciones con IA`}
+              ? "Corregir dirección con IA"
+              : `Corregir ${sinPropuesta} direcciones con IA`}
         </button>
       ) : null}
       {aviso ? <p className="px-1 text-sm text-muted">{aviso}</p> : null}

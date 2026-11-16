@@ -19,7 +19,7 @@ export type ErrorAuth =
 
 export type TipoErrorAuth = "credenciales" | "red" | "limite" | "sesion" | "otro";
 
-const SIN_SENAL = "Sin señal. Intenta de nuevo.";
+const SIN_SENAL = "Sin conexión. Vuelve a intentarlo.";
 
 export function tipoErrorAuth(error: ErrorAuth): TipoErrorAuth {
   if (!error) return "otro";
@@ -53,7 +53,7 @@ export function mensajeLogin(error: ErrorAuth): string {
     case "red":
       return SIN_SENAL;
     case "limite":
-      return "Demasiados intentos. Intenta de nuevo en unos minutos.";
+      return "Demasiados intentos. Vuelve a intentarlo en unos minutos.";
     default:
       return "Correo o contraseña incorrectos.";
   }
@@ -61,15 +61,15 @@ export function mensajeLogin(error: ErrorAuth): string {
 
 /** Guardar la contraseña nueva en /set-password (updateUser). */
 export function mensajeClave(error: ErrorAuth): string {
-  if (error?.code === "same_password") return "Es la misma contraseña de antes.";
+  if (error?.code === "same_password") return "La contraseña nueva debe ser distinta de la anterior.";
   if (error?.code === "weak_password" || error?.name === "AuthWeakPasswordError") {
-    return "Contraseña muy débil.";
+    return "Contraseña demasiado débil.";
   }
   switch (tipoErrorAuth(error)) {
     case "red":
       return SIN_SENAL;
     case "limite":
-      return "Demasiados intentos. Intenta de nuevo en unos minutos.";
+      return "Demasiados intentos. Vuelve a intentarlo en unos minutos.";
     case "sesion":
       return "El enlace venció.";
     default:
@@ -84,9 +84,9 @@ export function mensajeOlvido(error: ErrorAuth): { ok: boolean; texto: string } 
   if (error) {
     const tipo = tipoErrorAuth(error);
     if (tipo === "red") return { ok: false, texto: SIN_SENAL };
-    if (tipo === "limite") return { ok: false, texto: "Demasiados intentos. Intenta de nuevo en unos minutos." };
+    if (tipo === "limite") return { ok: false, texto: "Demasiados intentos. Vuelve a intentarlo en unos minutos." };
   }
-  return { ok: true, texto: "Si el correo está registrado, te llegó un enlace para cambiar la contraseña." };
+  return { ok: true, texto: "Si el correo está registrado, se envió un enlace para cambiar la contraseña." };
 }
 
 /** ¿El enlace de /set-password no se pudo comprobar por falta de señal (y no

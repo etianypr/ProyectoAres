@@ -6,8 +6,8 @@
 import type { ResultadoUbicacion } from "@/lib/geo/geocoding";
 import type { ResultadoIA } from "@/lib/geo/direccion-ia/contrato";
 import type { LineaParaCrear, OrigenCarga } from "./almacen";
-import { crearDesdeGuia } from "./almacen";
-import { corregirSinUbicar, type PropuestaCorreccion, type ResumenCorreccion } from "./corregir-direcciones";
+import { crearDesdeGuia, leerPedidos } from "./almacen";
+import { corregirDirecciones, type PropuestaCorreccion, type ResumenCorreccion } from "./corregir-direcciones";
 import { hayRed, ubicarCarga } from "./ubicar-carga";
 
 /** Qué pasó con la IA: apagada (sin clave o sin «Corregir con IA»), sin señal,
@@ -61,7 +61,12 @@ export async function cargarLineasGuia(
 ): Promise<ResumenCarga> {
   const { creados, yaEstaban } = await crearDesdeGuia(lineas, fecha, { folio, origen });
   alCrear?.();
+  const nuevos = new Set(creados.map((p) => p.id));
+  const puntosDelDia = (await leerPedidos(fecha))
+    .filter((p) => !nuevos.has(p.id) && p.lat != null && p.lng != null)
+    .map((p) => ({ lat: p.lat!, lng: p.lng! }));
   const u = await ubicarCarga(creados, {
+    puntosDelDia,
     senal,
     enLinea,
     ubicar,
@@ -79,14 +84,17 @@ export async function cargarLineasGuia(
     sinArreglo: 0,
     propuestas: [],
   };
-  if (u.sinUbicar.length === 0) return resumen;
+  // A la IA van los sin ubicar y los dudosos de esta carga (2026-11-16): los que entraban a mitad
+  // de cuadra o en otra calle nunca le llegaban y había que reescribirlos a mano.
+  const aRevisar = [...u.sinUbicar, ...u.dudosos];
+  if (aRevisar.length === 0) return resumen;
   if (!lecturaIA) return { ...resumen, ia: "apagada" };
   if (u.cortado) return { ...resumen, ia: "cortada" };
   if (u.sinSenal) return { ...resumen, ia: "sinSenal" };
 
   // La IA, solo con las de esta carga (antes miraba todo el día, spec 033).
-  const r: ResumenCorreccion = await corregirSinUbicar(fecha, {
-    ids: u.sinUbicar,
+  const r: ResumenCorreccion = await corregirDirecciones(fecha, {
+    ids: aRevisar,
     senal,
     enLinea,
     corregir,

@@ -7,6 +7,7 @@
 // Al confirmar, el texto original queda en las notas del pedido.
 
 import { nombreVisible } from "@/lib/encomiendas/paquete";
+import { distanciaMetros } from "@/lib/geo/coordenada";
 import { corregirConIA, IANoDisponible } from "@/lib/geo/direccion-ia/cliente";
 import { MAX_DIRECCIONES_POR_TANDA, type ResultadoIA } from "@/lib/geo/direccion-ia/contrato";
 import { telefonoParaGuardar } from "@/lib/comun/telefono";
@@ -50,11 +51,24 @@ export type ResumenCorreccion = {
 /** Seguidas sin respuesta de la IA: sin señal no se espera 30 s por cada una. */
 const FALLOS_PARA_PARAR = 2;
 
-const sinUbicar = (p: Pedido) => p.resultado === "pendiente" && (p.lat == null || p.lng == null) && p.direccion.trim() !== "";
+const conDireccion = (p: Pedido) => p.resultado === "pendiente" && p.direccion.trim() !== "";
+const sinUbicar = (p: Pedido) => conDireccion(p) && (p.lat == null || p.lng == null);
+/** Ubicado, pero solo con la calle (2026-11-16). Una calle repetida no va a la IA: no sabe dónde
+ *  anda la ruta; sus lugares se eligen en «Por confirmar». */
+const lugarEnDuda = (p: Pedido) => conDireccion(p) && p.problemas.some((x) => x.tipo === "solo_calle");
 
-/** La propuesta guardada sigue valiendo: el pedido sigue sin ubicar y con la
+/** Lo que la IA revisa: los sin ubicar y los de lugar en duda del día; con `ids` (una carga),
+ *  esos pedidos, también los que quedaron a mitad de cuadra (2026-11-16: antes solo los sin
+ *  ubicar, y había que reescribir a mano los que entraban mal). */
+export const porRevisar = (p: Pedido, ids?: ReadonlySet<string> | null) =>
+  ids ? ids.has(p.id) && conDireccion(p) : sinUbicar(p) || lugarEnDuda(p);
+
+/** La propuesta guardada sigue valiendo: el pedido sigue pendiente y con la
  *  misma dirección que se le preguntó a la IA. */
-const conPropuestaVigente = (p: Pedido) => sinUbicar(p) && p.propuestaIA != null && p.propuestaIA.original === p.direccion;
+const conPropuestaVigente = (p: Pedido) => conDireccion(p) && p.propuestaIA != null && p.propuestaIA.original === p.direccion;
+
+/** Una propuesta a menos de esto del punto que ya tiene el pedido no cambia nada: no se muestra. */
+const METROS_SIN_CAMBIO = 60;
 
 function propuestaDe(p: Pedido, guardada: NonNullable<Pedido["propuestaIA"]>): PropuestaCorreccion {
   return { pedidoId: p.id, nombre: nombreVisible(p), telefono: p.telefono, ...guardada };
@@ -77,8 +91,8 @@ export function esSegura(r: Extract<ResultadoIA, { tipo: "propuesta" }>): boolea
   return r.confianza === "media" && r.candidato.confianza === "aproximada" && r.candidato.coincideNumero !== false;
 }
 
-/** Le pide a la IA una corrección para cada pedido sin ubicar. No cambia nada. */
-export async function corregirSinUbicar(
+/** Le pide a la IA una corrección para cada pedido por revisar. No cambia nada. */
+export async function corregirDirecciones(
   fecha: string,
   {
     alAvanzar,
@@ -103,7 +117,7 @@ export async function corregirSinUbicar(
   const soloEstos = ids ? new Set(ids) : null;
   const pendientes = (await leerPedidos(fecha))
     // Los que ya tienen una propuesta guardada no se vuelven a pagar.
-    .filter((p) => sinUbicar(p) && !conPropuestaVigente(p) && (!soloEstos || soloEstos.has(p.id)) && !excluir.includes(p.id))
+    .filter((p) => porRevisar(p, soloEstos) && !conPropuestaVigente(p) && !excluir.includes(p.id))
     .slice(0, MAX_DIRECCIONES_POR_TANDA);
   const resumen: ResumenCorreccion = { propuestas: [], sinArreglo: 0, sinIA: false, sinSenal: 0 };
   if (!enLinea()) return { ...resumen, sinSenal: pendientes.length };
@@ -129,6 +143,9 @@ export async function corregirSinUbicar(
       continue;
     }
     seguidas = 0;
+    const yaEstaba =
+      r.tipo === "propuesta" && p.lat != null && p.lng != null && distanciaMetros(r.candidato, { lat: p.lat, lng: p.lng }) < METROS_SIN_CAMBIO;
+    if (yaEstaba) continue;
     if (r.tipo === "propuesta" && r.candidato.confianza !== "baja") {
       const guardada = {
         original: p.direccion,
@@ -152,6 +169,9 @@ export async function corregirSinUbicar(
   return resumen;
 }
 
+/** El nombre de antes, para las pantallas y las pruebas que ya lo usan. */
+export const corregirSinUbicar = corregirDirecciones;
+
 /** Lo que el conductor eligió de la lista después de tocar el lápiz. */
 export type CorreccionEditada = { direccion: string; lat: number; lng: number };
 
@@ -174,7 +194,7 @@ export async function aplicarCorreccion(
       p.pedidoId,
       editada.direccion,
       { lat: editada.lat, lng: editada.lng },
-      `Dirección corregida a mano sobre la de la IA; decía «${p.original}»`,
+      `Dirección corregida manualmente sobre la de la IA; decía «${p.original}»`,
     );
     return;
   }

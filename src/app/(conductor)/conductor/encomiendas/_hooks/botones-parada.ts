@@ -92,8 +92,8 @@ export function botonesDeParada(activa: Parada, fase: Fase, extra: ExtraBotones 
     return [[entregado, b("llamar", "Llamar", "neutro", { soloIcono: true }), noSeEntrega]];
   }
   return [
-    [entregado, b("escanear", "Escanear la etiqueta", "neutro", { soloIcono: true, abreAres: true }), noSeEntrega],
-    [b("telefono", "Teléfono a mano", "neutro", { abreAres: true })],
+    [entregado, b("escanear", "Escanear etiqueta", "neutro", { soloIcono: true, abreAres: true }), noSeEntrega],
+    [b("telefono", "Ingresar teléfono", "neutro", { abreAres: true })],
   ];
 }
 
@@ -110,11 +110,11 @@ export type EstadoParada = { texto: string; tono: "marca" | "ok" | "neutro"; ico
 export function estadoDeParada(activa: Parada, whatsapp: boolean): EstadoParada | null {
   const { pedido } = activa;
   if (pedido.bloqueHorarioId) {
-    return { texto: `Pidió ${bloquePorId(pedido.bloqueHorarioId)?.etiqueta ?? "un horario"}`, tono: "marca", icono: "reloj" };
+    return { texto: `Solicitó ${bloquePorId(pedido.bloqueHorarioId)?.etiqueta ?? "un horario"}`, tono: "marca", icono: "reloj" };
   }
   if (pedido.disponibilidad === "confirmado") return { texto: "Estará en su domicilio", tono: "ok", icono: "check" };
   if (!whatsapp) return null;
-  return { texto: "Sin respuesta todavía", tono: "neutro", icono: "telefono" };
+  return { texto: "Sin respuesta", tono: "neutro", icono: "telefono" };
 }
 
 /** Lo que hace cada botón: las mismas funciones para la tarjeta y la burbuja. */

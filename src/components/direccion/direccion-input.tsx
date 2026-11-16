@@ -380,7 +380,7 @@ export function DireccionInput({
           // Sirve para las tres pantallas que usan este campo, y en dos de
           // ellas la dirección es de donde SALE la ruta, no a donde llega: por
           // eso dice "el punto" y no "la parada".
-          pie="Ese es el punto que va a usar la ruta. Si no es esa esquina, corrige la dirección."
+          pie="Punto que usará la ruta. Si no corresponde, corrige la dirección."
         />
       ) : reservarMapa ? (
         <MapaPuntoVacio
@@ -388,7 +388,7 @@ export function DireccionInput({
           tono={sinUbicarAMano ? "aviso" : "neutro"}
           pie={
             sinUbicarAMano
-              ? "Sin ubicar en el mapa: no entra en la ruta hasta que corrijas la dirección."
+              ? "Sin ubicación en el mapa. No se incluirá en la ruta hasta corregir la dirección."
               : "Sin punto"
           }
         />

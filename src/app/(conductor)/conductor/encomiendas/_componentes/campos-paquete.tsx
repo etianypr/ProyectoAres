@@ -146,7 +146,7 @@ export function CamposPaquete({
   return (
     <div className="grid gap-2.5 rounded-2xl border border-separator p-3">
       <div className="flex items-baseline justify-between gap-2">
-        <p className="text-sm font-medium">Cómo es el paquete</p>
+        <p className="text-sm font-medium">Descripción del paquete</p>
         {vista ? <p className="truncate text-xs font-medium text-brand">{vista}</p> : null}
       </div>
 
@@ -160,7 +160,7 @@ export function CamposPaquete({
       />
 
       <Campo
-        etiqueta="Algo distintivo"
+        etiqueta="Detalle distintivo"
         value={valor.nota}
         maxLength={LARGO_NOTA_PAQUETE}
         onChange={(e) => onCambiar({ nota: e.target.value })}
@@ -208,7 +208,7 @@ export function CamposPaquete({
           className="flex items-center gap-2 rounded-xl border border-dashed border-separator px-3 py-2.5 text-sm font-medium text-muted active:bg-background disabled:opacity-50"
         >
           <Camera className="h-4 w-4 shrink-0 text-brand" />
-          {procesando ? "Procesando la foto…" : "Foto del paquete"}
+          {procesando ? "Procesando foto…" : "Foto del paquete"}
         </button>
       )}
       {errorFoto ? <p className="text-xs text-danger">{errorFoto}</p> : null}

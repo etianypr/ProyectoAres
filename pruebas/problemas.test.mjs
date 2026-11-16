@@ -26,12 +26,12 @@ test("la OF de otro largo NO es un problema (dueño, 2026-11-06)", () => {
 test("sin punto en el mapa: sin ubicar, va primero y no avisa antes (no está en la ruta)", () => {
   const [p] = problemasDelPedido(pedido({ lng: null, of: null }));
   assert.deepEqual(p, { tipo: "sin_ubicar", texto: "Sin ubicar", avisaAntes: false });
-  assert.deepEqual(tipos(pedido({ lat: null, lng: null, of: null })), ["sin_ubicar", "sin_of"]);
+  assert.deepEqual(tipos(pedido({ lat: null, lng: null, of: null })), ["sin_ubicar"]);
 });
 
-test("sin OF: solo si vino de la guía; a mano no es un problema", () => {
-  assert.deepEqual(problemasDelPedido(pedido({ of: null })), [{ tipo: "sin_of", texto: "No se leyó la OF", avisaAntes: false }]);
-  assert.deepEqual(tipos(pedido({ of: null, origenCarga: "guia_pegada" })), ["sin_of"]);
+test("sin OF no es un problema, venga de la guía o a mano (dueño, 2026-11-16)", () => {
+  assert.deepEqual(problemasDelPedido(pedido({ of: null })), []);
+  assert.deepEqual(tipos(pedido({ of: null, origenCarga: "guia_pegada" })), []);
   assert.deepEqual(tipos(pedido({ of: null, origenCarga: "manual" })), []);
 });
 
@@ -52,8 +52,8 @@ test("spec 022: los ⚠ guardados, con su texto y si avisan dos paradas antes", 
       ["Sin número: va a mitad de cuadra", true],
       ["Queda a 6,2 km del resto", true],
       ["No alcanza su horario", true],
-      ["La etiqueta dice otra dirección", true],
-      ["No estaba en la guía", false],
+      ["La etiqueta indica otra dirección", true],
+      ["No figura en la guía", false],
     ],
   );
 });

@@ -284,7 +284,7 @@ export function useEscanerVivo({
         (e: unknown) => {
           if (vivo) {
             document.documentElement.classList.remove("camara-viva");
-            setEstado({ tipo: "sinCamara", motivo: e instanceof Error && /permiso/.test(e.message) ? "Sin permiso de cámara." : "La cámara no abrió." });
+            setEstado({ tipo: "sinCamara", motivo: e instanceof Error && /permiso/.test(e.message) ? "Sin permiso de cámara." : "No se pudo abrir la cámara." });
           }
           return null;
         },
@@ -316,11 +316,11 @@ export function useEscanerVivo({
     const como = await usarDireccionDeEtiqueta(estado.r.pedido.id, estado.direccion).catch(() => null);
     setAvisoDireccion(
       como === "ubicada"
-        ? "Dirección cambiada. Rehaz la ruta para que la parada quede en su orden."
+        ? "Dirección actualizada. Recalcula la ruta para reordenar la parada."
         : como === "en_duda"
-          ? "Dirección cambiada, en duda: quedó en la primera opción con ⚠."
+          ? "Dirección actualizada con dudas: se usó la primera opción (⚠)."
           : como === "sin_ubicar"
-            ? "Dirección cambiada, pero no se pudo ubicar."
+            ? "Dirección actualizada, sin ubicar."
             : "No se pudo cambiar la dirección.",
     );
     onCambio();

@@ -77,6 +77,13 @@ export type SugerenciaDireccion = {
    *  ver que una corrección que hizo en OpenStreetMap ya está llegando a la app
    *  (Google no las incorpora, ver la cabecera de index.ts). */
   fuente: Fuente;
+  /** Spec 035, solo en los lugares de una calle repetida: la población (del plano municipal),
+   *  el sector municipal y si calzó con la referencia escrita en la guía. */
+  poblacion?: string | null;
+  sector?: string;
+  calza?: boolean;
+  /** Las calles que lo cruzan, para distinguir un lugar de otro (dueño, 2026-11-16). */
+  cruces?: string[];
 };
 
 export type Fuente = "osm" | "plus_code" | "google";

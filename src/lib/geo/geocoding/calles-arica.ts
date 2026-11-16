@@ -1,4 +1,4 @@
-// GENERADO por scripts/generar-calles.mjs el 2026-10-24. No se edita a mano.
+// GENERADO por scripts/generar-calles.mjs el 2026-11-16. No se edita a mano.
 // Datos © colaboradores de OpenStreetMap, licencia ODbL (openstreetmap.org/copyright).
 //
 // Una calle por línea: "nombre|largo en metros|otros nombres separados por ;".
@@ -189,7 +189,7 @@ Bello Horizonte|188|
 Benjamín Mamani Jiménez|201|
 Benjamín Zárate|179|
 Berlin|79|
-Bernardino Guerra|1142|Tucapel
+Bernardino Guerra|11|Tucapel
 Bernardo O'Higgins|1068|
 Bio-Bio|58|
 Bogotá|149|
@@ -1519,7 +1519,7 @@ Tránsito Sánchez|366|
 Treguaco|68|
 Tres Oriente|134|
 Tribunales|67|
-Tucapel|2889|
+Tucapel|3860|
 Tuliperos|124|
 Unión|354|
 Uno Oriente|126|

@@ -116,7 +116,7 @@ export function ListaSugerencias({
             <li>
               <p className="flex items-center gap-2 px-3 py-2.5 text-xs text-muted">
                 <SearchX className="h-3.5 w-3.5 shrink-0" />
-                No encontramos esa dirección.
+                No se encontró la dirección.
               </p>
               {onUsarTalCual ? (
                 <button
@@ -133,13 +133,13 @@ export function ListaSugerencias({
                     {/* Se nombra el camino que sí existe para ubicarla: una
                         promesa que la pantalla no puede cumplir no sirve. */}
                     <span className="block text-xs text-muted">
-                      Queda sin ubicar. Para ubicarla, pega su Plus Code acá.
+                      Queda sin ubicar. Para ubicarla, pega su Plus Code aquí.
                     </span>
                   </span>
                 </button>
               ) : (
                 <p className="px-3 pb-2.5 text-xs text-muted">
-                  Puedes guardarla igual y corregirla después.
+                  Puedes guardarla de todos modos y corregirla después.
                 </p>
               )}
             </li>

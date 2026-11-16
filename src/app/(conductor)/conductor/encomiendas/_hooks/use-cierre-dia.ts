@@ -117,7 +117,7 @@ export function useCierreDia({
       if (!pendiente.esHoy) setAnteriores((a) => a.filter((f) => f !== pendiente.fecha));
       await alBorrar();
     } catch {
-      setError("No se pudieron borrar los datos del día. Intenta de nuevo.");
+      setError("No se pudieron borrar los datos del día. Vuelve a intentarlo.");
     } finally {
       setBorrando(false);
     }

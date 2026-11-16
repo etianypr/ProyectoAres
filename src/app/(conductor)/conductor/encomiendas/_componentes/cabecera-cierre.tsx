@@ -37,7 +37,7 @@ export function CabeceraCierre({
   return (
     <div className="space-y-2.5">
       <div className="space-y-1">
-        <p className="text-[21px] font-extrabold leading-tight tracking-tight">Ruta completa</p>
+        <p className="text-[21px] font-extrabold leading-tight tracking-tight">Ruta completada</p>
         <p className="flex gap-4 text-sm font-semibold">
           <span className="flex items-center gap-1">
             <Check className="h-4 w-4 text-ok" />
@@ -56,7 +56,7 @@ export function CabeceraCierre({
       {fuera > 0 && onSumar ? (
         <button type="button" onClick={onSumar} className={BOTON_PRINCIPAL}>
           <Plus className="h-4 w-4" />
-          {fuera === 1 ? "Sumar 1 a la ruta" : `Sumar ${fuera} a la ruta`}
+          {fuera === 1 ? "Agregar 1 a la ruta" : `Agregar ${fuera} a la ruta`}
         </button>
       ) : null}
       <button
@@ -69,7 +69,7 @@ export function CabeceraCierre({
         )}
       >
         <PackageCheck className="h-4 w-4" />
-        Cerrar el día
+        Cerrar día
         {segundos != null ? <span className="font-mono tabular-nums opacity-80">· {segundos}</span> : null}
       </button>
     </div>

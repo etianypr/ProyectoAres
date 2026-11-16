@@ -25,9 +25,9 @@ import { AvisoOtraParada, tituloEsperado, type PaqueteEsperado } from "./aviso-o
 const POR_QUE_ESCRIBIR: Record<Extract<LecturaEscaner, { motivo: string }>["motivo"], string | null> = {
   cancelado: null,
   "fuera-app": null,
-  "sin-modulo": "El escáner de Google no se pudo bajar.",
-  error: "El escáner no abrió.",
-  "sin-codigo": "El escáner no leyó ningún código.",
+  "sin-modulo": "No se pudo descargar el escáner de Google.",
+  error: "No se pudo abrir el escáner.",
+  "sin-codigo": "No se leyó ningún código.",
 };
 
 type Fase =
@@ -65,16 +65,16 @@ export function EscanearEtiqueta({
     async (texto: string) => {
       const codigo = leerCodigoEtiqueta(texto);
       if (!codigo) {
-        setFase({ tipo: "escribir", error: "Ese código no es de una etiqueta de Starken." });
+        setFase({ tipo: "escribir", error: "El código no corresponde a una etiqueta de Starken." });
         return;
       }
       let r: ResultadoEscaneo | null;
       try {
         r = await aplicarLecturaEtiqueta(fecha, { ...codigo, escaneo: true });
       } catch {
-        // Si falla el guardado local, no puede quedar "Abriendo el escáner…"
+        // Si falla el guardado local, no puede quedar "Abriendo escáner…"
         // para siempre (spec 017, E12).
-        setFase({ tipo: "escribir", error: "No se pudo guardar en el teléfono. Intenta de nuevo." });
+        setFase({ tipo: "escribir", error: "No se pudo guardar en el dispositivo. Vuelve a intentarlo." });
         return;
       }
       if (!r) {
@@ -137,7 +137,7 @@ export function EscanearEtiqueta({
         {fase.tipo === "escaneando" ? (
           <div className="flex flex-col items-center gap-3 py-16 text-muted">
             <Loader2 className="h-8 w-8 animate-spin text-brand" />
-            <p className="text-sm">Abriendo el escáner…</p>
+            <p className="text-sm">Abriendo escáner…</p>
           </div>
         ) : null}
 
@@ -182,7 +182,7 @@ export function EscanearEtiqueta({
               className="mx-auto flex h-11 items-center gap-2 rounded-full border border-separator bg-card px-5 text-sm font-semibold text-brand"
             >
               <PackagePlus className="h-4 w-4" />
-              Agregarlo como pedido
+              Agregar como pedido
             </button>
             {/* La OF salió con un dígito mal (leída o escrita): vuelve al campo con
                 ella puesta, para cambiar solo ese dígito (terreno 2026-11-14). */}
@@ -194,7 +194,7 @@ export function EscanearEtiqueta({
               }}
               className="mx-auto block h-11 px-5 text-sm font-semibold text-brand"
             >
-              Corregir la OF
+              Corregir OF
             </button>
           </div>
         ) : null}
@@ -218,8 +218,8 @@ export function EscanearEtiqueta({
           <ScanLine className="h-4 w-4" />
           {fase.tipo === "resultado" || fase.tipo === "noEsta"
             ? avance.total > 0 && avance.escaneados >= avance.total
-              ? "Todos escaneados · escanear otra"
-              : "Escanear el siguiente paquete"
+              ? "Todos escaneados · Escanear otra"
+              : "Escanear siguiente paquete"
             : "Escanear"}
         </button>
       </div>

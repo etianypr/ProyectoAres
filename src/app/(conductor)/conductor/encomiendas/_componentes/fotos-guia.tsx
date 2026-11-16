@@ -41,7 +41,7 @@ export function useFotosGuia() {
       });
       setFotos((antes) => [...antes, ...nuevas]);
       return archivos.length > caben
-        ? `Se leen hasta ${MAX_FOTOS_GUIA} fotos juntas. Lee estas y después agrega las que faltan.`
+        ? `Se leen hasta ${MAX_FOTOS_GUIA} fotos a la vez. Lee estas y luego agrega las restantes.`
         : null;
     },
     quitar(id: string) {

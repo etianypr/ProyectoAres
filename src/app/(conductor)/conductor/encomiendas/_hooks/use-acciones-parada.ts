@@ -162,7 +162,7 @@ export function useAccionesParada({
     try {
       return await accion();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudo guardar. Intenta de nuevo.");
+      setError(e instanceof Error ? e.message : "No se pudo guardar. Vuelve a intentarlo.");
       return null;
     } finally {
       setGuardando(false);

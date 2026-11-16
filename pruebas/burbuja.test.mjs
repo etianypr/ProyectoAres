@@ -68,7 +68,7 @@ test("estadoDeParada: horario pedido, confirmado o sin respuesta (con ícono y t
     tono: "ok",
     icono: "check",
   });
-  assert.equal(estadoDeParada(parada(), true).texto, "Sin respuesta todavía");
+  assert.equal(estadoDeParada(parada(), true).texto, "Sin respuesta");
   assert.equal(estadoDeParada(parada(), false), null, "sin WhatsApp no hay respuesta que esperar");
 });
 

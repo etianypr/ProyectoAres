@@ -23,9 +23,9 @@ const LIMITE = { name: "AuthApiError", status: 429, code: "over_request_rate_lim
 
 test("login: clave mala, sin señal, Supabase caído y demasiados intentos dicen cosas distintas", () => {
   assert.equal(mensajeLogin(CLAVE_MALA), "Correo o contraseña incorrectos.");
-  assert.equal(mensajeLogin(RED), "Sin señal. Intenta de nuevo.");
-  assert.equal(mensajeLogin(CAIDO), "Sin señal. Intenta de nuevo.");
-  assert.equal(mensajeLogin({ name: "TypeError", message: "fetch failed" }), "Sin señal. Intenta de nuevo.");
+  assert.equal(mensajeLogin(RED), "Sin conexión. Vuelve a intentarlo.");
+  assert.equal(mensajeLogin(CAIDO), "Sin conexión. Vuelve a intentarlo.");
+  assert.equal(mensajeLogin({ name: "TypeError", message: "fetch failed" }), "Sin conexión. Vuelve a intentarlo.");
   assert.match(mensajeLogin(LIMITE), /^Demasiados intentos/);
   assert.equal(tipoErrorAuth({ status: 500 }), "red");
 });
@@ -40,9 +40,9 @@ test("contraseña nueva: nunca el mensaje en inglés de Supabase", () => {
   ];
   const textos = ingles.map(mensajeClave);
   assert.deepEqual(textos, [
-    "Es la misma contraseña de antes.",
-    "Contraseña muy débil.",
-    "Sin señal. Intenta de nuevo.",
+    "La contraseña nueva debe ser distinta de la anterior.",
+    "Contraseña demasiado débil.",
+    "Sin conexión. Vuelve a intentarlo.",
     "El enlace venció.",
     "No se pudo guardar la contraseña.",
   ]);
@@ -61,7 +61,7 @@ test("olvido: la misma respuesta exista o no el correo; sin señal y límite lo 
   assert.match(neutra.texto, /^Si el correo está registrado/);
   // Un error que no es red ni límite (p. ej. un correo raro) no cambia la respuesta.
   assert.deepEqual(mensajeOlvido({ name: "AuthApiError", status: 400, code: "email_address_invalid" }), neutra);
-  assert.deepEqual(mensajeOlvido(RED), { ok: false, texto: "Sin señal. Intenta de nuevo." });
+  assert.deepEqual(mensajeOlvido(RED), { ok: false, texto: "Sin conexión. Vuelve a intentarlo." });
   assert.equal(mensajeOlvido({ status: 429, code: "over_email_send_rate_limit" }).ok, false);
 });
 
@@ -179,12 +179,12 @@ test("aviso de la APK: sale si es más vieja que la publicada, y la ✕ lo escon
 
 const DIA = (fecha, extra = {}) => ({ fecha, cierre: null, paradas: 12, ...extra });
 
-test("«Quedó sin cerrar» solo si el día todavía tiene datos en el teléfono", () => {
+test("«Sin cerrar» solo si el día todavía tiene datos en el teléfono", () => {
   const sinEnviar = new Map();
   const conDatos = new Set(["2026-11-11"]);
   const opciones = { fechaActiva: "2026-11-13", conDatos, sinEnviar };
   assert.deepEqual(lineaDelDia(DIA("2026-11-13"), opciones), { texto: "Hoy", alarma: false, sinEnviar: 0 });
-  assert.deepEqual(lineaDelDia(DIA("2026-11-11"), opciones), { texto: "Quedó sin cerrar", alarma: true, sinEnviar: 0 });
+  assert.deepEqual(lineaDelDia(DIA("2026-11-11"), opciones), { texto: "Sin cerrar", alarma: true, sinEnviar: 0 });
   assert.deepEqual(lineaDelDia(DIA("2026-11-10"), opciones), { texto: "12 paradas", alarma: false, sinEnviar: 0 });
   assert.equal(lineaDelDia(DIA("2026-11-09", { cierre: "2026-11-09T22:00:00Z", paradas: 1 }), opciones).texto, "1 parada");
 });

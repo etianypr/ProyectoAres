@@ -21,7 +21,6 @@ export function CabeceraHoja({
   cifras: { pendientes, conProblema, entregadas, noEntregadas },
   diaCerrado,
   cierre,
-  nombreConductor,
   fecha,
   direccionEmpresa,
   onCargarGuia,
@@ -44,7 +43,6 @@ export function CabeceraHoja({
   diaCerrado: boolean;
   /** Paso «cierre» (spec 033): pedidos que llegaron tarde y la cuenta del «Deshacer». */
   cierre?: { fuera: number; deshacerHasta: number | null; onSumar: () => void };
-  nombreConductor: string;
   fecha: string;
   direccionEmpresa: string | null;
   onCargarGuia: () => void;
@@ -77,7 +75,6 @@ export function CabeceraHoja({
       cargando={cargando}
       pendientes={pendientes}
       conProblema={conProblema}
-      nombreConductor={nombreConductor}
       fecha={fecha}
       onCargarGuia={onCargarGuia}
       onAgregar={onAgregar}

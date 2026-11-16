@@ -124,7 +124,7 @@ export function useDiaTrabajo({
         if (cancelado) return;
         // ErrorAlmacenLocal ya trae un mensaje accionable (instalar la app,
         // salir del modo privado); cualquier otro se muestra tal cual.
-        setError(e instanceof Error ? e.message : "No se pudo leer lo guardado en el teléfono.");
+        setError(e instanceof Error ? e.message : "No se pudieron leer los datos guardados en el dispositivo.");
       } finally {
         // Marca el intento como terminado, bien o mal: sin esto la pantalla
         // quedaría en "Cargando…" para siempre si el teléfono no puede guardar.
@@ -345,8 +345,8 @@ export function useDiaTrabajo({
     const sinMarcar = paradas.filter((p) => p.pedido.resultado === "pendiente").length;
     if (sinMarcar > 0) {
       return sinMarcar === 1
-        ? "Queda 1 parada sin marcar. Registra su resultado antes de cerrar."
-        : `Quedan ${sinMarcar} paradas sin marcar. Registra su resultado antes de cerrar.`;
+        ? "Queda 1 parada sin resultado. Registra su resultado antes de cerrar."
+        : `Quedan ${sinMarcar} paradas sin resultado. Registra su resultado antes de cerrar.`;
     }
     return null;
   }, [paradas]);

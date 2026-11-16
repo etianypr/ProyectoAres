@@ -4,6 +4,7 @@
 // La guía trae solo OF y destino; nombre, teléfono y pago llegan al escanear.
 
 import { uuidv7 } from "@/lib/comun/uuid";
+import { separarReferencias } from "@/lib/geo/geocoding/referencias";
 import { STORES, escribir } from "../idb";
 import { enFila } from "./fila";
 import { leerPedidos, leerRuta, pedidosEnOrden } from "./lecturas";
@@ -13,6 +14,11 @@ import type { OrigenCarga, Pedido, ReferenciaPaquete } from "./tipos";
 /** `telefono`: el que anotó el conductor al revisar la línea (dueño, 2026-11-13),
  *  ya normalizado (lectura/telefono-linea.ts). */
 export type LineaParaCrear = { of: string; destino: string; telefono?: string };
+
+function notaDeReferencia(destino: string): string | null {
+  const { referencia } = separarReferencias(destino);
+  return referencia ? `Ref.: ${referencia}` : null;
+}
 
 /** Un pedido por línea de la guía, sin ubicar (la ubicación sigue el flujo de
  *  siempre). Una OF que ya está en el día no se duplica: cargar la guía dos
@@ -42,7 +48,9 @@ export function crearDesdeGuia(
         direccion: destino,
         lat: null,
         lng: null,
-        notas: null,
+        // La referencia de la guía (la población, «con calle 5», «frente a…») a la vista en la
+        // parada (dueño, 2026-11-15: «en Notas»). La dirección guarda el texto entero igual.
+        notas: notaDeReferencia(destino),
         disponibilidad: "pendiente_respuesta",
         bloqueHorarioId: null,
         aviso: avisoVacio(),

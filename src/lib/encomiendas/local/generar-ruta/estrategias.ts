@@ -43,15 +43,15 @@ export const TITULOS: Record<EstrategiaRuta, { titulo: string; motivo: string }>
   // Ya no es solo la de menos km: cobra también el tiempo (spec 024, pesos.ts).
   corta: {
     titulo: "La más económica",
-    motivo: "Menos gasto en kilómetros y en tiempo al volante.",
+    motivo: "Menor costo en kilómetros y tiempo de conducción.",
   },
   horarios: {
     titulo: "Respeta horarios",
-    motivo: "Ordenada para llegar dentro del bloque que eligió cada cliente.",
+    motivo: "Ordenada para llegar dentro del bloque horario solicitado por cada cliente.",
   },
   confirmados: {
     titulo: "Confirmados primero",
-    motivo: "Entrega antes a quienes ya dijeron que están, por si el día se corta.",
+    motivo: "Prioriza a los clientes que confirmaron su disponibilidad.",
   },
 };
 

@@ -6,7 +6,7 @@
 // se quedan derechas (con Leaflet el giro era un complemento que peleaba con el
 // arrastre y el zoom).
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AttributionControl, LngLatBounds, Map as MapaGL, Popup, setWorkerUrl, type GeoJSONSource, type Marker } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { CENTRO_ARICA, aLngLat, type Trazado } from "@/lib/geo/coordenada";
@@ -15,28 +15,16 @@ import { agruparPorLugar, contenidoGlobo, type LugarMapa } from "./marcadores-do
 import { agregarParadas, datosParadas, fuentesDelTema, lugarTocado, ponerParadas } from "./capa-paradas";
 import type { PreviaRuta, PuntoMapa, Ubicacion } from "./tipos";
 import { useCamaraNavegacion } from "./use-camara";
+import { useEncuadrePropuesta } from "./use-encuadre-propuesta";
+import { usePinActiva } from "./use-pin-activa";
 import { useMarcadorConductor } from "./use-marcador-conductor";
 
 // Piezas: tipos.ts (lo que recibe), estilo.ts, camara.ts, marcadores-dom.ts
 // (spec 002 T038), capa-paradas.ts (las paradas, dibujadas por el mapa).
 export type { PreviaRuta, PuntoMapa, Ubicacion } from "./tipos";
 
-/** Margen del encuadre de la propuesta: arriba, el botón del menú y la cinta del
- *  modo prueba; abajo, lo que tapa el panel de la propuesta. */
-const RELLENO_ARRIBA = 76;
-const RELLENO = 28;
 /** Zoom mínimo al ir a una parada cercana: se ven la calle y las de al lado. */
 const ZOOM_ENFOQUE = 16.5;
-/** Alto mínimo que queda para dibujar la ruta, aunque el panel sea alto. */
-const ALTO_MINIMO_RUTA = 160;
-
-function rellenoConPanel(contenedor: HTMLElement) {
-  const panel = document.querySelector<HTMLElement>("[data-propuesta-ruta]");
-  // offsetHeight y no el rectángulo: el panel entra deslizándose (transform).
-  const tapa = panel ? contenedor.getBoundingClientRect().bottom - (window.innerHeight - panel.offsetHeight) : 0;
-  const tope = contenedor.clientHeight - RELLENO_ARRIBA - ALTO_MINIMO_RUTA;
-  return { top: RELLENO_ARRIBA, left: RELLENO, right: RELLENO, bottom: Math.max(RELLENO, Math.min(tapa + RELLENO, tope)) };
-}
 
 export function RutaMapa({
   puntos,
@@ -52,6 +40,7 @@ export function RutaMapa({
   siguiendo,
   onArrastre,
   enfoque = null,
+  encuadre = null,
 }: {
   puntos: PuntoMapa[];
   /** Posición GPS actual del conductor (ver useUbicacionActual) — mientras
@@ -92,6 +81,9 @@ export function RutaMapa({
   /** Una parada cercana que el conductor tocó en su lista (spec 023): el mapa va
    *  a ella. `clave` cambia en cada toque, para volver aunque sea la misma. */
   enfoque?: { lat: number; lng: number; clave: number; arriba?: boolean } | null; // arriba: sobre el panel (033)
+  /** Lo que tapan el carril de arriba y la hoja cerrada (px). Con una parada
+   *  activa, seguir encuadra el auto y la parada (dueño, 2026-11-16; camara.ts). */
+  encuadre?: { arriba: number; abajo: number } | null;
 }) {
   const contenedorRef = useRef<HTMLDivElement>(null);
   const mapaRef = useRef<MapaGL | null>(null);
@@ -107,8 +99,6 @@ export function RutaMapa({
    *  ninguna, así que en cuanto se conozca el rumbo hay que acomodarse. */
   const claveOrientadaRef = useRef<string | null>(null);
   const encuadreInicialRef = useRef(false);
-  /** Las paradas de la propuesta ya encuadrada (ver el encuadre de la propuesta). */
-  const previaEncuadradaRef = useRef<string | null>(null);
   /** Ya se centró en la ubicación del conductor por no haber nada más que mostrar.
    *  Es un ref aparte del de arriba a propósito: centrarse en el punto NO gasta
    *  el encuadre de la ruta, así que cuando aparezcan las paradas el mapa las
@@ -132,10 +122,16 @@ export function RutaMapa({
   // que lee la última versión del callback desde un ref en vez de quedarse
   // con la primera.
   const onArrastreRef = useRef(onArrastre);
+  /** Encuadrando el auto y la parada: ahí un pellizco también suelta el mapa. */
+  const encuadrandoRef = useRef(false);
+  const encuadrando = siguiendo && destino != null && encuadre != null;
 
   useEffect(() => {
     onArrastreRef.current = onArrastre;
   }, [onArrastre]);
+  useEffect(() => {
+    encuadrandoRef.current = encuadrando;
+  }, [encuadrando]);
 
   useEffect(() => {
     const contenedor = contenedorRef.current;
@@ -205,6 +201,9 @@ export function RutaMapa({
     const alTocar = (e: TouchEvent) => {
       gestoRef.current = true;
       if (e.touches.length >= 2) zoomManualRef.current = true;
+      // Encuadrando, el zoom lo pone la distancia a la parada: acercar a mano es
+      // «quiero mirar otra cosa», como en Spoke. «Centrar» lo vuelve a encuadrar.
+      if (e.touches.length >= 2 && encuadrandoRef.current) onArrastreRef.current();
     };
     const alSoltar = () => {
       gestoRef.current = false;
@@ -255,6 +254,13 @@ export function RutaMapa({
     eraPreviaRef.current = esPrevia;
   }, [puntosDibujados, previa, central, mapaListo]);
 
+  // La activa encima del punto del auto (use-pin-activa.ts). Con una propuesta no hay activa.
+  const lugarActiva = useMemo(
+    () => (previa ? null : (agruparPorLugar(puntos).find((l) => l.puntos.some((p) => p.activa)) ?? null)),
+    [puntos, previa],
+  );
+  usePinActiva({ mapaRef, mapaListo, lugar: lugarActiva });
+
   // A la parada cercana tocada (spec 023). El seguimiento ya se soltó: si no, la
   // próxima lectura del GPS traería el mapa de vuelta.
   useEffect(() => {
@@ -287,46 +293,8 @@ export function RutaMapa({
     );
   }, [previa, mapaListo]);
 
-  // Al aparecer una ruta propuesta se encuadra COMPLETA, de norte y sin
-  // inclinación: es el momento de mirarla entera, no de manejar.
-  //
-  // El panel de la propuesta va encima del mapa, abajo, y le tapa casi la mitad:
-  // se mide cuánto tapa y la ruta se encuadra en lo que queda visible arriba
-  // (dueño, 2026-11-07: «tiene que verse toda la ruta»; antes el sur de la ruta
-  // quedaba debajo del panel). Se mide y no se supone: el panel cambia de alto
-  // con la comparación y los avisos.
-  //
-  // Una vez por juego de paradas: invertir el orden o elegir otra alternativa no
-  // mueve la cámara, para que se vea cambiar la ruta donde se estaba mirando
-  // (dueño, 2026-11-07, spec 024). Eliminar o devolver una parada sí encuadra.
-  useEffect(() => {
-    const mapa = mapaRef.current;
-    if (!previa) previaEncuadradaRef.current = null;
-    if (!mapa || !mapaListo || !previa) return;
-    const paradas = previa.puntos.map((p) => `${p.lat},${p.lng}`).sort().join("|");
-    if (paradas === previaEncuadradaRef.current) return;
-    previaEncuadradaRef.current = paradas;
-
-    const limites = new LngLatBounds();
-    for (const c of previa.trazado ?? []) limites.extend(c);
-    for (const p of previa.puntos) limites.extend([p.lng, p.lat]);
-    if (limites.isEmpty()) return;
-
-    // Este encuadre ya deja el mapa donde tiene que estar: el de "una sola vez"
-    // de más abajo no tiene que volver a moverlo al aceptar la ruta.
-    encuadreInicialRef.current = true;
-
-    mapa.fitBounds(limites, {
-      padding: rellenoConPanel(mapa.getContainer()),
-      bearing: 0,
-      pitch: 0,
-      duration: 700,
-      // Con UNA sola parada pendiente el recuadro no tiene tamaño y el encuadre
-      // se iría al zoom máximo, dejando la pantalla en media cuadra sin ninguna
-      // referencia de dónde queda eso.
-      maxZoom: 16,
-    });
-  }, [previa, mapaListo]);
+  // La ruta propuesta, encuadrada completa (use-encuadre-propuesta.ts).
+  useEncuadrePropuesta({ mapaRef, mapaListo, previa, encuadreInicialRef });
 
   // Encuadre de toda la ruta, UNA sola vez: apenas hay paradas que mostrar,
   // para no dejar el mapa clavado en el centro de respaldo (Arica) mientras no
@@ -375,6 +343,7 @@ export function RutaMapa({
     claveDestino,
     destino,
     siguiendo,
+    encuadre,
     refs: { entroModoNavegacionRef, claveOrientadaRef, usuarioMovioRef, gestoRef, zoomManualRef },
   });
   useMarcadorConductor({
@@ -391,7 +360,7 @@ export function RutaMapa({
   if (!soportaMapa) {
     return (
       <div className="flex h-full w-full items-center justify-center bg-background p-6">
-        <p className="max-w-xs text-center text-sm text-muted">Este teléfono no puede mostrar el mapa (no soporta WebGL).</p>
+        <p className="max-w-xs text-center text-sm text-muted">Este dispositivo no puede mostrar el mapa (no admite WebGL).</p>
       </div>
     );
   }

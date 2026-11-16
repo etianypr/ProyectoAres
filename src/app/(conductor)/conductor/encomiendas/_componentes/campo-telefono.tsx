@@ -26,6 +26,8 @@ export function CampoTelefono({ valor, onCambiar }: { valor: string; onCambiar: 
         type="tel"
         inputMode="tel"
         autoComplete="off"
+        // El formato que se espera, como en «Editar pedido» (dueño, 2026-11-16).
+        placeholder="9 1234 5678"
         value={valor}
         onChange={(e) => onCambiar(e.target.value)}
         tono={conAviso ? "aviso" : "normal"}

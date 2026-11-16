@@ -104,7 +104,7 @@ export function VistaPreviaRuta({
     try {
       await onElegir(estrategia);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudo calcular esa ruta.");
+      setError(e instanceof Error ? e.message : "No se pudo calcular la ruta.");
     } finally {
       setCambiando(null);
     }
@@ -116,7 +116,7 @@ export function VistaPreviaRuta({
     try {
       await onUsar();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudo guardar la ruta en el teléfono.");
+      setError(e instanceof Error ? e.message : "No se pudo guardar la ruta en el dispositivo.");
     } finally {
       setGuardando(false);
     }
@@ -295,8 +295,8 @@ export function VistaPreviaRuta({
           <PackageCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ok" />
           <span className="min-w-0 flex-1">
             {cerradas === 1
-              ? "La parada que ya cerraste hoy se conserva."
-              : `Las ${cerradas} paradas que ya cerraste hoy se conservan.`}
+              ? "La parada ya cerrada hoy se conserva."
+              : `Las ${cerradas} paradas ya cerradas hoy se conservan.`}
           </span>
         </p>
       ) : null}
@@ -304,9 +304,9 @@ export function VistaPreviaRuta({
       {sinUbicar.length > 0 ? (
         <Advertencia icono={<MapPinOff className="h-3.5 w-3.5" />}>
           {sinUbicar.length === 1
-            ? "1 pedido quedó afuera porque su dirección no se pudo ubicar en el mapa."
-            : `${sinUbicar.length} pedidos quedaron afuera porque su dirección no se pudo ubicar en el mapa.`}{" "}
-          Siguen pendientes: corrige la dirección y vuelve a armar la ruta.
+            ? "1 pedido quedó fuera de la ruta: no se pudo ubicar su dirección."
+            : `${sinUbicar.length} pedidos quedaron fuera de la ruta: no se pudo ubicar su dirección.`}{" "}
+          Siguen pendientes: corrige la dirección y vuelve a optimizar la ruta.
         </Advertencia>
       ) : null}
 
@@ -317,7 +317,7 @@ export function VistaPreviaRuta({
         if (i < 0) return null;
         return (
           <Advertencia key={l.pedidoId} icono={<MapPinOff className="h-3.5 w-3.5" />}>
-            La {numero(i)} · {l.direccion} queda a {formatDistancia(l.metrosAlResto)} del resto y suma{" "}
+            La {numero(i)} · {l.direccion} queda a {formatDistancia(l.metrosAlResto)} del resto y agrega{" "}
             {formatDistancia(l.metrosQueSuma)}.
           </Advertencia>
         );
@@ -326,9 +326,9 @@ export function VistaPreviaRuta({
       {actual.bloquesIncumplidos > 0 ? (
         <Advertencia icono={<AlertTriangle className="h-3.5 w-3.5" />}>
           {actual.fueraDeHorario.length === 1
-            ? `Con este orden llegarías fuera del horario que eligió ${actual.fueraDeHorario[0]}.`
-            : `Con este orden llegarías fuera de horario a ${actual.fueraDeHorario.length} clientes: ${actual.fueraDeHorario.join(", ")}.`}{" "}
-          Conviene llamarlos.
+            ? `Con este orden se llegaría fuera del horario solicitado por ${actual.fueraDeHorario[0]}.`
+            : `Con este orden se llegaría fuera de horario a ${actual.fueraDeHorario.length} clientes: ${actual.fueraDeHorario.join(", ")}.`}{" "}
+          Se recomienda llamarlos.
         </Advertencia>
       ) : null}
 
@@ -345,7 +345,7 @@ export function VistaPreviaRuta({
           type="button"
           onClick={() => descarte.tocar(onDescartar)}
           disabled={ocupada}
-          aria-label={descarte.armado ? "¿Descartar? Toca otra vez" : "Descartar esta ruta"}
+          aria-label={descarte.armado ? "¿Descartar? Toca otra vez" : "Descartar ruta"}
           className={cn(
             "flex h-12 items-center justify-center gap-1 rounded-full border transition-transform active:scale-[0.97] disabled:opacity-50",
             descarte.armado

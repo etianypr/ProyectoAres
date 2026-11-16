@@ -35,8 +35,8 @@ export type MarcaPedido = {
 async function rutaConPedido(fecha: string, pedidoId: string) {
   const [ruta, pedido] = await Promise.all([leerRuta(fecha), leerPedido(pedidoId)]);
   if (!ruta) throw new Error("No hay una ruta para ese día.");
-  if (!pedido) throw new Error("Ese pedido ya no existe en este teléfono.");
-  if (!ruta.orden.includes(pedidoId)) throw new Error("Ese pedido no está en la ruta del día.");
+  if (!pedido) throw new Error("El pedido ya no existe en este dispositivo.");
+  if (!ruta.orden.includes(pedidoId)) throw new Error("El pedido no está en la ruta del día.");
   return { ruta, pedido };
 }
 
@@ -177,7 +177,7 @@ export function moverAlFinal({
   return enFila(async () => {
     const ruta = await leerRuta(fecha);
     if (!ruta) throw new Error("No hay una ruta para ese día.");
-    if (!ruta.orden.includes(pedidoId)) throw new Error("Ese pedido no está en la ruta del día.");
+    if (!ruta.orden.includes(pedidoId)) throw new Error("El pedido no está en la ruta del día.");
 
     const actualizada: Ruta = {
       ...ruta,

@@ -97,7 +97,7 @@ test("'Mañana' saca el pedido de lo que hay que visitar y avisa", async (t) => 
   await registrarDisponibilidad(b, { tipo: "manana" }, "wamid.B", CONDUCTOR);
   const avisos = await replanificarRuta(HOY, [{ pedidoId: b, tipo: "manana" }]);
 
-  assert.deepEqual(avisos, ["Cliente 2 pidió mañana: sale de la ruta de hoy."]);
+  assert.deepEqual(avisos, ["Cliente 2 solicitó entrega para mañana: sale de la ruta de hoy."]);
   // Cerrado primero; el resto conserva el orden que eligió el conductor.
   assert.deepEqual((await leerRuta(HOY)).orden, [b, a, c, d, e]);
   assert.equal((await leerCola()).filter((x) => x.tipo === "omision").length, 1);
@@ -127,7 +127,7 @@ test("un horario que ya no se alcanza queda al final y pide llamar", async (t) =
   const [aviso] = await replanificarRuta(HOY, [{ pedidoId: c, tipo: "horario_indicado" }]);
 
   assert.deepEqual((await leerRuta(HOY)).orden, [a, b, d, e, c]);
-  assert.match(aviso, /no se alcanza: llámalo/);
+  assert.match(aviso, /no se alcanza a cumplir\. Se recomienda llamar/);
 });
 
 test("lo ya entregado no se mueve al reordenar", async (t) => {

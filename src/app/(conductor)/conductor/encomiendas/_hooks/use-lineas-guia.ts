@@ -7,7 +7,7 @@
 
 import { useState } from "react";
 import { armarGuia, type LineaGuia } from "@/lib/encomiendas/lectura/guia";
-import { conPorConfirmar } from "@/lib/encomiendas/lectura/barrido-nomina";
+import { conPorConfirmar, enOrdenDeLaNomina } from "@/lib/encomiendas/lectura/barrido-nomina";
 import { conTelefonos } from "@/lib/encomiendas/lectura/telefono-linea";
 
 export function useLineasGuia() {
@@ -20,21 +20,31 @@ export function useLineasGuia() {
   const [quitada, setQuitada] = useState<{ linea: LineaGuia; i: number } | null>(null);
 
   /** Suma lo leído; el MONTO NETO se conserva aunque venga en una foto anterior
-   *  (spec 017, E11). Lo que no quedó firme en el barrido llega por confirmar. */
+   *  (spec 017, E11). Lo que no quedó firme en el barrido llega por confirmar, y con
+   *  `ordenNomina` las líneas del barrido quedan en el orden de la hoja. */
   function sumar(
     nuevas: { of: string; destino: string }[],
     folioNuevo: string | null,
     totalNuevo: number | null,
     porConfirmarNuevas?: Set<string>,
+    ordenNomina?: string[],
   ) {
     const totalGuia = totalNuevo ?? total;
     const unida = armarGuia([...lineas, ...nuevas], folio ?? folioNuevo, totalGuia);
     // Los teléfonos anotados se conservan al sumar otra foto.
-    setLineas(conTelefonos(conPorConfirmar(unida.lineas, lineas, nuevas, porConfirmarNuevas), lineas));
+    const juntas = conTelefonos(conPorConfirmar(unida.lineas, lineas, nuevas, porConfirmarNuevas), lineas);
+    setLineas(ordenNomina ? enOrdenDeLaNomina(juntas, ordenNomina) : juntas);
     setAvisos(unida.avisos);
     setFolio(unida.folio);
     setTotal(totalGuia);
     setQuitada(null);
+  }
+
+  /** Saca las líneas por confirmar de estas OF: el barrido las entregó y después resultaron
+   *  ser una mala lectura de otra (spec 034). Una ya confirmada o corregida no se toca. */
+  function quitarOfs(ofs: string[]) {
+    if (ofs.length === 0) return;
+    setLineas((ls) => ls.filter((l) => !(l.porConfirmar && ofs.includes(l.of))));
   }
 
   function cambiar(i: number, cambio: Partial<LineaGuia>) {
@@ -79,6 +89,7 @@ export function useLineasGuia() {
     restaurar,
     hayQuitada: quitada != null,
     sumar,
+    quitarOfs,
     cambiar,
     agregar,
     quitar,

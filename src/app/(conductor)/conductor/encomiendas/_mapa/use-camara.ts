@@ -9,7 +9,9 @@ import {
   GRADOS_MINIMOS_PARA_GIRAR,
   MS_DESPLAZAMIENTO,
   PITCH_NAVEGACION,
+  RELLENO_LADOS_ENCUADRE,
   SIN_RELLENO,
+  ZOOM_MAXIMO_ENCUADRE,
   ZOOM_MINIMO_PARA_CAMBIAR,
   difAngulo,
   llegandoAParada,
@@ -25,6 +27,7 @@ export function useCamaraNavegacion({
   claveDestino,
   destino,
   siguiendo,
+  encuadre = null,
   refs: { entroModoNavegacionRef, claveOrientadaRef, usuarioMovioRef, gestoRef, zoomManualRef },
 }: {
   mapaRef: RefObject<maplibregl.Map | null>;
@@ -35,6 +38,9 @@ export function useCamaraNavegacion({
   /** La parada activa: a 250 m o menos el mapa se acerca para la llegada. */
   destino?: Coordenada | null;
   siguiendo: boolean;
+  /** Lo que tapan arriba el carril y abajo la hoja cerrada, en px. Con esto y una
+   *  parada activa, seguir = encuadrar el auto y la parada (camara.ts). */
+  encuadre?: { arriba: number; abajo: number } | null;
   /** Estado compartido con el resto del mapa (gestos, encuadre). */
   refs: {
     entroModoNavegacionRef: RefObject<boolean>;
@@ -57,6 +63,10 @@ export function useCamaraNavegacion({
   // norte ni se baja la inclinación. Girarle la vista mientras tiene el dedo
   // apoyado es lo que hacía que la ruta pareciera acomodarse después del gesto.
   const llegandoRef = useRef(false);
+  /** Si lo último fue encuadrar: al pasar de un modo al otro se vuelve a entrar. */
+  const encuadrandoRef = useRef(false);
+  const arriba = encuadre?.arriba ?? null;
+  const abajo = encuadre?.abajo ?? null;
   useEffect(() => {
     const mapa = mapaRef.current;
     if (!mapa || !mapaListo || !miUbicacion || !siguiendo) {
@@ -69,6 +79,45 @@ export function useCamaraNavegacion({
       return;
     }
     if (gestoRef.current) return;
+
+    const encuadrar = destino != null && arriba != null && abajo != null;
+    if (encuadrar !== encuadrandoRef.current) {
+      encuadrandoRef.current = encuadrar;
+      entroModoNavegacionRef.current = false;
+      claveOrientadaRef.current = null;
+    }
+
+    if (encuadrar) {
+      // El auto y la parada en lo que queda visible entre el carril y la hoja.
+      // Gira con el camino como el seguimiento, con el mismo piso de grados.
+      const entrando = !entroModoNavegacionRef.current;
+      const otroCamino = claveOrientadaRef.current !== (claveDestino ?? null);
+      entroModoNavegacionRef.current = true;
+      claveOrientadaRef.current = claveDestino ?? null;
+      usuarioMovioRef.current = false;
+      const actual = mapa.getBearing();
+      const girar = rumbo != null && (entrando || difAngulo(rumbo, actual) >= GRADOS_MINIMOS_PARA_GIRAR);
+      const alto = mapa.getContainer().clientHeight;
+      // En una pantalla baja (teclado, hoja alta) el relleno no puede comerse el mapa.
+      const recorte = Math.max(0, Math.min(1, (alto - 120) / Math.max(1, arriba + abajo)));
+      mapa.fitBounds(
+        [
+          [Math.min(miUbicacion.lng, destino.lng), Math.min(miUbicacion.lat, destino.lat)],
+          [Math.max(miUbicacion.lng, destino.lng), Math.max(miUbicacion.lat, destino.lat)],
+        ],
+        {
+          padding: { top: arriba * recorte, bottom: abajo * recorte, left: RELLENO_LADOS_ENCUADRE, right: RELLENO_LADOS_ENCUADRE },
+          bearing: girar ? rumbo : actual,
+          pitch: 0,
+          maxZoom: ZOOM_MAXIMO_ENCUADRE,
+          linear: true,
+          duration: entrando ? 1000 : otroCamino ? 800 : MS_DESPLAZAMIENTO,
+          ...(entrando || otroCamino ? {} : { easing: (t: number) => t }),
+          essential: true,
+        },
+      );
+      return;
+    }
 
     const centro = aLngLat(miUbicacion);
     llegandoRef.current = llegandoAParada(destino ? distanciaMetros(miUbicacion, destino) : null, llegandoRef.current);
@@ -126,5 +175,5 @@ export function useCamaraNavegacion({
       easing: (t) => t, // lineal: el GPS entrega posiciones a ritmo constante
       essential: true,
     });
-  }, [miUbicacion, rumbo, claveDestino, destino, siguiendo, mapaListo, mapaRef, entroModoNavegacionRef, claveOrientadaRef, usuarioMovioRef, gestoRef, zoomManualRef]);
+  }, [miUbicacion, rumbo, claveDestino, destino, siguiendo, arriba, abajo, mapaListo, mapaRef, entroModoNavegacionRef, claveOrientadaRef, usuarioMovioRef, gestoRef, zoomManualRef]);
 }

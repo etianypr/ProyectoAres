@@ -62,7 +62,7 @@ export function ConfirmarCorrecciones({
         setConfirmadas((c) => ({ ...c, [p.pedidoId]: editada?.direccion ?? p.direccion }));
         onConfirmada?.(p.pedidoId);
       } catch {
-        setError("No se pudo guardar una corrección. Intenta de nuevo.");
+        setError("No se pudo guardar una corrección. Vuelve a intentarlo.");
         break;
       }
     }
@@ -82,8 +82,8 @@ export function ConfirmarCorrecciones({
         {pendientes.length === 0
           ? "Correcciones revisadas"
           : pendientes.length === 1
-            ? "La IA corrigió 1 · confírmala"
-            : `La IA corrigió ${pendientes.length} · confírmalas`}
+            ? "1 corrección de la IA por confirmar"
+            : `${pendientes.length} correcciones de la IA por confirmar`}
       </p>
       {error ? <p className="text-sm text-danger">{error}</p> : null}
 
@@ -137,7 +137,7 @@ export function ConfirmarCorrecciones({
                         },
                       }))
                     }
-                    aria-label={`Cambiar la dirección: ${p.direccion}`}
+                    aria-label={`Cambiar dirección: ${p.direccion}`}
                     className="min-w-0 flex-1 rounded-lg text-left text-base font-semibold leading-tight underline decoration-separator decoration-dotted underline-offset-4 active:bg-background disabled:opacity-50"
                   >
                     {p.direccion}

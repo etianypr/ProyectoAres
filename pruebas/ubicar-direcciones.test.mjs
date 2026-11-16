@@ -309,3 +309,21 @@ test("lo ya preguntado a Google no se vuelve a pagar", async () => {
   await ubicarDireccion("SAN MARCOS 915");
   assert.equal(consultas.filter((c) => c.cual === "google").length, 1);
 });
+
+test("Google devuelve la puerta con el cero de adelante («045»): es la misma que la de la consulta («45»)", async () => {
+  const { aSugerenciaGoogle } = await import("@/lib/geo/geocoding/google");
+  const resultado = (numero) => ({
+    place_id: "prueba",
+    address_components: [
+      { long_name: numero, short_name: numero, types: ["street_number"] },
+      { long_name: "Maipú", short_name: "Maipú", types: ["route"] },
+    ],
+    geometry: { location: { lat: -18.478, lng: -70.312 }, location_type: "ROOFTOP" },
+  });
+  // La guía trae el número con cero y la consulta va sin él.
+  const consulta = normalizarConsulta("MAIPU 045");
+  assert.equal(consulta, "MAIPU 45");
+  assert.equal(aSugerenciaGoogle(resultado("045"), consulta)?.confianza, "exacta");
+  assert.equal(aSugerenciaGoogle(resultado("45"), consulta)?.confianza, "exacta");
+  assert.equal(aSugerenciaGoogle(resultado("450"), consulta), null, "otro número sigue siendo otra puerta");
+});

@@ -275,7 +275,7 @@ export async function pedirAviso(
     // No debería pasar. Sin código no hay forma de recibir la respuesta, así que
     // se trata como fallo en vez de darlo por bueno.
     await registrarAvisoFallido(pedido.id, "El servidor no devolvió el código del aviso.");
-    return { error: "El aviso no quedó registrado. Reintentá.", reintentable: true };
+    return { error: "El aviso no quedó registrado. Vuelve a intentarlo.", reintentable: true };
   }
 
   await registrarAvisoEnviado({

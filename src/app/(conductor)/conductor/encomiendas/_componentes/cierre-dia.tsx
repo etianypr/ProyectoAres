@@ -43,17 +43,17 @@ export function CierreDia({
         <div>
           <p className="text-xs font-medium text-muted">{formatDateLong(cierre.fecha)}</p>
           <h2 className="text-xl font-semibold leading-tight">
-            {cierre.esHoy ? "Día terminado" : "Este día quedó sin cerrar"}
+            {cierre.esHoy ? "Día finalizado" : "Día sin cerrar"}
           </h2>
           <p className="mt-1 text-sm text-muted">
-            Entregaste {cierre.entregadas} de {cierre.asignados}.
+            Entregados: {cierre.entregadas} de {cierre.asignados}.
           </p>
           {cierre.porPagar > 0 ? (
             <p className="mt-1 text-sm font-medium tabular-nums">
-              Cobraste {formatCLP(cierre.cobrado)} de {formatCLP(cierre.aCobrar)} ({cierre.porPagar} por pagar).
+              Cobrado: {formatCLP(cierre.cobrado)} de {formatCLP(cierre.aCobrar)} ({cierre.porPagar} por pagar).
             </p>
           ) : null}
-          {/* Entregados sin leer si se cobraban (spec 033): no suman a «Cobraste». */}
+          {/* Entregados sin leer si se cobraban (spec 033): no suman a «Cobrado». */}
           {cierre.porRevisar > 0 ? (
             <p className="mt-1 flex items-center gap-1 text-sm font-medium text-warn">
               <AlertTriangle className="h-4 w-4 shrink-0" />
@@ -68,13 +68,13 @@ export function CierreDia({
             No entregados ({n})
           </p>
           {n > 0 ? (
-            <p className="text-xs text-muted">Devuélvelos a Starken. Revisa la lista antes de confirmar.</p>
+            <p className="text-xs text-muted">Deben devolverse a Starken. Revisa la lista antes de confirmar.</p>
           ) : null}
           <ListaNoEntregados pedidos={cierre.noEntregados} />
         </div>
 
         <p className="text-xs text-muted">
-          Se borran del teléfono los datos de los clientes de ese día.
+          Se borran del dispositivo los datos de los clientes de ese día.
         </p>
         {error ? <p className="text-sm font-medium text-danger">{error}</p> : null}
       </div>
@@ -89,7 +89,7 @@ export function CierreDia({
             segundo.armado ? "border border-danger/30 bg-danger-bg text-danger" : "bg-brand text-brand-foreground",
           )}
         >
-          {borrando ? "Borrando…" : segundo.armado ? "Sí, ya los separé" : "Listo, borrar del teléfono"}
+          {borrando ? "Borrando…" : segundo.armado ? "Sí, ya están separados" : "Confirmar y borrar datos"}
         </button>
         {cierre.esHoy ? (
           <button

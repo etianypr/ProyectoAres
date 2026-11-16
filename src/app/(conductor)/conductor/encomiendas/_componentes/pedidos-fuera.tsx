@@ -57,7 +57,7 @@ export function PedidosFueraDeRuta({
           className="mb-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-brand py-3.5 text-sm font-semibold text-brand-foreground shadow-soft disabled:opacity-60"
         >
           <Plus className="h-4 w-4" />
-          {pedidos.length - sinUbicar === 1 ? "Sumar a la ruta" : `Sumar ${pedidos.length - sinUbicar} a la ruta`}
+          {pedidos.length - sinUbicar === 1 ? "Agregar a la ruta" : `Agregar ${pedidos.length - sinUbicar} a la ruta`}
         </button>
       ) : null}
     </Seccion>

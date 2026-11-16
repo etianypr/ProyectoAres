@@ -2,92 +2,93 @@
 
 // Cómo se usa la app, en corto y en un solo lugar (terreno 2026-10-27: "no me
 // gusta que tenga tanta información; dejaría un botón de ayuda"). Las pantallas
-// muestran estados y datos; las instrucciones viven acá.
+// muestran estados y datos; las instrucciones viven aquí.
 
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 const SECCIONES: { titulo: string; pasos: string[] }[] = [
   {
-    titulo: "Cargar la guía",
+    titulo: "Cargar guía",
     pasos: [
-      "Fotos: el botón de la cámara (o el recuadro) saca una foto de cada parte de la guía, que se superpongan un poco; ✕ en la miniatura la quita → «Leer direcciones» las lee juntas.",
-      "«Otra forma»: «Galería» elige fotos ya sacadas; «Nóminas físicas» barre la hoja (✓ es una OF confirmada, «Terminar» suma, ✕ descarta); «Pegar texto» recibe el texto copiado con Google Lens (otro texto pegado se suma).",
-      "Revisar: las líneas con ⚠ (sin OF, OF mal leída, sin destino o por confirmar) salen de a una; el botón del teléfono anota el número y «Llamar»; «Quitar» / «Confirmar»; «Siguiente» pasa a la otra. «Ver las n líneas» muestra todas: tocar una la abre para corregirla → «Crear n pedidos».",
-      "Arriba, tocar «1 Fotos» vuelve a sumar fotos o texto, y «2 Revisar», a las líneas.",
-      "Ubicando: «Dejar de ubicar» deja el resto sin ubicar. Al terminar, tocar un no ubicado abre su pedido; «Corregir con IA» vuelve a intentarlo con señal, y cada propuesta de la IA se confirma de a una. «Deshacer esta carga» borra lo recién creado; con la ruta ya armada, «Sumar n a la ruta».",
+      "«Foto»: el recuadro es la cámara y el botón redondo toma una foto de cada parte de la guía, con un leve traslape entre ellas → «Leer direcciones» (a la derecha del botón) las lee juntas. A la izquierda, «Galería» permite elegir fotos ya tomadas; con fotos, muestra la última y el total, y al tocarla se abren: ✕ quita una. A la derecha, sin fotos, «Pegar» recibe el texto copiado con Google Lens (otro texto pegado se agrega).",
+      "«Nóminas físicas» (deslizando sobre el botón redondo, o tocándola): el botón redondo inicia el escaneo de la hoja en el mismo recuadro. Verde con ✓ es una OF leída y arriba aparece lo que falta confirmar; el botón redondo (un cuadrado) es «Terminar» y agrega lo leído, y «Descartar», a su derecha, descarta ese escaneo. Al escanear otra vez, lo ya leído sigue en verde y lo que faltaba confirmar se lee de nuevo.",
+      "Revisar: las líneas con ⚠ (sin OF, OF mal leída, sin destino o por confirmar) aparecen de a una; el botón del teléfono registra el número y «Llamar»; «Quitar» / «Confirmar»; «Siguiente» pasa a la otra. «Ver las n líneas» muestra todas: tocar una la abre para corregirla → «Crear n pedidos».",
+      "Arriba, tocar «1 Fotos» permite agregar más fotos o texto, y «2 Revisar» vuelve a las líneas.",
+      "Ubicando: «Detener ubicación» deja el resto sin ubicar. Al terminar, tocar un no ubicado abre su pedido; «Corregir dirección con IA» lo intenta de nuevo con conexión, y cada propuesta de la IA se confirma de a una. «Deshacer carga» borra lo recién creado; con la ruta ya optimizada, «Agregar n a la ruta».",
     ],
   },
   {
     titulo: "Pedidos con ⚠",
     pasos: [
-      "«N por resolver» abre el primero; al guardarlo, pasa al siguiente. También se toca el pedido en la lista.",
-      "«Corregir con IA»: las propuestas quedan guardadas aunque se cierre la app; confirma cada una mirando el mapa; si no es ahí, toca la dirección, elige otra de la lista y «Confirmar». El botón del teléfono abre el campo del teléfono y, con un número válido, «Llamar» (también en las líneas con ⚠ de la guía).",
-      "Si no se resuelve: «Armar la ruta» → «Armar igual». Después, «Resolver los ⚠» sigue adentro de la hoja.",
-      "Arriba del pedido va «⚠ N por resolver»: tocarlo abre sus ⚠. Una calle en varios lugares se elige entre sus opciones; «Va igual» (lejana, horario) y «Es así» (no estaba en la guía) lo dan por revisado.",
-      "Resolviendo: «Siguiente» pasa al próximo ⚠ sin guardar; con un teléfono escrito, «Llamar». Del pedido solo la dirección (*) es obligatoria; el destinatario y el teléfono son opcionales.",
-      "Recorriendo, dos paradas antes de un ⚠ aparece arriba de la parada, con «Llamar».",
+      "«N por resolver» abre el primero; al guardarlo, pasa al siguiente. También se puede tocar el pedido en la lista.",
+      "«Corregir dirección con IA»: las propuestas quedan guardadas aunque se cierre la app; confirma cada una revisando el mapa; si no corresponde, toca la dirección, elige otra de la lista y «Confirmar». El botón del teléfono abre el campo del teléfono y, con un número válido, «Llamar» (también en las líneas con ⚠ de la guía).",
+      "Si no se resuelve: «Optimizar ruta» → «Optimizar ahora». Después, «Resolver los ⚠» sigue disponible dentro de la hoja.",
+      "Arriba del pedido va «⚠ N por resolver»: tocarlo abre sus ⚠. Una calle en varios lugares se elige entre sus opciones; «Mantener en ruta» (lejana, horario) y «Confirmar» (no figura en la guía) lo dan por revisado.",
+      "Una calle en varios lugares («Pasaje 1»): si la guía nombra la población o una calle que la cruza, se ubica sola; si no, cada opción muestra su mapa, población, sector y las calles que la cruzan, solo las de la zona de la ruta (la que coincide con la guía va primero): «Elegir». Dos paradas antes, «Cambiar lugar» abre las opciones.",
+      "Resolviendo: «Siguiente» pasa al próximo ⚠ sin guardar; con un teléfono ingresado, «Llamar». Del pedido solo la dirección (*) es obligatoria; el destinatario y el teléfono son opcionales.",
+      "En ruta, dos paradas antes de un ⚠ aparece el aviso arriba de la parada, con «Llamar».",
     ],
   },
   {
-    titulo: "Armar la ruta",
+    titulo: "Optimizar ruta",
     pasos: [
-      "«Armar la ruta» → elige una alternativa → «Usar esta ruta». Mientras busca, «Cancelar» (o atrás) vuelve sin ruta.",
+      "«Optimizar ruta» → elige una alternativa → «Usar esta ruta». Durante el cálculo, «Cancelar» (o atrás) vuelve sin ruta.",
       "En la propuesta, «Ver las N» muestra toda la lista; toca una fila para verla en el mapa. Para descartarla, ✕ dos veces.",
-      "En un condominio la ruta llega a su entrada, y «Navegar» te lleva a ella. El número de la parada queda en el edificio.",
-      "Un pedido que no va: 🗑 en la lista de la ruta propuesta («Deshacer» lo devuelve).",
-      "La misma ruta al revés (la última parada primero): «Invertir orden de ruta». Otro toque la deja como la propuso ARES.",
-      "Cargar el auto: «Escanear paquete» (el ícono de escanear de arriba aparece con la ruta armada) y pasa las etiquetas por la cámara: un tic por dato leído y otro sonido cuando queda leída. «Salir a repartir» muestra la primera parada (con paquetes sin escanear, toca otra vez «Salir igual»); lo no escaneado queda en «Sin escanear», con «Volver a cargar» hasta cerrar la primera parada.",
-      "Si la cámara se traba: Diagnóstico → «Cargar el auto con el escáner de Google» (una etiqueta por toque).",
-      "Código dañado: escribe la OF (✕ vuelve a la cámara); cada vez que la escribes suma un bulto, y «−1 bulto» quita el último de más. La misma etiqueta escaneada dos veces no suma.",
-      "Pedido que llega tarde: «Sumar a la ruta».",
-      "Repasar lo que falta desde donde estás: «Rehacer la ruta» (al pie de la hoja) → Desde: Mi ubicación → «Rehacer la ruta». Termina en la central.",
-      "Toca un número del mapa para ver su dirección. El reloj es el tiempo manejando, sin las entregas.",
+      "En un condominio la ruta llega a su entrada, y «Navegar» lleva a ella. El número de la parada queda en el edificio.",
+      "Para excluir un pedido: 🗑 en la lista de la ruta propuesta («Deshacer» lo restituye).",
+      "La misma ruta en sentido inverso (la última parada primero): «Invertir orden de ruta». Otro toque la deja como la propuso ARES.",
+      "Cargar vehículo: «Escanear paquete» (el ícono de escanear de arriba aparece con la ruta optimizada) y pasa las etiquetas frente a la cámara: un tono por dato leído y otro cuando la etiqueta queda leída. «Iniciar ruta» muestra la primera parada (con paquetes sin escanear, toca de nuevo «Iniciar de todos modos»); lo no escaneado queda en «Sin escanear», con «Reanudar carga» hasta cerrar la primera parada.",
+      "Si la cámara no responde: Diagnóstico → «Cargar vehículo con el escáner de Google» (una etiqueta por toque).",
+      "Código dañado: ingresa la OF (✕ vuelve a la cámara); cada ingreso agrega un bulto, y «−1 bulto» quita el último. La misma etiqueta escaneada dos veces no se duplica.",
+      "Pedido que llega tarde: «Agregar a la ruta».",
+      "Reordenar lo pendiente desde la ubicación actual: «Recalcular ruta» (al pie de la hoja) → Desde: Mi ubicación → «Recalcular ruta». Termina en la central.",
+      "Toca un número del mapa para ver su dirección. El reloj indica el tiempo de conducción, sin las entregas.",
     ],
   },
   {
     titulo: "En cada parada",
     pasos: [
-      "«Pedido entregado» (verde) o «No se entrega» (rojo); el botón redondo del medio llama al cliente. Sin teléfono, el redondo escanea la etiqueta y «Teléfono a mano» lo deja escribir.",
-      "«No se entrega»: Dejar como pendiente (se reintenta más tarde), «Pidió otra hora» (elige el bloque y la parada se mueve a esa hora) o No entregado (se tacha por hoy).",
-      "«Deshacer» aparece arriba unos segundos; si cerraste dos seguidas, deshace las dos. También deshace «Dejar como pendiente», «Ahora» y «Pidió otra hora».",
+      "«Pedido entregado» (verde) o «No se entrega» (rojo); el botón redondo del medio llama al cliente. Sin teléfono, el botón redondo escanea la etiqueta e «Ingresar teléfono» permite escribirlo.",
+      "«No se entrega»: «Dejar como pendiente» (se reintenta más tarde), «Solicitó otro horario» (elige el bloque y la parada se mueve a ese horario) o «No entregado» (sin más intentos hoy).",
+      "«Deshacer» aparece arriba unos segundos; si se cerraron dos seguidas, deshace las dos. También deshace «Dejar como pendiente», «Ahora» y «Solicitó otro horario».",
       "«2 paquetes aquí»: «Pedido entregado» pregunta «Los 2» o «Solo este».",
-      "El botón redondo de escanear compara el paquete con la parada: si es de otra, lo dice y el escáner sigue abierto.",
-      "Si corriges la dirección de una parada, se mueve donde menos alarga («Se movió a la…»); si es la que vas a hacer, «Seguir con esta» o «Moverla». En «Paquete» corriges el POR PAGAR, los bultos y la descripción.",
+      "El botón redondo de escanear compara el paquete con la parada: si corresponde a otra, lo indica y el escáner sigue abierto.",
+      "Al corregir la dirección de una parada, se mueve donde menos alarga la ruta («Se movió a la…»); si es la parada en curso, «Mantener orden» o «Reordenar parada». En «Paquete» se corrigen el POR PAGAR, los bultos y la descripción.",
       "«N cerca», al lado de ⌖: las paradas a menos de 300 m, marcadas en el mapa. Toca una para verla; «Ahora» la deja como la próxima.",
     ],
   },
   {
     titulo: "Navegar",
     pasos: [
-      "Toca los km de la parada: guía Google Maps y encima queda la burbuja de ARES achicada. Tócala para ver los botones de la parada.",
-      "En la burbuja: «Navegar» vuelve a Google Maps, «Volver a ARES» trae ARES y «Achicar» la deja en un círculo sobre la velocidad de Google Maps; tócalo para abrirla.",
-      "La primera vez, permite a ARES «Mostrar sobre otras apps» (en vivo: «Ventanas flotantes»); si dice «Sin burbuja», «Dar permiso» lo vuelve a pedir. Si la burbuja se va sola, en Batería permite a ARES el «Consumo alto en segundo plano».",
+      "Toca los km de la parada: Google Maps guía y encima queda la burbuja de ARES minimizada. Tócala para ver los botones de la parada.",
+      "En la burbuja: «Navegar» vuelve a Google Maps, «Volver a ARES» abre ARES y «Achicar» la reduce a un círculo sobre la velocidad de Google Maps; tócalo para abrirla.",
+      "La primera vez, permite a ARES «Mostrar sobre otras apps» (en vivo: «Ventanas flotantes»); si indica «Sin burbuja», «Conceder permiso» lo solicita de nuevo. Si la burbuja se cierra sola, en Batería permite a ARES el «Consumo alto en segundo plano».",
     ],
   },
   {
     titulo: "Mapa",
-    pasos: ["⌖ vuelve a seguirte."],
+    pasos: ["⌖ vuelve a centrar el mapa en tu ubicación."],
   },
   {
     titulo: "Lista",
     pasos: [
       "Toca un pedido pendiente para corregir su OF, teléfono o dirección.",
-      "Toca una parada ✓ o ✕ de «Ruta del día» para pasarla a Entregado, No entregado o Pendiente (vuelve a la ruta donde menos alarga). Se puede durante 11 horas después de cerrarla.",
+      "Toca una parada ✓ o ✕ de «Ruta del día» para cambiarla a Entregado, No entregado o Pendiente (vuelve a la ruta donde menos la alarga). Disponible durante 11 horas después de cerrarla.",
       "Desliza un pedido a la izquierda y toca «Eliminar».",
-      "Menú → «Accesibilidad» → Llamadas: con «Altavoz» activado, la llamada sale en altavoz.",
-      "Menú → «Buscar un paquete por su OF» con los últimos dígitos; toca la fila para abrir el pedido (también en «Faltan»).",
+      "Menú → «Accesibilidad» → Llamadas: con «Altavoz» activado, la llamada se realiza en altavoz.",
+      "Menú → «Buscar paquete por OF» con los últimos dígitos; toca la fila para abrir el pedido (también en «Faltan»).",
     ],
   },
   {
-    titulo: "Cerrar el día y sin señal",
+    titulo: "Cerrar día y sin conexión",
     pasos: [
-      "Al terminar, revisa los no entregados y confirma: se borran los datos de los clientes del teléfono. Con no entregados, «Listo, borrar del teléfono» pide «Sí, ya los separé». Si lo dejaste para después, «Cerrar el día» lo vuelve a abrir (los segundos al lado son los del «Deshacer»).",
-      "Si llega un pedido con la ruta completa: «Sumar a la ruta».",
-      "Sin señal todo queda guardado y se envía solo. Un día anterior con «N sin enviar» en Menú → «Tus días»: «Reintentar».",
-      "«Cerrar sesión» cierra la sesión y recién entonces borra los pedidos del teléfono; sin señal no se cierra ni se borra nada. Cuenta sin vincular o desactivada: el jefe la arregla en tu ficha y después «Reintentar».",
-      "«Hay una actualización disponible»: «Bajar» instala la app nueva; ✕ lo esconde hasta que vuelvas a abrir la app.",
-      "Para probar sin enviar nada: Menú → Diagnóstico → Modo prueba (con GPS simulado en la central; Google Maps sigue con tu ubicación real).",
+      "Al terminar, revisa los no entregados y confirma: se borran del dispositivo los datos de los clientes. Con no entregados, «Confirmar y borrar datos» pide «Sí, ya están separados». Si se pospuso, «Cerrar día» lo vuelve a abrir (los segundos al lado son los del «Deshacer»).",
+      "Si llega un pedido con la ruta completada: «Agregar a la ruta».",
+      "Sin conexión todo queda guardado y se envía automáticamente. Un día anterior con «N sin enviar» en Menú → «Días de trabajo»: «Reintentar».",
+      "«Cerrar sesión» cierra la sesión y solo entonces borra los pedidos del dispositivo; sin conexión no se cierra ni se borra nada. Cuenta sin vincular o desactivada: la oficina la corrige en la ficha del conductor y después «Reintentar».",
+      "«Actualización disponible»: «Descargar» instala la versión nueva; ✕ oculta el aviso hasta volver a abrir la app.",
+      "Para probar sin enviar nada: Menú → Diagnóstico → Modo prueba (con GPS simulado en la central; Google Maps sigue con la ubicación real).",
     ],
   },
 ];
@@ -96,7 +97,7 @@ export function Ayuda({ onCerrar }: { onCerrar: () => void }) {
   if (typeof document === "undefined") return null;
   return createPortal(
     <div
-      className="animate-fade-in fixed inset-0 z-[60] flex flex-col bg-background pt-[max(0.75rem,env(safe-area-inset-top))]"
+      className="capa-camara animate-fade-in fixed inset-0 z-[60] flex flex-col bg-background pt-[max(0.75rem,env(safe-area-inset-top))]"
       role="dialog"
       aria-modal="true"
       aria-label="Ayuda"

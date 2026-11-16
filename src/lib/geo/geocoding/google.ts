@@ -44,7 +44,10 @@ export function aSugerenciaGoogle(r: ResultadoGoogle, consulta: string): Sugeren
   const numero = comp("street_number")?.long_name?.replace(/\D/g, "");
   const punto = r.geometry?.location;
   if (!calle || !numero || !punto || !dentroDeArica(punto.lat, punto.lng)) return null;
-  if (numero !== partido.numero || !esLaCalleEscrita(partido.calle, calle)) return null;
+  // El número se compara como número: la guía trae «045», la consulta va sin el cero
+  // («45», normalizarConsulta) y Google puede devolver la puerta como «045». Comparados
+  // como texto eran puertas distintas y el acierto se botaba (dueño, 2026-11-15).
+  if (Number(numero) !== Number(partido.numero) || !esLaCalleEscrita(partido.calle, calle)) return null;
 
   const tipo = r.geometry?.location_type;
   // ROOFTOP es la puerta; RANGE_INTERPOLATED, la cuadra. Lo demás (centro de

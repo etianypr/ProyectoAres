@@ -188,7 +188,7 @@ export function BottomSheet({
           style={{ touchAction: "none" }}
           role="button"
           tabIndex={0}
-          aria-label={expandido ? "Cerrar el panel" : "Abrir el panel"}
+          aria-label={expandido ? "Cerrar panel" : "Abrir panel"}
         >
           <div className="h-1.5 w-10 rounded-full bg-separator" />
         </div>

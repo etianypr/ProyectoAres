@@ -27,7 +27,7 @@ export async function dejarParaMasTarde(fecha: string, pedidoId: string): Promis
   if (!ruta) throw new Error("No hay una ruta para ese día.");
   const pendientes = pedidosEnOrden(ruta, pedidos).filter((p) => !resultadoCerrado(p.resultado));
   const pedido = pendientes.find((p) => p.id === pedidoId);
-  if (!pedido) throw new Error("Ese pedido no está en la ruta del día.");
+  if (!pedido) throw new Error("El pedido no está en la ruta del día.");
   const resto = pendientes.filter((p) => p.id !== pedidoId);
 
   // Sin coordenadas no hay cómo medir: al final, como siempre.
@@ -61,7 +61,7 @@ export async function hacerAhora(fecha: string, pedidoId: string): Promise<void>
   const [ruta, pedidos] = await Promise.all([leerRuta(fecha), leerPedidos(fecha)]);
   if (!ruta) throw new Error("No hay una ruta para ese día.");
   if (pedidos.find((p) => p.id === pedidoId)?.resultado !== "pendiente") {
-    throw new Error("Ese pedido ya no está pendiente.");
+    throw new Error("El pedido ya no está pendiente.");
   }
   const ids = pedidosEnOrden(ruta, pedidos)
     .filter((p) => !resultadoCerrado(p.resultado) && p.id !== pedidoId)

@@ -11,7 +11,7 @@ import { Seccion } from "./seccion";
 export function AdvertenciasRuta({ advertencias }: { advertencias: string[] }) {
   if (advertencias.length === 0) return null;
   return (
-    <Seccion titulo="Revisar antes de seguir">
+    <Seccion titulo="Revisar antes de continuar">
       <ul className="mb-2 grid gap-1.5">
         {advertencias.map((texto) => (
           <li key={texto} className="flex items-start gap-2 rounded-xl bg-warn-bg px-3 py-2.5 text-xs text-warn">

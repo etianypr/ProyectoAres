@@ -7,7 +7,7 @@ import { memo, useState } from "react";
 import { AlertTriangle, Check, Clock, Phone, RotateCcw, X } from "lucide-react";
 import { cn } from "@/lib/comun/utils";
 import { bloquePorId } from "@/lib/encomiendas/config";
-import { nombreVisible } from "@/lib/encomiendas/paquete";
+import { nombreVisible, subtituloPedido } from "@/lib/encomiendas/paquete";
 import { problemasDelPedido } from "@/lib/encomiendas/problemas";
 import { sePuedeCambiar, type Pedido } from "@/lib/encomiendas/local/almacen";
 import type { ResultadoVisita } from "@/lib/encomiendas/estados";
@@ -97,10 +97,10 @@ export const RutaDelDia = memo(function RutaDelDia({
                           p.pedido.resultado === "entregado" && "text-muted",
                         )}
                       >
-                        {nombreVisible(p.pedido)}
+                        {p.pedido.direccion || "Sin dirección"}
                       </span>
                       <span className="block truncate text-xs text-muted">
-                        {p.pedido.direccion}
+                        {subtituloPedido(p.pedido)}
                       </span>
                       {/* El ⚠ de la parada, en palabras (spec 027). */}
                       {editable
@@ -122,11 +122,11 @@ export const RutaDelDia = memo(function RutaDelDia({
                           {bloquePorId(p.pedido.bloqueHorarioId)?.desde ?? ""}
                         </span>
                       ) : p.pedido.disponibilidad === "confirmado" ? (
-                        <Check className="h-3.5 w-3.5 shrink-0 text-ok" aria-label="Confirmó" />
+                        <Check className="h-3.5 w-3.5 shrink-0 text-ok" aria-label="Confirmado" />
                       ) : p.hayQueContactar ? (
                         <Phone
                           className="h-3.5 w-3.5 shrink-0 text-muted"
-                          aria-label="Hay que llamarlo"
+                          aria-label="Requiere llamada"
                         />
                       ) : null
                     ) : null}

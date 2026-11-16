@@ -55,12 +55,12 @@ function mensajeError(e: GeolocationPositionError): string {
     return "Permiso de ubicación denegado. Actívalo para este sitio en los ajustes del navegador y vuelve a entrar.";
   }
   if (e.code === e.POSITION_UNAVAILABLE) {
-    return "No se pudo determinar tu ubicación (sin señal de GPS).";
+    return "No se pudo determinar la ubicación (sin señal de GPS).";
   }
   if (e.code === e.TIMEOUT) {
     return "La ubicación tardó demasiado en responder. Toca el botón de centrar para reintentar.";
   }
-  return "No se pudo obtener tu ubicación.";
+  return "No se pudo obtener la ubicación.";
 }
 
 export type EstadoUbicacion = {
@@ -212,7 +212,7 @@ export function useUbicacionActual(activo: boolean): EstadoUbicacion {
   const pedirAhora = useCallback(() => {
     const fuente = fuenteUbicacion();
     if (!fuente) {
-      setError("Este navegador no puede entregar tu ubicación.");
+      setError("Este navegador no permite obtener la ubicación.");
       return;
     }
     fuente.getCurrentPosition(

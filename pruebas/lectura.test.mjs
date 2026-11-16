@@ -72,7 +72,7 @@ test("la guía avisa repetidas, dudosas y la diferencia con el total", () => {
   const { avisos } = leerGuia(fixture("guia.txt"));
   assert.ok(avisos.some((a) => /repetida/.test(a)), "repetida por fotos superpuestas");
   assert.ok(avisos.some((a) => /sin OF o sin destino/.test(a)), "línea sin destino");
-  assert.ok(avisos.some((a) => /dice 8 y se leyeron 6/.test(a)), "faltan 2");
+  assert.ok(avisos.some((a) => /indica 8 y se leyeron 6/.test(a)), "faltan 2");
 });
 
 test("una OF de otro largo vale igual: sin marca de error y sin ceros a la izquierda", () => {

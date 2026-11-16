@@ -173,3 +173,14 @@ test("deshacerCarga: borra lo creado sin tocar y deja lo que ya está en la ruta
   assert.deepEqual(ids, [b.id, c.id, otro.id].sort());
   assert.equal((await almacen.leerCola()).length, 0, "tocó la cola");
 });
+
+test("ubicarCarga: los ubicados con duda (cuadra, solo la calle) van en `dudosos` para la IA (2026-11-16)", async () => {
+  const creados = await crear(3);
+  const punto = { ...ubicada.elegida };
+  const cuadra = { ...ubicada, tipo: "aproximada", elegida: { ...punto, confianza: "aproximada" } };
+  const soloCalle = { tipo: "solo_calle", candidatos: [{ ...punto, soloCalle: true }], elegida: null, advertencia: "x" };
+  const respuestas = [ubicada, cuadra, soloCalle];
+  const r = await ubicarCarga(creados, { ubicar: async () => respuestas.shift() });
+  assert.equal(r.ubicados, 3);
+  assert.deepEqual(r.dudosos, [creados[1].id, creados[2].id]);
+});

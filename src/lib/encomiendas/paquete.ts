@@ -102,6 +102,13 @@ export function buscarPorOf<P extends PedidoConOf>(pedidos: P[], digitos: string
   return pedidos.filter((p) => p.resultado === "pendiente" && p.of != null && p.of.endsWith(buscado));
 }
 
+/** La línea de abajo de una parada (dueño, 2026-11-16: «lo principal es la dirección; la OF
+ *  solamente es el id»): el nombre si ya se leyó y la OF. Sin OF dice solo «OF»: eso ya dice que
+ *  no tiene, sin un «Sin OF» que no aporta. */
+export function subtituloPedido(p: Pick<PedidoConOf, "nombre" | "of">): string {
+  return [p.nombre.trim(), p.of ? `OF ${formatoOf(p.of)}` : "OF"].filter(Boolean).join(" · ");
+}
+
 /** Cómo se nombra un pedido en pantalla. Los que vienen de la guía no tienen
  *  nombre hasta escanear su etiqueta (spec 005): mientras, se nombran por su OF. */
 export function nombreVisible(p: Pick<PedidoConOf, "nombre" | "of">): string {

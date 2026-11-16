@@ -9,7 +9,7 @@ import { BotonCerrarSesion } from "../../../cerrar-sesion";
 export function PantallaCargando() {
   return (
     <div className="flex min-h-dvh items-center justify-center p-6 text-sm text-muted">
-      Cargando tu ruta…
+      Cargando ruta…
     </div>
   );
 }
@@ -17,7 +17,7 @@ export function PantallaCargando() {
 export function PantallaError({ error }: { error: string }) {
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center p-6 text-center">
-      <p className="text-lg font-semibold">No se pudo abrir tu ruta</p>
+      <p className="text-lg font-semibold">No se pudo abrir la ruta</p>
       <p className="mx-auto mt-1 max-w-xs text-sm text-muted">{error}</p>
       {/* Acá había un "Volver al inicio" al hub. Ahora el hub reenvía a esta
           misma pantalla, así que ese link era un rebote infinito justo para

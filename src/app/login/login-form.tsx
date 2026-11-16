@@ -17,7 +17,7 @@ async function loginConSenal(prev: LoginState, datos: FormData): Promise<LoginSt
     return await login(prev, datos);
   } catch (e) {
     unstable_rethrow(e);
-    return { error: "Sin señal. Intenta de nuevo." };
+    return { error: "Sin conexión. Vuelve a intentarlo." };
   }
 }
 
@@ -123,7 +123,7 @@ function OlvidoClave({ onVolver }: { onVolver: () => void }) {
       ) : null}
       <Button type="submit" size="lg" className="w-full" disabled={enviando}>
         <Mail className="h-4 w-4" />
-        {enviando ? "Enviando…" : respuesta && !respuesta.ok ? "Reintentar" : "Mandar el enlace"}
+        {enviando ? "Enviando…" : respuesta && !respuesta.ok ? "Reintentar" : "Enviar enlace"}
       </Button>
       <button type="button" onClick={onVolver} className="w-full py-1 text-center text-sm font-medium text-muted">
         Volver a iniciar sesión

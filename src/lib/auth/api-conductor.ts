@@ -31,7 +31,7 @@ export async function conductorDeLaApi(): Promise<ConductorAutenticado> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return rechazo(401, "Sesión vencida. Volvé a entrar a la app.");
+  if (!user) return rechazo(401, "Sesión vencida. Vuelve a iniciar sesión.");
 
   // Un admin no puede usar estas rutas: no tiene pedidos ni día, y dejarlo pasar
   // significaría que el `conductor_id` de las correlaciones podría no ser de nadie.

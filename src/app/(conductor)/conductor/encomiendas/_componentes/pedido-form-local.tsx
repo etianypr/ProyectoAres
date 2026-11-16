@@ -185,7 +185,7 @@ export function PedidoFormLocal({
     // Una OF repetida en el día es casi siempre el mismo paquete cargado dos
     // veces: se avisa, pero se guarda (puede ser un error de la etiqueta).
     if (await ofRepetida(guardado.fecha, guardado.of, guardado.id)) {
-      avisoFinal = [avisoFinal, "Otro pedido de hoy tiene la misma OF: revisa que no esté cargado dos veces."]
+      avisoFinal = [avisoFinal, "Otro pedido de hoy tiene la misma OF. Verifica que no esté duplicado."]
         .filter(Boolean)
         .join(" ");
     }
@@ -220,7 +220,7 @@ export function PedidoFormLocal({
    *  2026-11-14); llegan al escanear la etiqueta o se anotan a mano. */
   function loQueFalta(): string | null {
     if (!campos.direccion.trim()) return "La dirección es obligatoria.";
-    if (ofEscrita && !of) return "La OF lleva solo números. Revísala o déjala vacía.";
+    if (ofEscrita && !of) return "La OF admite solo números. Corrígela o déjala vacía.";
     return null;
   }
 
@@ -237,7 +237,7 @@ export function PedidoFormLocal({
       // El aviso del teléfono viaja con el guardado: un fijo se guarda igual (se
       // puede llamar), pero el conductor tiene que saber que ese aviso no va a
       // llegar.
-      const avisoTelefono = telefono.ok ? telefono.aviso : `Teléfono sin normalizar: ${telefono.motivo}`;
+      const avisoTelefono = telefono.ok ? telefono.aviso : `Teléfono sin validar: ${telefono.motivo}`;
 
       // Tres caminos, de mejor a peor:
       //  1. La eligió de la lista → ya viene con las coordenadas exactas de esa
@@ -261,7 +261,7 @@ export function PedidoFormLocal({
       if (aceptadaAMano === direccion) {
         await guardar(
           { lat: null, lng: null },
-          "Guardado SIN ubicar, como pediste: no entra en la ruta hasta que corrijas la dirección.",
+          "Guardado sin ubicación. No se incluirá en la ruta hasta corregir la dirección.",
         );
         return;
       }
@@ -287,7 +287,7 @@ export function PedidoFormLocal({
         advertencia: ubicacion.advertencia ?? "No se pudo ubicar la dirección.",
       });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudo guardar en el teléfono.");
+      setError(e instanceof Error ? e.message : "No se pudo guardar en el dispositivo.");
     } finally {
       setGuardando(false);
     }
@@ -300,10 +300,10 @@ export function PedidoFormLocal({
       setElegida({ texto: s.direccion, lat: s.lat, lng: s.lng });
       await guardar(
         { lat: s.lat, lng: s.lng },
-        telefono.ok ? telefono.aviso : `Teléfono sin normalizar: ${telefono.motivo}`,
+        telefono.ok ? telefono.aviso : `Teléfono sin validar: ${telefono.motivo}`,
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudo guardar en el teléfono.");
+      setError(e instanceof Error ? e.message : "No se pudo guardar en el dispositivo.");
     } finally {
       setGuardando(false);
     }
@@ -314,10 +314,10 @@ export function PedidoFormLocal({
     try {
       await guardar(
         { lat: null, lng: null },
-        "Guardado SIN ubicar: no va a entrar en la ruta hasta que corrijas la dirección.",
+        "Guardado sin ubicación. No se incluirá en la ruta hasta corregir la dirección.",
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudo guardar en el teléfono.");
+      setError(e instanceof Error ? e.message : "No se pudo guardar en el dispositivo.");
     } finally {
       setGuardando(false);
     }
@@ -384,7 +384,7 @@ export function PedidoFormLocal({
             el anterior, y el conductor tiene que saberlo antes de guardar. */}
         {(ofEscrita && !of) || telefonoEscrito || numeroCambiado ? (
           <div className="-mt-1 space-y-0.5">
-            {ofEscrita && !of ? <NotaCampo tono="aviso">La OF lleva solo números.</NotaCampo> : null}
+            {ofEscrita && !of ? <NotaCampo tono="aviso">La OF admite solo números.</NotaCampo> : null}
             {telefonoEscrito && telefono.ok ? (
               <NotaCampo tono={telefono.aviso ? "aviso" : "ok"}>
                 {telefono.telefono.legible}
@@ -393,7 +393,7 @@ export function PedidoFormLocal({
             ) : null}
             {telefonoEscrito && !telefono.ok ? <NotaCampo tono="aviso">{telefono.motivo}</NotaCampo> : null}
             {numeroCambiado ? (
-              <NotaCampo tono="aviso">Es otro número: se descarta lo que había contestado el anterior.</NotaCampo>
+              <NotaCampo tono="aviso">Número distinto: se descarta la respuesta del anterior.</NotaCampo>
             ) : null}
           </div>
         ) : null}
@@ -441,7 +441,7 @@ export function PedidoFormLocal({
           <CampoArea
             id="pl_notas"
             etiqueta="Notas"
-            placeholder="Depto, timbre, seña de la casa"
+            placeholder="Depto., timbre, referencia de la casa"
             value={campos.notas}
             onChange={(e) => set("notas", e.target.value)}
             enterKeyHint="done"
@@ -457,7 +457,7 @@ export function PedidoFormLocal({
             className="flex min-h-11 items-center gap-2 rounded-[14px] border border-dashed border-separator px-3.5 text-sm font-medium text-muted active:bg-background"
           >
             <StickyNote className="h-4 w-4 shrink-0 text-brand" />
-            Agregar una nota
+            Agregar nota
           </button>
         )}
 

@@ -80,7 +80,7 @@ export function EscanerVivo({
 
   function buscar() {
     if (!escribir(codigoEscrito)) {
-      setErrorCodigo("Ese código no es de una etiqueta de Starken.");
+      setErrorCodigo("El código no corresponde a una etiqueta de Starken.");
       return;
     }
     // Lo escrito se queda: si la OF no está en el día (un dígito mal), «Escribir
@@ -103,9 +103,9 @@ export function EscanerVivo({
   if (typeof document === "undefined") return null;
 
   return createPortal(
-    <div className={cn("capa-camara fixed inset-0 z-50 flex flex-col", escribiendo && "bg-black")} role="dialog" aria-modal="true" aria-label="Cargar el auto">
+    <div className={cn("capa-camara fixed inset-0 z-50 flex flex-col", escribiendo && "bg-black")} role="dialog" aria-modal="true" aria-label="Cargar vehículo">
       <div className="flex items-center gap-2 bg-black/60 px-4 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))] text-white">
-        <h2 className="min-w-0 flex-1 truncate text-lg font-semibold">{esperado ? tituloEsperado(esperado) : "Cargar el auto"}</h2>
+        <h2 className="min-w-0 flex-1 truncate text-lg font-semibold">{esperado ? tituloEsperado(esperado) : "Cargar vehículo"}</h2>
         {avance.total > 0 && !esperado ? (
           <span className="shrink-0 rounded-full bg-white/20 px-2.5 py-1 text-sm font-semibold tabular-nums">
             {avance.escaneados} de {avance.total}
@@ -115,7 +115,7 @@ export function EscanerVivo({
           <button
             type="button"
             onClick={() => void alternarLinterna()}
-            aria-label={linterna ? "Apagar la linterna" : "Prender la linterna"}
+            aria-label={linterna ? "Apagar linterna" : "Encender linterna"}
             aria-pressed={linterna}
             className="flex h-11 w-11 items-center justify-center rounded-full"
           >
@@ -135,7 +135,7 @@ export function EscanerVivo({
         {estado.tipo === "prendiendo" ? (
           <p className="flex items-center gap-2 py-3 text-muted">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Prendiendo la cámara…
+            Iniciando cámara…
           </p>
         ) : null}
 
@@ -146,12 +146,12 @@ export function EscanerVivo({
               {estado.motivo}
             </p>
             <button type="button" onClick={onClasico} className={BOTON}>
-              Usar el escáner de siempre
+              Usar escáner de Google
             </button>
           </div>
         ) : null}
 
-        {estado.tipo === "buscando" ? <p className="py-3 text-muted">Sin etiqueta en la cámara.</p> : null}
+        {estado.tipo === "buscando" ? <p className="py-3 text-muted">No se detecta etiqueta.</p> : null}
 
         {estado.tipo === "etiqueta" ? (
           <div className="space-y-1.5">
@@ -164,7 +164,7 @@ export function EscanerVivo({
                   <span className="text-xl font-semibold text-muted"> de {estado.r.parada.total}</span>
                 </p>
               ) : (
-                <p className="text-lg font-bold">SIN RUTA TODAVÍA</p>
+                <p className="text-lg font-bold">SIN RUTA ASIGNADA</p>
               )}
               {estado.leida && estado.conDato ? (
                 <span className="mb-1 ml-auto flex items-center gap-1 rounded-full bg-ok-bg px-2.5 py-1 text-xs font-semibold text-ok">
@@ -174,7 +174,7 @@ export function EscanerVivo({
               ) : estado.leida ? (
                 // Sin ningún dato firme no es «Leída» (spec 033).
                 <span className="mb-1 ml-auto rounded-full bg-background px-2.5 py-1 text-xs font-semibold text-muted">
-                  {estado.escrita ? "OF escrita" : "Solo el código"}
+                  {estado.escrita ? "OF ingresada" : "Solo el código"}
                 </span>
               ) : null}
             </div>
@@ -212,9 +212,9 @@ export function EscanerVivo({
                 </>
               ) : (
                 <>
-                  <Dato valor={l?.destinatario ?? null} firme={firme("destinatario")} vacio="Leyendo el destinatario…" />
-                  <Dato valor={l?.telefono ?? null} firme={firme("telefono")} vacio="Leyendo el teléfono…" />
-                  <Dato valor={pago(l?.porPagar ?? null, l?.montoPorPagar ?? null)} firme={firme("pago")} vacio="Leyendo el pago…" />
+                  <Dato valor={l?.destinatario ?? null} firme={firme("destinatario")} vacio="Leyendo destinatario…" />
+                  <Dato valor={l?.telefono ?? null} firme={firme("telefono")} vacio="Leyendo teléfono…" />
+                  <Dato valor={pago(l?.porPagar ?? null, l?.montoPorPagar ?? null)} firme={firme("pago")} vacio="Leyendo pago…" />
                 </>
               );
             })()}
@@ -230,7 +230,7 @@ export function EscanerVivo({
             <p className="font-mono text-lg font-bold tabular-nums">OF {formatoOf(estado.of)}</p>
             <button type="button" onClick={() => onAgregarPedido(estado.of)} className={BOTON}>
               <PackagePlus className="h-4 w-4" />
-              Agregarlo como pedido
+              Agregar como pedido
             </button>
             <button type="button" onClick={seguir} className={BOTON_SUAVE}>
               Seguir escaneando
@@ -245,10 +245,10 @@ export function EscanerVivo({
               La etiqueta dice &ldquo;{estado.direccion}&rdquo;, distinto de la guía.
             </p>
             <button type="button" onClick={() => void usarDireccion()} className={BOTON}>
-              Usar la dirección de la etiqueta
+              Usar dirección de la etiqueta
             </button>
             <button type="button" onClick={seguir} className={BOTON_SUAVE}>
-              Dejar la de la guía
+              Mantener la de la guía
             </button>
           </div>
         ) : null}
@@ -281,7 +281,7 @@ export function EscanerVivo({
             </div>
           ) : (
             <button type="button" onClick={abrirEscribir} className="h-11 w-full text-sm font-semibold text-brand">
-              {estado.tipo === "noEsta" ? "Corregir la OF" : "Escribir la OF"}
+              {estado.tipo === "noEsta" ? "Corregir OF" : "Ingresar OF"}
             </button>
           )
         ) : null}

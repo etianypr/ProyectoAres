@@ -100,7 +100,7 @@ const STORE_VIEJO_WHATSAPP = "whatsapp";
 export class ErrorAlmacenLocal extends Error {}
 
 const SIN_SOPORTE =
-  "Este navegador no puede guardar la ruta en el teléfono. Abre la app instalada desde la pantalla de inicio (y no en una ventana privada).";
+  "Este navegador no puede guardar la ruta en el dispositivo. Abre la app instalada desde la pantalla de inicio (y no en una ventana privada).";
 
 let basePromesa: Promise<IDBDatabase> | null = null;
 

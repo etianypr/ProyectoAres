@@ -33,7 +33,7 @@ export async function accesoEncomiendas(): Promise<Acceso> {
       ok: false,
       titulo: "Cuenta desactivada",
       texto:
-        "La cuenta de conductor está desactivada. Los pedidos se borraron de este teléfono.",
+        "La cuenta de conductor está desactivada. Los pedidos se borraron de este dispositivo.",
       borrarLocal: true,
     };
   }

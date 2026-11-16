@@ -30,7 +30,7 @@ export function FaltanEscanear({ faltan, onAbrir }: { faltan: FaltaEscanear[]; o
             </span>
             <div className="min-w-0 flex-1">
               <p className="truncate font-mono text-sm font-semibold tabular-nums">
-                {pedido.of ? `OF ${formatoOf(pedido.of)}` : "Sin OF"}
+                {pedido.of ? `OF ${formatoOf(pedido.of)}` : "OF"}
               </p>
               <p className="truncate text-xs text-muted">{pedido.direccion}</p>
             </div>

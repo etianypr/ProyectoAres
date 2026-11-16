@@ -128,8 +128,8 @@ export function PantallaEncomiendas({
   // Pasar una parada cerrada a otro estado (spec 033, G5).
   const cambiarDeLaLista = useEvento(async (id: string, nuevo: ResultadoVisita) => {
     const r = await correr(() => dia.cambiarResultado(id, nuevo));
-    if (r === null) return setError("Esa parada ya no se puede cambiar.");
-    avisar(nuevo === "pendiente" ? (r.parada ? `Pendiente · parada ${r.parada}` : "Pendiente") : nuevo === "entregado" ? "Pasó a entregado" : "Pasó a no entregado");
+    if (r === null) return setError("Esta parada ya no se puede modificar.");
+    avisar(nuevo === "pendiente" ? (r.parada ? `Pendiente · parada ${r.parada}` : "Pendiente") : nuevo === "entregado" ? "Marcado como entregado" : "Marcado como no entregado");
   });
   const [alturaCerrada, setAlturaCerrada] = useState(140);
   // La ruta propuesta a la vista, elegir otra alternativa y usarla.
@@ -190,7 +190,7 @@ export function PantallaEncomiendas({
   const { puntos, previa } = usePuntosMapa(paradas, activa, propuesta, cerca.marcadas, pedidos);
   const sumarALaRuta = async () => {
     const cuantos = await correr(() => dia.sumarALaRuta());
-    if (cuantos) avisar(cuantos === 1 ? "1 pedido entró a la ruta" : `${cuantos} pedidos entraron a la ruta`);
+    if (cuantos) avisar(cuantos === 1 ? "1 pedido agregado a la ruta" : `${cuantos} pedidos agregados a la ruta`);
   };
 
   if (dia.cargando) return <PantallaCargando />;
@@ -245,7 +245,6 @@ export function PantallaEncomiendas({
       cifras={{ pendientes: sinRutear.length, conProblema: conProblema.length, ...cierreDelDia(pedidos) }}
       diaCerrado={dia.ruta?.cierre != null}
       cierre={{ fuera: fueraConPunto, deshacerHasta: deshacer?.hasta ?? null, onSumar: sumarALaRuta }}
-      nombreConductor={nombreConductor}
       fecha={fecha}
       direccionEmpresa={direccionEmpresa}
       onCargarGuia={() => setCargandoGuia(true)}
@@ -278,6 +277,10 @@ export function PantallaEncomiendas({
           // Mover el mapa para mirar una ruta propuesta no es "quiero mirar otra cosa".
           onArrastre={() => !propuesta && setSiguiendo(false)}
           enfoque={cerca.enfoque}
+          // Recorriendo, «Centrar» encuadra el auto y la parada que sigue (dueño,
+          // 2026-11-16, como Spoke): entre el carril de arriba y la hoja con los
+          // botones del mapa.
+          encuadre={paso === "reparto" ? { arriba: 76 + altoNotificaciones, abajo: alturaCerrada + 72 } : null}
         />
       </div>
 
@@ -346,7 +349,7 @@ export function PantallaEncomiendas({
                 if (!esNuevo) resolver.despuesDeGuardar(pedidos);
                 // Otro lugar (> 150 m): la parada se reubica (spec 033, cambio-dir-ruta).
                 if (!esNuevo) void reordenar.direccionCambiada(formPedido);
-                if (esNuevo && aviso == null) avisar("Pedido agregado — listo para el siguiente");
+                if (esNuevo && aviso == null) avisar("Pedido agregado");
               }}
             />
           ) : null

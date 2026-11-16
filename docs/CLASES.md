@@ -30,6 +30,25 @@ de la base conservan sus nombres viejos hasta la spec 002 (equivalencias en
 | Avisos en la pantalla del conductor | `Notificacion` |
 | Conductor | `Conductor` (tabla `conductores`, rol `conductor`; spec 002, migración 0006) |
 
+**Nombres en pantalla** (lenguaje de pantalla, 2026-11-15; regla en `AGENTS.md`, «Convenciones»). El
+código, los comentarios y las specs anteriores usan los de antes:
+
+| Antes | Ahora |
+|---|---|
+| Armar la ruta · Rehacer la ruta · Armar igual | Optimizar ruta · Recalcular ruta · Optimizar ahora |
+| Cargar la guía · Sumar otra guía · Agregar un pedido a mano | Cargar guía · Agregar guía · Agregar pedido manualmente |
+| Barrer la nómina · Barrido de nómina · a medias · Terminar igual | Escanear nómina · Escaneo de nómina · sin completar · Terminar ahora |
+| Cargar el auto · Salir a repartir · Salir igual · Volver a cargar | Cargar vehículo · Iniciar ruta · Iniciar de todos modos · Reanudar carga |
+| Sumar a la ruta · Sumar N a la ruta | Agregar a la ruta · Agregar N a la ruta |
+| Es así · Va igual · Hoy va acá | Confirmar · Mantener en ruta · Usar esta ubicación |
+| ¿Qué hacemos con esta parada? · Pidió otra hora · Teléfono a mano | Resultado de la parada · Solicitó otro horario · Ingresar teléfono |
+| Cambió la dirección: Moverla · Seguir con esta | Dirección modificada: Reordenar parada · Mantener orden |
+| SIN RUTA TODAVÍA · Agregarlo como pedido · Corregir / Escribir la OF | SIN RUTA ASIGNADA · Agregar como pedido · Corregir OF / Ingresar OF |
+| Listo, borrar del teléfono · Sí, ya los separé · Cerrar el día | Confirmar y borrar datos · Sí, ya están separados · Cerrar día |
+| Tus días · Tu día · Quedó sin cerrar | Días de trabajo · Estado del día · Sin cerrar |
+| Sin señal · gasta cupo · Bajar · Prender la linterna | Sin conexión · consume cuota · Descargar · Encender linterna |
+| Hola, (nombre) · sin pedidos | Sin pedidos para hoy (y la fecha) |
+
 ## 1. Modelo de datos
 
 ```mermaid
@@ -150,7 +169,7 @@ las tablas llevan `empresa_id` y RLS. Tipos de servidor: `src/types/db.ts`; del 
 | Cifras de un día ya borrado | Teléfono · `dias` (sobrevive) | `ResumenDia` |
 | Foto del paquete | Teléfono · `fotos` (se borra al cerrarse el pedido y con el día) | `Foto` |
 | Ruta propuesta sin aceptar | Teléfono · `propuestas` (una por día; se borra al usarla o descartarla y con el día) | `PropuestaGuardada` |
-| Guía leída sin crear los pedidos | Teléfono · `borradoresGuia` (una por día; se borra al crear, al descartar y con el día) | `BorradorGuia` |
+| Guía leída sin crear los pedidos | Teléfono · `borradoresGuia` (una por día; se borra al crear, al descartar y con el día) | `BorradorGuia` (con `barrido?: BarridoGuardado`, los votos del barrido de la nómina en curso; spec 034) |
 | Corrección de la IA sin confirmar | Teléfono · `pedidos` (campo opcional; se quita al confirmar o cambiar la dirección) | `Pedido.propuestaIA` |
 | Hecho de entregar u omitir | Teléfono · `cola` → Postgres (mismo id) | `ActividadPorEnviar` → `Actividad` |
 | Aviso esperando respuesta | Postgres, máx. 72 h (solo código, estado y respuesta) | `Aviso` |
@@ -432,6 +451,7 @@ lo usa.
 | Recorrer y cerrar (spec 033, G3): la parada recién cambiada ignora toques 600 ms (`toqueValido`, `useGuardaToque`) y el «Deshacer» junta las cerradas en la ventana (`PorDeshacer.eventos`); cambios de orden que se deshacen solo en el teléfono (`Reorden`, `volverAlOrden`, `useReordenar`: «Dejar como pendiente», «Ahora», «Pidió otra hora» con `pedirOtraHora`/`anotarHorario`, dirección a > 150 m con `reubicarPorPunto`) y el trazado en segundo plano (`retrazarRuta`, el de `sumarALaRuta`: `rutaPorCalles`, red propia y ORS de respaldo); paquetes en el mismo punto (`paradasJuntas`, fases `juntas` y `horas`, `ExtraBotones`); escáner desde la parada (`PaqueteEsperado`, `textoOtraParada`); POR PAGAR por revisar (`porPagarPorRevisar`, `CierrePendiente.porRevisar`) y la sección «Paquete» del formulario (`usePaqueteForm`, `DatosPedido` con `porPagar`/`montoPorPagar`/`bultos`, campos que el pedido ya tenía); `ordenarRuta` reabre una ruta cerrada si entra un pendiente | `local/reubicar.ts`, `almacen/{ruta,pedidos,disponibilidad}.ts`, `_hooks/{use-parada-en-curso,use-reordenar,use-guarda-toque,guarda-toque,misma-direccion,otra-parada,por-pagar}.ts`, `_componentes/{seccion-paquete,aviso-otra-parada,cabecera-cierre}.tsx` |
 | Trazado en el teléfono: pegar al camino, rumbo, metros restantes · OpenRouteService (spec 019; antes Mapbox): la línea del día y sus tramos por parada (`obtenerRutaCalles` → `RutaCalles.tramos`, `TramoDeRuta`); dar la vuelta solo en calles anchas (`vuelta.ts`: tipo de ORS 1 carretera y 2 principal), y en la ruta del día, donde se devolvía en un pasaje o residencial, ese pedazo se vuelve a pedir de frente; antes de armar la ruta, una parada pegada a una troncal que no es su calle se corre a la calle local (`acceso.ts` con las calles de las teselas de OpenFreeMap, `teselas.ts`; spec 019, antes Tilequery de Mapbox; `corregirAccesos`) · hacia la parada activa (spec 020; reemplaza la navegación tramo a tramo): `haciaParada` da metros, segundos, punto pegado, lo que falta y rumbo por el tramo de la línea del día (`tramoHacia`), o en línea recta fuera de él | `geo/trazado.ts` · `geo/hacia-parada.ts` · `geo/ors/` · `geo/acceso.ts` · `geo/teselas.ts` |
 | Ubicar una dirección (`ubicarDireccion`): limpiar la consulta, `coincidenciaCalle` (tipeo acotado), catálogo de calles de Arica (`callesParecidas`, `largoDeCalle`); Google da el número de casa y OSM las calles y los lugares (spec 019); sugerencias al escribir (`sugerirDirecciones`: Plus Code y Google) | `geo/geocoding/`: `ubicar.ts`, `consulta.ts`, `calles.ts` + `calles-arica.ts` (generado), `completar-numero.ts`, `google.ts`, `nominatim.ts`, `sugerir.ts`, `codigo.ts`; `index.ts` es el barril |
+| Calle repetida (spec 035): separar la referencia (`separarReferencias`, `calleYNumero`), los lugares de un nombre repetido (`lugaresDeCalle`, `cruzaCon`, `cruceNombrado`), las poblaciones del plano municipal (`poblacionesDe`, `poblacionesEscritas`, `nombrePoblacion`), una opción por lugar (`ubicarEnLugares`) y el filtro por la zona de la ruta (`elegirConLaRuta`); el aviso dos paradas antes (`lugarSupuesto`, `lib/encomiendas/problemas.ts`) | `geo/geocoding/`: `referencias.ts`, `lugares.ts` + `lugares-calles.ts` (generado), `poblaciones.ts` + `poblaciones-arica.ts` (generado del plano), `calle-repetida.ts` |
 
 ## 5. Pendiente
 

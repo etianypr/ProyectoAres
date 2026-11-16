@@ -6,7 +6,7 @@
 // mapa a su pin.
 
 import { Check, ChevronDown, ChevronUp, Clock, Phone, Trash2 } from "lucide-react";
-import { nombreVisible } from "@/lib/encomiendas/paquete";
+import { nombreVisible, subtituloPedido } from "@/lib/encomiendas/paquete";
 import { bloquePorId } from "@/lib/encomiendas/config";
 import type { PedidoUbicado } from "@/lib/encomiendas/local/generar-ruta";
 import { cn } from "@/lib/comun/utils";
@@ -38,7 +38,7 @@ export function ListaPropuesta({
           className="mt-2 flex h-9 shrink-0 items-center justify-center gap-1 text-xs font-semibold text-brand"
         >
           {entera ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-          {entera ? "Ver el mapa" : `Ver las ${paradas.length}`}
+          {entera ? "Ver mapa" : `Ver las ${paradas.length}`}
         </button>
       ) : null}
       {/* El orden es lo que el conductor viene a revisar: se puede desplazar, pero
@@ -58,11 +58,9 @@ export function ListaPropuesta({
                 {numero(i)}
               </span>
               <span className="min-w-0 flex-1">
-                {/* La OF en monoespaciada, como en la guía; el nombre, en la letra de texto. */}
-                <span className={`block truncate font-semibold leading-tight ${p.nombre ? "text-sm" : "font-mono text-[13px]"}`}>
-                  {nombreVisible(p)}
-                </span>
-                <span className="block truncate text-xs text-muted">{p.direccion}</span>
+                {/* Lo principal es la dirección; la OF es el id (dueño, 2026-11-16). */}
+                <span className="block truncate text-sm font-semibold leading-tight">{p.direccion || "Sin dirección"}</span>
+                <span className="block truncate text-xs text-muted">{subtituloPedido(p)}</span>
               </span>
               {/* Qué contestó este receptor. Es la mitad del valor de haberle
                   avisado: sin esto, el conductor llega a la puerta sin saber si lo

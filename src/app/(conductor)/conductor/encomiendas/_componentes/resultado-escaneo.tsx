@@ -109,10 +109,10 @@ export function Resultado({
       if (nuevo) onCambio({ ...nuevo, direccionDistinta: null });
       setAvisoDireccion(
         como === "ubicada"
-          ? "Dirección cambiada. Rehaz la ruta para que la parada quede en su orden."
+          ? "Dirección actualizada. Recalcula la ruta para reordenar la parada."
           : como === "en_duda"
-            ? "Dirección cambiada, en duda: quedó en la primera opción con ⚠. Elige en el pedido."
-            : "Dirección cambiada, pero no se pudo ubicar: corrígela en el pedido.",
+            ? "Dirección actualizada con dudas: se usó la primera opción (⚠). Elige el lugar en el pedido."
+            : "Dirección actualizada, sin ubicar. Corrígela en el pedido.",
       );
     } finally {
       setCambiandoDireccion(false);
@@ -126,7 +126,7 @@ export function Resultado({
     // trae otra OF, no se aplica.
     if (leido.ofImpresa && leido.ofImpresa !== codigo.of) {
       setErrorIA(
-        `El texto pegado es de la OF ${formatoOf(leido.ofImpresa)}, no de este paquete (OF ${formatoOf(codigo.of)}). Copia el de esta etiqueta.`,
+        `El texto pegado corresponde a la OF ${formatoOf(leido.ofImpresa)}, no a este paquete (OF ${formatoOf(codigo.of)}). Copia el texto de esta etiqueta.`,
       );
       return;
     }
@@ -169,14 +169,14 @@ export function Resultado({
   return (
     <div className="space-y-3">
       <div className="rounded-3xl bg-brand px-5 py-4 text-brand-foreground">
-        <p className="text-sm font-medium opacity-80">{r.parada ? "PARADA" : "SIN RUTA TODAVÍA"}</p>
+        <p className="text-sm font-medium opacity-80">{r.parada ? "PARADA" : "SIN RUTA ASIGNADA"}</p>
         {r.parada ? (
           <p className="text-6xl font-bold leading-none tabular-nums">
             {r.parada.n}
             <span className="text-2xl font-semibold opacity-80"> de {r.parada.total}</span>
           </p>
         ) : (
-          <p className="text-base">Arma la ruta para saber su parada.</p>
+          <p className="text-base">Optimiza la ruta para conocer su parada.</p>
         )}
         <p className="mt-2 text-2xl font-bold leading-tight">{referencia ?? "Sin descripción"}</p>
         <p className="mt-1 text-sm font-semibold tabular-nums opacity-90">OF {formatoOf(p.of ?? "")}</p>
@@ -215,7 +215,7 @@ export function Resultado({
           className="flex h-11 w-full items-center justify-center gap-2 rounded-full border border-separator bg-card text-sm font-semibold text-brand disabled:opacity-50"
         >
           {cambiandoDireccion ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          Usar la dirección de la etiqueta
+          Usar dirección de la etiqueta
         </button>
       ) : null}
       {avisoDireccion ? <p className="text-sm text-muted">{avisoDireccion}</p> : null}
@@ -243,7 +243,7 @@ export function Resultado({
           className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-brand text-[15px] font-semibold text-brand-foreground disabled:opacity-60"
         >
           {leyendo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
-          {leyendo ? "Leyendo la etiqueta…" : "Foto de la etiqueta"}
+          {leyendo ? "Leyendo etiqueta…" : "Foto de la etiqueta"}
         </button>
       ) : null}
       {/* Con los datos ya cargados se puede volver a leer: si la primera lectura
@@ -256,7 +256,7 @@ export function Resultado({
           className="flex w-full items-center justify-center gap-2 py-1 text-sm font-medium text-brand disabled:opacity-60"
         >
           {leyendo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
-          {leyendo ? "Leyendo la etiqueta…" : "Leer la etiqueta de nuevo"}
+          {leyendo ? "Leyendo etiqueta…" : "Volver a leer etiqueta"}
         </button>
       ) : null}
       {errorIA ? <p className="text-sm text-danger">{errorIA}</p> : null}
@@ -273,7 +273,7 @@ export function Resultado({
       ) : null}
       {pegando ? (
         <div className="space-y-2">
-          <p className="text-xs text-muted">Google Lens sobre la etiqueta → Texto → Copiar todo, y pégalo acá.</p>
+          <p className="text-xs text-muted">Google Lens sobre la etiqueta → Texto → Copiar todo, y pégalo aquí.</p>
           <CampoArea
             etiqueta="Texto de la etiqueta"
             autoFocus
@@ -299,7 +299,7 @@ export function Resultado({
           onClick={() => setDescribiendo(true)}
           className="w-full rounded-2xl border border-dashed border-separator py-3 text-sm font-medium text-brand"
         >
-          Describir el paquete (tres toques)
+          Describir paquete (tres toques)
         </button>
       ) : null}
       {describiendo ? (
@@ -316,7 +316,7 @@ export function Resultado({
             onClick={() => void guardarDescripcion()}
             className="h-11 w-full rounded-full border border-separator bg-card text-sm font-semibold text-brand disabled:opacity-50"
           >
-            Guardar la descripción
+            Guardar descripción
           </button>
         </div>
       ) : null}

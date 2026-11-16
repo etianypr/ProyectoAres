@@ -445,7 +445,7 @@ test("ningún proveedor la encontró: se dice, y no se inventa un punto", async 
   assert.equal(r.tipo, "no_encontrada");
   assert.equal(r.elegida, null);
   assert.deepEqual(r.candidatos, []);
-  assert.match(r.advertencia, /No encontramos/i);
+  assert.match(r.advertencia, /No se encontró/i);
 });
 
 test("una dirección vacía no gasta ninguna consulta", async () => {
@@ -808,7 +808,7 @@ test("un código impreciso entra igual, pero diciendo cuánto cubre", async () =
   assert.equal(r.tipo, "aproximada");
   assert.ok(r.elegida, "un código impreciso sigue siendo mejor que nada");
   assert.match(r.advertencia, /\d+ m/, "no dice cuánto cubre");
-  assert.match(r.advertencia, /no a la puerta/i);
+  assert.match(r.advertencia, /no la puerta/i);
   assert.equal(r.elegida.confianza, "aproximada");
 });
 

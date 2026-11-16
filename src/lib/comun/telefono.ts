@@ -161,7 +161,7 @@ export function normalizarTelefono(texto: string | null | undefined): ResultadoT
   if (!completo.startsWith("9") && !fijo) {
     return {
       ok: false,
-      motivo: "Ese número no parece un celular ni un fijo chileno. Revísalo.",
+      motivo: "El número no corresponde a un celular ni a un fijo chileno. Revísalo.",
     };
   }
 
@@ -173,7 +173,7 @@ export function normalizarTelefono(texto: string | null | undefined): ResultadoT
       puedeWhatsapp: !fijo,
     },
     aviso: fijo
-      ? "Parece un teléfono fijo: se puede llamar, pero no le va a llegar el aviso de WhatsApp."
+      ? "Parece un teléfono fijo: se puede llamar, pero no recibirá el aviso de WhatsApp."
       : null,
   };
 }

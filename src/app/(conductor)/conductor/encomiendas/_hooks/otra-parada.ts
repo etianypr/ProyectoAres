@@ -16,5 +16,5 @@ export function tituloEsperado(e: PaqueteEsperado): string {
 /** Qué decir si el paquete leído no es el de la parada; null si es el mismo. */
 export function textoOtraParada(e: PaqueteEsperado | null, r: Pick<ResultadoEscaneo, "pedido" | "parada">): string | null {
   if (!e || r.pedido.id === e.pedidoId) return null;
-  return r.parada ? `Este paquete es de la parada ${r.parada.n}, no de esta.` : "Este paquete no está en la ruta: no es de esta parada.";
+  return r.parada ? `Este paquete corresponde a la parada ${r.parada.n}, no a esta.` : "Este paquete no está en la ruta ni corresponde a esta parada.";
 }

@@ -48,7 +48,7 @@ export default async function ConductorInicioPage() {
       <p className="text-lg font-semibold">{conductor ? "Cuenta desactivada" : "Cuenta sin vincular"}</p>
       <p className="max-w-xs text-sm text-muted">
         {conductor
-          ? "La cuenta de conductor está desactivada. Los pedidos se borraron de este teléfono."
+          ? "La cuenta de conductor está desactivada. Los pedidos se borraron de este dispositivo."
           : "Este usuario no está vinculado a ningún conductor."}
       </p>
       <div className="mt-5">

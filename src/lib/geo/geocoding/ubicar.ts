@@ -3,6 +3,7 @@
 import { distanciaMetros, type Coordenada } from "@/lib/geo/coordenada";
 import { largoDeCalle } from "./calles";
 import { comoPlusCode } from "./codigo";
+import { ubicarEnLugares } from "./calle-repetida";
 import { aplicarPuertas, combinarSugerencias, completarNumeroEnCalles } from "./completar-numero";
 import {
   calleDeLaConsulta,
@@ -13,7 +14,9 @@ import {
   type Coincidencia,
 } from "./consulta";
 import { preguntarAGoogle } from "./google";
+import { lugaresDeCalle } from "./lugares";
 import { preguntarANominatim } from "./nominatim";
+import { calleYNumero, separarReferencias } from "./referencias";
 import type { SugerenciaDireccion, TipoUbicacion } from "./tipos";
 
 // Dos coincidencias más separadas que esto son lugares DISTINTOS, no dos formas
@@ -76,11 +79,14 @@ export async function ubicarDireccion(direccion: string, senal?: AbortSignal): P
       // diferencia entre llegar a la puerta y llegar a la esquina.
       advertencia: alaPuerta
         ? null
-        : `Ese Plus Code cubre unos ${Math.round(codigo.precisionMetros)} m: apunta a la zona, no a la puerta.`,
+        : `El Plus Code cubre unos ${Math.round(codigo.precisionMetros)} m: indica la zona, no la puerta.`,
     };
   }
 
-  const q = normalizarConsulta(direccion);
+  // La calle de la casa es la que va junto al número; la población de antes y la referencia de
+  // después («con calle 5», «frente a…») no se buscan: confunden al buscador (spec 035, 025).
+  const ref = separarReferencias(direccion);
+  const q = normalizarConsulta(ref.consulta);
   if (!q) {
     return { tipo: "no_encontrada", candidatos: [], elegida: null, advertencia: "La dirección está vacía." };
   }
@@ -98,16 +104,45 @@ export async function ubicarDireccion(direccion: string, senal?: AbortSignal): P
   const completadas = await completarNumeroEnCalles(q, primeraVuelta, senal);
   const candidatos = aplicarPuertas(primeraVuelta, completadas);
 
+  const r = await clasificar(q, completadas, candidatos, osm === null && (google === null || google.length === 0));
+
+  // Una calle que está en varios lugares de Arica (spec 035): cada lugar es una opción con su
+  // población y su sector, y la referencia de la guía elige. Sin red también: los lugares viajan
+  // en el código. Un nombre genérico («Pasaje 1», «Calle 2») va siempre por acá: la puerta que
+  // pone Google puede ser la de otro Pasaje 1. Uno con nombre propio, solo si no hubo puerta
+  // segura: una avenida cortada en dos tramos no tiene por qué preguntar.
+  const { calle } = calleYNumero(q);
+  if (esNombreGenerico(calle) || !r.elegida) {
+    const lugares = await lugaresDeCalle(calle);
+    if (lugares.length >= 2) return ubicarEnLugares(q, ref, lugares, candidatos);
+  }
+  return r;
+}
+
+/** «Pasaje 1», «Calle Dos», «1 Norte», «Nueva 2»: el nombre no dice dónde está. */
+function esNombreGenerico(calle: string): boolean {
+  return /^(?:pasaje|pje|psje|pj|calle|nueva)\s+(?:\d+|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)$|^\d+\s+(?:norte|sur|oriente|poniente)$/i.test(
+    calle.trim(),
+  );
+}
+
+/** Qué se encontró, con los candidatos de los buscadores ya combinados. */
+async function clasificar(
+  q: string,
+  completadas: Awaited<ReturnType<typeof completarNumeroEnCalles>>,
+  candidatos: SugerenciaDireccion[],
+  sinRespuesta: boolean,
+): Promise<ResultadoUbicacion> {
   if (candidatos.length === 0) {
     return {
       tipo: "no_encontrada",
       candidatos: [],
       elegida: null,
       advertencia:
-        "No encontramos esa dirección en el mapa. Revísala o marca el punto a mano.",
+        "No se encontró la dirección en el mapa. Revísala o pega su Plus Code.",
       // OSM se pregunta siempre; Google solo con número. Sin ninguna respuesta
       // de OSM y nada de Google, lo más probable es que no haya señal.
-      sinRespuesta: osm === null && (google === null || google.length === 0),
+      sinRespuesta,
     };
   }
 
@@ -123,7 +158,7 @@ export async function ubicarDireccion(direccion: string, senal?: AbortSignal): P
       candidatos,
       elegida: null,
       advertencia:
-        "Ese número existe en más de una calle que se llama así. Elige en cuál es.",
+        "El número existe en más de una calle con ese nombre. Elige cuál es.",
     };
   }
 
@@ -160,7 +195,7 @@ export async function ubicarDireccion(direccion: string, senal?: AbortSignal): P
         tipo: "aproximada",
         candidatos: ordenados,
         elegida: calle,
-        advertencia: `El mapa no tiene ese número, pero ${calle.direccion} es corta (unos ${Math.max(10, Math.round(largo / 10) * 10)} m): la parada queda en la calle. Busca el número al llegar.`,
+        advertencia: `El mapa no registra ese número, pero ${calle.direccion} es corta (unos ${Math.max(10, Math.round(largo / 10) * 10)} m): la parada queda en la calle. Busca el número al llegar.`,
       };
     }
     return {
@@ -168,7 +203,7 @@ export async function ubicarDireccion(direccion: string, senal?: AbortSignal): P
       candidatos: ordenados,
       elegida: null,
       advertencia:
-        "Encontramos la calle pero no el número: la parada queda a mitad de cuadra. Revisa el número o marca el punto.",
+        "Se encontró la calle, pero no el número: la parada queda a mitad de cuadra. Revisa el número o pega su Plus Code.",
     };
   }
 
@@ -185,7 +220,7 @@ export async function ubicarDireccion(direccion: string, senal?: AbortSignal): P
       candidatos,
       elegida: mejor,
       advertencia:
-        "La ubicación es aproximada: llegas a la cuadra, no a la puerta. Confirma el número al llegar.",
+        "Ubicación aproximada: indica la cuadra, no la puerta. Confirma el número al llegar.",
     };
   }
 

@@ -18,30 +18,40 @@
 //     posición (la APK manda la confianza de cada carácter de los números largos).
 
 import { elegirTexto, distancia, parecidos } from "./etiqueta/votos";
-import { leerGuia, type LineaGuia } from "./guia";
-import { bloquesNomina, leerNomina, ofDeRenglon } from "./nomina";
-import { LARGO_OF, ofValida } from "../paquete";
+import { leerGuia } from "./guia";
+import { piezasNomina } from "./nomina";
+import { armarBloques, decidir, ordenEnLaHoja, revisarParecidas, VOTOS_PARA_FIRME, type Lectura } from "./bloques-nomina";
 
-/** Cuántas veces tiene que salir igual cada dígito de la OF. */
-export const VOTOS_PARA_FIRME = 3;
-/** Hasta cuántos dígitos mal (o perdidos) se juntan con la lectura buena. */
-const DIGITOS_DE_ERROR = 2;
+export { VOTOS_PARA_FIRME } from "./bloques-nomina";
+
 /** Bajo esta confianza de ML Kit (0 a 1) un dígito no vota. A medir en terreno. */
 export const CONFIANZA_MINIMA = 0.5;
 
-/** Una palabra con 7 dígitos o más y la confianza de ML Kit en cada carácter (APK con
- *  los recuadros de la nómina; antes no viene). */
-export type NumeroLeido = { texto: string; confianzas: number[] };
-
-/** Un renglón con su caja, como lo da el escáner en vivo (`RenglonVivo`). */
-export type RenglonCaja = { texto: string; x: number; y: number; ancho: number; alto: number; numeros?: NumeroLeido[] };
+/** `abiertos`: direcciones que llegaron al borde del cuadro sin cerrarse (pueden venir
+ *  cortadas): solo cuentan si se parecen a una cerrada, o si nunca hubo otra (spec 034). */
+export type VotosOf = {
+  cuadros: number[];
+  orden: number;
+  destinos: Record<string, number>;
+  digitos: number[];
+  abiertos?: Record<string, number>;
+};
 
 export type VotosNomina = {
   cuadros: number;
   /** Por número leído (cada lectura distinta aparte): los cuadros en que salió, en
    *  qué orden apareció, cada destino leído (en JSON, como en votos.ts) y, por
    *  posición, en cuántas lecturas votó ese dígito (las de poca confianza no). */
-  ofs: Record<string, { cuadros: number[]; orden: number; destinos: Record<string, number>; digitos: number[] }>;
+  ofs: Record<string, VotosOf>;
+  /** Cuántos encargos enteros, OF sueltas y direcciones sin cerrar se leyeron (spec 034):
+   *  dice cuánto del barrido llega por piezas. No viene en votos guardados antes. */
+  conteo?: { enteros: number; sueltas: number; abiertas: number };
+  /** Por número leído, cuántas veces salió arriba de cada otro en un mismo cuadro: con eso
+   *  se ordenan los encargos como van en la hoja (ordenEnLaHoja). No viene en votos
+   *  guardados antes. */
+  arriba?: Record<string, Record<string, number>>;
+  /** Los números del último cuadro, de arriba abajo. */
+  delUltimo?: string[];
   /** Dígitos de OF leídos y cuántos con poca confianza: para ajustar CONFIANZA_MINIMA. */
   digitosLeidos: number;
   digitosDudosos: number;
@@ -68,14 +78,44 @@ export type LineaNomina = {
   lecturas: number;
 };
 
+/** Una OF del barrido para la lista y para «Cargar la guía» (spec 034). `aMedias`: se vio
+ *  pero no entera, y antes se perdía en silencio: sin su dirección (`sinDireccion`) o en un
+ *  solo cuadro (`unaVez`). `porConfirmar`: número o dirección sin firmar. */
+export type EstadoLista = "firme" | "porConfirmar" | "aMedias";
+export type LineaListada = {
+  of: string;
+  destino: string | null;
+  estado: EstadoLista;
+  motivo?: "sinDireccion" | "unaVez";
+  /** El número quedó firme (la dirección puede seguir dudosa): no hay que volver a pasar. */
+  ofFirme: boolean;
+  /** Cifras para Diagnóstico, sin datos: en cuántos cuadros salió, cuántas lecturas
+   *  distintas se juntaron y cómo es el encargo de número más parecido (un duplicado se
+   *  ve como pocos dígitos de diferencia, nunca en el mismo cuadro). */
+  cuadros: number;
+  lecturas: number;
+  cerca: { digitos: number; mismoCuadro: boolean; mismaDireccion: boolean | null } | null;
+};
+
 export type ResultadoNomina = {
   cuadros: number;
   /** Las OF vistas en 2 cuadros o más, firmes y por confirmar, en el orden de la nómina. */
   lineas: LineaNomina[];
+  /** Todo lo visto en el orden de la nómina, con lo «a medias» (spec 034, ideas B y D). */
+  lista: LineaListada[];
   firmes: number;
   porConfirmar: number;
   /** Vistas en un solo cuadro: ruido o una que pasó muy rápido. */
   unaVez: number;
+  /** OF sueltas (sin dirección) que calzaban con dos encargos y no votaron por ninguno. */
+  ambiguas: number;
+  /** Números sin ninguna dirección vistos menos de VOTOS_PARA_FIRME veces: no se listan. */
+  ruido: number;
+  /** Encargos que eran una mala lectura de otro ya firme: no se listan. */
+  malLeidas: number;
+  /** Firmes que parecen la misma fila leída de dos formas: quedan por confirmar. */
+  dobles: number;
+  conteo: { enteros: number; sueltas: number; abiertas: number };
   /** Lecturas que traían algún dígito distinto de la OF que quedó. */
   lecturasCorregidas: number;
   total: number | null;
@@ -90,121 +130,15 @@ export type ResultadoNomina = {
 };
 
 /** De las dos formas de juntar los renglones (por filas o como los entrega ML Kit),
- *  la que confirmó más OF. */
+ *  la que armó más encargos enteros. Antes ganaba la que confirmaba más OF, y eso
+ *  premiaba a la que traía una OF repetida (terreno 2026-11-15: 16 de 15). */
 export function mejorResultado(a: ResultadoNomina, b: ResultadoNomina): ResultadoNomina {
-  return a.firmes >= b.firmes ? a : b;
+  return a.conteo.enteros >= b.conteo.enteros ? a : b;
 }
 
-/** Lo barrido → las líneas de «Cargar la guía» (con su destino; una OF sin dirección no
- *  sirve para la ruta y no entra). Las que no quedaron firmes, de número o de
- *  dirección, van por confirmar: el conductor las mira con el papel. */
-export function lineasDelBarrido(r: ResultadoNomina): { lineas: { of: string; destino: string }[]; porConfirmar: Set<string>; total: number | null } {
-  const conDestino = r.lineas.filter((l) => l.destino);
-  return {
-    lineas: conDestino.map((l) => ({ of: l.of, destino: l.destino! })),
-    porConfirmar: new Set(conDestino.filter((l) => !l.firme || !l.destinoFirme).map((l) => l.of)),
-    total: r.total,
-  };
-}
-
-/** Las líneas de «Cargar la guía» después de juntar lo que había (`antes`) con lo nuevo
- *  (`nuevas`, de fotos o de un barrido) en `unidas` (armarGuia, que no sabe de esto). Una
- *  OF queda por confirmar si ya lo estaba y lo nuevo no la trajo firme, o si llega por
- *  confirmar (`porConfirmar`) y antes no estaba firme. */
-export function conPorConfirmar(
-  unidas: LineaGuia[],
-  antes: LineaGuia[],
-  nuevas: { of: string }[],
-  porConfirmar: Set<string> = new Set(),
-): LineaGuia[] {
-  const clave = (of: string) => ofValida(of) ?? of;
-  const firmesAntes = new Set(antes.filter((l) => !l.porConfirmar).map((l) => clave(l.of)));
-  const pendientesAntes = new Set(antes.filter((l) => l.porConfirmar).map((l) => clave(l.of)));
-  const firmesNuevas = new Set(nuevas.map((l) => clave(l.of)).filter((of) => !porConfirmar.has(of)));
-  return unidas.map((l) => {
-    const of = clave(l.of);
-    const pendiente = (pendientesAntes.has(of) && !firmesNuevas.has(of)) || (porConfirmar.has(of) && !firmesAntes.has(of));
-    return pendiente ? { ...l, porConfirmar: true } : l;
-  });
-}
-
-/** Un encargo en el cuadro: su caja (la de todos sus renglones juntos) y la OF que se
- *  leyó en este cuadro. `entero`: se vio de la fila de la OF hasta la dirección; si no,
- *  la caja es solo la fila de la OF, que va entrando a la cámara. */
-export type CajaEncargo = { of: string; x: number; y: number; ancho: number; alto: number; entero: boolean };
-
-/** Los encargos de un cuadro, para marcarlos sobre la cámara de a uno entero (dueño,
- *  2026-11-11: «si me marcas con rectángulos pequeños no entiendo qué estoy leyendo»). */
-export function cajasDelCuadro(renglones: RenglonCaja[], filas = filasDe(renglones)): CajaEncargo[] {
-  const caja = (desde: number, hasta: number, of: string, entero: boolean): CajaEncargo => {
-    const cajas = filas.slice(desde, hasta + 1).flatMap((f) => f.indices.map((i) => renglones[i]));
-    const x = Math.min(...cajas.map((r) => r.x));
-    const y = Math.min(...cajas.map((r) => r.y));
-    const ancho = Math.max(...cajas.map((r) => r.x + r.ancho)) - x;
-    const alto = Math.max(...cajas.map((r) => r.y + r.alto)) - y;
-    return { of, x, y, ancho, alto, entero };
-  };
-  const enEncargo = new Set<number>();
-  const encargos: CajaEncargo[] = [];
-  for (const b of bloquesNomina(filas.map((f) => f.texto))) {
-    encargos.push(caja(b.filaOf, b.hasta, b.of, true));
-    for (let i = b.filaOf; i <= b.hasta; i++) enEncargo.add(i);
-  }
-  filas.forEach((f, i) => {
-    const of = enEncargo.has(i) ? null : ofDeRenglon(f.texto);
-    if (of) encargos.push(caja(i, i, of, false));
-  });
-  return encargos;
-}
-
-/** OF → la confianza de cada uno de sus dígitos, de las palabras con números largos
- *  de un cuadro. La OF se arma como en nomina.ts (`ofDeRenglon`): solo los dígitos,
- *  los primeros LARGO_OF (el TOTAL pegado sobra) y sin los ceros a la izquierda. */
-export function confianzasDelCuadro(renglones: RenglonCaja[]): Map<string, number[]> {
-  const porOf = new Map<string, number[]>();
-  for (const r of renglones) {
-    for (const n of r.numeros ?? []) {
-      // Sin una confianza por carácter (otra cantidad) no se puede alinear: se ignora.
-      if (n.confianzas.length !== n.texto.length) continue;
-      const digitos = [...n.texto]
-        .flatMap((c, i) => (/\d/.test(c) ? [{ c, confianza: n.confianzas[i] }] : []))
-        .slice(0, LARGO_OF);
-      const desde = digitos.findIndex((d) => d.c !== "0");
-      if (desde < 0) continue;
-      const of = digitos.slice(desde);
-      porOf.set(
-        of.map((d) => d.c).join(""),
-        of.map((d) => d.confianza),
-      );
-    }
-  }
-  return porOf;
-}
-
-/** Los renglones agrupados por fila de la hoja: de arriba abajo y, en cada fila,
- *  de izquierda a derecha. ML Kit puede entregar una tabla por columnas (todas las
- *  OF y después todos los destinos), y así la OF no queda al lado de su destino.
- *  Cada fila dice qué renglones del cuadro la forman (para marcarlos en la cámara). */
-export function filasDe(renglones: RenglonCaja[]): { texto: string; indices: number[] }[] {
-  const filas: { centro: number; alto: number; indices: number[] }[] = [];
-  const orden = renglones.map((r, i) => ({ r, i })).sort((a, b) => a.r.y + a.r.alto / 2 - (b.r.y + b.r.alto / 2));
-  for (const { r, i } of orden) {
-    const centro = r.y + r.alto / 2;
-    const fila = filas.at(-1);
-    if (fila && Math.abs(centro - fila.centro) <= Math.min(fila.alto, r.alto) / 2) fila.indices.push(i);
-    else filas.push({ centro, alto: r.alto, indices: [i] });
-  }
-  return filas.map((f) => {
-    const indices = f.indices.sort((a, b) => renglones[a].x - renglones[b].x);
-    return { texto: indices.map((i) => renglones[i].texto).join(" "), indices };
-  });
-}
-
-export function textoPorFilas(renglones: RenglonCaja[]): string {
-  return filasDe(renglones)
-    .map((f) => f.texto)
-    .join("\n");
-}
+export { lineasDelBarrido, conPorConfirmar, enOrdenDeLaNomina } from "./barrido-a-guia";
+export { cajasDelCuadro, confianzasDelCuadro, filasDe, textoPorFilas } from "./cajas-nomina";
+export type { CajaEncargo, NumeroLeido, RenglonCaja } from "./cajas-nomina";
 
 export function votosNominaVacios(): VotosNomina {
   return {
@@ -222,26 +156,53 @@ export function votosNominaVacios(): VotosNomina {
 /** Suma lo que dio un cuadro. Cada número cuenta una vez por cuadro. Se lee con los
  *  dos formatos: la nómina de la sucursal (nomina.ts) y la guía «OF: … DESTINO: …».
  *  Con `confianzas` (confianzasDelCuadro), un dígito de poca confianza no vota; una
- *  OF sin su confianza (APK anterior, o todas en 0) vota con todos sus dígitos. */
-export function sumarCuadroNomina(v: VotosNomina, texto: string, confianzas?: Map<string, number[]>): VotosNomina {
+ *  OF sin su confianza (APK anterior, o todas en 0) vota con todos sus dígitos.
+ *  Con `piezas`, una OF que entró al cuadro sin su dirección entera también vota sus
+ *  dígitos. **Apagadas** (spec 034, medido el 2026-11-15 con una nómina de 15): las
+ *  piezas se leen en el borde del cuadro, con más dígitos mal, y dieron 14 firmes y 3
+ *  por confirmar donde los encargos enteros solos dieron 15 y 1. Quedan para medir
+ *  en Diagnóstico.
+ *  `vertical`: los números de este cuadro de arriba abajo, si el texto no viene en ese
+ *  orden (los renglones como los entrega ML Kit); sin él vale el orden del texto. */
+export function sumarCuadroNomina(
+  v: VotosNomina,
+  texto: string,
+  confianzas?: Map<string, number[]>,
+  { piezas: conPiezas = false, vertical }: { piezas?: boolean; vertical?: string[] } = {},
+): VotosNomina {
   const cuadro = v.cuadros;
   const guia = leerGuia(texto);
-  const delCuadro = new Map<string, string>();
-  for (const linea of [...leerNomina(texto), ...guia.lineas]) {
-    // Una OF tiene de 7 a 9 dígitos: el «1» de un encabezado que el lector de la
-    // guía tomó por OF no lo es (primer barrido: 19 «OF» sin destino).
-    if (!/^\d{7,9}$/.test(linea.of) || delCuadro.has(linea.of)) continue;
-    delCuadro.set(linea.of, linea.destino);
+  const nomina = piezasNomina(texto.split(/\r?\n/));
+  const conteo = { ...(v.conteo ?? { enteros: 0, sueltas: 0, abiertas: 0 }) };
+  // Una OF tiene de 7 a 9 dígitos: el «1» de un encabezado que el lector de la
+  // guía tomó por OF no lo es (primer barrido: 19 «OF» sin destino).
+  const esOf = (of: string) => /^\d{7,9}$/.test(of);
+  const delCuadro = new Map<string, { destino: string; abierta: string | null }>();
+  for (const linea of [...nomina.bloques, ...guia.lineas]) {
+    if (!esOf(linea.of) || delCuadro.has(linea.of)) continue;
+    delCuadro.set(linea.of, { destino: linea.destino, abierta: null });
+    conteo.enteros += 1;
+  }
+  for (const pieza of conPiezas ? nomina.piezas : []) {
+    if (!esOf(pieza.of) || delCuadro.has(pieza.of)) continue;
+    delCuadro.set(pieza.of, { destino: "", abierta: pieza.destino });
+    if (pieza.destino) conteo.abiertas += 1;
+    else conteo.sueltas += 1;
   }
   const ofs = { ...v.ofs };
   let digitosLeidos = v.digitosLeidos;
   let digitosDudosos = v.digitosDudosos;
-  for (const [of, destino] of delCuadro) {
+  for (const [of, { destino, abierta }] of delCuadro) {
     const antes = ofs[of] ?? { cuadros: [], orden: Object.keys(ofs).length, destinos: {}, digitos: of.split("").map(() => 0) };
     const destinos = { ...antes.destinos };
     if (destino) {
       const clave = JSON.stringify(destino);
       destinos[clave] = (destinos[clave] ?? 0) + 1;
+    }
+    const abiertos = { ...antes.abiertos };
+    if (abierta) {
+      const clave = JSON.stringify(abierta);
+      abiertos[clave] = (abiertos[clave] ?? 0) + 1;
     }
     const conf = confianzas?.get(of);
     const conConfianza = conf != null && conf.length === of.length && conf.some((c) => c > 0);
@@ -250,8 +211,18 @@ export function sumarCuadroNomina(v: VotosNomina, texto: string, confianzas?: Ma
       digitosDudosos += conf.filter((c) => c < CONFIANZA_MINIMA).length;
     }
     const digitos = antes.digitos.map((n, i) => n + (conConfianza && conf[i] < CONFIANZA_MINIMA ? 0 : 1));
-    ofs[of] = { cuadros: [...antes.cuadros, cuadro], orden: antes.orden, destinos, digitos };
+    ofs[of] = { cuadros: [...antes.cuadros, cuadro], orden: antes.orden, destinos, digitos, abiertos };
   }
+  // Quién va arriba de quién en la hoja, para ordenar el informe como el papel.
+  const hoja = [...delCuadro.keys()];
+  const deArribaAbajo = vertical ? vertical.filter((of) => delCuadro.has(of)) : hoja;
+  const arriba = { ...v.arriba };
+  deArribaAbajo.forEach((a, i) => {
+    if (i === deArribaAbajo.length - 1) return;
+    const abajo = { ...arriba[a] };
+    for (const b of deArribaAbajo.slice(i + 1)) abajo[b] = (abajo[b] ?? 0) + 1;
+    arriba[a] = abajo;
+  });
   const totales = { ...v.totales };
   if (guia.totalDeclarado != null) totales[guia.totalDeclarado] = (totales[guia.totalDeclarado] ?? 0) + 1;
   const numeros = { ...v.numeros };
@@ -259,72 +230,15 @@ export function sumarCuadroNomina(v: VotosNomina, texto: string, confianzas?: Ma
   return {
     cuadros: cuadro + 1,
     ofs,
+    conteo,
+    arriba,
+    delUltimo: hoja,
     digitosLeidos,
     digitosDudosos,
     totales,
     numeros,
     ultimoConTexto: texto.trim() ? cuadro : v.ultimoConTexto,
     ultimoConLineas: delCuadro.size ? cuadro : v.ultimoConLineas,
-  };
-}
-
-type Lectura = {
-  of: string;
-  votos: number;
-  /** Por posición, en cuántas de sus lecturas votó ese dígito. */
-  digitos: number[];
-  cuadros: Set<number>;
-  orden: number;
-  destinos: Record<string, number>;
-  destino: string | null;
-};
-
-/** ¿Esta lectura es del bloque que empezó `semilla`? */
-function delMismoBloque(semilla: Lectura, cuadros: Set<number>, lectura: Lectura): boolean {
-  if (Math.abs(semilla.of.length - lectura.of.length) > DIGITOS_DE_ERROR) return false;
-  if (distancia(semilla.of, lectura.of) > DIGITOS_DE_ERROR) return false;
-  // Salieron en un mismo cuadro: son dos bloques de la hoja.
-  for (const c of lectura.cuadros) if (cuadros.has(c)) return false;
-  return !semilla.destino || !lectura.destino || parecidos(semilla.destino, lectura.destino);
-}
-
-/** Las lecturas de un bloque → su OF, dígito por dígito. */
-function decidir(lecturas: Lectura[]): LineaNomina & { orden: number; corregidas: number } {
-  const total = lecturas.reduce((s, l) => s + l.votos, 0);
-  // El largo más leído; las lecturas de otro largo (un dígito perdido) cuentan en contra.
-  const porLargo = new Map<number, number>();
-  for (const l of lecturas) porLargo.set(l.of.length, (porLargo.get(l.of.length) ?? 0) + l.votos);
-  const [largo, votosLargo] = [...porLargo].sort((a, b) => b[1] - a[1])[0];
-  const delLargo = lecturas.filter((l) => l.of.length === largo);
-  let of = "";
-  let firme = votosLargo >= VOTOS_PARA_FIRME && 3 * votosLargo >= 2 * total;
-  for (let i = 0; i < largo; i++) {
-    // Votan solo las lecturas en que ese dígito salió con confianza; si ninguna, se
-    // muestra el más leído pero la OF no queda firme.
-    const conConfianza = new Map<string, number>();
-    const todos = new Map<string, number>();
-    for (const l of delLargo) {
-      conConfianza.set(l.of[i], (conConfianza.get(l.of[i]) ?? 0) + l.digitos[i]);
-      todos.set(l.of[i], (todos.get(l.of[i]) ?? 0) + l.votos);
-    }
-    const votosPosicion = [...conConfianza.values()].reduce((s, n) => s + n, 0);
-    const conteo = votosPosicion > 0 ? conConfianza : todos;
-    const [digito, n] = [...conteo].sort((a, b) => b[1] - a[1])[0];
-    of += digito;
-    if (votosPosicion === 0 || n < VOTOS_PARA_FIRME || 3 * n < 2 * votosPosicion) firme = false;
-  }
-  const destinos: Record<string, number> = {};
-  for (const l of lecturas) for (const [k, n] of Object.entries(l.destinos)) destinos[k] = (destinos[k] ?? 0) + n;
-  const destino = elegirTexto(destinos);
-  return {
-    of,
-    destino: destino.valor as string | null,
-    cuadros: total,
-    firme,
-    destinoFirme: destino.firme,
-    lecturas: lecturas.length,
-    orden: Math.min(...lecturas.map((l) => l.orden)),
-    corregidas: total - (lecturas.find((l) => l.of === of)?.votos ?? 0),
   };
 }
 
@@ -336,29 +250,67 @@ export function resultadoNomina(v: VotosNomina): ResultadoNomina {
     cuadros: new Set(o.cuadros),
     orden: o.orden,
     destinos: o.destinos,
+    abiertos: o.abiertos ?? {},
     destino: elegirTexto(o.destinos).valor as string | null,
   }));
-  // De la más leída a la menos: la lectura buena suele empezar el bloque y las
-  // erradas se le suman.
-  const bloques: { semilla: Lectura; cuadros: Set<number>; lecturas: Lectura[] }[] = [];
-  for (const lectura of lecturas.sort((a, b) => b.votos - a.votos || a.orden - b.orden)) {
-    const bloque = bloques.find((b) => delMismoBloque(b.semilla, b.cuadros, lectura));
-    if (bloque) {
-      bloque.lecturas.push(lectura);
-      for (const c of lectura.cuadros) bloque.cuadros.add(c);
-    } else {
-      bloques.push({ semilla: lectura, cuadros: new Set(lectura.cuadros), lecturas: [lectura] });
-    }
-  }
-  const decididos = bloques.map((b) => decidir(b.lecturas));
-  const vistas = decididos.filter((d) => d.cuadros >= 2).sort((a, b) => a.orden - b.orden);
+  const armado = armarBloques(lecturas);
+  const todos = armado.bloques.map(decidir);
+  // Una mala lectura de un encargo que ya quedó firme no se lista: apunta al firme. Dos
+  // firmes que parecen la misma fila quedan los dos, por confirmar.
+  const parecidas = revisarParecidas(armado.bloques, todos);
+  const { malas } = parecidas;
+  const bloques = armado.bloques.filter((_, i) => !malas.has(i));
+  const decididos = todos.filter((_, i) => !malas.has(i));
+  const dobles = new Set([...parecidas.dobles].map((i) => todos[i]));
+  const { ambiguas } = armado;
+  // De qué encargo quedó cada número leído (también las malas lecturas), para ordenarlos
+  // como van en la hoja.
+  const lugar = new Map<number, number>();
+  armado.bloques.forEach((_, i) => !malas.has(i) && lugar.set(i, lugar.size));
+  const duenio = new Map<string, number>();
+  armado.bloques.forEach((b, i) => {
+    let k = i;
+    for (let pasos = 0; malas.has(k) && pasos < 5; pasos++) k = malas.get(k)!;
+    const j = lugar.get(k);
+    if (j != null) for (const l of b.lecturas) duenio.set(l.of, j);
+  });
+  const enLaHoja = ordenEnLaHoja(decididos.map((d) => d.orden), v.arriba ?? {}, duenio);
+  const vistas = enLaHoja.map((i) => decididos[i]).filter((d) => d.cuadros >= 2);
   const deLectura: Record<string, string> = {};
   bloques.forEach((b, i) => {
     if (decididos[i].cuadros >= 2) for (const l of b.lecturas) deLectura[l.of] = decididos[i].of;
   });
+  for (const [i, j] of malas) for (const l of armado.bloques[i].lecturas) deLectura[l.of] = todos[j].of;
   const [total] = Object.entries(v.totales).sort((a, b) => b[1] - a[1]);
+  // Para Diagnóstico: el encargo de número más parecido a cada uno, sin ningún dato.
+  const masCercano = (i: number): LineaListada["cerca"] => {
+    let mejor: { j: number; digitos: number } | null = null;
+    decididos.forEach((o, j) => {
+      const digitos = j === i ? Infinity : distancia(decididos[i].of, o.of);
+      if (digitos < (mejor?.digitos ?? Infinity)) mejor = { j, digitos };
+    });
+    if (!mejor) return null;
+    const { j, digitos } = mejor as { j: number; digitos: number };
+    const [a, b] = [decididos[i].destino, decididos[j].destino];
+    return {
+      digitos,
+      mismoCuadro: [...bloques[i].cuadros].some((c) => bloques[j].cuadros.has(c)),
+      mismaDireccion: a && b ? parecidos(a, b) : null,
+    };
+  };
+  // Todo lo visto, en el orden de la hoja: lo que se vio en un solo cuadro o sin su
+  // dirección ya no se pierde (spec 034).
+  const lista = enLaHoja.map((i): LineaListada => {
+      const d = decididos[i];
+      const medida = { cuadros: d.cuadros, lecturas: d.lecturas, cerca: masCercano(i) };
+      if (d.cuadros < 2) return { of: d.of, destino: d.destino, estado: "aMedias", motivo: "unaVez", ofFirme: false, ...medida };
+      if (!d.destino) return { of: d.of, destino: null, estado: "aMedias", motivo: "sinDireccion", ofFirme: d.firme, ...medida };
+      const firme = d.firme && d.destinoFirme && !dobles.has(d);
+      return { of: d.of, destino: d.destino, estado: firme ? "firme" : "porConfirmar", ofFirme: d.firme, ...medida };
+  });
   return {
     cuadros: v.cuadros,
+    lista,
     lineas: vistas.map(({ of, destino, cuadros, firme, destinoFirme, lecturas: n }) => ({
       of,
       destino,
@@ -367,9 +319,15 @@ export function resultadoNomina(v: VotosNomina): ResultadoNomina {
       destinoFirme,
       lecturas: n,
     })),
-    firmes: vistas.filter((d) => d.firme).length,
-    porConfirmar: vistas.filter((d) => !d.firme).length,
+    // Sin dirección no está leída aunque el número esté firme: va «a medias» (spec 034).
+    firmes: vistas.filter((d) => d.firme && d.destino && !dobles.has(d)).length,
+    porConfirmar: vistas.filter((d) => (!d.firme || dobles.has(d)) && d.destino).length,
     unaVez: decididos.length - vistas.length,
+    ambiguas,
+    ruido: armado.ruido,
+    malLeidas: malas.size,
+    dobles: dobles.size,
+    conteo: v.conteo ?? { enteros: 0, sueltas: 0, abiertas: 0 },
     lecturasCorregidas: vistas.reduce((s, d) => s + d.corregidas, 0),
     total: total ? Number(total[0]) : null,
     numerosFirmes: Object.values(v.numeros).filter((n) => n >= VOTOS_PARA_FIRME).length,
@@ -377,4 +335,25 @@ export function resultadoNomina(v: VotosNomina): ResultadoNomina {
     digitosDudosos: v.digitosDudosos,
     deLectura,
   };
+}
+
+/** Los votos de lo ya leído, sin lo que faltaba confirmar (dueño, 2026-11-15: «las OF falta
+ *  confirmar perduran si salgo del barrido y vuelvo a entrar»). Al empezar otra pasada de
+ *  la misma lectura quedan los encargos con el número firme y su dirección (siguen en
+ *  verde, con sus malas lecturas apuntando a ellos); lo que estaba por confirmar o a medias
+ *  parte de cero: si el encargo existe, se vuelve a leer; si era ruido, no vuelve. */
+export function votosDeLoLeido(v: VotosNomina): VotosNomina {
+  const r = resultadoNomina(v);
+  const pendientes = new Set(r.lista.filter((l) => l.estado === "aMedias" || !l.ofFirme).map((l) => l.of));
+  const quedan = Object.entries(v.ofs)
+    .filter(([of]) => r.deLectura[of] != null && !pendientes.has(r.deLectura[of]))
+    .sort((a, b) => a[1].orden - b[1].orden);
+  const sigue = new Set(quedan.map(([of]) => of));
+  const arriba = Object.fromEntries(
+    Object.entries(v.arriba ?? {})
+      .filter(([a]) => sigue.has(a))
+      .map(([a, abajo]) => [a, Object.fromEntries(Object.entries(abajo).filter(([b]) => sigue.has(b)))]),
+  );
+  // El orden se vuelve a numerar: una OF nueva toma el que sigue (sumarCuadroNomina).
+  return { ...v, arriba, ofs: Object.fromEntries(quedan.map(([of, o], orden) => [of, { ...o, orden }])) };
 }
