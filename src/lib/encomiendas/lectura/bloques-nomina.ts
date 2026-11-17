@@ -3,10 +3,28 @@
 // barrido-nomina.ts, que lo usa, para no pasar de 400 líneas (A7).
 
 import { elegirTexto, distancia, parecidos } from "./etiqueta/votos";
-import type { LineaNomina } from "./barrido-nomina";
+import type { LineaNomina, ReglaFirme } from "./tipos-nomina";
 
 /** Cuántas veces tiene que salir igual cada dígito de la OF. */
 export const VOTOS_PARA_FIRME = 3;
+/** Cuántas veces tiene que leerse igual la columna BULTOS de un encargo (y en 2 de cada 3
+ *  lecturas de la columna) para valer (spec 036). */
+export const VOTOS_BULTOS = 2;
+/** Regla «confianza06» (spec 036, solo se mide): la confianza desde la que un dígito vota. */
+export const CONFIANZA_ALTA = 0.6;
+/** Regla «ponderada» (spec 036, solo se mide): el peso que tiene que juntar el dígito que
+ *  gana, y cuántas veces más que el segundo. */
+const PESO_FIRME = 2.5;
+const VECES_EL_SEGUNDO = 2;
+
+/** El peso de un dígito por la confianza de ML Kit (regla «ponderada»): sus log-odds, 0
+ *  desde 0,5 hacia abajo y con tope en 0,97. Sin confianza (una APK anterior), como 0,85.
+ *  Una OF con dos «8» leídos bien con 0,66 y mal («6», «0») con 0,54 (spec 034) pesa ~0,66
+ *  contra ~0,16 por lectura: con la de siempre nunca llegaba a 2 de cada 3. */
+export function pesoDeConfianza(confianza: number | null): number {
+  const c = confianza == null ? 0.85 : Math.min(confianza, 0.97);
+  return c <= 0.5 ? 0 : Math.log(c / (1 - c));
+}
 /** Hasta cuántos dígitos mal (o perdidos) se juntan con la lectura buena. */
 export const DIGITOS_DE_ERROR = 2;
 /** Cuántos cuadros antes o después de leer bien un encargo puede salir una mala lectura
@@ -26,15 +44,45 @@ export type Lectura = {
   destinos: Record<string, number>;
   abiertos: Record<string, number>;
   destino: string | null;
+  /** La columna BULTOS → cuántas veces se leyó así. */
+  bultos: Record<string, number>;
+  /** Solo al medir otras reglas (Diagnóstico): por dígito, el peso de su confianza y las
+   *  veces que salió con CONFIANZA_ALTA. */
+  pesos?: number[];
+  altos?: number[];
+  /** El reloj del barrido en su último cuadro (para vencer lo que falta confirmar). */
+  visto?: number;
+  /** Los votos de donde salió (`VotosOf`): mientras sea el mismo objeto, la lectura no
+   *  cambió (sumarCuadroNomina copia solo las del cuadro). Con él se guarda lo decidido. */
+  fuente?: object;
 };
 
 export type Bloque = { semilla: Lectura; cuadros: Set<number>; lecturas: Lectura[] };
 export type Decidido = LineaNomina & { orden: number; corregidas: number };
 
+const CUENTAS = new Int32Array(10);
+
+/** ¿A lo más `tope` dígitos de diferencia? Antes de la distancia, dos cotas que no cuestan:
+ *  la diferencia de largo y la de cuántas veces sale cada dígito (cambiar, poner o quitar
+ *  uno mueve a lo más dos de esas cuentas). Da lo mismo que comparar `distancia` y casi
+ *  nunca la calcula (spec 036: con 100 OF hay unas 800 lecturas distintas). */
+export function aLoMas(a: string, b: string, tope: number): boolean {
+  if (Math.abs(a.length - b.length) > tope) return false;
+  CUENTAS.fill(0);
+  const digitos = /^\d*$/.test(a) && /^\d*$/.test(b);
+  for (let i = 0; digitos && i < a.length; i++) CUENTAS[a.charCodeAt(i) - 48] += 1;
+  for (let i = 0; digitos && i < b.length; i++) CUENTAS[b.charCodeAt(i) - 48] -= 1;
+  if (digitos) {
+    let suma = 0;
+    for (let d = 0; d < 10; d++) suma += Math.abs(CUENTAS[d]);
+    if (Math.ceil(suma / 2) > tope) return false;
+  }
+  return distancia(a, b) <= tope;
+}
+
 /** ¿Esta lectura es del bloque que empezó `semilla`? */
 function delMismoBloque(semilla: Lectura, cuadros: Set<number>, lectura: Lectura): boolean {
-  if (Math.abs(semilla.of.length - lectura.of.length) > DIGITOS_DE_ERROR) return false;
-  if (distancia(semilla.of, lectura.of) > DIGITOS_DE_ERROR) return false;
+  if (!aLoMas(semilla.of, lectura.of, DIGITOS_DE_ERROR)) return false;
   // Salieron en un mismo cuadro: son dos bloques de la hoja.
   for (const c of lectura.cuadros) if (cuadros.has(c)) return false;
   return !semilla.destino || !lectura.destino || parecidos(semilla.destino, lectura.destino);
@@ -92,8 +140,9 @@ function elegirDestino(destinos: Record<string, number>, abiertos: Record<string
   return { valor: elegirTexto(abiertos).valor, firme: false };
 }
 
-/** Las lecturas de un bloque → su OF, dígito por dígito. */
-export function decidir({ lecturas }: Bloque): Decidido {
+/** Las lecturas de un bloque → su OF, dígito por dígito. `regla`: la de siempre, salvo
+ *  que Diagnóstico mida otra (spec 036). */
+export function decidir({ lecturas }: Bloque, regla: ReglaFirme = "dosDeTres"): Decidido {
   const total = lecturas.reduce((s, l) => s + l.votos, 0);
   // El largo más leído; las lecturas de otro largo (un dígito perdido) cuentan en contra.
   const porLargo = new Map<number, number>();
@@ -107,11 +156,23 @@ export function decidir({ lecturas }: Bloque): Decidido {
     // muestra el más leído pero la OF no queda firme.
     const conConfianza = new Map<string, number>();
     const todos = new Map<string, number>();
+    const pesos = new Map<string, number>();
     for (const l of delLargo) {
-      conConfianza.set(l.of[i], (conConfianza.get(l.of[i]) ?? 0) + l.digitos[i]);
+      // «confianza06» cuenta solo los leídos con CONFIANZA_ALTA (sin ese dato, como siempre).
+      const seguro = regla === "confianza06" && l.altos ? l.altos[i] : l.digitos[i];
+      conConfianza.set(l.of[i], (conConfianza.get(l.of[i]) ?? 0) + seguro);
       todos.set(l.of[i], (todos.get(l.of[i]) ?? 0) + l.votos);
+      if (l.pesos) pesos.set(l.of[i], (pesos.get(l.of[i]) ?? 0) + l.pesos[i]);
     }
     const votosPosicion = [...conConfianza.values()].reduce((s, n) => s + n, 0);
+    if (regla === "ponderada" && pesos.size > 0) {
+      // Gana el de más peso: firme si junta PESO_FIRME, VECES_EL_SEGUNDO más que el segundo
+      // y VOTOS_PARA_FIRME votos con confianza.
+      const [[digito, peso], segundo] = [...pesos].sort((a, b) => b[1] - a[1]);
+      of += digito;
+      if (peso < PESO_FIRME || (segundo && peso < VECES_EL_SEGUNDO * segundo[1]) || (conConfianza.get(digito) ?? 0) < VOTOS_PARA_FIRME) firme = false;
+      continue;
+    }
     const conteo = votosPosicion > 0 ? conConfianza : todos;
     const [digito, n] = [...conteo].sort((a, b) => b[1] - a[1])[0];
     of += digito;
@@ -124,6 +185,13 @@ export function decidir({ lecturas }: Bloque): Decidido {
     for (const [k, n] of Object.entries(l.abiertos)) abiertos[k] = (abiertos[k] ?? 0) + n;
   }
   const destino = elegirDestino(destinos, abiertos);
+  // Los BULTOS del encargo (spec 036): el valor más leído, si salió VOTOS_BULTOS veces y en
+  // 2 de cada 3 lecturas de la columna; si no, no se sabe.
+  const porBultos = new Map<string, number>();
+  for (const l of lecturas) for (const [b, n] of Object.entries(l.bultos)) porBultos.set(b, (porBultos.get(b) ?? 0) + n);
+  const votosBultos = [...porBultos.values()].reduce((s, n) => s + n, 0);
+  const [masLeido] = [...porBultos].sort((a, b) => b[1] - a[1]);
+  const bultos = masLeido && masLeido[1] >= VOTOS_BULTOS && 3 * masLeido[1] >= 2 * votosBultos ? Number(masLeido[0]) : null;
   return {
     of,
     destino: destino.valor as string | null,
@@ -131,9 +199,44 @@ export function decidir({ lecturas }: Bloque): Decidido {
     firme,
     destinoFirme: destino.firme,
     lecturas: lecturas.length,
+    bultos,
     orden: Math.min(...lecturas.map((l) => l.orden)),
     corregidas: total - (lecturas.find((l) => l.of === of)?.votos ?? 0),
   };
+}
+
+const IDS = new WeakMap<object, number>();
+let siguienteId = 1;
+function idDe(o: object): number {
+  let id = IDS.get(o);
+  if (id === undefined) {
+    id = siguienteId++;
+    IDS.set(o, id);
+  }
+  return id;
+}
+
+/** Lo decidido de cada encargo, por la identidad de sus lecturas y en su orden (spec 036).
+ *  Un encargo cuyas lecturas no salieron en cuadros nuevos no se vuelve a decidir: con 100
+ *  OF, decidir todo de nuevo tomaba ~120 ms en el PC, casi todo en la dirección. */
+const DECIDIDOS = new Map<string, Decidido>();
+const TOPE_DECIDIDOS = 5000;
+
+export function decidirGuardado(bloque: Bloque, regla: ReglaFirme = "dosDeTres"): Decidido {
+  const { lecturas } = bloque;
+  if (lecturas.some((l) => !l.fuente)) return decidir(bloque, regla);
+  const clave = `${regla}|${lecturas.map((l) => `${l.of}:${idDe(l.fuente!)}`).join(",")}`;
+  const guardado = DECIDIDOS.get(clave);
+  if (guardado) return guardado;
+  const decidido = decidir(bloque, regla);
+  if (DECIDIDOS.size >= TOPE_DECIDIDOS) DECIDIDOS.clear();
+  DECIDIDOS.set(clave, decidido);
+  return decidido;
+}
+
+/** Para las pruebas: decidir todo de cero. */
+export function olvidarDecididos(): void {
+  DECIDIDOS.clear();
 }
 
 /** Cada encargo se compara con los que ya quedaron firmes (dueño, 2026-11-15: «estar
@@ -154,16 +257,26 @@ export function revisarParecidas(bloques: Bloque[], decididos: Decidido[]): { ma
   const malas = new Map<number, number>();
   const dobles = new Set<number>();
   const juntas = (i: number, k: number) => [...bloques[i].cuadros].some((c) => bloques[k].cuadros.has(c));
+  // Los cuadros de cada encargo en orden: «a la vista» se responde recorriendo las dos
+  // listas una vez, no cada cuadro contra todos los del otro (spec 036).
+  const ordenados = bloques.map((b) => [...b.cuadros].sort((x, y) => x - y));
   const aLaVista = (i: number, k: number) => {
-    const delOtro = [...bloques[k].cuadros];
-    return [...bloques[i].cuadros].every((c) => delOtro.some((f) => Math.abs(f - c) <= CUADROS_CERCA));
+    const [suyos, delOtro] = [ordenados[i], ordenados[k]];
+    if (delOtro.length === 0) return suyos.length === 0;
+    let j = 0;
+    for (const c of suyos) {
+      while (j < delOtro.length - 1 && delOtro[j + 1] <= c) j++;
+      const cerca = Math.abs(delOtro[j] - c) <= CUADROS_CERCA || (j + 1 < delOtro.length && delOtro[j + 1] - c <= CUADROS_CERCA);
+      if (!cerca) return false;
+    }
+    return true;
   };
   decididos.forEach((d, i) => {
     // Una lectura de uno o dos cuadros puede venir con un dígito más de error.
     const tolerancia = d.cuadros <= 2 ? DIGITOS_DE_ERROR + 1 : DIGITOS_DE_ERROR;
     decididos.forEach((o, k) => {
       if (k === i || malas.has(i) || !o.firme) return;
-      if (Math.abs(o.of.length - d.of.length) > tolerancia || distancia(o.of, d.of) > tolerancia) return;
+      if (!aLoMas(o.of, d.of, tolerancia)) return;
       if (juntas(i, k) || !aLaVista(i, k)) return;
       if (d.destinoFirme && o.destinoFirme && d.destino && o.destino && !parecidos(d.destino, o.destino, DIRECCION_MOVIDA)) {
         const suya = d.destino;

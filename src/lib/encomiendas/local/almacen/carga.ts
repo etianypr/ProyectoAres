@@ -12,8 +12,9 @@ import { avisoVacio } from "./migrar";
 import type { OrigenCarga, Pedido, ReferenciaPaquete } from "./tipos";
 
 /** `telefono`: el que anotó el conductor al revisar la línea (dueño, 2026-11-13),
- *  ya normalizado (lectura/telefono-linea.ts). */
-export type LineaParaCrear = { of: string; destino: string; telefono?: string };
+ *  ya normalizado (lectura/telefono-linea.ts). `bultos`: los de la columna BULTOS de la
+ *  nómina (spec 036): «Cargar vehículo» parte sabiendo cuántos trae y la ruta los usa. */
+export type LineaParaCrear = { of: string; destino: string; telefono?: string; bultos?: number };
 
 function notaDeReferencia(destino: string): string | null {
   const { referencia } = separarReferencias(destino);
@@ -33,7 +34,7 @@ export function crearDesdeGuia(
     const ahora = new Date().toISOString();
     const creados: Pedido[] = [];
     let yaEstaban = 0;
-    for (const { of, destino, telefono } of lineas) {
+    for (const { of, destino, telefono, bultos } of lineas) {
       if (existentes.has(of)) {
         yaEstaban++;
         continue;
@@ -62,7 +63,8 @@ export function crearDesdeGuia(
         of,
         referencia: null,
         fotoId: null,
-        bultos: null,
+        // Una OF de solo documentos (0 bultos) se escanea igual: queda como sin saber.
+        bultos: bultos != null && bultos >= 1 ? bultos : null,
         bultosEscaneados: [],
         porPagar: null,
         montoPorPagar: null,

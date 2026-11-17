@@ -23,7 +23,7 @@ export function useLineasGuia() {
    *  (spec 017, E11). Lo que no quedó firme en el barrido llega por confirmar, y con
    *  `ordenNomina` las líneas del barrido quedan en el orden de la hoja. */
   function sumar(
-    nuevas: { of: string; destino: string }[],
+    nuevas: { of: string; destino: string; bultos?: number }[],
     folioNuevo: string | null,
     totalNuevo: number | null,
     porConfirmarNuevas?: Set<string>,

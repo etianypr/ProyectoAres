@@ -6,47 +6,68 @@
 // el nombre del destinatario) no sale del teléfono. La usan «Cargar la guía» → «Barrer
 // la nómina» y Diagnóstico → «Probar barrido de nómina».
 //
-// Los votos y la OF dígito por dígito están en lib/encomiendas/lectura/barrido-nomina.ts.
-// Aquí va lo de la pantalla: la cámara, los recuadros sobre cada encargo (los dibuja
-// Android, MarcasEscaner.java) y, una vez por segundo, qué OF quedaron confirmadas.
+// Los votos y la OF dígito por dígito están en lib/encomiendas/lectura/ (barrido-nomina.ts
+// y votos-barrido.ts). Aquí va lo de la pantalla: la cámara, los recuadros sobre cada
+// encargo (los dibuja Android, MarcasEscaner.java; ver barrido-en-vivo.ts) y qué OF
+// quedaron confirmadas.
 //
 // Spec 034 (dueño, 2026-11-15): con `seguir`, barrer otra vez continúa la misma lectura,
 // y los votos se entregan cada pocos segundos y al bloquearse el celular (`alGuardar`)
 // para que nada se pierda si Android cierra ARES.
+//
+// Spec 036 (dueño, 2026-11-16: «no es lo suficientemente rápido»): se decide con los
+// cuadros, cada ≥ 400 ms, y no una vez por segundo; se decide una sola forma de juntar los
+// renglones, y lo ya decidido de cada encargo se guarda. Cada cuadro lleva el reloj del
+// barrido, con el que vence lo que falta confirmar.
 
 import { useEffect, useRef, useState } from "react";
 import { prepararSonidos, sonarTic } from "@/lib/comun/sonidos-escaner";
-import {
-  cajasDelCuadro,
-  confianzasDelCuadro,
-  filasDe,
-  mejorResultado,
-  resultadoNomina,
-  sumarCuadroNomina,
-  votosDeLoLeido,
-  votosNominaVacios,
-  type VotosNomina,
-} from "@/lib/encomiendas/lectura/barrido-nomina";
+import { ajusteDelBarrido } from "@/lib/encomiendas/lectura/ajustes-barrido";
 import type { VotosBarrido } from "@/lib/encomiendas/lectura/barrido-a-guia";
-import { formatoOf } from "@/lib/encomiendas/paquete";
+import { cajasDelCuadro, confianzasDelCuadro, filasDe, sumarCuadroNomina, votosDeLoLeido } from "@/lib/encomiendas/lectura/barrido-nomina";
+import { anotarReglas } from "@/lib/encomiendas/lectura/reglas-nomina";
+import { elegirVotosDelBarrido, relojDelCuadro, sumarCuadroAlBarrido } from "@/lib/encomiendas/lectura/votos-barrido";
 import { alBotonAtras } from "@/lib/nativo/entorno";
 import {
   avisarLectura,
   barridoDisponible,
+  cuadrosALaVez,
   exposicionDelBarrido,
   iniciarEscanerVivo,
   marcarEscanerVivo,
+  pantallaDelCuadro,
   type CuadroVivo,
-  type MarcaViva,
+  type ZonaViva,
 } from "@/lib/nativo/escaner-vivo";
-import type { EstadoBarrido, VistaBarrido } from "../_componentes/camara-barrido";
+import type { VistaBarrido } from "../_componentes/camara-barrido";
+import {
+  anotarNativo,
+  anotarTiempo,
+  barridoNuevo as nuevo,
+  cronometro,
+  dentroDeLaZona,
+  flechasEnVivo,
+  horaMs,
+  igual,
+  leerBarrido,
+  marcadoVacio,
+  marcasDe,
+  memoriaFlechasVacia,
+  votosDe,
+  type Barrido,
+  type Marcado,
+  type MemoriaFlechas,
+} from "./barrido-en-vivo";
 
-/** Cada cuánto se revisa lo leído. Con la cámara encendida, cada redibujo traba la
- *  pantalla del teléfono del conductor 1 a 5 s (spec 028): se redibuja a lo más una
- *  vez por revisión, y solo si algo cambió. */
+/** Sin decidir en este tiempo (sin cuadros, o con «decidir con cada cuadro» apagado), la
+ *  revisión de siempre decide: dice si la cámara dejó de leer. Con la cámara encendida,
+ *  cada redibujo traba la pantalla del teléfono del conductor 1 a 5 s (spec 028): se
+ *  redibuja a lo más una vez por decisión, y solo si algo cambió. */
 const REVISAR_MS = 1000;
-/** Cuadros sin texto (o sin ninguna OF) para avisar que no está leyendo: ~1 s. */
-const CUADROS_SIN_LEER = 12;
+/** Con los cuadros se decide cada ≥ 400 ms y, si decidir cuesta, cada ≥ 3 veces lo que
+ *  tardó la última: nunca más de un cuarto del tiempo (spec 036). */
+const DECIDIR_CADA_MS = 400;
+const VECES_LO_QUE_TARDA = 3;
 /** La página transparente sobre la cámara (spec 028) y, solo al barrer, sin nada detrás:
  *  la pantalla del día invisible trababa cada redibujo (tema-dashund.css, camara-sola). */
 const CLASES_CAMARA = ["camara-viva", "camara-sola"];
@@ -55,21 +76,7 @@ const GUARDAR_MS = 3000;
 /** Al volver de un bloqueo, cuánto se espera un cuadro antes de prender la cámara de nuevo. */
 const ESPERA_CAMARA_MS = 2000;
 
-/** Lo leído en un barrido. */
-export type Barrido = VotosBarrido & {
-  inicio: number;
-  msTotal: number;
-  conTexto: number;
-  /** Cuadros de esta pasada (los votos pueden venir de una anterior). */
-  cuadros: number;
-  /** Los cuadros por segundo fijos que puso la cámara (0: exposición automática). */
-  cuadrosFijos: number;
-  /** Solo en Diagnóstico: los mismos cuadros contando también las piezas (las OF que
-   *  entran al cuadro sin su dirección; apagadas, spec 034), para seguir midiéndolas. */
-  conPiezas: VotosNomina | null;
-  /** El cuadro con más renglones, por filas: la muestra de «Copiar anonimizado». */
-  muestra: { texto: string; renglones: number };
-};
+export type { Barrido } from "./barrido-en-vivo";
 
 export type OpcionesBarrido = {
   /** Atrás de Android termina el barrido (por defecto). «Cargar la guía» lo atiende ella. */
@@ -81,91 +88,11 @@ export type OpcionesBarrido = {
   /** Los votos para guardar. `urgente`: el celular se está bloqueando. */
   alGuardar?: (votos: VotosBarrido, urgente: boolean) => void;
   comparar?: boolean;
+  /** La parte del recuadro por la que se ve la cámara sin que la tape la pantalla, en
+   *  fracciones de la pantalla: ahí van las flechas, y lo que se ve ahí es dónde está la
+   *  cámara (spec 036). Sin ella, la pantalla entera. */
+  zona?: () => ZonaViva | null;
 };
-
-/** Lo que necesitan los recuadros de cada cuadro; se actualiza una vez por segundo. */
-type Marcado = Pick<VistaBarrido, "deLectura" | "confirmadas"> & { aMedias: Set<string> };
-
-const marcadoVacio = (): Marcado => ({ confirmadas: new Set(), aMedias: new Set(), deLectura: {} });
-
-const nuevo = (votos: VotosBarrido | null = null, comparar = false): Barrido => ({
-  inicio: Date.now(),
-  msTotal: 0,
-  conTexto: 0,
-  cuadros: 0,
-  cuadrosFijos: 0,
-  porFilas: votos?.porFilas ?? votosNominaVacios(),
-  comoLlegan: votos?.comoLlegan ?? votosNominaVacios(),
-  conPiezas: comparar ? votosNominaVacios() : null,
-  muestra: { texto: "", renglones: 0 },
-});
-
-const votosDe = (b: Barrido): VotosBarrido => ({ porFilas: b.porFilas, comoLlegan: b.comoLlegan });
-
-/** El resultado de un barrido, con la forma de juntar los renglones que confirmó más. */
-export function resultadoDelBarrido(b: VotosBarrido) {
-  return mejorResultado(resultadoNomina(b.porFilas), resultadoNomina(b.comoLlegan));
-}
-
-function leerBarrido(b: Barrido): { vista: VistaBarrido; marcado: Marcado } {
-  const r = resultadoDelBarrido(b);
-  const ultimo = b.porFilas.cuadros - 1;
-  const conLineas = Math.max(b.porFilas.ultimoConLineas, b.comoLlegan.ultimoConLineas);
-  const estado: EstadoBarrido =
-    b.cuadros === 0 || ultimo - b.porFilas.ultimoConTexto > CUADROS_SIN_LEER
-      ? "sinTexto"
-      : ultimo - conLineas > CUADROS_SIN_LEER
-        ? "sinBloques"
-        : "leyendo";
-  // Leída = número firme y con dirección. Se barre de arriba abajo: la última
-  // confirmada es la más abajo en la nómina.
-  const leidas = r.lineas.filter((l) => l.firme && l.destino);
-  const ultima = leidas.at(-1) ?? null;
-  const enMedias = r.lista.filter((l) => l.estado === "aMedias").map((l) => l.of);
-  const vista: VistaBarrido = {
-    estado,
-    firmes: r.firmes,
-    porConfirmar: r.porConfirmar,
-    total: r.total,
-    ultima: ultima ? { of: ultima.of, destino: ultima.destino } : null,
-    confirmadas: new Set(leidas.map((l) => l.of)),
-    deLectura: r.deLectura,
-    // Lo que hay que volver a pasar: el número sin firmar o el encargo a medias. Una
-    // dirección dudosa con el número firme no: se confirma en la revisión, con el papel.
-    faltan: r.lista.filter((l) => l.estado === "aMedias" || !l.ofFirme).map((l) => l.of),
-    aMedias: enMedias.length,
-  };
-  return { vista, marcado: { confirmadas: vista.confirmadas, aMedias: new Set(enMedias), deLectura: r.deLectura } };
-}
-
-/** Los recuadros de un cuadro: uno por encargo, con su OF escrita arriba (dueño,
- *  2026-11-11: «si me marcas con rectángulos pequeños no entiendo qué estoy leyendo»).
- *  Verde con ✓ **mientras la OF esté confirmada** (dueño, 2026-11-14, spec 034: se saltó
- *  una OF y tuvo que recorrer la nómina de nuevo; lo que no está verde es lo que falta).
- *  Punteado con «…» si se está leyendo, y con ⚠ si quedó a medias (sin dirección o vista
- *  una vez): nunca depende solo del color. Un cuadro que leyó mal un dígito de una OF
- *  confirmada la marca igual (`deLectura`). */
-function marcasDe(c: CuadroVivo, filas: ReturnType<typeof filasDe>, marcado: Marcado): MarcaViva[] {
-  return cajasDelCuadro(c.renglones, filas).map((e): MarcaViva => {
-    const of = marcado.deLectura[e.of] ?? e.of;
-    const caja = { x: e.x, y: e.y, ancho: e.ancho, alto: e.alto };
-    if (marcado.confirmadas.has(of)) return { ...caja, tipo: "confirmada", etiqueta: `✓ ${formatoOf(of)}` };
-    const marca = marcado.aMedias.has(of) ? "⚠" : "…";
-    return { ...caja, tipo: "leyendo", etiqueta: `${marca} ${formatoOf(of)}` };
-  });
-}
-
-// Las confirmadas no se comparan: crecen solo cuando crece `firmes`.
-const igual = (a: VistaBarrido | null, b: VistaBarrido) =>
-  a != null &&
-  a.estado === b.estado &&
-  a.firmes === b.firmes &&
-  a.porConfirmar === b.porConfirmar &&
-  a.aMedias === b.aMedias &&
-  a.faltan.join() === b.faltan.join() &&
-  a.total === b.total &&
-  a.ultima?.of === b.ultima?.of &&
-  a.ultima?.destino === b.ultima?.destino;
 
 /** ¿Esta APK trae el barrido de la nómina? Se sabe después de abrir la pantalla. */
 export function useBarridoDisponible(): boolean {
@@ -198,6 +125,16 @@ export function useBarridoNomina(alTerminar: (b: Barrido) => void, opciones: Opc
   const marcado = useRef<Marcado>(marcadoVacio());
   const ultimoCuadro = useRef(0);
   const guardado = useRef({ cuadros: 0, en: 0 });
+  /** La última decisión: cuándo fue y cuánto tardó. */
+  const decision = useRef({ en: 0, ms: 0 });
+  /** Los interruptores de Diagnóstico, leídos al prender la cámara: decidir con cada
+   *  cuadro, flechas a los huecos y botar fantasmas (spec 036). */
+  const ajustes = useRef({ conCadaCuadro: true, huecos: false, fantasmas: false });
+  /** La APK dibuja las flechas (desde la de la spec 036). */
+  const conFlechas = useRef(false);
+  const memoria = useRef<MemoriaFlechas>(memoriaFlechasVacia());
+  /** El número del último cuadro que marcó: con dos a la vez, uno atrasado no marca. */
+  const ultimoN = useRef(0);
   const terminarCon = useRef(alTerminar);
   const con = useRef(opciones);
   useEffect(() => {
@@ -205,21 +142,65 @@ export function useBarridoNomina(alTerminar: (b: Barrido) => void, opciones: Opc
     con.current = opciones;
   });
 
-  function alCuadro(c: CuadroVivo) {
+  /** Decide qué OF quedaron firmes (dígito por dígito): suena un tic y vibra si se
+   *  confirmó alguna, y se redibuja solo si cambió algo. Las marcas de Android van en cada
+   *  cuadro con lo último que se decidió aquí. */
+  function decidir() {
     const b = barrido.current;
-    ultimoCuadro.current = Date.now();
+    if (b.cuadros === 0) return;
+    const tardo = cronometro();
+    const { vista: nueva, marcado: marcas } = leerBarrido(b, ajustes.current);
+    marcado.current = marcas;
+    // Diagnóstico: lo que decidiría cada regla que se compara (no cuenta en lo que tarda).
+    const conReglas = b.reglas;
+    if (nueva.firmes > sonadas.current) {
+      sonadas.current = nueva.firmes;
+      sonarTic(0);
+      void avisarLectura();
+    }
+    setVista((antes) => (igual(antes, nueva) ? antes : nueva));
+    const ms = tardo();
+    decision.current = { en: horaMs(), ms };
+    anotarTiempo(b.tiempos.decidir, ms);
+    if (conReglas) anotarReglas(conReglas, elegirVotosDelBarrido(b));
+  }
+
+  function alCuadro(c: CuadroVivo) {
+    const tardo = cronometro();
+    const b = barrido.current;
+    const ahora = horaMs();
+    // El reloj del barrido: lo que pasó desde el cuadro anterior, con tope (un bloqueo no
+    // cuenta para vencer lo que falta confirmar).
+    const reloj = relojDelCuadro(b.porFilas.reloj, ultimoCuadro.current ? ahora - ultimoCuadro.current : 0);
+    ultimoCuadro.current = ahora;
     b.cuadros += 1;
     b.msTotal += c.ms;
     if (c.renglones.length) b.conTexto += 1;
+    anotarNativo(b, c, ultimoN.current);
     const filas = filasDe(c.renglones);
-    const porFilas = filas.map((f) => f.texto).join("\n");
-    const confianzas = confianzasDelCuadro(c.renglones);
-    b.porFilas = sumarCuadroNomina(b.porFilas, porFilas, confianzas);
-    // Como los entrega ML Kit el texto no viene de arriba abajo: el orden en la hoja sale del de por filas.
-    b.comoLlegan = sumarCuadroNomina(b.comoLlegan, c.renglones.map((r) => r.texto).join("\n"), confianzas, { vertical: b.porFilas.delUltimo });
-    if (b.conPiezas) b.conPiezas = sumarCuadroNomina(b.conPiezas, porFilas, confianzas, { piezas: true });
-    if (c.renglones.length > b.muestra.renglones) b.muestra = { texto: porFilas, renglones: c.renglones.length };
-    marcarEscanerVivo(marcasDe(c, filas, marcado.current));
+    const cajas = cajasDelCuadro(c.renglones, filas);
+    const votos = sumarCuadroAlBarrido(b, c.renglones, { filas, cajas, reloj, reglas: b.reglas != null });
+    b.porFilas = votos.porFilas;
+    b.comoLlegan = votos.comoLlegan;
+    if (b.conPiezas || c.renglones.length > b.muestra.renglones) {
+      const porFilas = filas.map((f) => f.texto).join("\n");
+      if (b.conPiezas) b.conPiezas = sumarCuadroNomina(b.conPiezas, porFilas, confianzasDelCuadro(c.renglones), { piezas: true, reloj });
+      if (c.renglones.length > b.muestra.renglones) b.muestra = { texto: porFilas, renglones: c.renglones.length };
+    }
+    if (ajustes.current.conCadaCuadro && ahora - decision.current.en >= Math.max(DECIDIR_CADA_MS, VECES_LO_QUE_TARDA * decision.current.ms)) decidir();
+    // Con dos cuadros a la vez pueden llegar desordenados: el atrasado vota, pero no marca
+    // (lo que se ve es lo del último).
+    if (c.n == null || c.n >= ultimoN.current) {
+      ultimoN.current = c.n ?? ultimoN.current;
+      const marcas = marcasDe(cajas, marcado.current);
+      if (conFlechas.current) {
+        // Spec 036: las flechas a lo que falta, en la parte del recuadro que se ve.
+        const zona = con.current.zona?.() ?? null;
+        const { flechas, huecos } = flechasEnVivo(cajas, marcado.current, b.cuadros, dentroDeLaZona(c, pantallaDelCuadro(), zona), memoria.current);
+        marcarEscanerVivo([...marcas, ...huecos], { zona, flechas });
+      } else marcarEscanerVivo(marcas);
+    }
+    anotarTiempo(b.tiempos.cuadro, tardo());
   }
 
   function guardar(urgente: boolean) {
@@ -229,15 +210,21 @@ export function useBarridoNomina(alTerminar: (b: Barrido) => void, opciones: Opc
   }
 
   /** Sin la foto en alta (cuadros de 1080×1920 en vez de 720×960), sin buscar códigos de
-   *  barras (la nómina no trae) y con la exposición elegida (spec 034). */
+   *  barras (la nómina no trae) y con la exposición elegida (spec 034); con los cuadros a
+   *  la vez que diga Diagnóstico (spec 036). */
   async function prender() {
     const { camara, apagar: apagarCamara } = await iniciarEscanerVivo(alCuadro, {
       captura: false,
       codigos: false,
       exposicion: exposicionDelBarrido(),
+      enVuelo: cuadrosALaVez(),
     });
     apagar.current = apagarCamara;
     barrido.current.cuadrosFijos = camara.cuadrosFijos;
+    barrido.current.nativo.enVuelo = camara.enVuelo;
+    conFlechas.current = camara.flechas;
+    // Al prender de nuevo (tras un bloqueo), los cuadros vuelven a contar desde 1.
+    ultimoN.current = 0;
     setConLinterna(camara.linterna);
   }
 
@@ -255,7 +242,14 @@ export function useBarridoNomina(alTerminar: (b: Barrido) => void, opciones: Opc
     alPrender.current = antes;
     barrido.current = nuevo(antes, con.current.comparar);
     guardado.current = { cuadros: barrido.current.porFilas.cuadros, en: Date.now() };
-    const inicial = leerBarrido(barrido.current);
+    decision.current = { en: 0, ms: 0 };
+    ajustes.current = {
+      conCadaCuadro: ajusteDelBarrido("decidirConCadaCuadro"),
+      huecos: ajusteDelBarrido("flechasAHuecos"),
+      fantasmas: ajusteDelBarrido("botarFantasmas"),
+    };
+    memoria.current = memoriaFlechasVacia();
+    const inicial = leerBarrido(barrido.current, ajustes.current);
     // Lo ya confirmado sale verde desde el primer cuadro y no vuelve a sonar.
     sonadas.current = inicial.vista.firmes;
     marcado.current = antes ? inicial.marcado : marcadoVacio();
@@ -300,23 +294,15 @@ export function useBarridoNomina(alTerminar: (b: Barrido) => void, opciones: Opc
     alPrender.current = null;
   }
 
-  // Una vez por segundo: se decide qué OF quedaron firmes (dígito por dígito), suena
-  // un tic y vibra si se confirmó alguna, y se redibuja solo si cambió algo (las marcas
-  // de Android se mandan en cada cuadro con lo último que se decidió aquí).
+  // Una vez por segundo: decide si no se decidió con los cuadros (la cámara no manda, o
+  // «decidir con cada cuadro» está apagado) y entrega los votos para guardarlos.
   useEffect(() => {
     if (!activo) return;
     const reloj = setInterval(() => {
       const b = barrido.current;
       if (b.cuadros === 0) return;
-      const { vista: nueva, marcado: marcas } = leerBarrido(b);
-      marcado.current = marcas;
-      if (nueva.firmes > sonadas.current) {
-        sonadas.current = nueva.firmes;
-        sonarTic(0);
-        void avisarLectura();
-      }
+      if (Date.now() - decision.current.en >= REVISAR_MS) decidir();
       if (b.porFilas.cuadros !== guardado.current.cuadros && Date.now() - guardado.current.en >= GUARDAR_MS) guardar(false);
-      setVista((antes) => (igual(antes, nueva) ? antes : nueva));
     }, REVISAR_MS);
     return () => clearInterval(reloj);
   }, [activo]);

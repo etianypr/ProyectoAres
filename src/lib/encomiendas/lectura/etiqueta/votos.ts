@@ -77,10 +77,18 @@ function elegir(conteo: Record<string, number>): { valor: unknown; firme: boolea
   return { valor: JSON.parse(primero[0]), firme: primero[1] >= IGUALES_PARA_FIRME };
 }
 
+/** Los textos ya pasados a `comparable`. El barrido de una nómina de 100 OF compara las
+ *  mismas direcciones miles de veces por segundo (spec 036); con un tope, para no crecer
+ *  sin fin. */
+const COMPARABLES = new Map<string, string>();
+const TOPE_COMPARABLES = 5000;
+
 /** Para comparar textos leídos: mayúsculas, solo letras y espacios, y los
  *  cambios típicos de ML Kit (0→O, 1/L→I, 5→S). */
 function comparable(texto: string): string {
-  return texto
+  const visto = COMPARABLES.get(texto);
+  if (visto !== undefined) return visto;
+  const valor = texto
     .normalize("NFD")
     .replace(/\p{M}/gu, "")
     .toUpperCase()
@@ -90,18 +98,38 @@ function comparable(texto: string): string {
     .replace(/[^A-Z ]/g, "")
     .replace(/\s+/g, " ")
     .trim();
+  if (COMPARABLES.size >= TOPE_COMPARABLES) COMPARABLES.clear();
+  COMPARABLES.set(texto, valor);
+  return valor;
 }
 
+/** Las dos filas de la cuenta, reusadas: es lo que más corre al decidir el barrido de la
+ *  nómina (spec 036). La función no se llama a sí misma, así que compartirlas es seguro. */
+let filaAnterior = new Int32Array(64);
+let filaActual = new Int32Array(64);
+
+/** Cuántos caracteres hay que cambiar, poner o quitar para pasar de `a` a `b`. */
 export function distancia(a: string, b: string): number {
-  let fila = Array.from({ length: b.length + 1 }, (_, j) => j);
-  for (let i = 1; i <= a.length; i++) {
-    const nueva = [i];
-    for (let j = 1; j <= b.length; j++) {
-      nueva[j] = Math.min(fila[j] + 1, nueva[j - 1] + 1, fila[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
-    }
-    fila = nueva;
+  if (a === b) return 0;
+  const m = b.length;
+  if (filaAnterior.length <= m) {
+    filaAnterior = new Int32Array(m + 1);
+    filaActual = new Int32Array(m + 1);
   }
-  return fila[b.length];
+  let anterior = filaAnterior;
+  let actual = filaActual;
+  for (let j = 0; j <= m; j++) anterior[j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    actual[0] = i;
+    const letra = a.charCodeAt(i - 1);
+    for (let j = 1; j <= m; j++) {
+      actual[j] = Math.min(anterior[j] + 1, actual[j - 1] + 1, anterior[j - 1] + (letra === b.charCodeAt(j - 1) ? 0 : 1));
+    }
+    const lista = anterior;
+    anterior = actual;
+    actual = lista;
+  }
+  return anterior[m];
 }
 
 /** ¿La misma palabra leída con alguna diferencia? Hasta un 15 % de letras (`tolerancia`:
@@ -109,7 +137,10 @@ export function distancia(a: string, b: string): number {
 export function parecidos(a: string, b: string, tolerancia = 0.15): boolean {
   const x = comparable(a);
   const y = comparable(b);
-  return distancia(x, y) <= Math.max(1, Math.floor(Math.max(x.length, y.length) * tolerancia));
+  const tope = Math.max(1, Math.floor(Math.max(x.length, y.length) * tolerancia));
+  // La distancia nunca es menor que la diferencia de largo: así casi nunca se calcula.
+  if (Math.abs(x.length - y.length) > tope) return false;
+  return distancia(x, y) <= tope;
 }
 
 /** Como `elegir`, pero las variantes parecidas suman juntas (nombre, dirección).
@@ -131,7 +162,10 @@ export function elegirTexto(conteo: Record<string, number>): { valor: unknown; f
   const costo = (v: string) =>
     primero.variantes.reduce((suma, [otra, n]) => suma + n * distancia(comparable(v), comparable(otra)), 0) -
     primero.variantes.find(([x]) => x === v)![1] * 0.5;
-  const valor = primero.variantes.map(([v]) => v).sort((a, b) => costo(a) - costo(b) || b.length - a.length)[0];
+  // Cada costo una sola vez, no en cada comparación del orden (spec 036).
+  const candidatos = primero.variantes.map(([v]) => v);
+  const costos = new Map(candidatos.map((v) => [v, costo(v)]));
+  const valor = candidatos.sort((a, b) => costos.get(a)! - costos.get(b)! || b.length - a.length)[0];
   return { valor, firme: primero.votos >= IGUALES_PARA_FIRME };
 }
 

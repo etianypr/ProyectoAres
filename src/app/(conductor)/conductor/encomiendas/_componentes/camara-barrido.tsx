@@ -40,7 +40,10 @@ export type VistaBarrido = {
   /** Leídas: el número firme y con su dirección. */
   firmes: number;
   porConfirmar: number;
+  /** El TOTAL BULTOS del pie de la boleta, leído (spec 036); null si todavía no. */
   total: number | null;
+  /** Los bultos de las OF leídas: lo que se compara con el total (dueño, 2026-11-16). */
+  bultos: number;
   ultima: Pick<LineaNomina, "of" | "destino"> | null;
   /** Las OF leídas: sus encargos van en verde y con ✓ sobre la cámara. */
   confirmadas: Set<string>;
@@ -69,14 +72,21 @@ export function FaltanBarrido({ faltan }: { faltan: string[] }) {
   );
 }
 
-/** El estado, los conteos y la última OF confirmada. `sobreCamara`: en pocas líneas y con
- *  letra clara, para la franja de abajo del recuadro; si no, la tarjeta de siempre. */
+/** El estado, los bultos leídos (el número grande, contra el total de la boleta), los
+ *  conteos y la última OF confirmada. `sobreCamara`: en pocas líneas y con letra clara,
+ *  para la franja de abajo del recuadro; si no, la tarjeta de siempre.
+ *
+ *  Spec 036 (dueño, 2026-11-16): «en la boleta el total no es total de OF sino de bultos;
+ *  si el número del barrido concuerda con la boleta, se leyó todo». Con todo leído y nada
+ *  por confirmar va con ✓ (no solo el color). */
 export function ResumenBarrido({ vista, sobreCamara = false }: { vista: VistaBarrido; sobreCamara?: boolean }) {
+  const completa = vista.total != null && vista.bultos === vista.total && vista.porConfirmar === 0 && vista.faltan.length === 0;
+  const plural = (n: number) => (n === 1 ? "bulto" : "bultos");
+  const deTotal = vista.total != null ? `de ${vista.total} ${plural(vista.total)}` : plural(vista.bultos);
   const conteos = (
     <>
-      OF confirmadas · {vista.porConfirmar} por confirmar
+      {deTotal} · {vista.firmes} OF · {vista.porConfirmar} por confirmar
       {vista.aMedias > 0 ? ` · ${vista.aMedias} sin completar` : ""}
-      {vista.total != null ? ` · total en nómina: ${vista.total}` : ""}
     </>
   );
   const estado = (
@@ -90,7 +100,8 @@ export function ResumenBarrido({ vista, sobreCamara = false }: { vista: VistaBar
       <>
         <p className={cn("text-xs font-semibold", vista.estado !== "leyendo" && "text-amber-200")}>{estado}</p>
         <p className="text-xs">
-          <span className="mr-1.5 font-mono text-xl font-bold tabular-nums">{vista.firmes}</span>
+          {completa ? <span className="mr-1 text-base font-bold">✓</span> : null}
+          <span className="mr-1.5 font-mono text-xl font-bold tabular-nums">{vista.bultos}</span>
           {conteos}
         </p>
         <p className="truncate text-xs">
@@ -110,7 +121,8 @@ export function ResumenBarrido({ vista, sobreCamara = false }: { vista: VistaBar
     <>
       <p className={vista.estado === "leyendo" ? "text-sm font-semibold" : "text-sm font-semibold text-warn"}>{estado}</p>
       <p>
-        <span className="font-mono text-3xl font-bold tabular-nums">{vista.firmes}</span>
+        {completa ? <span className="mr-1.5 text-2xl font-bold">✓</span> : null}
+        <span className="font-mono text-3xl font-bold tabular-nums">{vista.bultos}</span>
         <span className="ml-2 text-sm text-muted">{conteos}</span>
       </p>
       <div className="rounded-xl border border-separator px-3 py-2">
@@ -154,6 +166,7 @@ export function CamaraBarrido({
   onDetener,
   onCerrar = onDetener,
   pregunta,
+  espacio,
 }: {
   /** null mientras prende la cámara. */
   vista: VistaBarrido | null;
@@ -164,6 +177,9 @@ export function CamaraBarrido({
   onCerrar?: () => void;
   /** Una pregunta en el lugar de «Terminar». */
   pregunta?: React.ReactNode;
+  /** Lo que se ve de la cámara entre la barra de arriba y la tarjeta de abajo: ahí van las
+   *  flechas a lo que falta (spec 036, use-zona-libre.ts). */
+  espacio?: React.Ref<HTMLDivElement>;
 }) {
   const [preguntaMedias, setPreguntaMedias] = useState(false);
   const aMedias = vista?.aMedias ?? 0;
@@ -183,7 +199,7 @@ export function CamaraBarrido({
           <FaltanBarrido faltan={faltan} />
         </div>
       ) : null}
-      <div className="flex-1" />
+      <div ref={espacio} className="flex-1" />
       <div className="space-y-2 bg-card px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
         {vista ? (
           <ResumenBarrido vista={vista} />
