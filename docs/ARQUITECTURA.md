@@ -9,7 +9,7 @@ módulos en detalle: `docs/CLASES.md`; producto y reglas: `AGENTS.md`. Estado: c
 flowchart LR
   subgraph TEL["Teléfono · APK Android o navegador · /conductor"]
     UI["pantalla.tsx + hooks"] --> LOCAL["lib/encomiendas/local"] --> IDB[("IndexedDB<br/>pedidos · rutas · cola · dias · fotos · propuestas")]
-    UI --> NAT["lib/nativo"] --> PLUG["android/ · plugin Telefono<br/>llamar · pantalla<br/>texto de fotos (ML Kit) · escáner de Google<br/>plugin Burbuja: la parada sobre Google Maps (spec 020)<br/>plugin EscanerVivo: cámara debajo de la WebView + ML Kit por cuadro (spec 028)<br/>y recuadros por encargo al barrer la nómina (MarcasEscaner)"]
+    UI --> NAT["lib/nativo"] --> PLUG["android/ · plugin Telefono<br/>llamar · pantalla<br/>texto de fotos (ML Kit) · escáner de Google<br/>plugin Burbuja: la parada sobre Google Maps (spec 020)<br/>plugin EscanerVivo: cámara debajo de la WebView + ML Kit por cuadro (spec 028; LectorCuadros, uno o dos a la vez)<br/>y recuadros por encargo y flechas a lo que falta al barrer la nómina (MarcasEscaner, spec 036)"]
     PLUG -- "intent: solo el punto" --> GMAPS["app Google Maps (guía)"]
     SW["sw.js · caché de /conductor"]
   end
@@ -151,7 +151,7 @@ es solo para `admin`/`operador` y la app solo para `conductor`; RLS repite la re
 | `cola` | `id` | `ActividadPorEnviar`; con `borrar: true` es una corrección: borra ese id en el servidor (spec 033, G5; campo opcional, sin subir la versión) | `id` = `encomienda_actividad.id` (sin duplicados) |
 | `fotos` | `id` (índice `por_fecha`) | `Foto` del paquete, JPEG ≤ 1280 px (spec 003) | `Pedido.fotoId`; se borra al cerrarse el pedido y con el día |
 | `propuestas` | `fecha` | `PropuestaGuardada`: la ruta propuesta a la vista y sin aceptar (v6, dueño 2026-11-09), con las paradas como id y punto, el trazado y los avisos; vuelve sola al abrir si los pendientes no cambiaron (`generar-ruta/propuesta-guardada.ts`) | paradas → pedidos; se borra al usarla o descartarla y con el día |
-| `borradoresGuia` | `fecha` | `BorradorGuia`: «Cargar la guía» leída y sin «Crear pedidos» (v7, dueño 2026-11-13): paso, líneas (OF, destino, teléfono anotado), folio, total, texto pegado, quién leyó y, si se estaba barriendo la nómina, `barrido` (sus votos: OF y direcciones, sin nombres, para seguir la misma lectura; spec 034). Al abrir la app con uno, se vuelve a esa ventana en su paso (`_hooks/use-borrador-guia.ts`); las fotos sin leer no se guardan | se borra al crear los pedidos o descartar lo leído y con el día |
+| `borradoresGuia` | `fecha` | `BorradorGuia`: «Cargar la guía» leída y sin «Crear pedidos» (v7, dueño 2026-11-13): paso, líneas (OF, destino, teléfono anotado y, de la nómina, sus bultos; spec 036), folio, total, texto pegado, quién leyó y, si se estaba barriendo la nómina, `barrido` (sus votos: OF, direcciones, bultos, el reloj del barrido y qué fila de OF salió debajo de cuál, sin nombres, para seguir la misma lectura; specs 034 y 036). Al abrir la app con uno, se vuelve a esa ventana en su paso (`_hooks/use-borrador-guia.ts`); las fotos sin leer no se guardan | se borra al crear los pedidos o descartar lo leído y con el día |
 | `dias` | `fecha` | `ResumenDia`: solo cifras de un día ya borrado (spec 007): entregas, cobros sumados y pedidos por origen de carga (005), sin datos de destinatarios. Quedan los últimos 60 días (`DIAS_DE_RESUMEN`), salvo uno con eventos en la `cola` | inicio y cierre → `encomienda_jornadas` si la ruta ya no está |
 
 Formas en `local/almacen/tipos.ts`; `idb.ts` (`FilaDe`) tipa cada store y solo `almacen/` lo usa.

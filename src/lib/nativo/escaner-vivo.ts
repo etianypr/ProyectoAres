@@ -26,8 +26,16 @@ export type CuadroVivo = {
   /** Tamaño del cuadro derecho. */
   ancho: number;
   alto: number;
-  /** Lo que tardó ML Kit en leerlo. */
+  /** Lo que tardó en leerlo, entero (ML Kit y armar el resultado). */
   ms: number;
+  /** Desde la APK de la spec 036 (antes no vienen): el número de cuadro (con dos a la vez
+   *  pueden llegar desordenados), lo que tardó solo ML Kit y lo que tardó armar el
+   *  resultado; cada 30 cuadros, el estado térmico (0 normal … 6) y la memoria nativa. */
+  n?: number;
+  msLector?: number;
+  msArmar?: number;
+  termico?: number;
+  nativoMB?: number;
 };
 
 /** Lo que tiene la cámara de este teléfono. */
@@ -39,6 +47,10 @@ export type CamaraViva = {
   cuadrosFijos: number;
   /** Se pidió el visor y esta APK lo trae (false con una anterior, que lo ignora). */
   visor: boolean;
+  /** Esta APK dibuja las flechas a lo que falta (spec 036; false con una anterior). */
+  flechas: boolean;
+  /** Cuántos cuadros lee a la vez (1 con una APK anterior). */
+  enVuelo: number;
 };
 
 /** La captura en alta, ya leída por ML Kit en el teléfono. */
@@ -53,9 +65,16 @@ export type MarcaViva = {
   y: number;
   ancho: number;
   alto: number;
-  tipo: "confirmada" | "leyendo" | "cargada" | "texto";
+  /** «hueco»: un encargo que la cámara se saltó, entre dos leídos (spec 036; solo a una APK
+   *  que trae las flechas). */
+  tipo: "confirmada" | "leyendo" | "cargada" | "texto" | "hueco";
   etiqueta?: string;
 };
+
+/** Una flecha sobre la cámara a lo que falta (spec 036): hacia arriba o abajo en la nómina,
+ *  a una OF que falta confirmar o a un hueco, con lo que dice (la OF y cuántos encargos hay
+ *  hasta ella). La dibuja Android en el borde de la zona libre del recuadro. */
+export type FlechaViva = { sentido: "arriba" | "abajo"; tipo: "falta" | "hueco"; etiqueta: string };
 
 /** Cómo expone la cámara al barrer (spec 034: el celular y la boleta se mueven, y con
  *  poca luz la cámara alarga la exposición y el texto sale movido). `corta`: nunca más
@@ -71,6 +90,9 @@ export type OpcionesEscanerVivo = {
   /** El visor de «Cargar la guía» (spec 034): la vista previa y la foto en alta, sin leer
    *  cada cuadro (no llega ningún `cuadro`). */
   visor?: boolean;
+  /** Cuántos cuadros se leen a la vez (spec 036, solo sin códigos): 2 copia el cuadro y lo
+   *  lee otro lector mientras llega el siguiente. Una APK anterior lo ignora. */
+  enVuelo?: 1 | 2;
 };
 
 /** Una zona de la pantalla en fracciones 0–1: el recuadro por el que se ve la cámara. */
@@ -82,7 +104,7 @@ type PluginEscanerVivo = {
   linterna(opciones: { encendida: boolean }): Promise<void>;
   avisar(): Promise<void>;
   capturar(opciones?: { leer?: boolean; recorte?: ZonaViva }): Promise<{ imagen: string; codigos: string[]; texto: string }>;
-  marcar(opciones: { cajas: MarcaViva[] }): Promise<void>;
+  marcar(opciones: { cajas: MarcaViva[]; zona?: ZonaViva; flechas?: FlechaViva[] }): Promise<{ pantalla?: ZonaViva } | undefined>;
   addListener(evento: "cuadro", alCuadro: (cuadro: CuadroVivo) => void): Promise<PluginListenerHandle>;
 };
 
@@ -143,6 +165,27 @@ export function elegirExposicionDelBarrido(exposicion: ExposicionViva): void {
   }
 }
 
+const CLAVE_A_LA_VEZ = "ares.barrido-cuadros-a-la-vez";
+
+/** Cuántos cuadros lee a la vez el barrido de la nómina (spec 036). Se cambia en
+ *  Diagnóstico para comparar con la misma nómina; por defecto 1, como siempre, hasta que
+ *  una medición muestre que dos rinden más (ML Kit podría leerlos de a uno igual). */
+export function cuadrosALaVez(): 1 | 2 {
+  try {
+    return globalThis.localStorage?.getItem(CLAVE_A_LA_VEZ) === "2" ? 2 : 1;
+  } catch {
+    return 1;
+  }
+}
+
+export function elegirCuadrosALaVez(cuantos: 1 | 2): void {
+  try {
+    globalThis.localStorage?.setItem(CLAVE_A_LA_VEZ, String(cuantos));
+  } catch {
+    // Sin localStorage queda de a uno.
+  }
+}
+
 const CLAVE_CAMARA_TELEFONO = "ares.guia-camara-telefono";
 
 /** ¿El conductor eligió en Diagnóstico sacar las fotos de la guía con la cámara del
@@ -186,6 +229,7 @@ export async function iniciarEscanerVivo(
 ): Promise<{ camara: CamaraViva; apagar: () => Promise<void> }> {
   const escucha = await EscanerVivo.addListener("cuadro", alCuadro);
   let camara: CamaraViva;
+  pantalla = null;
   try {
     camara = await EscanerVivo.iniciar(opciones);
   } catch (e) {
@@ -198,6 +242,8 @@ export async function iniciarEscanerVivo(
       captura: Boolean(camara?.captura),
       cuadrosFijos: Number(camara?.cuadrosFijos) || 0,
       visor: Boolean(camara?.visor),
+      flechas: Boolean(camara?.flechas),
+      enVuelo: Number(camara?.enVuelo) || 1,
     },
     apagar: async () => {
       await escucha.remove();
@@ -232,14 +278,31 @@ export async function barridoDisponible(): Promise<boolean> {
   }
 }
 
+/** Dónde cae el cuadro entero en la pantalla (fracciones de la WebView), según lo último
+ *  que contestó Android al marcar: con eso se sabe qué encargos se ven en el recuadro
+ *  (spec 036). null hasta la primera respuesta, o con una APK anterior. */
+let pantalla: ZonaViva | null = null;
+
+export function pantallaDelCuadro(): ZonaViva | null {
+  return pantalla;
+}
+
 /** Dibuja los recuadros de lo que se está leyendo sobre la cámara (nómina, dueño
  *  2026-11-11). Los dibuja Android, no la web: con la cámara encendida cada redibujo
- *  de la WebView traba la pantalla. No se espera: va una vez por cuadro. */
-export function marcarEscanerVivo(cajas: MarcaViva[]): void {
+ *  de la WebView traba la pantalla. No se espera: va una vez por cuadro.
+ *  Spec 036: con `extra` (solo a una APK que trae las flechas: `CamaraViva.flechas`), las
+ *  flechas a lo que falta y la zona libre del recuadro donde van. Sin él, lo de siempre:
+ *  a una APK anterior nunca le llega una flecha (dibujaría un recuadro suelto). */
+export function marcarEscanerVivo(cajas: MarcaViva[], extra?: { zona: ZonaViva | null; flechas: FlechaViva[] }): void {
   if (sinMarcas) return;
-  EscanerVivo.marcar({ cajas }).catch((e: unknown) => {
-    if ((e as { code?: string })?.code === "UNIMPLEMENTED") sinMarcas = true;
-  });
+  const opciones = extra ? { cajas, flechas: extra.flechas, ...(extra.zona ? { zona: extra.zona } : {}) } : { cajas };
+  EscanerVivo.marcar(opciones)
+    .then((r) => {
+      if (r?.pantalla) pantalla = r.pantalla;
+    })
+    .catch((e: unknown) => {
+      if ((e as { code?: string })?.code === "UNIMPLEMENTED") sinMarcas = true;
+    });
 }
 
 /** Vibración corta: la etiqueta quedó leída (el sonido va en sonidos-escaner.ts). Sin soporte, nada. */

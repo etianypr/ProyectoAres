@@ -52,6 +52,7 @@ export function VisorGuia({
   vivo,
   barrido,
   recuadro,
+  paneles,
   onCamara,
 }: {
   fotos: FotoGuia[];
@@ -66,6 +67,9 @@ export function VisorGuia({
   barrido?: { vista: VistaBarrido | null; conLinterna: boolean };
   /** El hueco de la cámara: la foto se recorta a él. */
   recuadro?: React.Ref<HTMLDivElement>;
+  /** Lo que tapa el hueco al barrer, arriba («Falta confirmar») y abajo (el resumen):
+   *  entre medio van las flechas a lo que falta (spec 036, use-zona-libre.ts). */
+  paneles?: { arriba: React.Ref<HTMLDivElement>; abajo: React.Ref<HTMLDivElement> };
   onCamara: () => void;
 }) {
   const ultima = fotos.at(-1);
@@ -82,12 +86,12 @@ export function VisorGuia({
           {barrido ? (
             <>
               {barrido.vista && barrido.vista.faltan.length > 0 ? (
-                <div role="status" className="absolute inset-x-0 top-0 rounded-t-2xl bg-black/60 py-2 pl-3 pr-14 text-white">
+                <div ref={paneles?.arriba} role="status" className="absolute inset-x-0 top-0 rounded-t-2xl bg-black/60 py-2 pl-3 pr-14 text-white">
                   <FaltanBarrido faltan={barrido.vista.faltan} />
                 </div>
               ) : null}
               {barrido.conLinterna ? <LinternaBarrido className="absolute right-2 top-2 rounded-full bg-black/45 text-white" /> : null}
-              <div className="absolute inset-x-0 bottom-0 space-y-0.5 rounded-b-2xl bg-black/60 px-3 py-2 text-white">
+              <div ref={paneles?.abajo} className="absolute inset-x-0 bottom-0 space-y-0.5 rounded-b-2xl bg-black/60 px-3 py-2 text-white">
                 {barrido.vista ? (
                   <ResumenBarrido vista={barrido.vista} sobreCamara />
                 ) : (

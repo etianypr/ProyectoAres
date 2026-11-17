@@ -24,6 +24,9 @@ export type LineaGuia = {
    *  línea (lo consultó en Infologistic; dueño, 2026-11-13). Solo vive en el
    *  teléfono: la guía va a la IA sin él (telefono-linea.ts). */
   telefono?: string;
+  /** Los bultos de la OF, leídos en la nómina (columna BULTOS; spec 036). Pasan al
+   *  pedido. La guía de despacho no los trae: sin ellos la línea cuenta 1. */
+  bultos?: number;
 };
 
 export type GuiaLeida = {
@@ -105,7 +108,7 @@ export function faltanEnLaPrimera(primera: GuiaLeida, segunda: GuiaLeida): boole
 
 /** Líneas crudas → GuiaLeida, con las OF repetidas juntas y los avisos. */
 export function armarGuia(
-  crudas: { of: string; destino: string }[],
+  crudas: { of: string; destino: string; bultos?: number }[],
   folio: string | null,
   totalDeclarado: number | null,
 ): GuiaLeida {
@@ -121,14 +124,17 @@ export function armarGuia(
     const valida = conLetras ? null : ofValida(digitos);
     const of = valida ?? (conLetras ? cruda.of.replace(/\s+/g, "").toUpperCase() : digitos);
     const destino = limpiarDestino(cruda.destino);
-    const linea = { of, destino, dudosa: valida === null || destino === "" };
+    const linea: LineaGuia = { of, destino, dudosa: valida === null || destino === "", ...(cruda.bultos != null ? { bultos: cruda.bultos } : {}) };
     const antes = porOf.get(of);
     if (antes) {
       repetidas++;
       // Donde dos fotos se superponen, una puede traer el destino cortado en el
       // borde: queda la mejor lectura, no la primera (spec 017, E11).
       const mejor = (antes.dudosa && !linea.dudosa) || (antes.dudosa === linea.dudosa && linea.destino.length > antes.destino.length);
-      if (mejor) porOf.set(of, linea);
+      // Los bultos de la nómina no se pierden con la otra lectura; manda la más nueva (spec 036).
+      const queda = mejor ? linea : antes;
+      const bultos = linea.bultos ?? antes.bultos;
+      porOf.set(of, bultos != null ? { ...queda, bultos } : queda);
       continue;
     }
     porOf.set(of, linea);
@@ -150,12 +156,24 @@ export function armarGuia(
         : `${dudosas} líneas sin OF o sin destino: revísalas.`,
     );
   }
-  if (totalDeclarado != null && totalDeclarado !== lineas.length) {
-    avisos.push(
-      totalDeclarado > lineas.length
-        ? `La guía indica ${totalDeclarado} y se leyeron ${lineas.length}: pueden faltar ${totalDeclarado - lineas.length}. Revisa si alguna quedó fuera de la foto.`
-        : `La guía indica ${totalDeclarado} y se leyeron ${lineas.length}. Revisa que no haya líneas de más.`,
-    );
+  // El total de la nómina es de bultos (dueño, 2026-11-16): cada línea cuenta sus bultos, y
+  // la que no los trae (la guía de despacho) cuenta 1, como siempre.
+  const deNomina = lineas.some((l) => l.bultos != null);
+  const leidos = lineas.reduce((s, l) => s + (l.bultos ?? 1), 0);
+  if (totalDeclarado != null && totalDeclarado !== leidos) {
+    if (deNomina) {
+      avisos.push(
+        totalDeclarado > leidos
+          ? `La nómina indica ${totalDeclarado} bultos y se leyeron ${leidos}: pueden faltar ${totalDeclarado - leidos}.`
+          : `La nómina indica ${totalDeclarado} bultos y se leyeron ${leidos}. Revisa que no haya líneas de más.`,
+      );
+    } else {
+      avisos.push(
+        totalDeclarado > leidos
+          ? `La guía indica ${totalDeclarado} y se leyeron ${leidos}: pueden faltar ${totalDeclarado - leidos}. Revisa si alguna quedó fuera de la foto.`
+          : `La guía indica ${totalDeclarado} y se leyeron ${leidos}. Revisa que no haya líneas de más.`,
+      );
+    }
   }
   if (lineas.length === 0) avisos.push("No se leyó ninguna línea con OF.");
 

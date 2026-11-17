@@ -5,7 +5,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-const { textoPorFilas, sumarCuadroNomina, resultadoNomina, votosDeLoLeido, votosNominaVacios, VOTOS_PARA_FIRME } = await import(
+const { textoPorFilas, sumarCuadroNomina, resultadoNomina, votosDeLoLeido, votosNominaVacios, VOTOS_PARA_FIRME, VENCE_MS } = await import(
   "@/lib/encomiendas/lectura/barrido-nomina"
 );
 const { leerGuia } = await import("@/lib/encomiendas/lectura/guia");
@@ -275,8 +275,8 @@ test("cada encargo entero va en una sola caja, de la fila de la OF a los valores
     { texto: "200000002 1 0 1", x: 10, y: 300, ancho: 160, alto: 20 },
   ]);
   assert.deepEqual(cajas, [
-    { of: "200000001", x: 10, y: 40, ancho: 410, alto: 180, entero: true },
-    { of: "200000002", x: 10, y: 300, ancho: 160, alto: 20, entero: false },
+    { of: "200000001", x: 10, y: 40, ancho: 410, alto: 180, altoFila: 20, entero: true },
+    { of: "200000002", x: 10, y: 300, ancho: 160, alto: 20, altoFila: 20, entero: false },
   ]);
 });
 
@@ -639,4 +639,53 @@ test("el orden de la hoja no depende de cómo entregue los renglones ML Kit, y s
   assert.deepEqual(barrer([alReves, alReves, alReves]).lista.map((l) => l.of), ["279000500", "200000001"]);
   // Al empezar otra pasada el orden de lo ya leído se conserva.
   assert.deepEqual(resultadoNomina(votosDeLoLeido(v)).lista.map((l) => l.of), ["200000001", "279000500"]);
+});
+
+// ------------- lo que falta confirmar vence (dueño, 2026-11-16: «a veces son inventados y quedan molestando»)
+
+test("lo que falta confirmar vence si en 5 min de cámara no vuelve a salir nada parecido; si sale, revive (spec 036)", async () => {
+  const { lineasDelBarrido } = await import("@/lib/encomiendas/lectura/barrido-nomina");
+  const conReloj = (v, texto, reloj) => sumarCuadroNomina(v, texto, undefined, { reloj });
+  const leida = ENTERO("200000001", "21 DE MAYO 123");
+  const inventada = ENTERO("279000500", "PATRICIO LYNCH 45");
+  let v = votosNominaVacios();
+  v = conReloj(v, `${leida}\n${inventada}`, 1000);
+  v = conReloj(v, leida, 2000);
+  v = conReloj(v, leida, 3000);
+  assert.deepEqual(resultadoNomina(v).lista.map((l) => [l.of, l.estado]), [["200000001", "firme"], ["279000500", "aMedias"]]);
+  // Casi 5 min después sigue; pasado el plazo, vence. La firme no vence.
+  const casi = resultadoNomina(conReloj(v, ENTERO("283000222", "BOLOGNESI 300"), 1000 + VENCE_MS));
+  assert.equal(casi.vencidas, 0);
+  v = conReloj(v, ENTERO("283000222", "BOLOGNESI 300"), 1000 + VENCE_MS + 1);
+  const r = resultadoNomina(v);
+  assert.deepEqual(r.lista.map((l) => l.of), ["200000001", "283000222"]);
+  assert.deepEqual([r.vencidas, r.unaVez, r.porConfirmar], [1, 1, 0], "la de BOLOGNESI, vista una vez, sigue");
+  assert.deepEqual(lineasDelBarrido(r).lineas.map((l) => l.of), ["200000001", "283000222"], "la vencida no pasa a la guía");
+  // Sin reloj (votos de antes de la spec 036) nada vence.
+  assert.equal(resultadoNomina(v, { vencer: false }).lista.length, 3);
+  // Se vuelve a leer algo parecido (un dígito distinto, misma dirección): revive con lo que tenía.
+  v = conReloj(v, ENTERO("279000501", "PATRICIO LYNCH 45"), 1000 + VENCE_MS + 2000);
+  const revive = resultadoNomina(v);
+  assert.equal(revive.vencidas, 0);
+  assert.deepEqual(revive.lista.find((l) => l.of === "279000500")?.cuadros, 2);
+});
+
+test("al empezar otra pasada lo vencido también parte de cero", () => {
+  const conReloj = (v, texto, reloj) => sumarCuadroNomina(v, texto, undefined, { reloj });
+  const leida = ENTERO("200000001", "21 DE MAYO 123");
+  const inventada = ENTERO("279000500", "PATRICIO LYNCH 45");
+  let v = [[leida, 1000], [`${leida}\n${inventada}`, 2000], [`${leida}\n${inventada}`, 3000]].reduce((x, [t, ms]) => conReloj(x, t, ms), votosNominaVacios());
+  v = conReloj(v, ENTERO("283000222", "BOLOGNESI 300"), 3000 + VENCE_MS + 1);
+  assert.equal(resultadoNomina(v).vencidas, 1);
+  const limpio = votosDeLoLeido(v);
+  assert.equal(limpio.ofs["279000500"], undefined);
+  assert.equal(limpio.ofs["200000001"].visto, 3000, "lo leído conserva cuándo se vio");
+});
+
+test("el reloj del barrido no corre con el celular bloqueado: cada cuadro suma a lo más 1 s", async () => {
+  const { relojDelCuadro, TOPE_PASO_RELOJ } = await import("@/lib/encomiendas/lectura/votos-barrido");
+  assert.equal(relojDelCuadro(undefined, 280), 280);
+  assert.equal(relojDelCuadro(5000, 300), 5300);
+  assert.equal(relojDelCuadro(5000, 10 * 60 * 1000), 5000 + TOPE_PASO_RELOJ, "10 min bloqueado cuentan 1 s");
+  assert.equal(relojDelCuadro(5000, -50), 5000, "un reloj del sistema que vuelve atrás no resta");
 });

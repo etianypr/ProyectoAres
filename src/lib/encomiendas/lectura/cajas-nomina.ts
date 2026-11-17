@@ -14,8 +14,10 @@ export type RenglonCaja = { texto: string; x: number; y: number; ancho: number; 
 
 /** Un encargo en el cuadro: su caja (la de todos sus renglones juntos) y la OF que se
  *  leyó en este cuadro. `entero`: se vio de la fila de la OF hasta la dirección; si no,
- *  la caja es solo la fila de la OF, que va entrando a la cámara. */
-export type CajaEncargo = { of: string; x: number; y: number; ancho: number; alto: number; entero: boolean };
+ *  la caja es solo la fila de la OF, que va entrando a la cámara. La caja empieza en la
+ *  fila de la OF; `altoFila` es lo que mide esa fila (con eso se miden las separaciones
+ *  entre encargos sin importar a qué distancia está el celular, spec 036). */
+export type CajaEncargo = { of: string; x: number; y: number; ancho: number; alto: number; altoFila: number; entero: boolean };
 
 /** Los encargos de un cuadro, para marcarlos sobre la cámara de a uno entero (dueño,
  *  2026-11-11: «si me marcas con rectángulos pequeños no entiendo qué estoy leyendo»). */
@@ -26,7 +28,8 @@ export function cajasDelCuadro(renglones: RenglonCaja[], filas = filasDe(renglon
     const y = Math.min(...cajas.map((r) => r.y));
     const ancho = Math.max(...cajas.map((r) => r.x + r.ancho)) - x;
     const alto = Math.max(...cajas.map((r) => r.y + r.alto)) - y;
-    return { of, x, y, ancho, alto, entero };
+    const altoFila = Math.max(...filas[desde].indices.map((i) => renglones[i].alto));
+    return { of, x, y, ancho, alto, altoFila, entero };
   };
   // Las mismas piezas que votan (nomina.ts): un número del encabezado de la nómina no se marca.
   const { bloques, piezas } = piezasNomina(filas.map((f) => f.texto));

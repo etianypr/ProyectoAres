@@ -39,8 +39,32 @@ const MAX_RENGLONES = 3;
 
 /** Un bloque entero de la nómina y en qué renglones del texto estaba (para marcarlo
  *  sobre la cámara): `hasta` es su último renglón, el pie «VALOR $ …» con sus valores
- *  si se leyeron. */
-export type BloqueNomina = { of: string; destino: string; filaOf: number; filasDireccion: number[]; hasta: number };
+ *  si se leyeron. `bultos`: la columna BULTOS de su fila, o null si no se leyó entera. */
+export type BloqueNomina = { of: string; destino: string; filaOf: number; filasDireccion: number[]; hasta: number; bultos: number | null };
+
+/** La fila de un encargo con sus números chicos: «OF TOTAL DOCTOS BULTOS». */
+const FILA_CON_NUMEROS = /^\s*(\d{7,10})((?:[ \t]+\d{1,2}){1,3})(?=\s|$)/;
+
+/** Los BULTOS de la fila de un encargo (dueño, 2026-11-16: el total de la boleta es de
+ *  bultos, no de OF): el tercer número chico después de la OF, o el segundo si ML Kit le
+ *  pegó el TOTAL a la OF (10 dígitos, ver `ofDeRenglon`). Con menos números, null: ese
+ *  cuadro no vota (spec 036). */
+export function bultosDeRenglon(renglon: string): number | null {
+  const fila = renglon.match(FILA_CON_NUMEROS);
+  if (!fila) return null;
+  const chicos = fila[2].trim().split(/\s+/).map(Number);
+  const bultos = fila[1].length > LARGO_OF ? chicos[1] : chicos[2];
+  return bultos ?? null;
+}
+
+/** El total impreso al final de la boleta: «TOTAL BULTOS: 52» (dueño, 2026-11-16), en un
+ *  solo renglón. */
+const TOTAL_BULTOS = /T[O0]TAL[ \t]*(?:DE[ \t]*)?BULT[O0]S?[ \t]*:?[ \t]*(\d{1,4})(?!\d)/i;
+
+export function totalDeBultos(texto: string): number | null {
+  const total = texto.match(TOTAL_BULTOS);
+  return total ? Number(total[1]) : null;
+}
 
 /** El pie del bloque, después de la dirección: «VALOR $ FORMA PAGO DD» y sus valores. */
 const PIE = /VAL[O0]R|F[O0]RMA|PAG[O0]/i;
@@ -103,7 +127,14 @@ export function piezasNomina(renglones: string[]): { bloques: BloqueNomina[]; pi
         const valores = renglones[j + 1];
         if (valores != null && !FILA_OF.test(valores) && !DIRECCION.test(valores) && !ENCABEZADO.test(valores)) hasta = j + 1;
       }
-      bloques.push({ of: of.valor, destino, filaOf: of.fila, filasDireccion: Array.from({ length: j - i }, (_, k) => i + k), hasta });
+      bloques.push({
+        of: of.valor,
+        destino,
+        filaOf: of.fila,
+        filasDireccion: Array.from({ length: j - i }, (_, k) => i + k),
+        hasta,
+        bultos: bultosDeRenglon(renglones[of.fila]),
+      });
     } else if (of?.valor && destino && j >= renglones.length && partes.length <= MAX_RENGLONES) {
       // La dirección llegó al final del cuadro: no se sabe si sigue en otro renglón.
       abiertas.set(of.fila, destino);

@@ -32,6 +32,7 @@ import { PieGuia, plural, type PasoGuia, type PreguntaGuia } from "./pie-guia";
 import { useLineasGuia } from "../_hooks/use-lineas-guia";
 import { useBarridoDeGuia } from "../_hooks/use-barrido-de-guia";
 import { useVisorVivo } from "../_hooks/use-visor-vivo";
+import { useZonaLibre } from "../_hooks/use-zona-libre";
 import { useCargarLineas } from "../_hooks/use-cargar-lineas";
 import { useAtrasPropio } from "../_hooks/use-atras-propio";
 import { useBorradorGuia } from "../_hooks/use-borrador-guia";
@@ -89,6 +90,12 @@ export function CargarGuia({
   /** Fotos juntadas y todavía sin leer (ver fotos-guia.tsx). */
   const bandeja = useFotosGuia();
   const { fotos } = bandeja;
+  // El hueco del recuadro (la cámara en vivo, spec 034) y, con el barrido, lo que lo tapa
+  // arriba y abajo: entre medio van las flechas a lo que falta (spec 036).
+  const recuadro = useRef<HTMLDivElement>(null);
+  const panelArriba = useRef<HTMLDivElement>(null);
+  const panelAbajo = useRef<HTMLDivElement>(null);
+  const zonaLibre = useZonaLibre(recuadro, panelArriba, panelAbajo);
   // El barrido de la nómina: una sola lectura por guía, guardada con el borrador (spec 034).
   const guardarYa = useRef<ReturnType<typeof useBorradorGuia>["guardarYa"]>(() => undefined);
   const barridoGuia = useBarridoDeGuia({
@@ -96,13 +103,13 @@ export function CargarGuia({
     alSobrar: guia.quitarOfs,
     alVacio: () => setError("No se leyó ninguna OF de la nómina."),
     guardarYa: (b) => guardarYa.current(b),
+    zona: zonaLibre,
   });
   const { barrer, onBarrer } = barridoGuia;
   const carga = useCargarLineas({ fecha, lecturaIA, onCreados });
   const { fin } = carga;
   // La cámara en vivo del recuadro (spec 034): solo en el paso de las fotos y nunca a la
   // vez que el barrido, que usa la misma cámara.
-  const recuadro = useRef<HTMLDivElement>(null);
   const visor = useVisorVivo(paso === "fotos" && !fin && !leyendo && !barrer.activo);
   const barrerNomina = onBarrer ? () => void visor.detener().then(onBarrer) : undefined;
   const borrador = useBorradorGuia({
@@ -273,6 +280,7 @@ export function CargarGuia({
             lleno={bandeja.lleno}
             nomina={modo === "nomina" && onBarrer != null}
             recuadro={recuadro}
+            paneles={{ arriba: panelArriba, abajo: panelAbajo }}
             vivo={visor.vivo ? visor : undefined}
             barrido={barrer.activo ? barrer : undefined}
             onCamara={modo === "nomina" && barrerNomina ? barrerNomina : () => void sacarFoto()}
