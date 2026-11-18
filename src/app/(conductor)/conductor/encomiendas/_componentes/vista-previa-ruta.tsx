@@ -28,7 +28,6 @@ import {
   Check,
   Clock,
   CloudOff,
-  MapPinOff,
   PackageCheck,
   Phone,
   Route,
@@ -38,12 +37,14 @@ import {
 import { formatDistancia } from "@/lib/comun/format";
 import { cn } from "@/lib/comun/utils";
 import { nombreVisible } from "@/lib/encomiendas/paquete";
+import type { Pedido } from "@/lib/encomiendas/local/almacen";
 import { avisoSinTrazado, type EstrategiaRuta, type PedidoUbicado, type PropuestaRuta } from "@/lib/encomiendas/local/generar-ruta";
 import type { QuitadoDeLaPropuesta } from "../_hooks/use-propuesta";
 import { useAtrasPropio } from "../_hooks/use-atras-propio";
 import { useSegundoToque } from "../_hooks/use-segundo-toque";
 import { CifrasRuta } from "./cifras-ruta";
 import { ListaPropuesta } from "./lista-propuesta";
+import { FranjaPendientes, pendientesDeCorregir } from "./franja-pendientes";
 
 // Mismas medidas que los botones de la tarjeta de la parada activa (ver
 // parada-activa.tsx): 48 px de alto, para el pulgar y sin mirar mucho.
@@ -69,6 +70,9 @@ export function VistaPreviaRuta({
   onDeshacerQuitar,
   onInvertir,
   onVer,
+  onEditar,
+  onMantener,
+  onRecalcular,
 }: {
   propuesta: PropuestaRuta;
   /** Guarda la ruta en el teléfono (ver confirmarRutaLocal). */
@@ -85,6 +89,12 @@ export function VistaPreviaRuta({
   onInvertir: () => Promise<void>;
   /** Tocar una fila lleva el mapa a su pin (spec 033). */
   onVer?: (p: PedidoUbicado) => void;
+  /** Abre el formulario del pedido por corregir (spec 037). */
+  onEditar: (pedido: Pedido) => void;
+  /** La lejana se queda en la ruta. */
+  onMantener: (pedidoId: string) => void;
+  /** Vuelve a optimizar con las direcciones corregidas. */
+  onRecalcular: () => Promise<void>;
 }) {
   const [guardando, setGuardando] = useState(false);
   // La lista a pantalla completa (spec 033, nuevo-propuesta-lista-chica).
@@ -96,6 +106,8 @@ export function VistaPreviaRuta({
   useAtrasPropio(entera || descarte.armado, () => (entera ? setEntera(false) : descarte.desarmar()));
   const [cambiando, setCambiando] = useState<EstrategiaRuta | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // «Recalcular ruta» tarda lo que el armado (spec 037): mientras, no se toca nada.
+  const [recalculando, setRecalculando] = useState(false);
 
   async function elegir(estrategia: EstrategiaRuta) {
     if (estrategia === propuesta.elegida) return;
@@ -107,6 +119,18 @@ export function VistaPreviaRuta({
       setError(e instanceof Error ? e.message : "No se pudo calcular la ruta.");
     } finally {
       setCambiando(null);
+    }
+  }
+
+  async function recalcular() {
+    setError(null);
+    setRecalculando(true);
+    try {
+      await onRecalcular();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo recalcular la ruta.");
+    } finally {
+      setRecalculando(false);
     }
   }
 
@@ -139,7 +163,7 @@ export function VistaPreviaRuta({
   // Mientras llega el trazado del orden invertido no se toca nada: usarla
   // guardaría el trazado viejo, y otra inversión volvería a consultar (spec 024).
   const invirtiendo = propuesta.esperaTrazado === true;
-  const ocupada = guardando || invirtiendo;
+  const ocupada = guardando || invirtiendo || recalculando;
   // Con una sola no hay nada que comparar, y es el caso normal: si nadie eligió
   // horario, las tres estrategias dan el mismo orden.
   const hayQueComparar = alternativas.length > 1;
@@ -148,6 +172,8 @@ export function VistaPreviaRuta({
   // quedan primero (ver guardarRuta): así el "5" de esta lista es el mismo "5"
   // que va a mostrar el mapa y la ruta del día cuando la acepte.
   const numero = (i: number) => cerradas + i + 1;
+
+  const pendientes = pendientesDeCorregir(paradas, lejanas ?? [], sinUbicar, numero);
 
   return (
     // Columna con tope de alto: en un teléfono chico, una ruta larga más dos
@@ -301,27 +327,21 @@ export function VistaPreviaRuta({
         </p>
       ) : null}
 
-      {sinUbicar.length > 0 ? (
-        <Advertencia icono={<MapPinOff className="h-3.5 w-3.5" />}>
-          {sinUbicar.length === 1
-            ? "1 pedido quedó fuera de la ruta: no se pudo ubicar su dirección."
-            : `${sinUbicar.length} pedidos quedaron fuera de la ruta: no se pudo ubicar su dirección.`}{" "}
-          Siguen pendientes: corrige la dirección y vuelve a optimizar la ruta.
-        </Advertencia>
-      ) : null}
-
-      {/* Una parada lejos de todas (terreno 2026-10-28): con lo que suma, para
-          revisar la dirección o sacarla con el basurero. */}
-      {(lejanas ?? []).map((l) => {
-        const i = paradas.findIndex((p) => p.id === l.pedidoId);
-        if (i < 0) return null;
-        return (
-          <Advertencia key={l.pedidoId} icono={<MapPinOff className="h-3.5 w-3.5" />}>
-            La {numero(i)} · {l.direccion} queda a {formatDistancia(l.metrosAlResto)} del resto y agrega{" "}
-            {formatDistancia(l.metrosQueSuma)}.
-          </Advertencia>
-        );
-      })}
+      {/* Lo que falta corregir (spec 037), con la dirección a la vista, pegado a los
+          botones: una parada lejos de todas (terreno 2026-10-28, con lo que suma) o
+          un pedido que quedó fuera por no estar ubicado. */}
+      <FranjaPendientes
+        pendientes={pendientes}
+        conCambios={propuesta.conCambios === true}
+        ocupada={ocupada}
+        recalculando={recalculando}
+        onEditar={(id) => {
+          const pedido = [...paradas, ...sinUbicar].find((p) => p.id === id);
+          if (pedido) onEditar(pedido);
+        }}
+        onMantener={onMantener}
+        onRecalcular={() => void recalcular()}
+      />
 
       {actual.bloquesIncumplidos > 0 ? (
         <Advertencia icono={<AlertTriangle className="h-3.5 w-3.5" />}>
