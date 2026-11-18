@@ -11,7 +11,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { olvidarEstampillas } from "@/components/direccion/estampilla-mapa";
-import { olvidarAccesos } from "@/lib/encomiendas/local/generar-ruta/ubicar-pedidos";
+import { olvidarMemoriasDelDia } from "@/lib/encomiendas/local/olvidar-memorias";
 import {
   borrarSueltos,
   cerrarYBorrarDia,
@@ -109,10 +109,11 @@ export function useCierreDia({
     setError(null);
     try {
       await cerrarYBorrarDia(pendiente.fecha);
-      // Lo que quedó en memoria con puntos de destinatarios (la matriz y Google los
-      // olvida el almacén): las fotos del mapa de cada dirección y los accesos.
+      // Lo que quedó en memoria con puntos y direcciones de destinatarios (spec 038; el
+      // almacén ya lo olvida al borrar, y repetirlo no cuesta nada). Las fotos del mapa de
+      // cada dirección viven en components/, que lib no puede importar (A1): van aparte.
+      olvidarMemoriasDelDia();
       olvidarEstampillas();
-      olvidarAccesos();
       setLeido(null);
       if (!pendiente.esHoy) setAnteriores((a) => a.filter((f) => f !== pendiente.fecha));
       await alBorrar();

@@ -1,5 +1,10 @@
 // Mejora local: 2-opt y Or-opt hasta que ninguna encuentra nada.
-import { EPSILON, FIN, type Costo, type Penalizacion } from "./costo";
+//
+// Spec 038 (tiempos): las jugadas leen el costo de la tabla plana de costo.ts
+// (`T[a · ancho + b + 1]`, FIN en la columna 0) y el Or-opt evalúa sin armar
+// arreglos por jugada. Las sumas van en el mismo orden que antes, así que cada
+// jugada vale lo mismo bit a bit y la ruta que sale es la misma.
+import { EPSILON, FIN, enTabla, puntosDe, type Costo, type Penalizacion } from "./costo";
 
 /** Cuántas paradas seguidas prueba mover el Or-opt. Más de 3 casi no encuentra
  *  nada nuevo y multiplica el trabajo. */
@@ -31,21 +36,17 @@ function deltaPenDosOpt(orden: number[], i: number, j: number, pen: Penalizacion
   return delta;
 }
 
-/** Cuánto cambia la penalización al sacar orden[i..i+largo-1] y meterlo (como
- *  `s`) en la posición p de `resto`. Cambian los vecinos de los dos bordes de
- *  donde salió, de los dos de donde entra y de las puntas del grupo. */
-function deltaPenOrOpt(
-  orden: number[],
-  resto: number[],
-  i: number,
-  largo: number,
-  p: number,
-  s: number[],
-  invertido: boolean,
-  pen: Penalizacion,
-): number {
+/** Cuánto cambia la penalización al sacar orden[i..i+largo-1] y meterlo (al
+ *  derecho o dado vuelta) en la posición p de lo que queda sin él. Cambian los
+ *  vecinos de los dos bordes de donde salió, de los dos de donde entra y de las
+ *  puntas del grupo. Lee el orden nuevo por índice, sin armarlo (spec 038). */
+function deltaPenOrOpt(orden: number[], i: number, largo: number, p: number, invertido: boolean, pen: Penalizacion): number {
   const n = orden.length;
-  const despues = (k: number) => (k < p ? resto[k] : k < p + largo ? s[k - p] : resto[k - largo]);
+  const largoResto = n - largo;
+  // El orden sin el grupo, el grupo como entra y el orden nuevo, por posición.
+  const resto = (x: number) => (x < i ? orden[x] : orden[x + largo]);
+  const s = (x: number) => (invertido ? orden[i + largo - 1 - x] : orden[i + x]);
+  const despues = (k: number) => (k < p ? resto(k) : k < p + largo ? s(k - p) : resto(k - largo));
   const enResto = (r: number) => (r < p ? r : r + largo);
   const enOrden = (r: number) => (r < i ? r : r + largo);
   // [posición antes, posición después] de cada parada que cambia de vecinos.
@@ -56,7 +57,7 @@ function deltaPenOrOpt(
     [invertido ? i : i + largo - 1, p + largo - 1],
   ];
   if (i + largo < n) cambian.push([i + largo, enResto(i)]);
-  if (p < resto.length) cambian.push([enOrden(p), p + largo]);
+  if (p < largoResto) cambian.push([enOrden(p), p + largo]);
   const vistas = new Set<number>();
   let delta = 0;
   for (const [antes, ahora] of cambian) {
@@ -65,12 +66,6 @@ function deltaPenOrOpt(
     delta += penEn(despues, ahora, n, pen) - penEn((k) => orden[k], antes, n, pen);
   }
   return delta;
-}
-
-function costoSegmento(seg: number[], costo: Costo): number {
-  let total = 0;
-  for (let i = 0; i < seg.length - 1; i++) total += costo(seg[i], seg[i + 1]);
-  return total;
 }
 
 // 2-opt: da vuelta el tramo [i..j] y mira si conviene.
@@ -82,23 +77,27 @@ function costoSegmento(seg: number[], costo: Costo): number {
 // costos. Con 61 puntos eso baja de ~230.000 sumas por pasada a ~3.700, y ese
 // margen es el que después se gasta en probar MÁS órdenes, que es de donde sale
 // la mejora de verdad.
-function dosOptPasada(orden: number[], costo: Costo, pen?: Penalizacion): boolean {
+function dosOptPasada(orden: number[], T: Float64Array, ancho: number, pen?: Penalizacion): boolean {
   const n = orden.length;
   let mejoro = false;
 
   for (let i = 1; i < n - 1; i++) {
     let derecho = 0; // suma del tramo [i..j] tal como está
     let invertido = 0; // el mismo tramo recorrido al revés (¡no es lo mismo!)
+    // orden[i − 1] y orden[i] no cambian hasta el break.
+    const desdePrevio = orden[i - 1] * ancho + 1;
+    const desdePrimero = orden[i] * ancho + 1;
+    const entrada = T[desdePrevio + orden[i]];
 
     for (let j = i + 1; j < n; j++) {
-      derecho += costo(orden[j - 1], orden[j]);
-      invertido += costo(orden[j], orden[j - 1]);
+      derecho += T[orden[j - 1] * ancho + orden[j] + 1];
+      invertido += T[orden[j] * ancho + orden[j - 1] + 1];
 
       // El último punto NO está fijo: la parada final también puede moverse.
       // Después de ella viene FIN, que en una ruta cerrada es volver a la base.
       const siguiente = j + 1 < n ? orden[j + 1] : FIN;
-      const antes = costo(orden[i - 1], orden[i]) + derecho + costo(orden[j], siguiente);
-      const despues = costo(orden[i - 1], orden[j]) + invertido + costo(orden[i], siguiente);
+      const antes = entrada + derecho + T[orden[j] * ancho + siguiente + 1];
+      const despues = T[desdePrevio + orden[j]] + invertido + T[desdePrimero + siguiente];
 
       if (despues - antes + (pen && despues - antes < 4 * (pen.maximo ?? Infinity) ? deltaPenDosOpt(orden, i, j, pen) : 0) < -EPSILON) {
         for (let a = i, b = j; a < b; a++, b--) {
@@ -121,35 +120,49 @@ function dosOptPasada(orden: number[], costo: Costo, pen?: Penalizacion): boolea
 // caso típico del reparto es una parada que quedó encajada en medio de un
 // barrio al que no pertenece: el 2-opt no la puede sacar de ahí sin dar vuelta
 // media ruta.
-function orOptPasada(orden: number[], costo: Costo, pen?: Penalizacion): boolean {
+function orOptPasada(orden: number[], T: Float64Array, ancho: number, pen?: Penalizacion): boolean {
   const n = orden.length;
+  const c = (a: number, b: number) => T[a * ancho + b + 1];
 
   for (let largo = 1; largo <= MAX_SEGMENTO_OROPT && largo < n - 1; largo++) {
     for (let i = 1; i + largo <= n; i++) {
-      const seg = orden.slice(i, i + largo);
+      // El grupo es orden[i..i+largo-1]; dado vuelta, de orden[i+largo-1] a orden[i].
+      const primero = orden[i];
+      const ultimo = orden[i + largo - 1];
       const previo = orden[i - 1];
       const siguiente = i + largo < n ? orden[i + largo] : FIN;
 
       // Lo que se ahorra al sacarlo de donde está.
-      const saca = costo(previo, seg[0]) + costo(seg[largo - 1], siguiente) - costo(previo, siguiente);
+      const saca = c(previo, primero) + c(ultimo, siguiente) - c(previo, siguiente);
       if (!Number.isFinite(saca)) continue;
 
-      const resto = [...orden.slice(0, i), ...orden.slice(i + largo)];
-      const segInvertido = [...seg].reverse();
-      const internoDerecho = costoSegmento(seg, costo);
-      const internoInvertido = costoSegmento(segInvertido, costo);
+      // Los tramos de adentro, en el mismo orden en que se sumaban.
+      let internoDerecho = 0;
+      for (let k = i; k < i + largo - 1; k++) internoDerecho += c(orden[k], orden[k + 1]);
+      let internoInvertido = 0;
+      for (let k = i + largo - 1; k > i; k--) internoInvertido += c(orden[k], orden[k - 1]);
 
-      for (let p = 1; p <= resto.length; p++) {
+      // Las posiciones del orden sin el grupo: x < i es orden[x]; x >= i, orden[x + largo].
+      const largoResto = n - largo;
+      for (let p = 1; p <= largoResto; p++) {
         if (p === i) continue; // volver a ponerlo donde estaba no es una mejora
-        const a = resto[p - 1];
-        const b = p < resto.length ? resto[p] : FIN;
+        const a = p - 1 < i ? orden[p - 1] : orden[p - 1 + largo];
+        const b = p < largoResto ? (p < i ? orden[p] : orden[p + largo]) : FIN;
 
-        for (const invertir of [false, true]) {
-          const s = invertir ? segInvertido : seg;
+        for (let vez = 0; vez < 2; vez++) {
+          const invertir = vez === 1;
+          const entra = invertir ? ultimo : primero;
+          const sale = invertir ? primero : ultimo;
           const interno = invertir ? internoInvertido : internoDerecho;
-          const pone = costo(a, s[0]) + costo(s[largo - 1], b) - costo(a, b) + (interno - internoDerecho);
+          // El «+ (interno − internoDerecho)» se queda aunque al derecho valga 0: con
+          // un tramo interno sin camino es NaN, y la jugada no se toma.
+          const pone = c(a, entra) + c(sale, b) - c(a, b) + (interno - internoDerecho);
 
-          if (pone - saca + (pen && pone - saca < 6 * (pen.maximo ?? Infinity) ? deltaPenOrOpt(orden, resto, i, largo, p, s, invertir, pen) : 0) < -EPSILON) {
+          if (pone - saca + (pen && pone - saca < 6 * (pen.maximo ?? Infinity) ? deltaPenOrOpt(orden, i, largo, p, invertir, pen) : 0) < -EPSILON) {
+            // Recién al aplicarla se arma el orden nuevo, como antes.
+            const s = orden.slice(i, i + largo);
+            if (invertir) s.reverse();
+            const resto = [...orden.slice(0, i), ...orden.slice(i + largo)];
             resto.splice(p, 0, ...s);
             for (let k = 0; k < n; k++) orden[k] = resto[k];
             return true; // aplicado: se vuelve a empezar sobre el orden nuevo
@@ -161,12 +174,14 @@ function orOptPasada(orden: number[], costo: Costo, pen?: Penalizacion): boolean
   return false;
 }
 
-/** Aplica las dos mejoras hasta que ninguna encuentra nada. */
+/** Aplica las dos mejoras hasta que ninguna encuentra nada. Con un costo que ya
+ *  es tabla (ordenarParadas) la usa; si no, la arma una vez (spec 038). */
 export function mejorarLocal(inicial: number[], costo: Costo, pen?: Penalizacion): number[] {
+  const { tabla, ancho } = enTabla(puntosDe([inicial]), costo);
   const orden = [...inicial];
   for (let vuelta = 0; vuelta < MAX_VUELTAS; vuelta++) {
-    const cambio2opt = dosOptPasada(orden, costo, pen);
-    const cambioOrOpt = orOptPasada(orden, costo, pen);
+    const cambio2opt = dosOptPasada(orden, tabla, ancho, pen);
+    const cambioOrOpt = orOptPasada(orden, tabla, ancho, pen);
     if (!cambio2opt && !cambioOrOpt) break;
   }
   return orden;

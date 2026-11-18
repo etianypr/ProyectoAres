@@ -98,15 +98,20 @@ export function crearMesa(t: Tablero): Mesa {
     if (k >= 0 && k < m) ensuciarLugar(lugarDe[r[k]]);
   };
 
-  /** Da vuelta [a..b], cada parada en su otro sentido. */
+  /** Da vuelta [a..b], cada parada en su otro sentido. Sin arreglos de paso (spec
+   *  038, tiempos): los mismos valores en el mismo orden. */
   function invertir(a: number, b: number): void {
     for (let x = a, y = b; x <= y; x++, y--) {
-      const [izq, der] = [otro[r[y]], otro[r[x]]];
+      const izq = otro[r[y]];
+      const der = otro[r[x]];
       r[x] = izq;
       r[y] = der;
     }
     reindexar();
-    for (const k of [a - 1, a, b, b + 1]) ensuciar(k);
+    ensuciar(a - 1);
+    ensuciar(a);
+    ensuciar(b);
+    ensuciar(b + 1);
   }
 
   /** Saca [a..b] y lo mete después de lo que hoy está en la posición g (−1: al
@@ -143,12 +148,20 @@ export function crearMesa(t: Tablero): Mesa {
       ensuciar(i + 1);
       return true;
     }
+    // Los bucles van por índice, sin arreglos literales por jugada (spec 038,
+    // tiempos): recorren los mismos valores en el mismo orden que los de antes.
     // Dar vuelta el tramo que la separa de una vecina, para que queden seguidas:
     // el tramo sin ella (la vecina pasa a su lado) o con ella (ella pasa al lado de la vecina).
-    for (const vecina of vecinas[lugar]) {
-      const q = pos[vecina];
+    const suyas = vecinas[lugar];
+    for (let v = 0; v < suyas.length; v++) {
+      const q = pos[suyas[v]];
       if (q <= i + 1 && q >= i - 1) continue;
-      for (const [a, b] of q > i ? [[i + 1, q], [i, q - 1]] : [[q, i - 1], [q + 1, i]]) {
+      for (let caso = 0; caso < 2; caso++) {
+        // Caso 0, sin ella: desde la de su lado hasta la vecina. Caso 1, con ella:
+        // desde ella hasta la que está junto a la vecina. En ese orden, el de siempre
+        // (spec 038).
+        const a = q > i ? (caso === 0 ? i + 1 : i) : caso === 0 ? q : q + 1;
+        const b = q > i ? (caso === 0 ? q : q - 1) : caso === 0 ? i - 1 : i;
         const delta =
           cD(a - 1, otro[r[b]]) + (atras[b] - atras[a]) + cH(otro[r[a]], b + 1) - cD(a - 1, r[a]) - (adel[b] - adel[a]) - cH(r[b], b + 1);
         if (delta < -EPSILON) {
@@ -159,17 +172,22 @@ export function crearMesa(t: Tablero): Mesa {
     }
     // Mover el tramo que empieza o termina en ella al lado de una vecina de sus puntas.
     for (let largo = 1; largo <= AJUSTES_JUGADAS.tramo && largo < m; largo++) {
-      for (const a of largo === 1 ? [i] : [i, i - largo + 1]) {
+      // Con largo 1 el tramo empieza y termina en ella: una sola vez.
+      const veces = largo === 1 ? 1 : 2;
+      for (let ka = 0; ka < veces; ka++) {
+        const a = ka === 0 ? i : i - largo + 1;
         const b = a + largo - 1;
         if (a < 0 || b >= m) continue;
         const interno = adel[b] - adel[a];
         const internoAlReves = atras[b] - atras[a];
         const saca = cE(a - 1, b + 1) - cD(a - 1, r[a]) - interno - cH(r[b], b + 1);
-        for (const punta of largo === 1 ? [a] : [a, b]) {
-          for (const vecina of vecinas[lugarDe[r[punta]]]) {
-            const q = pos[vecina];
+        for (let kp = 0; kp < veces; kp++) {
+          const punta = kp === 0 ? a : b;
+          const deLaPunta = vecinas[lugarDe[r[punta]]];
+          for (let v = 0; v < deLaPunta.length; v++) {
+            const q = pos[deLaPunta[v]];
             if (q >= a && q <= b) continue;
-            for (const g of [q - 1, q]) {
+            for (let g = q - 1; g <= q; g++) {
               if (g >= a - 1 && g <= b) continue; // el mismo lugar
               const base = saca - cE(g, g + 1);
               const derecho = base + cD(g, r[a]) + interno + cH(r[b], g + 1);

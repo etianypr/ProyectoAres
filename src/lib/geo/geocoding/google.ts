@@ -16,6 +16,7 @@
 // La clave (GOOGLE_MAPS_KEY) vive solo en el servidor: el teléfono pregunta por
 // /api/geocodificar, que llama a googleDirecto. Este módulo no lee la clave.
 
+import { hastaAbortar } from "@/lib/comun/hasta-abortar";
 import { tope } from "@/lib/comun/tope";
 import { RECUADRO_ARICA } from "@/lib/geo/coordenada";
 import { esLaCalleEscrita, partirCalleYNumero } from "./consulta";
@@ -92,16 +93,50 @@ export async function googleDirecto(consulta: string, clave: string): Promise<Su
   }
 }
 
-/** Lo ya preguntado, mientras dure la pantalla: escribiendo el número dígito a
- *  dígito, o al rearmar la ruta, la misma consulta vuelve a caer y cada una se
- *  paga. Solo se guarda lo que Google contestó, nunca un corte de señal. */
-const MAX_RECORDADAS = 100;
+/** Lo ya preguntado, durante el día: escribiendo el número dígito a dígito, o al
+ *  rearmar la ruta, la misma consulta vuelve a caer y cada una se paga. Solo se
+ *  guarda lo que Google contestó, nunca un corte de señal. Mil y no cien (spec
+ *  038): un día de ~100 pedidos, con sus «nombre oficial + número» y lo que busca
+ *  la IA, pasaba de cien y volvía a pagar las primeras. */
+const MAX_RECORDADAS = 1000;
 const yaPreguntado = new Map<string, SugerenciaDireccion[]>();
+/** La misma consulta pedida a la vez (la ventana de la carga, el campo y la IA) sale
+ *  una sola vez al servidor (spec 038). */
+const enVuelo = new Map<string, Promise<SugerenciaDireccion[] | null>>();
+/** Sube al olvidar: una consulta que estaba en vuelo ya no se guarda. */
+let generacion = 0;
 
 /** Borra lo recordado: son direcciones de destinatarios (se olvidan al cerrar
  *  el día, spec 007) y las pruebas contestan distinto a la misma consulta. */
 export function olvidarConsultasGoogle(): void {
   yaPreguntado.clear();
+  enVuelo.clear();
+  generacion++;
+}
+
+/** Una pregunta al servidor, sin la señal de ningún llamador (solo su tope): si el
+ *  primero que preguntó se va, los demás la siguen esperando, y la respuesta se
+ *  guarda igual (spec 038). */
+async function preguntarAlServidor(consulta: string, clave: string): Promise<SugerenciaDireccion[] | null> {
+  const deEstaGeneracion = generacion;
+  try {
+    const res = await fetch("/api/geocodificar", {
+      signal: tope(12_000),
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ direccion: consulta }),
+    });
+    if (!res.ok) return null;
+    const datos = (await res.json()) as { sugerencias?: SugerenciaDireccion[] };
+    const puertas = datos.sugerencias ?? [];
+    if (deEstaGeneracion === generacion) {
+      if (yaPreguntado.size >= MAX_RECORDADAS) yaPreguntado.delete(yaPreguntado.keys().next().value!);
+      yaPreguntado.set(clave, puertas);
+    }
+    return puertas;
+  } catch {
+    return null;
+  }
 }
 
 /** La puerta según Google; lista vacía si Google no la tiene, o null si no se
@@ -115,22 +150,18 @@ export async function preguntarAGoogle(consulta: string, senal?: AbortSignal): P
   const clave = consulta.trim().toLowerCase();
   const recordada = yaPreguntado.get(clave);
   if (recordada) return recordada;
-  try {
-    const res = await fetch("/api/geocodificar", {
-      signal: tope(12_000, senal),
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ direccion: consulta }),
+  if (senal?.aborted) return null;
+  let vuelo = enVuelo.get(clave);
+  if (!vuelo) {
+    const este = preguntarAlServidor(consulta, clave);
+    enVuelo.set(clave, este);
+    void este.finally(() => {
+      if (enVuelo.get(clave) === este) enVuelo.delete(clave);
     });
-    if (!res.ok) return null;
-    const datos = (await res.json()) as { sugerencias?: SugerenciaDireccion[] };
-    const puertas = datos.sugerencias ?? [];
-    if (yaPreguntado.size >= MAX_RECORDADAS) yaPreguntado.delete(yaPreguntado.keys().next().value!);
-    yaPreguntado.set(clave, puertas);
-    return puertas;
-  } catch {
-    return null;
+    vuelo = este;
   }
+  // Cada uno deja de esperar con su señal; la consulta sigue para los demás.
+  return hastaAbortar(vuelo, senal);
 }
 
 /** La puerta según Google, o lista vacía (sin acierto o sin poder preguntar). */

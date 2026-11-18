@@ -180,6 +180,19 @@ export type Coincidencia = {
   sobrantes: number;
 };
 
+/** Lo escrito, ya partido: las palabras que distinguen y, aparte, los grados. Se
+ *  parte una sola vez por consulta y no una por cada nombre del catálogo (spec
+ *  038: callesParecidas lo compara con ~1.600 nombres). */
+export type EscritoPartido = { buscadas: string[]; titulos: string[] };
+
+export function partirEscrito(escrito: string): EscritoPartido {
+  const escritas = palabrasDe(escrito).filter(
+    // Una letra suelta (una inicial) no distingue; un número sí: "Pasaje 1 Norte".
+    (p) => (p.length > 1 || /\d/.test(p)) && !PALABRAS_GENERICAS.has(p),
+  );
+  return { buscadas: escritas.filter((p) => !TITULOS.has(p)), titulos: escritas.filter((p) => TITULOS.has(p)) };
+}
+
 /** ¿Es esta calle la que se escribió? Lo es cuando CADA palabra que distingue
  *  lo escrito está en el nombre de la calle, entera o con una letra cambiada
  *  (dos, si la palabra es larga). null si no.
@@ -189,14 +202,13 @@ export type Coincidencia = {
  *  corrección tiene tope por largo para que no se cuelen calles distintas: una
  *  palabra de menos de cinco letras va exacta, y un número siempre. */
 export function coincidenciaCalle(escrito: string, nombreCalle: string): Coincidencia | null {
-  const escritas = palabrasDe(escrito).filter(
-    // Una letra suelta (una inicial) no distingue; un número sí: "Pasaje 1 Norte".
-    (p) => (p.length > 1 || /\d/.test(p)) && !PALABRAS_GENERICAS.has(p),
-  );
-  const buscadas = escritas.filter((p) => !TITULOS.has(p));
-  if (buscadas.length === 0) return null;
+  return coincidenciaPartida(partirEscrito(escrito), palabrasDe(nombreCalle));
+}
 
-  const enLaCalle = palabrasDe(nombreCalle);
+/** coincidenciaCalle con lo escrito y el nombre ya partidos en palabras (palabrasDe):
+ *  el catálogo los parte una vez (spec 038). Mismo resultado. */
+export function coincidenciaPartida({ buscadas, titulos }: EscritoPartido, enLaCalle: string[]): Coincidencia | null {
+  if (buscadas.length === 0) return null;
   const usadas = new Set<number>();
   const buscar = (p: string): number | null => {
     let mejor = -1;
@@ -218,7 +230,7 @@ export function coincidenciaCalle(escrito: string, nombreCalle: string): Coincid
     ediciones += costo;
   }
   let faltantes = 0;
-  for (const t of escritas.filter((p) => TITULOS.has(p))) {
+  for (const t of titulos) {
     if (buscar(t) === null) faltantes++;
   }
   const sobrantes = enLaCalle.filter((q, i) => !usadas.has(i) && !esRelleno(q)).length;
@@ -246,19 +258,40 @@ function parecido(a: string, b: string): number | null {
   return d <= tope ? d : null;
 }
 
+// Las tres filas de la tabla (i-2, i-1 e i), reutilizadas entre llamadas: la de
+// antes armaba la matriz entera con arreglos por cada par de palabras, y
+// callesParecidas hace miles por consulta (spec 038: 7,5 → ~0,7 ms). Crecen solas
+// si llega una palabra más larga.
+let filaDosAntes = new Int32Array(64);
+let filaAntes = new Int32Array(64);
+let filaActual = new Int32Array(64);
+
 /** Damerau-Levenshtein (con transposición de dos letras vecinas: "witnig"). */
 export function distanciaEdicion(a: string, b: string): number {
-  const d: number[][] = Array.from({ length: a.length + 1 }, (_, i) =>
-    Array.from({ length: b.length + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)),
-  );
-  for (let i = 1; i <= a.length; i++) {
-    for (let j = 1; j <= b.length; j++) {
-      const cambio = a[i - 1] === b[j - 1] ? 0 : 1;
-      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cambio);
-      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
-        d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
-      }
-    }
+  const n = b.length;
+  if (filaActual.length <= n) {
+    filaDosAntes = new Int32Array(2 * (n + 1));
+    filaAntes = new Int32Array(2 * (n + 1));
+    filaActual = new Int32Array(2 * (n + 1));
   }
-  return d[a.length][b.length];
+  let dosAntes = filaDosAntes;
+  let antes = filaAntes;
+  let actual = filaActual;
+  for (let j = 0; j <= n; j++) antes[j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    actual[0] = i;
+    const ai = a.charCodeAt(i - 1);
+    const aPrevia = i > 1 ? a.charCodeAt(i - 2) : -1;
+    for (let j = 1; j <= n; j++) {
+      const bj = b.charCodeAt(j - 1);
+      let d = Math.min(antes[j] + 1, actual[j - 1] + 1, antes[j - 1] + (ai === bj ? 0 : 1));
+      if (i > 1 && j > 1 && ai === b.charCodeAt(j - 2) && aPrevia === bj) d = Math.min(d, dosAntes[j - 2] + 1);
+      actual[j] = d;
+    }
+    const libre = dosAntes;
+    dosAntes = antes;
+    antes = actual;
+    actual = libre;
+  }
+  return antes[n];
 }

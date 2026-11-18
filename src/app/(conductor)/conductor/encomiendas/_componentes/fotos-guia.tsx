@@ -7,6 +7,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { MAX_FOTOS_GUIA } from "@/lib/encomiendas/lectura/contrato";
+import { adelantarCompresionGuia } from "@/lib/encomiendas/local/lectura-cliente";
 
 export type FotoGuia = { id: string; archivo: File; url: string };
 
@@ -40,6 +41,11 @@ export function useFotosGuia() {
         return { id: crypto.randomUUID(), archivo, url };
       });
       setFotos((antes) => [...antes, ...nuevas]);
+      // Se achican apenas entran, de a una y después de dibujar la miniatura: «Leer
+      // direcciones» ya no espera la compresión de todas juntas (spec 038; mismos bytes).
+      setTimeout(() => {
+        for (const f of nuevas) adelantarCompresionGuia(f.archivo);
+      }, 0);
       return archivos.length > caben
         ? `Se leen hasta ${MAX_FOTOS_GUIA} fotos a la vez. Lee estas y luego agrega las restantes.`
         : null;

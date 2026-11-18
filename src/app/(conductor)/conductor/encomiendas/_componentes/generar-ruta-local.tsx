@@ -17,6 +17,7 @@ import { AlertTriangle, RefreshCw, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DireccionInput } from "@/components/direccion/direccion-input";
 import { cn } from "@/lib/comun/utils";
+import { cronometrar, desde } from "@/lib/comun/cronometro";
 import { fuenteUbicacion } from "@/lib/encomiendas/local/gps-simulado";
 import { cargarRed, redApagada } from "@/lib/geo/red/grafo";
 import { BuscandoRuta, esperarDibujo } from "./buscando-ruta";
@@ -94,16 +95,21 @@ export function GenerarRutaLocal({
   // «Cancelar» y atrás mientras busca (spec 033, buscando-trabado): la pantalla
   // vuelve al tiro y la búsqueda se corta en su próximo paso, sin propuesta.
   const controlRef = useRef<AbortController | null>(null);
+  // El GPS pedido último: uno anterior que llega tarde no cambia el botón.
+  const ubicacionRef = useRef<Promise<PuntoInicio> | null>(null);
   const cancelar = () => {
     controlRef.current?.abort();
     controlRef.current = null;
+    ubicacionRef.current = null;
     setArmando(false);
+    setObteniendoUbicacion(false);
   };
   useAtrasPropio(armando, cancelar);
   // Con la pantalla apagada Android frena la búsqueda (spec 033, nuevo-armar-fondo).
   usePantallaEncendida(armando);
 
-  async function disparar(puntoInicio: PuntoInicio) {
+  /** `desdeLaCentral`: sin él, la ruta termina igual en la central. */
+  async function disparar(puntoInicio: PuntoInicio | Promise<PuntoInicio>, desdeLaCentral: boolean) {
     setError(null);
     setArmando(true);
     const control = new AbortController();
@@ -112,8 +118,9 @@ export function GenerarRutaLocal({
       await esperarDibujo();
       // Partiendo de otro lado, la ruta termina igual en la central (terreno
       // 2026-10-29: repasar lo pendiente y volver).
-      const fin = puntoInicio.tipo === "empresa" ? undefined : ({ tipo: "empresa", direccion: direccionEmpresa } as const);
-      const propuesta = await calcularRutaLocal(fecha, puntoInicio, fin, control.signal);
+      const fin = desdeLaCentral ? undefined : ({ tipo: "empresa", direccion: direccionEmpresa } as const);
+      // Diagnóstico «Tiempos» (spec 038): desde el toque hasta la propuesta.
+      const propuesta = await cronometrar("ruta.total", () => calcularRutaLocal(fecha, puntoInicio, fin, control.signal));
       if (!control.signal.aborted) onPropuesta(propuesta);
     } catch (e) {
       if (!control.signal.aborted) setError(e instanceof Error ? e.message : "No se pudo optimizar la ruta.");
@@ -147,20 +154,25 @@ export function GenerarRutaLocal({
         setError("Este dispositivo no puede obtener la ubicación.");
         return;
       }
+      // El GPS (hasta 10 s) se pide junto con el armado, no antes: calcularRutaLocal lo
+      // espera recién al usar la partida, mientras lee, ubica y revisa los accesos. Si
+      // falla, se ve este mismo error (spec 038).
       setObteniendoUbicacion(true);
-      fuente.getCurrentPosition(
-        (pos) => {
-          setObteniendoUbicacion(false);
-          void disparar({ tipo: "gps", lat: pos.coords.latitude, lng: pos.coords.longitude });
-        },
-        () => {
-          setObteniendoUbicacion(false);
-          setError(
-            "No se pudo obtener la ubicación. Revisa el permiso de ubicación del navegador.",
-          );
-        },
-        { enableHighAccuracy: true, timeout: 10_000 },
+      const ubicacion = new Promise<PuntoInicio>((listo, falla) =>
+        fuente.getCurrentPosition(
+          (pos) => listo({ tipo: "gps", lat: pos.coords.latitude, lng: pos.coords.longitude }),
+          () => falla(new Error("No se pudo obtener la ubicación. Revisa el permiso de ubicación del navegador.")),
+          { enableHighAccuracy: true, timeout: 10_000 },
+        ),
       );
+      ubicacionRef.current = ubicacion;
+      const gps = desde("ruta.partida");
+      void ubicacion.then(gps, () => {});
+      const llego = () => {
+        if (ubicacionRef.current === ubicacion) setObteniendoUbicacion(false);
+      };
+      void ubicacion.then(llego, llego);
+      void disparar(ubicacion, false);
       return;
     }
 
@@ -171,11 +183,11 @@ export function GenerarRutaLocal({
         return;
       }
       const elegida = coordPartida?.texto === texto ? coordPartida : null;
-      void disparar({ tipo: "direccion", direccion: texto, lat: elegida?.lat, lng: elegida?.lng });
+      void disparar({ tipo: "direccion", direccion: texto, lat: elegida?.lat, lng: elegida?.lng }, false);
       return;
     }
 
-    void disparar({ tipo: "empresa", direccion: direccionEmpresa });
+    void disparar({ tipo: "empresa", direccion: direccionEmpresa }, true);
   }
 
   const ocupado = armando || obteniendoUbicacion;

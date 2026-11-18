@@ -1,17 +1,28 @@
-// Ubicar los pedidos recién creados desde la guía, uno por uno (spec 005), con
-// salida (spec 033, «ubicando-trabado»): sin señal cada dirección esperaba ~20 s
-// y la ventana no se podía cerrar (6 pedidos = 3 min 20 s). Ahora:
+// Ubicar los pedidos recién creados desde la guía (spec 005), con salida (spec 033,
+// «ubicando-trabado»): sin señal cada dirección esperaba ~20 s y la ventana no se
+// podía cerrar (6 pedidos = 3 min 20 s). Ahora:
 //   · «Dejar de ubicar» corta al tiro (la consulta en curso se abandona);
 //   · sin red (navigator.onLine) o con 2 seguidas sin respuesta, para solo y lo dice.
 // Los pedidos ya están creados: lo que no se ubica queda «Sin ubicar», como siempre.
+//
+// Spec 038: de a 3 a la vez (VENTANA). Mientras se espera una dirección ya se preguntan las dos
+// que siguen, pero cada resultado se procesa EN ORDEN con el mismo código de antes (los fallos
+// seguidos, el corte, las calles repetidas y el guardado): lo que se ubica es lo mismo. Con OSM
+// adelantado mientras se revisaban las líneas, lo que tarda es Google, y ahí la ventana rinde.
 
+import { hastaAbortar } from "@/lib/comun/hasta-abortar";
 import { elegirConLaRuta, ubicarDireccion, type ResultadoUbicacion } from "@/lib/geo/geocoding";
 import type { Coordenada } from "@/lib/geo/coordenada";
 import { lugarProvisorio } from "@/lib/encomiendas/problemas";
 import { fijarCoordenadas, ubicarConDuda } from "./almacen";
 
+export { hastaAbortar };
+
 /** Seguidas sin respuesta de ningún buscador: con esto ya no hay señal. */
 export const FALLOS_PARA_PARAR = 2;
+
+/** Direcciones preguntándose a la vez (spec 038). Nominatim sigue de a una en su fila. */
+export const VENTANA = 3;
 
 export type ResumenUbicarCarga = {
   ubicados: number;
@@ -29,26 +40,6 @@ export type ResumenUbicarCarga = {
 /** Hay red según el navegador. false es seguro; true no garantiza señal. */
 export function hayRed(): boolean {
   return typeof navigator === "undefined" || navigator.onLine !== false;
-}
-
-/** Espera la promesa, o null apenas se aborte la señal (lo que llegue después se ignora). */
-export function hastaAbortar<T>(promesa: Promise<T>, senal?: AbortSignal): Promise<T | null> {
-  if (!senal) return promesa;
-  if (senal.aborted) return Promise.resolve(null);
-  return new Promise<T | null>((listo, falla) => {
-    const alAbortar = () => listo(null);
-    senal.addEventListener("abort", alAbortar, { once: true });
-    promesa.then(
-      (v) => {
-        senal.removeEventListener("abort", alAbortar);
-        listo(v);
-      },
-      (e) => {
-        senal.removeEventListener("abort", alAbortar);
-        falla(e);
-      },
-    );
-  });
 }
 
 export async function ubicarCarga(
@@ -75,43 +66,59 @@ export async function ubicarCarga(
   // qué zona anda la ruta (spec 035).
   const repetidas: { id: string; r: ResultadoUbicacion }[] = [];
   const puntos = [...puntosDelDia];
-  for (; i < pedidos.length; i++) {
-    const p = pedidos[i];
-    if (senal?.aborted) {
-      resumen.cortado = true;
-      break;
-    }
-    if (!enLinea()) {
-      resumen.sinSenal = true;
-      break;
-    }
-    alAvanzar?.(i, pedidos.length);
-    let r: ResultadoUbicacion | null;
+  // Lo que está en vuelo se corta al parar (sin señal o «Dejar de ubicar»), no solo al cortar.
+  const enVuelo = new AbortController();
+  const cortarEnVuelo = () => enVuelo.abort();
+  senal?.addEventListener("abort", cortarEnVuelo, { once: true });
+  const lanzadas: (Promise<ResultadoUbicacion | null> | undefined)[] = [];
+  /** Un error de ubicar es un «sin respuesta», como antes (y no queda una promesa rechazada suelta). */
+  const lanzar = (k: number): Promise<ResultadoUbicacion | null> => {
     try {
-      r = await hastaAbortar(ubicar(p.direccion, senal), senal);
+      return Promise.resolve(ubicar(pedidos[k].direccion, enVuelo.signal)).catch(() => null);
     } catch {
-      r = null;
+      return Promise.resolve(null);
     }
-    if (senal?.aborted) {
-      resumen.cortado = true;
-      break;
-    }
-    if (!r || r.sinRespuesta) {
-      resumen.sinUbicar.push(p.id);
-      if (++seguidas >= FALLOS_PARA_PARAR) {
-        resumen.sinSenal = true;
-        i++;
+  };
+  try {
+    for (; i < pedidos.length; i++) {
+      const p = pedidos[i];
+      if (senal?.aborted) {
+        resumen.cortado = true;
         break;
       }
-      continue;
+      // Se revisa al procesar cada resultado, también los que ya se preguntaron por la ventana.
+      if (!enLinea()) {
+        resumen.sinSenal = true;
+        break;
+      }
+      alAvanzar?.(i, pedidos.length);
+      for (let k = i; k < Math.min(i + VENTANA, pedidos.length); k++) lanzadas[k] ??= lanzar(k);
+      const r = await hastaAbortar(lanzadas[i]!, senal);
+      lanzadas[i] = undefined;
+      if (senal?.aborted) {
+        resumen.cortado = true;
+        break;
+      }
+      if (!r || r.sinRespuesta) {
+        resumen.sinUbicar.push(p.id);
+        if (++seguidas >= FALLOS_PARA_PARAR) {
+          resumen.sinSenal = true;
+          i++;
+          break;
+        }
+        continue;
+      }
+      seguidas = 0;
+      if (r.tipo === "ambigua" && r.candidatos.some((c) => c.sector)) {
+        repetidas.push({ id: p.id, r });
+        continue;
+      }
+      if (r.elegida) puntos.push(r.elegida);
+      await guardarUbicacion(p.id, r, resumen);
     }
-    seguidas = 0;
-    if (r.tipo === "ambigua" && r.candidatos.some((c) => c.sector)) {
-      repetidas.push({ id: p.id, r });
-      continue;
-    }
-    if (r.elegida) puntos.push(r.elegida);
-    await guardarUbicacion(p.id, r, resumen);
+  } finally {
+    enVuelo.abort();
+    senal?.removeEventListener("abort", cortarEnVuelo);
   }
   for (const { id, r } of repetidas) await guardarUbicacion(id, elegirConLaRuta(r, puntos), resumen);
   resumen.sinUbicar.push(...pedidos.slice(i).map((p) => p.id));

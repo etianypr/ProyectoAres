@@ -40,16 +40,22 @@ async function crear(n) {
 }
 
 // ------------------------------------------------------------ ubicar la carga
-test("ubicarCarga: dos seguidas sin respuesta paran solas y el resto queda sin ubicar", async () => {
-  const creados = await crear(5);
+test("ubicarCarga: dos seguidas sin respuesta paran solas, no pasa de la ventana y el resto queda sin ubicar", async () => {
+  const { VENTANA } = await import("@/lib/encomiendas/local/ubicar-carga");
+  const creados = await crear(8);
   let consultas = 0;
+  let abortadas = 0;
   const r = await ubicarCarga(creados, {
-    ubicar: async () => {
+    ubicar: async (_direccion, senal) => {
       consultas++;
-      return consultas === 1 ? ubicada : sinRespuesta;
+      if (consultas <= 3) return consultas === 1 ? ubicada : sinRespuesta;
+      // Las que la ventana (spec 038) ya preguntó cuando se paró: quedan colgadas, como sin señal.
+      return new Promise((listo) => senal.addEventListener("abort", () => (abortadas++, listo(sinRespuesta))));
     },
   });
-  assert.equal(consultas, 3, "siguió preguntando sin señal");
+  // Para en la 3.ª (2 seguidas sin respuesta): a lo más las 2 que siguen ya estaban en vuelo.
+  assert.equal(consultas, 3 + VENTANA - 1, "siguió preguntando sin señal");
+  assert.equal(abortadas, VENTANA - 1, "lo que estaba en vuelo no se cortó al parar");
   assert.equal(r.sinSenal, true);
   assert.equal(r.ubicados, 1);
   assert.deepEqual(r.sinUbicar, creados.slice(1).map((p) => p.id));

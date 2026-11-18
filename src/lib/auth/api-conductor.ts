@@ -33,13 +33,21 @@ export async function conductorDeLaApi(): Promise<ConductorAutenticado> {
   } = await supabase.auth.getUser();
   if (!user) return rechazo(401, "Sesión vencida. Vuelve a iniciar sesión.");
 
+  // El rol y la ficha se preguntan a la vez (spec 038: dos viajes a Supabase en serie en cada
+  // ida de la IA y cada consulta a Google), pero se decide en el orden de antes: primero el rol
+  // —un admin es 403 aunque la ficha haya fallado— y después la ficha, cuyo error se lanza
+  // (un error de red no es «sin ficha», spec 007).
+  const [rol, ficha] = await Promise.allSettled([leerRol(supabase, user.id), conductorDeUsuario(supabase, user.id)]);
+  if (rol.status === "rejected") throw rol.reason;
+
   // Un admin no puede usar estas rutas: no tiene pedidos ni día, y dejarlo pasar
   // significaría que el `conductor_id` de las correlaciones podría no ser de nadie.
-  if ((await leerRol(supabase, user.id)) !== "conductor") {
+  if (rol.value !== "conductor") {
     return rechazo(403, "Esta operación es solo de la app del conductor.");
   }
 
-  const conductor = await conductorDeUsuario(supabase, user.id);
+  if (ficha.status === "rejected") throw ficha.reason;
+  const conductor = ficha.value;
   if (!conductor) {
     return rechazo(
       403,

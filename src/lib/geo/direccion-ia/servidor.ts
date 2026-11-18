@@ -4,7 +4,7 @@ import "server-only";
 // Las herramientas las ejecuta el teléfono (ver contrato.ts y cliente.ts): acá
 // solo se define qué puede pedir la IA y se le pasa la conversación.
 
-import Anthropic from "@anthropic-ai/sdk";
+import Anthropic, { RateLimitError } from "@anthropic-ai/sdk";
 import { HERRAMIENTA, type MensajeIA, type RespuestaPaso } from "./contrato";
 
 /** Sonnet 5: entiende las direcciones chilenas mal escritas ("PJE", "POB.",
@@ -83,15 +83,27 @@ const HERRAMIENTAS: Anthropic.Messages.Tool[] = [
   },
 ];
 
+/** Anthropic limitó la tasa (429; el SDK ya reintentó una vez): la ruta lo contesta como 429 y
+ *  no como 503, para que el teléfono no lo tome por falta de conexión (spec 038). */
+export function esLimiteDeTasa(e: unknown): boolean {
+  return e instanceof RateLimitError;
+}
+
 /** Manda la conversación y devuelve la respuesta de la IA. Deja pasar los
- *  errores de la API para que la ruta los conteste como 503. */
+ *  errores de la API para que la ruta los conteste (429 o 503).
+ *
+ *  Caché de prompt (spec 038): herramientas + SISTEMA son iguales en todas las idas de todas las
+ *  direcciones, así que el bloque de SISTEMA lleva su `cache_control`; el de la petición cachea
+ *  además la conversación hasta la última ida (la siguiente ida de la misma dirección la lee).
+ *  Bajo el mínimo del modelo (1024 tokens en Sonnet 5) no se cachea y no falla: lo dice `uso`. */
 export async function pasoDireccionIA(mensajes: MensajeIA[]): Promise<RespuestaPaso> {
   const modelo = process.env.DIRECCION_MODELO || MODELO;
   const r = await cliente().messages.create({
     model: modelo,
     max_tokens: 1024,
-    system: SISTEMA,
+    system: [{ type: "text", text: SISTEMA, cache_control: { type: "ephemeral" } }],
     tools: HERRAMIENTAS,
+    cache_control: { type: "ephemeral" },
     // Elegir entre candidatos no necesita pensar largo.
     thinking: { type: "disabled" },
     // Haiku no acepta `effort` (ver lectura/servidor.ts).
@@ -105,5 +117,8 @@ export async function pasoDireccionIA(mensajes: MensajeIA[]): Promise<RespuestaP
       contenido.push({ type: "tool_use", id: b.id, name: b.name, input: (b.input ?? {}) as Record<string, unknown> });
     }
   }
-  return { contenido, fin: r.stop_reason };
+  // Solo cifras, para Diagnóstico (spec 038): ver si la caché de verdad se lee antes de subir
+  // DIRECCIONES_A_LA_VEZ.
+  const uso = { cacheLeidos: r.usage?.cache_read_input_tokens ?? 0, cacheCreados: r.usage?.cache_creation_input_tokens ?? 0 };
+  return { contenido, fin: r.stop_reason, uso };
 }

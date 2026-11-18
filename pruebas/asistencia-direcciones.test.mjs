@@ -28,6 +28,7 @@ const {
   geocodificarDireccion,
 } = geo;
 const { googleDirecto, olvidarConsultasGoogle } = await import("@/lib/geo/geocoding/google");
+const { olvidarConsultasNominatim } = await import("@/lib/geo/geocoding/nominatim");
 
 const GOOGLE = JSON.parse(readFileSync("pruebas/fixtures/geocoding-google.json", "utf8"));
 const OSM = JSON.parse(readFileSync("pruebas/fixtures/geocoding-osm.json", "utf8"));
@@ -93,6 +94,8 @@ test.beforeEach(() => {
   respuestas = { google: GOOGLE.vacia, osm: OSM.vacia };
   consultas = [];
   olvidarConsultasGoogle();
+  // OSM también se recuerda durante el día (spec 038) y cada prueba le contesta distinto.
+  olvidarConsultasNominatim();
 });
 
 /** El texto que se le preguntó a un buscador ("google" u "osm"), el primero. */

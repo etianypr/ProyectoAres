@@ -9,6 +9,7 @@
 // en el sentido de su calle, y la búsqueda elige el orden y el sentido de paso a
 // la vez (rutas/orden-paradas/con-rumbo*.ts). Todo en el teléfono: sin señal, sin
 // cupo y sin mandar los puntos de las paradas a nadie.
+import { cronometrar } from "@/lib/comun/cronometro";
 import { distanciaMetros, type Coordenada } from "@/lib/geo/coordenada";
 import { cargarRed } from "@/lib/geo/red/grafo";
 import { pegarALaRed } from "@/lib/geo/red/pegar";
@@ -45,6 +46,11 @@ export async function prepararRedDelDia(
   /** «Cancelar» mientras busca (spec 033): lanza AbortError entre tandas. */
   senal?: AbortSignal,
 ): Promise<RedDelDia | null> {
+  // Diagnóstico «Tiempos» (spec 038).
+  return cronometrar("ruta.red", () => armarRedDelDia(puntos, terminaEnOtroLado, senal));
+}
+
+async function armarRedDelDia(puntos: Coordenada[], terminaEnOtroLado: boolean, senal?: AbortSignal): Promise<RedDelDia | null> {
   const red = await cargarRed();
   if (!red) return null;
   const lugares = [];
@@ -89,7 +95,7 @@ export async function ordenarConRumboDelDia(
   /** «Cancelar» mientras busca (spec 033); sin cancelar, el orden es el mismo. */
   senal?: AbortSignal,
 ): Promise<number[]> {
-  const ruta = await correrSinCongelar(buscarConRumbo(red.dia, [arranque]), senal);
+  const ruta = await cronometrar("ruta.busqueda", () => correrSinCongelar(buscarConRumbo(red.dia, [arranque]), senal));
   const conBultos = adelantarBultosConRumbo(tableroDe(red.dia), ruta, {
     bultos,
     metros: red.conRumbo.metros,

@@ -1,0 +1,26 @@
+{
+  "_lee_esto_primero": [
+    "Spec 038: salidas del código de ANTES de la 038 (copia congelada), como hash. Lo comprueba",
+    "pruebas/038-calles-dorado.test.mjs con el mismo corpus (pruebas/038-corpus-calles.mjs): todas las",
+    "palabras y nombres del catálogo de calles (OSM, público) y variantes con tipeo. Sin datos de nadie.",
+    "Generado el 2026-11-18."
+  ],
+  "palabras": 1599,
+  "distancias": {
+    "pares": 2556801,
+    "hash": "0e461bc3b06b8fc6539f526ccbc4b5c9e126a40283c34bb0e9ff4628f12c4760"
+  },
+  "parecidas": {
+    "escritos": 7531,
+    "hash": "33430a71cff5666807f944cc5847821b5458923c4dd3b63e100189645d6ebbc8"
+  },
+  "coincidencias": {
+    "pares": 817878,
+    "hash": "f796fed0eaeba4fbaf6edfd8f00eb195cb49efe93e8e9b80f9def9b9f2d38a5c"
+  },
+  "msBase": {
+    "distancias": 15469,
+    "parecidas": 72983,
+    "coincidencias": 4606
+  }
+}

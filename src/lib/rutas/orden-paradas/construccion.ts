@@ -1,8 +1,12 @@
 // Construcción: dos formas distintas de armar un primer orden.
-import { FIN, type Costo } from "./costo";
+//
+// Spec 038 (tiempos): leen el costo de la tabla plana de costo.ts, con los mismos
+// números y en el mismo orden (también el del Set de la inserción más barata).
+import { FIN, enTabla, type Costo } from "./costo";
 
 /** Vecino más cercano. `primero` fuerza por cuál parada empezar (multi-arranque). */
-export function vecinoMasCercano(n: number, costo: Costo, primero?: number): number[] {
+export function vecinoMasCercano(n: number, costoDado: Costo, primero?: number): number[] {
+  const { tabla, ancho } = enTabla(n, costoDado);
   const visitado = new Array<boolean>(n).fill(false);
   visitado[0] = true;
   const orden = [0];
@@ -22,7 +26,7 @@ export function vecinoMasCercano(n: number, costo: Costo, primero?: number): num
       for (let j = 0; j < n; j++) {
         if (visitado[j]) continue;
         if (mejor === -1) mejor = j;
-        const d = costo(actual, j);
+        const d = tabla[actual * ancho + j + 1];
         if (d < mejorDist) {
           mejorDist = d;
           mejor = j;
@@ -39,7 +43,9 @@ export function vecinoMasCercano(n: number, costo: Costo, primero?: number): num
 /** Inserción más barata: en cada vuelta mete la parada que menos alargue la
  *  ruta, en el lugar donde menos la alargue. Suele arrancar bastante mejor que
  *  el vecino más cercano, que deja las últimas paradas tiradas lejos. */
-export function insercionMasBarata(n: number, costo: Costo): number[] {
+export function insercionMasBarata(n: number, costoDado: Costo): number[] {
+  const { tabla, ancho } = enTabla(n, costoDado);
+  const costo = (a: number, b: number) => tabla[a * ancho + b + 1];
   const orden = [0];
   const pendientes = new Set<number>();
   for (let i = 1; i < n; i++) pendientes.add(i);

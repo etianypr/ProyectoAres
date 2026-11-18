@@ -4,7 +4,8 @@
 // botón para probar el escáner y otro para probar la lectura de una etiqueta
 // (spec 021, US3). Se llega desde el menú lateral, solo en la APK. No guarda
 // nada: lo que muestra se lee al abrir la pantalla. Las consultas del día a ORS
-// (spec 024) sirven para ver cuánto gasta un día de ruta.
+// (spec 024) sirven para ver cuánto gasta un día de ruta, y «Tiempos» (spec 038) cuánto
+// esperó el conductor en cada tramo.
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -21,6 +22,7 @@ import { origenDelUltimoTrazado } from "@/lib/geo/ruta-por-calles";
 import { ProbarBarridoNomina } from "./_componentes/probar-barrido-nomina";
 import { ProbarEscanerVivo } from "./_componentes/probar-escaner-vivo";
 import { ProbarEtiqueta } from "./_componentes/probar-etiqueta";
+import { Tiempos } from "./_componentes/tiempos";
 import { CintaModoPrueba } from "../encomiendas/_componentes/cinta-modo-prueba";
 
 type Estado = "si" | "no" | "pendiente";
@@ -156,6 +158,8 @@ export default function DiagnosticoPage() {
           Optimizar ruta con OpenRouteService
         </label>
       </div>
+
+      <Tiempos />
 
       <p className="text-xs text-muted">
         Los permisos sin decidir se solicitan la primera vez que se usan. Un permiso denegado se cambia en

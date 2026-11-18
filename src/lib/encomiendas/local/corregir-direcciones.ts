@@ -9,7 +9,7 @@
 import { nombreVisible } from "@/lib/encomiendas/paquete";
 import { distanciaMetros } from "@/lib/geo/coordenada";
 import { corregirConIA, IANoDisponible } from "@/lib/geo/direccion-ia/cliente";
-import { MAX_DIRECCIONES_POR_TANDA, type ResultadoIA } from "@/lib/geo/direccion-ia/contrato";
+import { DIRECCIONES_A_LA_VEZ, MAX_DIRECCIONES_POR_TANDA, type ResultadoIA } from "@/lib/geo/direccion-ia/contrato";
 import { telefonoParaGuardar } from "@/lib/comun/telefono";
 import { cambiarDireccion, fijarTelefono, guardarPropuestaIA, leerPedidos, type Pedido } from "./almacen";
 import { hastaAbortar, hayRed } from "./ubicar-carga";
@@ -48,7 +48,8 @@ export type ResumenCorreccion = {
   sinSenal: number;
 };
 
-/** Seguidas sin respuesta de la IA: sin señal no se espera 30 s por cada una. */
+/** Seguidas sin respuesta de la IA (vecinas en la tanda, spec 038): sin señal no se espera
+ *  30 s por cada una. */
 const FALLOS_PARA_PARAR = 2;
 
 const conDireccion = (p: Pedido) => p.resultado === "pendiente" && p.direccion.trim() !== "";
@@ -91,7 +92,37 @@ export function esSegura(r: Extract<ResultadoIA, { tipo: "propuesta" }>): boolea
   return r.confianza === "media" && r.candidato.confianza === "aproximada" && r.candidato.coincideNumero !== false;
 }
 
-/** Le pide a la IA una corrección para cada pedido por revisar. No cambia nada. */
+/** Una pregunta a la IA: la dirección escrita y los pedidos de la tanda que la llevan. El mismo
+ *  destino (recortado y en minúsculas) se pregunta una sola vez y cada pedido se queda con la
+ *  respuesta (spec 038). */
+type Consulta = {
+  direccion: string;
+  /** Posiciones en `pendientes`. */
+  pedidos: number[];
+  /** Su lugar entre las consultas: dos errores vecinos son «sin conexión». */
+  orden: number;
+  estado: "por_preguntar" | "preguntando" | "bien" | "error";
+  /** Ya se volvió a preguntar tras un 429. */
+  reintentada: boolean;
+};
+
+function agruparPorDestino(pendientes: Pedido[]): Consulta[] {
+  const porTexto = new Map<string, Consulta>();
+  for (const [i, p] of pendientes.entries()) {
+    const clave = p.direccion.trim().toLowerCase();
+    const ya = porTexto.get(clave);
+    if (ya) ya.pedidos.push(i);
+    else porTexto.set(clave, { direccion: p.direccion, pedidos: [i], orden: porTexto.size, estado: "por_preguntar", reintentada: false });
+  }
+  return [...porTexto.values()];
+}
+
+/** Le pide a la IA una corrección para cada pedido por revisar. No cambia nada.
+ *
+ *  Spec 038: varias direcciones a la vez (`DIRECCIONES_A_LA_VEZ`), con las mismas propuestas que
+ *  en serie (pruebas/038-ia.test.mjs). Mientras no llegue una respuesta buena, o si la última fue
+ *  un error, va de a una: sin conexión, «2 errores paran» sigue preguntando exactamente 2 veces.
+ *  Las propuestas salen en el orden de los pedidos y `alAvanzar` cuenta las terminadas. */
 export async function corregirDirecciones(
   fecha: string,
   {
@@ -104,12 +135,12 @@ export async function corregirDirecciones(
   }: {
     /** (hechos, total) para la barra de avance. */
     alAvanzar?: (hechos: number, total: number) => void;
-    corregir?: (direccion: string) => Promise<ResultadoIA>;
+    corregir?: (direccion: string, opciones?: { senal?: AbortSignal }) => Promise<ResultadoIA>;
     /** Solo estos pedidos (los de la carga recién hecha), no todo el día. */
     ids?: string[];
     /** Los que ya tienen una propuesta a la vista: no se vuelve a pagar por ellos. */
     excluir?: string[];
-    /** «Dejar de ubicar»: corta sin esperar la respuesta en curso. */
+    /** «Dejar de ubicar»: corta sin esperar las respuestas en curso. */
     senal?: AbortSignal;
     enLinea?: () => boolean;
   } = {},
@@ -122,51 +153,134 @@ export async function corregirDirecciones(
   const resumen: ResumenCorreccion = { propuestas: [], sinArreglo: 0, sinIA: false, sinSenal: 0 };
   if (!enLinea()) return { ...resumen, sinSenal: pendientes.length };
 
-  let seguidas = 0;
-  for (const [i, p] of pendientes.entries()) {
-    if (senal?.aborted) break;
-    alAvanzar?.(i, pendientes.length);
-    let r: ResultadoIA | null;
-    try {
-      r = await hastaAbortar(corregir(p.direccion), senal);
-    } catch (e) {
-      if (e instanceof IANoDisponible) return { ...resumen, sinIA: true };
-      r = { tipo: "error", mensaje: "La IA no respondió." };
-    }
-    if (r == null || senal?.aborted) break;
-    if (r.tipo === "error") {
-      resumen.sinSenal++;
-      if (++seguidas >= FALLOS_PARA_PARAR) {
-        resumen.sinSenal += pendientes.length - i - 1;
-        break;
+  const total = pendientes.length;
+  const consultas = agruparPorDestino(pendientes);
+  const cola = [...consultas];
+  const propuestas: { i: number; propuesta: PropuestaCorreccion }[] = [];
+  let terminadas = 0;
+  let ultimoAvance = -1;
+  const avanzar = (hechos: number) => {
+    if (hechos === ultimoAvance) return;
+    ultimoAvance = hechos;
+    alAvanzar?.(hechos, total);
+  };
+  /** Baja a 1 con un 429: Anthropic pidió menos a la vez. */
+  let maximo = DIRECCIONES_A_LA_VEZ;
+  let hayBuena = false;
+  let ultimaFueError = false;
+  let parar = false;
+  let sinIA = false;
+  let enVuelo = 0;
+
+  /** Errores vecinos alrededor de `c`, en el orden de la tanda (como los «seguidos» en serie). */
+  const erroresVecinos = (c: Consulta) => {
+    let n = 1;
+    for (let k = c.orden - 1; k >= 0 && consultas[k].estado === "error"; k--) n++;
+    for (let k = c.orden + 1; k < consultas.length && consultas[k].estado === "error"; k++) n++;
+    return n;
+  };
+
+  async function aplicar(c: Consulta, r: Exclude<ResultadoIA, { tipo: "error" }>): Promise<void> {
+    for (const i of c.pedidos) {
+      const p = pendientes[i];
+      // Cada pedido con SU punto: el mismo destino puede estar ya bien puesto en uno solo.
+      const yaEstaba =
+        r.tipo === "propuesta" && p.lat != null && p.lng != null && distanciaMetros(r.candidato, { lat: p.lat, lng: p.lng }) < METROS_SIN_CAMBIO;
+      if (yaEstaba) continue;
+      if (r.tipo === "propuesta" && r.candidato.confianza !== "baja") {
+        const guardada = {
+          original: p.direccion,
+          direccion: r.direccion,
+          lat: r.candidato.lat,
+          lng: r.candidato.lng,
+          enLaCuadra: r.candidato.confianza === "aproximada" && !r.candidato.soloCalle,
+          soloCalle: r.candidato.soloCalle,
+          segura: esSegura(r),
+          motivo: r.motivo,
+        };
+        // Se guarda apenas llega: cerrar la app a mitad de la tanda no pierde lo pagado.
+        // Si no se puede guardar, la propuesta se muestra igual.
+        await guardarPropuestaIA(p.id, guardada).catch(() => null);
+        propuestas.push({ i, propuesta: propuestaDe(p, guardada) });
+      } else {
+        resumen.sinArreglo++;
       }
-      continue;
-    }
-    seguidas = 0;
-    const yaEstaba =
-      r.tipo === "propuesta" && p.lat != null && p.lng != null && distanciaMetros(r.candidato, { lat: p.lat, lng: p.lng }) < METROS_SIN_CAMBIO;
-    if (yaEstaba) continue;
-    if (r.tipo === "propuesta" && r.candidato.confianza !== "baja") {
-      const guardada = {
-        original: p.direccion,
-        direccion: r.direccion,
-        lat: r.candidato.lat,
-        lng: r.candidato.lng,
-        enLaCuadra: r.candidato.confianza === "aproximada" && !r.candidato.soloCalle,
-        soloCalle: r.candidato.soloCalle,
-        segura: esSegura(r),
-        motivo: r.motivo,
-      };
-      // Se guarda apenas llega: cerrar la app a mitad de la tanda no pierde lo pagado.
-      // Si no se puede guardar, la propuesta se muestra igual.
-      await guardarPropuestaIA(p.id, guardada).catch(() => null);
-      resumen.propuestas.push(propuestaDe(p, guardada));
-    } else {
-      resumen.sinArreglo++;
     }
   }
-  alAvanzar?.(pendientes.length, pendientes.length);
-  return resumen;
+
+  async function preguntar(c: Consulta): Promise<void> {
+    let r: ResultadoIA | null;
+    try {
+      // A la IA va solo la dirección (guia-telefono.test.mjs); la señal no es un dato y va
+      // solo cuando hay una, para cortar la conversación al detener.
+      r = await hastaAbortar(senal ? corregir(c.direccion, { senal }) : corregir(c.direccion), senal);
+    } catch (e) {
+      if (e instanceof IANoDisponible) {
+        sinIA = true;
+        parar = true;
+        return;
+      }
+      r = { tipo: "error", mensaje: "La IA no respondió." };
+    }
+    // Detenida: lo que llegue después no cuenta (la conversación ya no pide más idas).
+    if (r == null || senal?.aborted) return;
+    if (r.tipo === "error" && r.ocupada && !c.reintentada) {
+      // 429 (spec 038): la IA existe y hay conexión. La tanda sigue de a una y esta dirección
+      // se vuelve a preguntar primero, sola.
+      c.reintentada = true;
+      c.estado = "por_preguntar";
+      maximo = 1;
+      cola.unshift(c);
+      return;
+    }
+    if (r.tipo === "error") {
+      c.estado = "error";
+      ultimaFueError = true;
+      resumen.sinSenal += c.pedidos.length;
+      if (erroresVecinos(c) >= FALLOS_PARA_PARAR) parar = true;
+    } else {
+      c.estado = "bien";
+      hayBuena = true;
+      ultimaFueError = false;
+      await aplicar(c, r);
+    }
+    terminadas += c.pedidos.length;
+    avanzar(terminadas);
+  }
+
+  // Al parar (2 errores o sin IA) se espera a las que están en vuelo y se cuentan las que
+  // lleguen; al detener, cada una suelta su espera apenas se aborta la señal.
+  let fallo: unknown = null;
+  await new Promise<void>((listo) => {
+    const seguir = () => {
+      const tope = !hayBuena || ultimaFueError ? 1 : maximo;
+      while (!parar && !senal?.aborted && enVuelo < tope && cola.length > 0) {
+        const c = cola.shift()!;
+        c.estado = "preguntando";
+        enVuelo++;
+        avanzar(terminadas);
+        void preguntar(c)
+          .catch((e: unknown) => {
+            // Lo que antes salía de la función sigue saliendo, sin dejar nada colgado.
+            fallo ??= e;
+            parar = true;
+          })
+          .finally(() => {
+            enVuelo--;
+            seguir();
+          });
+      }
+      if (enVuelo === 0) listo();
+    };
+    seguir();
+  });
+  if (fallo) throw fallo;
+
+  const enOrden = propuestas.sort((a, b) => a.i - b.i).map((x) => x.propuesta);
+  if (sinIA) return { ...resumen, propuestas: enOrden, sinIA: true };
+  if (parar) resumen.sinSenal += cola.reduce((s, c) => s + c.pedidos.length, 0);
+  avanzar(total);
+  return { ...resumen, propuestas: enOrden };
 }
 
 /** El nombre de antes, para las pantallas y las pruebas que ya lo usan. */

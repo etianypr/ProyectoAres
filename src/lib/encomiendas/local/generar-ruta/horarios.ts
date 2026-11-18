@@ -24,6 +24,13 @@ function ventanaVigente(p: PedidoUbicado, minutosDeInicio: number): Ventana | nu
   return v.cierra <= minutosDeInicio ? null : v;
 }
 
+/** ¿Queda algún bloque por cumplir? Sin ninguno, ordenConHorarios devuelve la más
+ *  corta tal cual, así que su arranque —orden("horarios"), segundos de CPU con la
+ *  pantalla quieta— ni se calcula (spec 038). */
+export function hayVentanaVigente(ubicados: PedidoUbicado[], minutosDeInicio: number): boolean {
+  return ubicados.some((p) => ventanaVigente(p, minutosDeInicio) !== null);
+}
+
 export async function ordenConHorarios(
   ubicados: PedidoUbicado[],
   arranques: PedidoUbicado[][],

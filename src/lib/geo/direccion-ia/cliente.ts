@@ -2,6 +2,7 @@
 // teléfono: arma la conversación, ejecuta las herramientas que la IA pide con los
 // mismos buscadores que usa la app, y valida lo que propone. Ver contrato.ts.
 
+import { anotarTiempo } from "@/lib/comun/cronometro";
 import { tope } from "@/lib/comun/tope";
 import { callesParecidas } from "../geocoding/calles";
 import { normalizarConsulta } from "../geocoding/consulta";
@@ -27,11 +28,14 @@ const CANDIDATOS_POR_BUSQUEDA = 8;
 export type DependenciasIA = {
   /** Una ida al servidor. */
   pedir: (mensajes: MensajeIA[]) => Promise<RespuestaPaso>;
-  buscar: (consulta: string) => Promise<SugerenciaDireccion[]>;
+  buscar: (consulta: string, senal?: AbortSignal) => Promise<SugerenciaDireccion[]>;
   calles: (nombre: string) => Promise<{ nombre: string; largo: number }[]>;
 };
 
 export class IANoDisponible extends Error {}
+
+/** Anthropic limitó la tasa (429, spec 038): la IA existe, pero no contestó esta vez. */
+export class IAOcupada extends Error {}
 
 async function pedirAlServidor(mensajes: MensajeIA[]): Promise<RespuestaPaso> {
   const res = await fetch("/api/direccion-ia", {
@@ -42,19 +46,22 @@ async function pedirAlServidor(mensajes: MensajeIA[]): Promise<RespuestaPaso> {
   });
   const datos = (await res.json().catch(() => null)) as (RespuestaPaso & { error?: string }) | null;
   if (res.status === 503 && /no está configurada/.test(datos?.error ?? "")) throw new IANoDisponible();
+  if (res.status === 429) throw new IAOcupada(datos?.error ?? "La IA está ocupada.");
   if (!res.ok || !datos || !Array.isArray(datos.contenido)) {
     throw new Error(datos?.error ?? "La IA no respondió.");
   }
+  // Diagnóstico «Tiempos» (spec 038): ¿la caché de prompt se lee? (antes de subir a 3 a la vez)
+  if (datos.uso) anotarTiempo("ia.cache", datos.uso.cacheLeidos);
   return datos;
 }
 
 /** Los dos buscadores a la vez, sin repetidos (spec 019: sin Mapbox). Google
- *  solo si hay clave. */
-async function buscarEnTodos(consulta: string): Promise<SugerenciaDireccion[]> {
+ *  solo si hay clave. La señal corta la búsqueda al detener la tanda (spec 038). */
+async function buscarEnTodos(consulta: string, senal?: AbortSignal): Promise<SugerenciaDireccion[]> {
   const q = normalizarConsulta(consulta);
   const listas = await Promise.all([
-    conNominatim(q).catch(() => []),
-    conGoogle(q).catch(() => []),
+    conNominatim(q, senal).catch(() => []),
+    conGoogle(q, senal).catch(() => []),
   ]);
   const vistas = new Set<string>();
   return listas.flat().filter((s) => {
@@ -73,13 +80,20 @@ const PREDETERMINADAS: DependenciasIA = {
 
 const texto = (v: unknown) => (typeof v === "string" ? v.trim().slice(0, 200) : "");
 
+/** Lo que devuelve una conversación cortada por la señal: nadie lo usa (la tanda ya terminó),
+ *  pero no puede parecer una respuesta de la IA. */
+const DETENIDA: ResultadoIA = { tipo: "error", mensaje: "Se detuvo la corrección." };
+
 /**
  * Pide a la IA que corrija `direccion`. Nunca lanza, salvo IANoDisponible (sin
  * clave en el servidor: no vale la pena seguir con las demás).
+ *
+ * `senal` («Detener», spec 038) se revisa antes de cada ida y de cada búsqueda: antes, al
+ * detener, la conversación seguía sola hasta 6 idas, pagadas y sin que nadie las viera.
  */
 export async function corregirConIA(
   direccion: string,
-  dependencias: Partial<DependenciasIA> = {},
+  { senal, ...dependencias }: Partial<DependenciasIA> & { senal?: AbortSignal } = {},
 ): Promise<ResultadoIA> {
   const { pedir, buscar, calles } = { ...PREDETERMINADAS, ...dependencias };
   const mensajes: MensajeIA[] = [
@@ -98,7 +112,8 @@ export async function corregirConIA(
       if (uso.name === HERRAMIENTA.buscar) {
         const consulta = texto(uso.input.consulta);
         if (!consulta) return resultado("Falta la consulta.", true);
-        const lista = (await buscar(consulta)).slice(0, CANDIDATOS_POR_BUSQUEDA).map((s) => {
+        if (senal?.aborted) return resultado("Se detuvo la búsqueda.", true);
+        const lista = (await buscar(consulta, senal)).slice(0, CANDIDATOS_POR_BUSQUEDA).map((s) => {
           const id = `c${candidatos.size + 1}`;
           const candidato: CandidatoIA = {
             id,
@@ -139,8 +154,11 @@ export async function corregirConIA(
     }
   }
 
+  let idas = 0;
   try {
     for (let vuelta = 0; vuelta < MAX_VUELTAS; vuelta++) {
+      if (senal?.aborted) return DETENIDA;
+      idas++;
       const r = await pedir(mensajes);
       const usos = r.contenido.filter((b): b is BloqueHerramienta => b.type === "tool_use");
       const propuesta = usos.find((u) => u.name === HERRAMIENTA.proponer);
@@ -155,7 +173,11 @@ export async function corregirConIA(
     return { tipo: "sin_arreglo", motivo: "La IA no llegó a una respuesta." };
   } catch (e) {
     if (e instanceof IANoDisponible) throw e;
+    if (e instanceof IAOcupada) return { tipo: "error", mensaje: e.message, ocupada: true };
     return { tipo: "error", mensaje: e instanceof Error ? e.message : "La IA no respondió." };
+  } finally {
+    // Diagnóstico «Tiempos» (spec 038): cuántas idas costó la dirección.
+    if (idas > 0) anotarTiempo("ia.idas", idas);
   }
 }
 

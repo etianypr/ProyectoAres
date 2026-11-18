@@ -1,4 +1,4 @@
-import { EPSILON, distanciaOrden, type Costo, type Penalizacion } from "./costo";
+import { EPSILON, distanciaOrden, enTabla, puntosDe, type Costo, type Penalizacion } from "./costo";
 import { mejorarLocal } from "./mejora";
 
 // ----------------------------------------------------------------------------
@@ -75,10 +75,13 @@ const TOPE_SACUDIDAS = 5000;
  *  hay algo mejor a la vuelta de la esquina: unas cuantas veces, o a fondo. */
 export function mejorDeVariosArranques(
   arranques: number[][],
-  costo: Costo,
+  costoDado: Costo,
   aFondo = false,
   pen?: Penalizacion,
 ): number[] {
+  // Las miles de mejoras de abajo leen el costo de una tabla plana, armada una
+  // sola vez (spec 038): los mismos números, la misma ruta.
+  const costo = enTabla(puntosDe(arranques), costoDado);
   let mejor = arranques[0];
   let mejorCosto = Infinity;
 

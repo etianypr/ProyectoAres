@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { conductorDeLaApi } from "@/lib/auth/api-conductor";
+import { tiemposServidor } from "@/lib/comun/tiempos-servidor";
 import { BYTES_MAXIMOS_FOTO, MAX_FOTOS_GUIA, type ErrorLecturaApi, type RespuestaLectura } from "@/lib/encomiendas/lectura/contrato";
 import { LecturaIlegible, lecturaIADisponible, leerFotos } from "@/lib/encomiendas/lectura/servidor";
 
@@ -14,17 +15,23 @@ import { LecturaIlegible, lecturaIADisponible, leerFotos } from "@/lib/encomiend
 //   400 sin foto o no es la guía · 401 sin sesión de conductor · 413 foto
 //   grande · 422 ilegible · 503 IA apagada o caída (el teléfono sigue con el
 //   texto pegado).
+//
+// El proxy no consulta la sesión aquí: la verifica conductorDeLaApi (spec 038). Server-Timing
+// lleva solo cifras (auth, proveedor).
 
 const TIPOS_FOTO = ["image/jpeg", "image/png", "image/webp"] as const;
 type TipoFoto = (typeof TIPOS_FOTO)[number];
 
-function error(estado: number, mensaje: string) {
-  return NextResponse.json<ErrorLecturaApi>({ error: mensaje }, { status: estado });
+/** Las respuestas de error, con los tiempos de esta consulta. */
+function erroresCon(tiempos: ReturnType<typeof tiemposServidor>) {
+  return (estado: number, mensaje: string) => tiempos.con(NextResponse.json<ErrorLecturaApi>({ error: mensaje }, { status: estado }));
 }
 
 export async function POST(request: Request) {
-  const quien = await conductorDeLaApi();
-  if (!quien.ok) return quien.respuesta;
+  const tiempos = tiemposServidor();
+  const error = erroresCon(tiempos);
+  const quien = await tiempos.medir("auth", () => conductorDeLaApi());
+  if (!quien.ok) return tiempos.con(quien.respuesta);
 
   const datos = await request.formData().catch(() => null);
   if (datos?.get("tipo") !== "guia") return error(400, "Solo se lee la guía: la etiqueta se lee en el teléfono.");
@@ -44,11 +51,11 @@ export async function POST(request: Request) {
     // "revisar": el teléfono vio en la guía una OF que la primera lectura no
     // trajo; se relee con el modelo más fino (ver lectura/servidor.ts).
     const alta = datos.get("revisar") === "1";
-    const lectura = await leerFotos(
-      await Promise.all(fotos.map(async (f, i) => ({ datos: new Uint8Array(await f.arrayBuffer()), mediaType: tipos[i] as TipoFoto }))),
-      { alta },
+    const imagenes = await Promise.all(
+      fotos.map(async (f, i) => ({ datos: new Uint8Array(await f.arrayBuffer()), mediaType: tipos[i] as TipoFoto })),
     );
-    return NextResponse.json<RespuestaLectura>(lectura);
+    const lectura = await tiempos.medir("proveedor", () => leerFotos(imagenes, { alta }));
+    return tiempos.con(NextResponse.json<RespuestaLectura>(lectura));
   } catch (e) {
     if (e instanceof LecturaIlegible) return error(422, "No se pudo leer la foto. Intenta otra, más cerca y con luz.");
     return error(503, "La lectura con IA no respondió. Intenta de nuevo o pega el texto.");
