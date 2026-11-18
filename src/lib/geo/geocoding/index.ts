@@ -42,5 +42,5 @@ export { esPlusCode } from "./codigo";
 export { sugerirDirecciones } from "./sugerir";
 export { sugerirEnOsm } from "./nominatim";
 export { aplicarPuertas, combinarSugerencias, completarNumeroEnCalles, type PuertasEnCalles } from "./completar-numero";
-export { geocodificarDireccion, ubicarDireccion, type ResultadoUbicacion } from "./ubicar";
+export { adelantarNominatim, consultaOsmDe, geocodificarDireccion, ubicarDireccion, type ResultadoUbicacion } from "./ubicar";
 export { elegirConLaRuta, separarReferencias, type Referencias } from "./referencias";

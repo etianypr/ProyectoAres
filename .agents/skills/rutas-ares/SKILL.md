@@ -55,6 +55,19 @@ ellos, y hay que avisar la diferencia.
 - Sin cupo de ORS (429), la ruta sigue en línea recta con aviso; nunca se cae.
 - «Dejar como pendiente» manda la parada al final. Rehacer la ruta desde «Mi ubicación» ordena solo
   lo pendiente (decisión del dueño, en vez de reoptimizar solo).
+- **Más rápido, la misma ruta** (spec 038). Lo que se optimiza por tiempo da el mismo orden bit a
+  bit, y lo fijan `pruebas/038-orden-dorado` y `038-armado` (fixtures del código de antes):
+  - el optimizador sin rumbo lee una tabla plana (`enTabla`, `costo.ts`), y el Or-opt no arma
+    arreglos por jugada; `probar`/`invertir` (con rumbo) recorren por índice. Mismo orden de sumas,
+    `+ 0` y `EPSILON`: si tocas `mejora.ts`, la dorada lo dice;
+  - sin una ventana vigente no se calcula `orden("horarios")` (`hayVentanaVigente`); sin bloques
+    la huella no lleva el cuarto de hora (`huella.ts`);
+  - el GPS va a la vez que el reintento y los accesos; sin conexión, 2 sin respuesta seguidas paran
+    el reintento (dueño, 2026-11-17). La revisión de accesos (`corregirAccesos`) se dejó como era:
+    acelerarla (más paradas revisadas y movidas) cambió la ruta y al dueño no le gustó («va y vuelve»,
+    2026-11-18). Cambiar cuántas paradas se mueven a su calle cambia la ruta: no es solo tiempo.
+  - Descartado por cambiar la ruta: bajar `sinMejora`, presupuesto de tiempo, la ruta anterior
+    como arranque. El Worker sigue sin probar en `next build`.
 
 ## Dónde está cada cosa
 | Qué | Archivo |
@@ -94,6 +107,9 @@ ellos, y hay que avisar la diferencia.
   `pruebas/fixtures/` o una matriz guardada, no la red. Reporta las dos cifras y la diferencia
   en %.
 - Si el cambio es del orden, pruébalo también con horarios y con una parada lejana.
+- Tiempos: `npm run medir` da la mediana de 5 corridas por etapa y un hash del orden, los
+  sentidos y el costo, con los escenarios de 10 confirmados, 5 con bloque y «Pidió otra hora».
+  Un cambio por tiempo deja los hashes iguales. En el teléfono: Diagnóstico → «Tiempos».
 
 ## Pruebas
 - Siempre: `npm test`, `npm run lint`, `npm run build`.

@@ -16,7 +16,8 @@
     "sondear": "node --env-file=.env.local scripts/sondear-proveedores.mjs",
     "calles": "node scripts/generar-calles.mjs",
     "red": "node scripts/generar-red.mjs",
-    "medir": "node --no-warnings --import ./pruebas/registrar.mjs scripts/medir-rutas.mjs"
+    "medir": "node --no-warnings --import ./pruebas/registrar.mjs scripts/medir-rutas.mjs",
+    "medir:direcciones": "node --no-warnings --import ./pruebas/registrar.mjs scripts/medir-direcciones.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",

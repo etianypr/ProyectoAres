@@ -23,6 +23,11 @@ export const HERRAMIENTA = {
 export const MAX_VUELTAS = 6;
 /** Direcciones por tanda: el resto queda para corregir a mano. */
 export const MAX_DIRECCIONES_POR_TANDA = 100;
+/** Direcciones que se le preguntan a la IA a la vez (spec 038): en serie, 6 direcciones
+ *  tardaban ~24 s y con 3 a la vez ~10 s, con las mismas propuestas. Empieza en 2 y sube a 3
+ *  cuando la caché de prompt esté andando (Diagnóstico: `uso.cacheLeidos` > 0) y no se vean
+ *  429 de Anthropic; con un 429 la tanda sigue de a una. */
+export const DIRECCIONES_A_LA_VEZ = 2;
 /** Tamaño máximo de la conversación que acepta el servidor (caracteres). */
 export const MAX_CARACTERES_CONVERSACION = 60_000;
 
@@ -50,15 +55,20 @@ export type MensajeIA =
   | { role: "user"; content: string | BloqueResultado[] }
   | { role: "assistant"; content: (BloqueTexto | BloqueHerramienta)[] };
 
+/** Tokens de la caché de prompt en una ida (spec 038): solo cifras, para Diagnóstico. */
+export type UsoCache = { cacheLeidos: number; cacheCreados: number };
+
 /** Lo que devuelve el servidor por cada ida. */
-export type RespuestaPaso = { contenido: (BloqueTexto | BloqueHerramienta)[]; fin: string | null };
+export type RespuestaPaso = { contenido: (BloqueTexto | BloqueHerramienta)[]; fin: string | null; uso?: UsoCache };
 
 export type ConfianzaIA = "alta" | "media" | "baja";
 
 export type ResultadoIA =
   | { tipo: "propuesta"; candidato: CandidatoIA; direccion: string; confianza: ConfianzaIA; motivo: string }
   | { tipo: "sin_arreglo"; motivo: string }
-  | { tipo: "error"; mensaje: string };
+  /** `ocupada`: Anthropic limitó la tasa (429, spec 038). No es falta de conexión: la tanda
+   *  baja a una a la vez y esa dirección se vuelve a preguntar una vez. */
+  | { tipo: "error"; mensaje: string; ocupada?: true };
 
 /** La conversación que manda el teléfono tiene la forma esperada y no es enorme.
  *  Pura: la usa la ruta antes de gastar una consulta. */

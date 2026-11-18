@@ -13,6 +13,7 @@ const { normalizarConsulta, coincidenciaCalle, distanciaEdicion } = await import
 const { callesParecidas, largoDeCalle } = await import("@/lib/geo/geocoding/calles");
 const { ubicarDireccion } = await import("@/lib/geo/geocoding");
 const { googleDirecto, olvidarConsultasGoogle } = await import("@/lib/geo/geocoding/google");
+const { olvidarConsultasNominatim } = await import("@/lib/geo/geocoding/nominatim");
 
 // ---------------------------------------------------------------------------
 // Limpieza del texto
@@ -143,6 +144,8 @@ test.beforeEach(() => {
   google = () => ({ status: "ZERO_RESULTS", results: [] });
   consultas = [];
   olvidarConsultasGoogle();
+  // OSM también se recuerda durante el día (spec 038) y cada prueba le contesta distinto.
+  olvidarConsultasNominatim();
   globalThis.window = {}; // Google se pregunta desde el teléfono
 });
 

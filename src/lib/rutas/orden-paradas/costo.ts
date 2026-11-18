@@ -14,6 +14,47 @@ export function conFinal(tramo: Costo, vuelta?: (a: number) => number): Costo {
   return (a, b) => (b === FIN ? (vuelta ? vuelta(a) : 0) : tramo(a, b));
 }
 
+/** Un Costo que lee de una tabla plana: `tabla[a · ancho + b + 1]`, con la columna
+ *  0 para FIN (−1 + 1).
+ *
+ *  Precondición (spec 038): `a` va de 0 a n − 1 y `b` de 0 a n − 1 o es FIN, con
+ *  n = ancho − 1. No revisa el rango porque se lee millones de veces, y fuera de él
+ *  no da Infinity como `matriz[a]?.[b] ?? Infinity`: da el número de otra fila, o
+ *  undefined con `a` = FIN. Se cumple porque los órdenes que llegan son
+ *  permutaciones de 0..n − 1 (el arranque de sentido.ts es la identidad). */
+export type CostoEnTabla = Costo & { tabla: Float64Array; ancho: number };
+
+/** El mismo costo, leído de una tabla plana de n × (n + 1) (spec 038, tiempos): la
+ *  búsqueda a fondo lo lee millones de veces, y cada lectura pasaba por conFinal,
+ *  la vuelta, `matriz[a]?.[b] ?? Infinity` o la línea recta. La tabla guarda los
+ *  mismos números (Infinity, la vuelta en la columna de FIN, la línea recta), así
+ *  que el orden que sale es el mismo bit a bit. Un costo que ya es tabla y alcanza
+ *  para n puntos se usa tal cual. */
+export function enTabla(n: number, costo: Costo): CostoEnTabla {
+  const yaEs = costo as Partial<CostoEnTabla>;
+  if (yaEs.tabla && yaEs.ancho != null) {
+    if (yaEs.ancho - 1 >= n) return costo as CostoEnTabla;
+    // Rearmarla leyendo la tabla chica fuera de su rango copiaría números corridos
+    // de otra fila: una ruta con costos falsos que nada avisa. Mejor fallar fuerte
+    // (spec 038, ver la precondición de CostoEnTabla).
+    throw new RangeError(`un orden con el punto ${n - 1}, pero la tabla del costo es de ${yaEs.ancho - 1} puntos`);
+  }
+  const ancho = n + 1;
+  const tabla = new Float64Array(n * ancho);
+  for (let a = 0; a < n; a++) {
+    tabla[a * ancho] = costo(a, FIN);
+    for (let b = 0; b < n; b++) tabla[a * ancho + b + 1] = costo(a, b);
+  }
+  return Object.assign((a: number, b: number) => tabla[a * ancho + b + 1], { tabla, ancho });
+}
+
+/** Cuántos puntos necesita una tabla para estos órdenes: el índice más alto + 1. */
+export function puntosDe(ordenes: number[][]): number {
+  let n = 0;
+  for (const orden of ordenes) for (const i of orden) if (i + 1 > n) n = i + 1;
+  return n;
+}
+
 /** Lo que cuesta pasar por `parada` viniendo de `anterior` y siguiendo a
  *  `siguiente` (FIN = volver a la base), además de los tramos: en una calle
  *  estrecha, entrar y salir por el mismo extremo es un rodeo (terreno

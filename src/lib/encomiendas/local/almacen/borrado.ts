@@ -4,8 +4,7 @@
 // no se toca: no tiene datos de personas y sin ella el conductor no cobra.
 
 import { hoyChile, sumarDias } from "@/lib/comun/fechas";
-import { olvidarConsultasGoogle } from "@/lib/geo/geocoding/google";
-import { olvidarMatriz } from "@/lib/geo/matriz";
+import { olvidarMemoriasDelDia } from "../olvidar-memorias";
 import { STORES, STORES_DEL_DIA, clavesFotosDe, escribir, fechasDeFotos, leerTodos, leerUno } from "../idb";
 import { enFila } from "./fila";
 import { leerDiaGuardado, leerPedidos, leerRuta, leerTodosLosPedidos, pedidosEnOrden } from "./lecturas";
@@ -113,10 +112,8 @@ export function cerrarYBorrarDia(fecha: string): Promise<ResumenDia | null> {
       if (propuesta) borrar(STORES.propuestas, fecha);
       if (borrador) borrar(STORES.borradoresGuia, fecha);
     });
-    // Las distancias y las respuestas de Google guardan puntos y direcciones de
-    // destinatarios (en memoria).
-    olvidarMatriz();
-    olvidarConsultasGoogle();
+    // Lo que queda en memoria con puntos y direcciones de destinatarios (spec 038).
+    olvidarMemoriasDelDia();
     return resumen;
   });
 }
@@ -143,8 +140,7 @@ export function borrarDatosDestinatarios(): Promise<void> {
       for (const r of resumenes) guardar(STORES.dias, r);
       for (const store of STORES_DEL_DIA) vaciar(store);
     });
-    olvidarMatriz();
-    olvidarConsultasGoogle();
+    olvidarMemoriasDelDia();
   });
 }
 

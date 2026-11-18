@@ -10,6 +10,8 @@ import { textoConVision, VisionApagada, visionDisponible } from "@/lib/encomiend
 //   401 sin sesión · 400 sin foto · 413 foto grande · 503 sin clave o con la
 //   API apagada en la clave (el teléfono deja de preguntar) · 502 Google no
 //   respondió (el teléfono sigue con su propio lector)
+//
+// El proxy no consulta la sesión aquí: la verifica conductorDeLaApi (spec 038).
 
 export async function POST(request: Request) {
   const quien = await conductorDeLaApi();

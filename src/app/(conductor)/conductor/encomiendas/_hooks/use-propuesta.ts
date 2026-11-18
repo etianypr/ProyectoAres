@@ -4,6 +4,7 @@
 // usarla (sale de pantalla.tsx, spec 002 T036).
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { hastaAbortar } from "@/lib/comun/hasta-abortar";
 import { leerPedidos, type PedidoEliminado } from "@/lib/encomiendas/local/almacen";
 import {
   calcularRutaLocal,
@@ -22,6 +23,7 @@ import {
   type PedidoUbicado,
   type PropuestaRuta,
 } from "@/lib/encomiendas/local/generar-ruta";
+import { useAtrasPropio } from "./use-atras-propio";
 import type { DiaEnCurso } from "./use-dia-trabajo";
 
 /** El último pedido eliminado de la propuesta, para "Deshacer". */
@@ -176,15 +178,38 @@ export function usePropuesta({ dia, fecha }: { dia: DiaEnCurso; fecha: string })
     setPropuestaEstado(actualRef.current);
   }, []);
 
+  // «Recalcular ruta» se cancela como «Optimizar ruta» (spec 033, buscando-trabado):
+  // atrás u onCancelarRecalculo cortan la búsqueda con AbortError, vuelve al tiro y la
+  // propuesta a la vista queda como estaba (spec 038: sin conexión no hay que esperarla).
+  const recalculoRef = useRef<AbortController | null>(null);
+  const [recalculando, setRecalculando] = useState(false);
+  const onCancelarRecalculo = useCallback(() => {
+    recalculoRef.current?.abort();
+  }, []);
+  useAtrasPropio(recalculando, onCancelarRecalculo);
+
   /** «Recalcular ruta» (spec 037): vuelve a optimizar con los puntos corregidos, desde
    *  y hasta donde estaba la propuesta. Lee los pedidos del teléfono, así que no hace
    *  falta pasarle nada. Si falla, la propuesta a la vista queda como estaba. */
   const onRecalcular = useCallback(async () => {
     const actual = actualRef.current;
     if (!actual) return;
-    const desde = { tipo: "gps", lat: actual.partida.lat, lng: actual.partida.lng } as const;
-    const hasta = actual.llegada ? ({ tipo: "gps", lat: actual.llegada.lat, lng: actual.llegada.lng } as const) : undefined;
-    setPropuesta(await calcularRutaLocal(fecha, desde, hasta));
+    recalculoRef.current?.abort();
+    const control = new AbortController();
+    recalculoRef.current = control;
+    setRecalculando(true);
+    try {
+      const desde = { tipo: "gps", lat: actual.partida.lat, lng: actual.partida.lng } as const;
+      const hasta = actual.llegada ? ({ tipo: "gps", lat: actual.llegada.lat, lng: actual.llegada.lng } as const) : undefined;
+      // Cancelado, null al tiro: no espera el próximo paso de la búsqueda.
+      const nueva = await hastaAbortar(calcularRutaLocal(fecha, desde, hasta, control.signal), control.signal);
+      if (nueva && !control.signal.aborted) setPropuesta(nueva);
+    } finally {
+      if (recalculoRef.current === control) {
+        recalculoRef.current = null;
+        setRecalculando(false);
+      }
+    }
   }, [fecha, setPropuesta]);
 
   const onUsarPropuesta = useCallback(async () => {
@@ -209,6 +234,6 @@ export function usePropuesta({ dia, fecha }: { dia: DiaEnCurso; fecha: string })
 
   return {
     propuesta, setPropuesta, onElegirAlternativa, onUsarPropuesta, quitado, onQuitar, onDeshacerQuitar, onInvertir,
-    onPedidoCorregido, onMantenerLejana, onRecalcular,
+    onPedidoCorregido, onMantenerLejana, onRecalcular, recalculando, onCancelarRecalculo,
   };
 }

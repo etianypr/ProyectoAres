@@ -246,6 +246,17 @@ Ruta con rumbo (2026-11-12, spec 031; todo medido sin consultas, salvo una a Ove
   calle: con ellos como condominio, dos casas del mismo pasaje salían a esquinas distintas. Con eso, la ruta
   de hoy mide 37,1 km, contra 39,7 la anterior y 39,5 la de Spoke, todas medidas con rumbo.
 
+- **Tiempos (spec 038, 2026-11-17), la misma ruta más rápida:** tabla plana en el optimizador sin
+  rumbo y jugadas con rumbo por índice (mismo orden, sentidos y costo bit a bit, pruebas doradas). En
+  el PC, 80 paradas: armado 2,4 → 1,7 s; con 10 confirmados, «Confirmados» 4,8 → 0,6 s; con un
+  «Pidió otra hora», el arranque de horarios 10,9 → 1,5 s (y no se calcula si el bloque ya cerró).
+  Descartado por cambiar la ruta: bajar el corte de la búsqueda (hubo mejoras después de 1263
+  sacudidas sin mejora), un presupuesto de tiempo, la ruta anterior como arranque. Sin probar: un
+  Web Worker (Turbopack lo publicaba sin compilar en la 017). «Crear N pedidos»: Nominatim con
+  caché del día y adelantado mientras se revisan las líneas, la carga de a 3 y la IA de a 2 (62 →
+  50 s, 36 s con el adelanto; sin red, latencias simuladas). Lo que queda es la fila de Nominatim
+  (1,2 s por consulta, su política) y lo que tarda Claude.
+
 ## Fuera de alcance
 
 Varios conductores o mandantes · seguir paquetes entre días · prueba de entrega con

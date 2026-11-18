@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { exigirConductor } from "@/lib/auth/sesion";
 import { ModoPruebaApk } from "./modo-prueba-apk";
+import { ObservarTiempos } from "./observar-tiempos";
 import { RegistrarSW } from "./registrar-sw";
 import { TemaDashund } from "./tema-dashund";
 
@@ -45,6 +46,7 @@ export default async function ConductorLayout({ children }: { children: React.Re
       <TemaDashund />
       <RegistrarSW />
       <ModoPruebaApk />
+      <ObservarTiempos />
       {children}
     </div>
   );

@@ -3,6 +3,7 @@
 // pantalla para poder probarlo (spec 033): se puede cortar, para solo sin señal,
 // le pregunta a la IA solo por los de ESTA carga y dice por qué quedó cada cosa.
 
+import { cronometrar } from "@/lib/comun/cronometro";
 import type { ResultadoUbicacion } from "@/lib/geo/geocoding";
 import type { ResultadoIA } from "@/lib/geo/direccion-ia/contrato";
 import type { LineaParaCrear, OrigenCarga } from "./almacen";
@@ -65,13 +66,16 @@ export async function cargarLineasGuia(
   const puntosDelDia = (await leerPedidos(fecha))
     .filter((p) => !nuevos.has(p.id) && p.lat != null && p.lng != null)
     .map((p) => ({ lat: p.lat!, lng: p.lng! }));
-  const u = await ubicarCarga(creados, {
-    puntosDelDia,
-    senal,
-    enLinea,
-    ubicar,
-    alAvanzar: (hechos, total) => alAvanzar?.("ubicando", hechos, total),
-  });
+  // Diagnóstico «Tiempos» (spec 038): cuánto espera el conductor en cada fase.
+  const u = await cronometrar("carga.ubicar", () =>
+    ubicarCarga(creados, {
+      puntosDelDia,
+      senal,
+      enLinea,
+      ubicar,
+      alAvanzar: (hechos, total) => alAvanzar?.("ubicando", hechos, total),
+    }),
+  );
   const porId = new Map(creados.map((p) => [p.id, p.direccion]));
   const resumen: ResumenCarga = {
     ids: creados.map((p) => p.id),
@@ -93,13 +97,15 @@ export async function cargarLineasGuia(
   if (u.sinSenal) return { ...resumen, ia: "sinSenal" };
 
   // La IA, solo con las de esta carga (antes miraba todo el día, spec 033).
-  const r: ResumenCorreccion = await corregirDirecciones(fecha, {
-    ids: aRevisar,
-    senal,
-    enLinea,
-    corregir,
-    alAvanzar: (hechos, total) => alAvanzar?.("corrigiendo", hechos, total),
-  });
+  const r: ResumenCorreccion = await cronometrar("carga.corregir", () =>
+    corregirDirecciones(fecha, {
+      ids: aRevisar,
+      senal,
+      enLinea,
+      corregir,
+      alAvanzar: (hechos, total) => alAvanzar?.("corrigiendo", hechos, total),
+    }),
+  );
   const ia: EstadoIA = r.sinIA
     ? "apagada"
     : senal?.aborted

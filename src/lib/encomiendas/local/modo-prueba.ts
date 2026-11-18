@@ -17,10 +17,9 @@
 // (el dueño: «no elimines nada porque estamos en prueba»).
 
 import { useSyncExternalStore } from "react";
-import { olvidarConsultasGoogle } from "@/lib/geo/geocoding/google";
-import { olvidarMatriz } from "@/lib/geo/matriz";
 import { enFila } from "./almacen/fila";
 import { STORES, STORES_DEL_DIA, escribir, leerTodos } from "./idb";
+import { olvidarMemoriasDelDia } from "./olvidar-memorias";
 
 const CLAVE = "ares-modo-prueba";
 const EVENTO = "ares-modo-prueba";
@@ -67,10 +66,8 @@ export function salirDelModoPrueba(version: string | null = null): Promise<void>
     await escribir(stores, ({ vaciar }) => {
       for (const store of stores) vaciar(store);
     });
-    // Las distancias y las respuestas de Google guardan puntos y direcciones de
-    // destinatarios (en memoria).
-    olvidarMatriz();
-    olvidarConsultasGoogle();
+    // Lo que queda en memoria con puntos y direcciones de destinatarios (spec 038).
+    olvidarMemoriasDelDia();
     fijar(false);
   });
 }

@@ -21,6 +21,7 @@ import { leerEtiqueta, type LecturaEtiqueta } from "@/lib/encomiendas/lectura/et
 import { combinarLecturas } from "@/lib/encomiendas/lectura/etiqueta/combinar";
 import { faltanEnLaPrimera, guiaDesdeIA, leerGuia, type GuiaLeida } from "@/lib/encomiendas/lectura/guia";
 import { textoDeFoto } from "@/lib/nativo/telefono";
+import { cronometrar } from "@/lib/comun/cronometro";
 import { tope } from "@/lib/comun/tope";
 import { comprimirFoto } from "./foto";
 
@@ -75,19 +76,58 @@ export async function leerFotoEtiquetaDoble(foto: Blob): Promise<LecturaDoble | 
   return uno ? { lectura: leerEtiqueta(uno), texto: uno, distintos: [] } : null;
 }
 
+// De a una: decodificar varias fotos de 12–50 MP a la vez puede agotar la memoria de un
+// teléfono barato (spec 017, E10). Todo lo que achica una foto de la guía pasa por esta fila,
+// también lo que se adelanta al tomarla (spec 038).
+let filaCompresion: Promise<unknown> = Promise.resolve();
+function enFilaDeCompresion<T>(trabajo: () => Promise<T>): Promise<T> {
+  const hecho = filaCompresion.then(trabajo);
+  filaCompresion = hecho.catch(() => null);
+  return hecho;
+}
+
+/** Las fotos de la guía ya achicadas al tomarlas, por foto (spec 038). */
+const adelantadas = new WeakMap<Blob, Promise<Blob>>();
+
+/** Achica la foto de la guía apenas se toma (spec 038): «Leer direcciones» ya no espera la
+ *  compresión de todas juntas. Es la misma compresión que hacía `leerFotosGuia`, así que van
+ *  los mismos bytes; achicarlas más (1400 px) se sigue decidiendo al leer, con todas a la vista.
+ *  No lanza: si falla, se vuelve a intentar al leer, como antes. */
+export function adelantarCompresionGuia(foto: Blob): void {
+  if (adelantadas.has(foto)) return;
+  const reducida = enFilaDeCompresion(() => comprimirFoto(foto, LADO_MAXIMO.guia));
+  adelantadas.set(foto, reducida);
+  reducida.catch(() => adelantadas.delete(foto));
+}
+
+async function reducirGuia(foto: Blob): Promise<Blob> {
+  const adelantada = adelantadas.get(foto);
+  if (adelantada) {
+    try {
+      return await adelantada;
+    } catch {
+      // Se vuelve a intentar, como si no se hubiera adelantado.
+    }
+  }
+  return enFilaDeCompresion(() => comprimirFoto(foto, LADO_MAXIMO.guia));
+}
+
 /** Las fotos de la guía del día (suelen ser 3), TODAS en una sola consulta a la
  *  IA: la instrucción va una vez y la IA junta las filas que se repiten donde
  *  las fotos se superponen (terreno 2026-10-27). El texto de cada foto sirve de
  *  control gratis: si trae una OF que la IA no leyó, se relee todo junto. */
-export async function leerFotosGuia(fotos: Blob[], { ia }: { ia: boolean }): Promise<LecturaFoto> {
-  // De a una: decodificar varias fotos de 12–50 MP a la vez puede agotar la
-  // memoria de un teléfono barato (spec 017, E10).
+export function leerFotosGuia(fotos: Blob[], opciones: { ia: boolean }): Promise<LecturaFoto> {
+  // Diagnóstico «Tiempos» (spec 038): solo los milisegundos.
+  return cronometrar("guia.leer", () => leerFotosGuiaSinMedir(fotos, opciones));
+}
+
+async function leerFotosGuiaSinMedir(fotos: Blob[], { ia }: { ia: boolean }): Promise<LecturaFoto> {
   let reducidas: Blob[] = [];
-  for (const f of fotos) reducidas.push(await comprimirFoto(f, LADO_MAXIMO.guia));
+  for (const f of fotos) reducidas.push(await reducirGuia(f));
   // Todas juntas tienen que entrar en una consulta: si no, se achican más.
   if (reducidas.reduce((s, r) => s + r.size, 0) > BYTES_MAXIMOS_FOTO * 0.9) {
     const chicas: Blob[] = [];
-    for (const r of reducidas) chicas.push(await comprimirFoto(r, 1400));
+    for (const r of reducidas) chicas.push(await enFilaDeCompresion(() => comprimirFoto(r, 1400)));
     reducidas = chicas;
   }
   const textos = async () => {

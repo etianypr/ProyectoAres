@@ -16,7 +16,7 @@ import {
 import { preguntarAGoogle } from "./google";
 import { lugaresDeCalle } from "./lugares";
 import { preguntarANominatim } from "./nominatim";
-import { calleYNumero, separarReferencias } from "./referencias";
+import { calleYNumero, separarReferencias, type Referencias } from "./referencias";
 import type { SugerenciaDireccion, TipoUbicacion } from "./tipos";
 
 // Dos coincidencias más separadas que esto son lugares DISTINTOS, no dos formas
@@ -83,10 +83,7 @@ export async function ubicarDireccion(direccion: string, senal?: AbortSignal): P
     };
   }
 
-  // La calle de la casa es la que va junto al número; la población de antes y la referencia de
-  // después («con calle 5», «frente a…») no se buscan: confunden al buscador (spec 035, 025).
-  const ref = separarReferencias(direccion);
-  const q = normalizarConsulta(ref.consulta);
+  const { ref, q } = consultaDe(direccion);
   if (!q) {
     return { tipo: "no_encontrada", candidatos: [], elegida: null, advertencia: "La dirección está vacía." };
   }
@@ -101,7 +98,11 @@ export async function ubicarDireccion(direccion: string, senal?: AbortSignal): P
   // 3536"). Va acá y no adentro de cada proveedor porque necesita las DOS
   // listas: OSM y el catálogo tienen los nombres de calle correctos y Google los
   // números de casa.
-  const completadas = await completarNumeroEnCalles(q, primeraVuelta, senal);
+  // Sin respuesta de ninguno de los dos (null, no «sin resultados»), no se le vuelve a
+  // preguntar a Google por el nombre oficial: sin conexión cada dirección esperaba dos
+  // topes de 12 s y la carga paraba a los ~48 s en vez de ~24 (spec 038, autorizado).
+  const sinNadie = google === null && osm === null;
+  const completadas = sinNadie ? { puertas: [], sinEseNumero: [] } : await completarNumeroEnCalles(q, primeraVuelta, senal);
   const candidatos = aplicarPuertas(primeraVuelta, completadas);
 
   const r = await clasificar(q, completadas, candidatos, osm === null && (google === null || google.length === 0));
@@ -117,6 +118,29 @@ export async function ubicarDireccion(direccion: string, senal?: AbortSignal): P
     if (lugares.length >= 2) return ubicarEnLugares(q, ref, lugares, candidatos);
   }
   return r;
+}
+
+/** La calle de la casa es la que va junto al número; la población de antes y la referencia de
+ *  después («con calle 5», «frente a…») no se buscan: confunden al buscador (spec 035, 025). */
+function consultaDe(direccion: string): { ref: Referencias; q: string } {
+  const ref = separarReferencias(direccion);
+  return { ref, q: normalizarConsulta(ref.consulta) };
+}
+
+/** Lo que ubicarDireccion le preguntará a OpenStreetMap por esta dirección, o null si no le
+ *  pregunta nada (un Plus Code, o vacía). Spec 038: el adelanto pregunta exactamente esto. */
+export function consultaOsmDe(direccion: string): string | null {
+  if (comoPlusCode(direccion)) return null;
+  return consultaDe(direccion).q || null;
+}
+
+/** Adelanta la consulta a OpenStreetMap de una dirección mientras el conductor revisa las
+ *  líneas de la guía (spec 038, autorizado; solo Nominatim, nunca Google): con prioridad baja,
+ *  la respuesta queda en la caché del día y ubicarDireccion la encuentra sin esperar la fila.
+ *  Nunca lanza; la señal la corta al cerrar, deshacer o tocar «Crear N pedidos». */
+export async function adelantarNominatim(direccion: string, senal?: AbortSignal): Promise<void> {
+  const q = consultaOsmDe(direccion);
+  if (q) await preguntarANominatim(q, senal, "baja");
 }
 
 /** «Pasaje 1», «Calle Dos», «1 Norte», «Nueva 2»: el nombre no dice dónde está. */

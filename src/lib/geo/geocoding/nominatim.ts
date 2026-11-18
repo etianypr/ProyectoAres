@@ -1,61 +1,170 @@
 // OpenStreetMap (Nominatim): nombres de calle y puntos de interés. Ver la
 // cabecera de ./index.ts.
 
+import { desde } from "@/lib/comun/cronometro";
+import { hastaAbortar } from "@/lib/comun/hasta-abortar";
 import { tope } from "@/lib/comun/tope";
 import { esPlusCode } from "./codigo";
 import { normalizarConsulta } from "./consulta";
 import { BBOX_ARICA, CANDIDATOS_POR_PROVEEDOR, MIN_CARACTERES, type SugerenciaDireccion } from "./tipos";
 
-// Nominatim. Uso muy bajo (~30 pedidos/día) — dentro de su política de uso justo
+// Nominatim. Uso muy bajo (~100 pedidos/día) — dentro de su política de uso justo
 // (https://operations.osmfoundation.org/policies/nominatim/), que exige un
 // User-Agent identificable y pone un máximo ABSOLUTO de una consulta por
-// segundo. Desde el navegador ese User-Agent se descarta en silencio (es un
-// header que no se deja fijar) y la política acepta el Referer que el navegador
-// manda solo. Verificado: responde "access-control-allow-origin: *", así que la
-// llamada desde el teléfono funciona.
+// segundo, desde un solo hilo. Desde el navegador ese User-Agent se descarta en
+// silencio (es un header que no se deja fijar) y la política acepta el Referer que
+// el navegador manda solo. Verificado: responde "access-control-allow-origin: *",
+// así que la llamada desde el teléfono funciona.
 const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search";
 const USER_AGENT = "ares-dashund/1.0 (encomiendas; contacto: admin de la empresa)";
 
-// El límite de una por segundo se respeta ACÁ, en el transporte, y no en cada
-// pantalla que consulta: es la única forma de que nadie se lo pase por delante
-// sin darse cuenta. Cada consulta toma turno en una fila y espera lo que le
-// falte para cumplir el intervalo (antes esto estaba escrito a mano en
+// El límite se respeta ACÁ, en el transporte, y no en cada pantalla que consulta:
+// es la única forma de que nadie se lo pase por delante sin darse cuenta. Cada
+// consulta toma turno en una fila (antes esto estaba escrito a mano en
 // generar-ruta.ts, que espaciaba sus reintentos con un sleep propio).
+//
+// Spec 038: una sola consulta abierta a la vez. El turno siguiente se da cuando la
+// anterior llegó (o se abortó) Y pasaron 1,2 s desde que empezó; antes solo se
+// espaciaban los comienzos y una consulta lenta podía quedar abierta junto a la
+// siguiente. Una consulta que se aborta antes de su turno sale de la fila sin
+// gastarlo. El campo y la carga van antes que el adelanto de la revisión.
 const MS_ENTRE_CONSULTAS_OSM = 1200;
-let ultimaConsultaOsm = 0;
-let filaOsm: Promise<void> = Promise.resolve();
 
-function turnoOsm(): Promise<void> {
-  const proximo = filaOsm.then(async () => {
-    const falta = MS_ENTRE_CONSULTAS_OSM - (Date.now() - ultimaConsultaOsm);
-    if (falta > 0) await new Promise((listo) => setTimeout(listo, falta));
-    ultimaConsultaOsm = Date.now();
-  });
-  filaOsm = proximo;
-  return proximo;
+/** "alta": el campo y la carga de la guía; "baja": el adelanto mientras se revisan las líneas. */
+export type PrioridadOsm = "alta" | "baja";
+
+type Espera = { prioridad: PrioridadOsm; dar: () => void };
+const enEspera: Espera[] = [];
+let abierta = false;
+let inicioUltima = 0;
+let reloj: ReturnType<typeof setTimeout> | null = null;
+
+/** Da el turno a la siguiente, la primera de prioridad alta si hay, cuando se puede. */
+function despachar(): void {
+  if (abierta || reloj || enEspera.length === 0) return;
+  const falta = MS_ENTRE_CONSULTAS_OSM - (Date.now() - inicioUltima);
+  if (falta > 0) {
+    reloj = setTimeout(() => {
+      reloj = null;
+      despachar();
+    }, falta);
+    return;
+  }
+  const alta = enEspera.findIndex((e) => e.prioridad === "alta");
+  const [siguiente] = enEspera.splice(alta >= 0 ? alta : 0, 1);
+  abierta = true;
+  inicioUltima = Date.now();
+  siguiente.dar();
 }
 
-// Nunca lanza: sin OSM se sigue con lo que haya dado Google.
+/** true con el turno (hay que soltarlo con soltarTurno); false si se abortó antes. */
+function turnoOsm(espera: Espera, senal: AbortSignal): Promise<boolean> {
+  if (senal.aborted) return Promise.resolve(false);
+  return new Promise((listo) => {
+    const alAbortar = () => {
+      const i = enEspera.indexOf(espera);
+      if (i >= 0) enEspera.splice(i, 1);
+      listo(false);
+    };
+    espera.dar = () => {
+      senal.removeEventListener("abort", alAbortar);
+      listo(true);
+    };
+    senal.addEventListener("abort", alAbortar, { once: true });
+    enEspera.push(espera);
+    despachar();
+  });
+}
+
+function soltarTurno(): void {
+  abierta = false;
+  despachar();
+}
+
+// Lo ya preguntado, durante el día (spec 038, como Google): «Optimizar ruta» volvía a pagar la
+// fila por cada pedido sin ubicar, y el adelanto deja aquí lo que preguntará la carga. La clave
+// es la consulta ENTERA (el recuadro, «bounded» y el límite cambian la respuesta). Solo se guarda
+// lo que OSM contestó: un corte de señal o un error nunca. Son direcciones de destinatarios: se
+// olvidan con el día (olvidarMemoriasDelDia).
+const MAX_RECORDADAS = 1000;
+const recordadas = new Map<string, unknown[]>();
+/** La misma consulta pedida dos veces a la vez sale una sola vez a la red. */
+type EnVuelo = { promesa: Promise<unknown[] | null>; interesados: number; control: AbortController; espera: Espera };
+const enVuelo = new Map<string, EnVuelo>();
+/** Sube al olvidar: una consulta que estaba en vuelo ya no se guarda. */
+let generacion = 0;
+
+/** Borra lo recordado: son direcciones de destinatarios y las pruebas contestan distinto a la
+ *  misma consulta. */
+export function olvidarConsultasNominatim(): void {
+  recordadas.clear();
+  enVuelo.clear();
+  generacion++;
+}
+
+function abrir(clave: string, params: URLSearchParams, prioridad: PrioridadOsm): EnVuelo {
+  const control = new AbortController();
+  const vuelo: EnVuelo = { promesa: Promise.resolve(null), interesados: 0, control, espera: { prioridad, dar: () => {} } };
+  const deEstaGeneracion = generacion;
+  vuelo.promesa = (async () => {
+    // Nadie la espera ya (el conductor siguió escribiendo, la carga se cortó): sin turno.
+    const finTurno = desde("osm.turno");
+    if (!(await turnoOsm(vuelo.espera, control.signal))) return null;
+    finTurno();
+    try {
+      // Sin la señal de ningún llamador: se corta solo si TODOS la dejan (ver pedirNominatim).
+      const res = await fetch(`${NOMINATIM_URL}?${params}`, {
+        headers: { "User-Agent": USER_AGENT },
+        signal: tope(10_000, control.signal),
+      });
+      if (!res.ok) return null;
+      const datos = await res.json();
+      if (!Array.isArray(datos)) return null;
+      if (deEstaGeneracion === generacion) {
+        if (recordadas.size >= MAX_RECORDADAS) recordadas.delete(recordadas.keys().next().value!);
+        recordadas.set(clave, datos);
+      }
+      return datos;
+    } catch {
+      return null;
+    } finally {
+      soltarTurno();
+    }
+  })();
+  void vuelo.promesa.finally(() => {
+    if (enVuelo.get(clave) === vuelo) enVuelo.delete(clave);
+  });
+  enVuelo.set(clave, vuelo);
+  return vuelo;
+}
+
+// Nunca lanza: sin OSM se sigue con lo que haya dado Google. null = no contestó.
 async function pedirNominatim(
   params: URLSearchParams,
   senal?: AbortSignal,
+  prioridad: PrioridadOsm = "alta",
 ): Promise<unknown[] | null> {
-  await turnoOsm();
-  // Mientras esperaba el turno el conductor siguió escribiendo: esta consulta ya no
-  // le importa a nadie.
+  const clave = params.toString();
+  // Antes de la fila: lo ya contestado no gasta turno.
+  const recordada = recordadas.get(clave);
+  if (recordada) return recordada;
   if (senal?.aborted) return null;
 
-  try {
-    const res = await fetch(`${NOMINATIM_URL}?${params}`, {
-      headers: { "User-Agent": USER_AGENT },
-      signal: tope(10_000, senal),
-    });
-    if (!res.ok) return null;
-    const datos = await res.json();
-    return Array.isArray(datos) ? datos : null;
-  } catch {
+  const vuelo = enVuelo.get(clave) ?? abrir(clave, params, prioridad);
+  // La carga espera lo que el adelanto dejó en la fila: pasa adelante.
+  if (prioridad === "alta") vuelo.espera.prioridad = "alta";
+  vuelo.interesados++;
+  const filas = await hastaAbortar(vuelo.promesa, senal);
+  if (senal?.aborted) {
+    // El último que la deja la corta: si todavía no tenía turno, no lo gasta.
+    if (--vuelo.interesados === 0) {
+      if (enVuelo.get(clave) === vuelo) enVuelo.delete(clave);
+      vuelo.control.abort();
+    }
     return null;
   }
+  vuelo.interesados--;
+  return filas;
 }
 
 /** Una fila de Nominatim en formato jsonv2 (que llama "category" a lo que el
@@ -175,8 +284,13 @@ export async function conNominatim(direccion: string, senal?: AbortSignal): Prom
 }
 
 /** Lo mismo, pero null si no se pudo preguntar (sin señal, OSM caído): ubicar una
- *  guía sin señal se corta en vez de esperar dirección por dirección (spec 033). */
-export async function preguntarANominatim(direccion: string, senal?: AbortSignal): Promise<SugerenciaDireccion[] | null> {
+ *  guía sin señal se corta en vez de esperar dirección por dirección (spec 033).
+ *  `prioridad` "baja" es el adelanto de la revisión de la guía (spec 038). */
+export async function preguntarANominatim(
+  direccion: string,
+  senal?: AbortSignal,
+  prioridad: PrioridadOsm = "alta",
+): Promise<SugerenciaDireccion[] | null> {
   const params = new URLSearchParams({
     q: `${direccion}, Arica, Chile`,
     format: "jsonv2",
@@ -185,7 +299,7 @@ export async function preguntarANominatim(direccion: string, senal?: AbortSignal
     "accept-language": "es",
   });
 
-  const filas = await pedirNominatim(params, senal);
+  const filas = await pedirNominatim(params, senal, prioridad);
   if (!filas) return null;
   return (filas as FilaOsm[]).flatMap(aSugerenciaOsm);
 }

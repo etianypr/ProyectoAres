@@ -23,7 +23,7 @@ desarrollo).
 
 | Desde | A | Qué |
 |---|---|---|
-| `geo/geocoding/nominatim.ts` | Nominatim (GET) | la dirección |
+| `geo/geocoding/nominatim.ts` | Nominatim (GET) | la dirección; desde la 038 también la de cada línea de la guía mientras se revisa, antes de «Crear N pedidos» (`adelantarNominatim`, la misma consulta, sin nombre ni teléfono) |
 | `geo/teselas.ts` (desde `geo/acceso.ts` y `generar-ruta/ubicar-pedidos.ts`) | OpenFreeMap (GET de teselas) | la tesela de la zona de cada parada (~2 km), sin el punto |
 | `geo/matriz.ts`, `geo/ors/` | OpenRouteService | coordenadas de paradas y partida, sin texto |
 | `nativo/mapas.ts` | Google Maps (app, o `www.google.com/maps` en el navegador) | el punto de esa parada |
@@ -52,8 +52,8 @@ desarrollo).
 | `fotos` (índice `por_fecha`) | foto del paquete, JPEG ≤ 1280 px | al cerrarse el pedido y con el día |
 | `cola` | `ActividadPorEnviar`, sin datos de personas | al confirmarlo el servidor; salir del modo prueba la vacía (solo se entra con la cola vacía) |
 | `dias` | `ResumenDia`, solo cifras | no se borra |
-| `localStorage` | `ares-modo-prueba`, partida (`generar-ruta/partida.ts`), GPS simulado, voz | sin datos de destinatarios |
-| Memoria | matriz (`olvidarMatriz()`) y respuestas de Google (`olvidarConsultasGoogle()`, `google.ts`), al borrar el día; `accesosRevisados` (`ubicar-pedidos.ts`) y las teselas (`teselas.ts`, sin datos de personas), hasta recargar la app | `accesosRevisados` no lo limpia el cierre del día |
+| `localStorage` | `ares-modo-prueba`, partida (`generar-ruta/partida.ts`), GPS simulado, voz, `ares-tiempos` (Diagnóstico «Tiempos», spec 038: tramo fijo + cifra, `lib/comun/cronometro.ts`) | sin datos de destinatarios |
+| Memoria | todo con una sola función, `olvidarMemoriasDelDia()` (`local/olvidar-memorias.ts`, spec 038): la matriz, las respuestas de Google (`google.ts`, hasta 1000 consultas) y de Nominatim (`nominatim.ts`, caché del día de la 038: consulta → respuesta de OSM, hasta 1000; incluye lo que adelantó la revisión de la guía aunque no se haya creado), los accesos revisados (`ubicar-pedidos.ts`) y la última propuesta de ruta (`generar-ruta/index.ts`, con nombres y direcciones). La llaman `cerrarYBorrarDia`, `borrarDatosDestinatarios`, `salirDelModoPrueba` y `use-cierre-dia`; una consulta en vuelo al olvidar ya no se guarda. Las estampillas del mapa (`components/direccion/estampilla-mapa.ts`) las olvida aparte `use-cierre-dia` (lib no importa components). Las teselas (`teselas.ts`, sin datos de personas) duran hasta recargar la app | cerrar sesión y salir del modo prueba no olvidan las estampillas; cerrar un día sin pedidos ni ruta (solo borrador o fotos) no llama a `olvidarMemoriasDelDia` |
 | `public/sw.js` | páginas y estáticos de `/conductor` | nunca `/api`, Supabase ni otros orígenes |
 | Registro de llamadas (Android) | `TelefonoPlugin.java` compara los últimos 8 dígitos y devuelve `duracionS`, `tipo` y `fechaMs`, sin número; `nativo/llamada.ts` decide «contestó» (≥ 5 s) | en el pedido queda `llamada`; a la `cola` va un evento `llamada` sin número (`almacen/terreno.ts`) |
 

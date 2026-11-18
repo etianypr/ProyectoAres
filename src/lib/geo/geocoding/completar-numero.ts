@@ -1,6 +1,7 @@
 // Unir las listas de los proveedores y buscar el número escrito en la calle
 // que se quiso decir ("Linderos 3536"; spec 016 con el catálogo de calles).
 
+import { anotarTiempo } from "@/lib/comun/cronometro";
 import { callesParecidas } from "./calles";
 import {
   coincidenciaCalle,
@@ -153,6 +154,8 @@ export async function completarNumeroEnCalles(
 
   const calles = await callesAProbar(partido.calle, candidatos);
   if (calles.length === 0) return nada;
+  // Diagnóstico «Tiempos» (spec 038): cuántas direcciones pasan por aquí y con cuántas consultas.
+  anotarTiempo("ubicar.completar", calles.length);
 
   const respuestas = await Promise.all(
     calles.map((calle) => puertaEnCalle(calle, partido.numero, senal)),

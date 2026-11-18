@@ -106,7 +106,7 @@ export function CargarGuia({
     zona: zonaLibre,
   });
   const { barrer, onBarrer } = barridoGuia;
-  const carga = useCargarLineas({ fecha, lecturaIA, onCreados });
+  const carga = useCargarLineas({ fecha, lecturaIA, onCreados, revisando: paso === "revisar" ? lineas : null });
   const { fin } = carga;
   // La cámara en vivo del recuadro (spec 034): solo en el paso de las fotos y nunca a la
   // vez que el barrido, que usa la misma cámara.

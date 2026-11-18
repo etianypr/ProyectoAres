@@ -2,6 +2,19 @@ import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/types/db";
 import { NextResponse, type NextRequest } from "next/server";
 
+/** Rutas de API del conductor que ya se verifican solas con conductorDeLaApi (sesión, rol y
+ *  ficha): consultar aquí la sesión era un getUser repetido, un viaje más a Supabase Auth en
+ *  cada ida de la IA y cada consulta a Google (spec 038, autorizado por el dueño). Coincidencia
+ *  EXACTA, como el webhook: una ruta nueva bajo /api sigue pasando por aquí. El matcher de
+ *  proxy.ts deja fuera las mismas (pruebas/038-api.test.mjs comprueba que coinciden); esta lista
+ *  cubre lo que el matcher dejara pasar. */
+export const RUTAS_QUE_SE_VERIFICAN_SOLAS: ReadonlySet<string> = new Set([
+  "/api/geocodificar",
+  "/api/direccion-ia",
+  "/api/lectura",
+  "/api/texto",
+]);
+
 // Refresca la sesión de Supabase en cada request y protege las rutas privadas.
 // Se invoca desde proxy.ts (el "middleware" de Next.js 16).
 export async function updateSession(request: NextRequest) {
@@ -34,6 +47,10 @@ export async function updateSession(request: NextRequest) {
     console.error(`[ares] ${aviso}`);
     return supabaseResponse;
   }
+
+  // La ruta consulta la sesión por su cuenta (y la refresca: un Route Handler puede escribir
+  // cookies), así que aquí no se pregunta dos veces.
+  if (RUTAS_QUE_SE_VERIFICAN_SOLAS.has(request.nextUrl.pathname)) return supabaseResponse;
 
   const supabase = createServerClient<Database>(
     url,

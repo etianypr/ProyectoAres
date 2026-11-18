@@ -1,10 +1,13 @@
 // Volver a ubicar, antes de armar la ruta, los pedidos que quedaron sin punto.
 
-import { elegirConLaRuta, ubicarDireccion } from "@/lib/geo/geocoding";
+import { desde } from "@/lib/comun/cronometro";
+import { hastaAbortar } from "@/lib/comun/hasta-abortar";
+import { elegirConLaRuta, ubicarDireccion, type ResultadoUbicacion } from "@/lib/geo/geocoding";
 import { puntoDeAcceso, type Acceso } from "@/lib/geo/acceso";
 import { nombreVisible } from "@/lib/encomiendas/paquete";
 import { lugarProvisorio, type ProblemaGuardado } from "@/lib/encomiendas/problemas";
 import { fijarCoordenadas, ubicarConDuda, type Pedido } from "../almacen";
+import { FALLOS_PARA_PARAR } from "../ubicar-carga";
 import type { PedidoUbicado } from "./tipos";
 
 // Las direcciones se ubican al CARGAR cada pedido, una por una, así que acá
@@ -34,6 +37,9 @@ export function tieneCoordenadas(p: Pedido): p is PedidoUbicado {
 // principio IV de la constitución.
 export async function reintentarUbicar(
   pendientes: Pedido[],
+  /** «Cancelar» mientras se optimiza (spec 033): deja de ubicar al tiro, sin esperar la
+   *  consulta en curso. Lo encontrado hasta ahí se guarda igual. */
+  senal?: AbortSignal,
 ): Promise<{ pendientes: Pedido[]; advertencias: string[] }> {
   const sinUbicar = pendientes.filter((p) => !tieneCoordenadas(p));
   if (sinUbicar.length === 0) return { pendientes, advertencias: [] };
@@ -49,8 +55,7 @@ export async function reintentarUbicar(
   // dirección que Google resuelve sola no paga ninguna espera.
   // Los puntos del día: una calle repetida se queda con el lugar de la zona de la ruta (spec 035).
   const puntosDelDia = pendientes.filter(tieneCoordenadas).map((p) => ({ lat: p.lat, lng: p.lng }));
-  for (const pedido of aIntentar) {
-    const r = elegirConLaRuta(await ubicarDireccion(pedido.direccion), puntosDelDia);
+  const anotar = (pedido: Pedido, r: ResultadoUbicacion) => {
     if (r.elegida) {
       encontradas.push({ id: pedido.id, lat: r.elegida.lat, lng: r.elegida.lng });
       // Entró a la ruta, pero puede haber entrado con la puerta interpolada
@@ -58,7 +63,7 @@ export async function reintentarUbicar(
       // coordenada aproximada y sin decirlo es el conductor buscando el número a
       // pie en la cuadra, sin saber por qué.
       if (r.advertencia) advertencias.push(`${nombreVisible(pedido)}: ${r.advertencia}`);
-      continue;
+      return;
     }
     // En duda pero con opciones (calle en varios lugares, o solo la calle):
     // entra con la primera y un ⚠ con todas, para elegir después sin volver a
@@ -67,17 +72,41 @@ export async function reintentarUbicar(
     if (provisorio) {
       enDuda.push({ id: pedido.id, ...provisorio });
       advertencias.push(`${nombreVisible(pedido)}: con dudas, se incluye con la primera opción (⚠).`);
-      continue;
+      return;
     }
     // Sin ubicación confirmada. La advertencia nombra al destinatario porque es
     // así como el conductor sabe de qué paquete se trata; el texto no sale del
     // teléfono.
     if (r.advertencia) advertencias.push(`${nombreVisible(pedido)}: ${r.advertencia}`);
+  };
+
+  // Sin conexión cada dirección esperaba a los buscadores (~24 s con la conexión
+  // colgada) y «Optimizar ruta» pagaba las cinco. Con 2 seguidas sin respuesta se para,
+  // con la misma regla que ubicarCarga (spec 033; spec 038, autorizado por el dueño):
+  // las que quedan se reintentan en la próxima, como las que pasan del máximo.
+  let intentados = 0;
+  let seguidas = 0;
+  for (const pedido of aIntentar) {
+    if (senal?.aborted) break;
+    let r: ResultadoUbicacion | null;
+    try {
+      r = await hastaAbortar(ubicarDireccion(pedido.direccion, senal), senal);
+    } catch {
+      r = null;
+    }
+    if (senal?.aborted) break;
+    intentados++;
+    if (r) anotar(pedido, elegirConLaRuta(r, puntosDelDia));
+    if (!r || r.sinRespuesta) {
+      if (++seguidas >= FALLOS_PARA_PARAR) break;
+    } else {
+      seguidas = 0;
+    }
   }
 
   // Los que no entraron en este intento no son un problema silencioso: se
   // reintentan en la próxima generación, y mientras tanto hay que decirlo.
-  const sinIntentar = sinUbicar.length - aIntentar.length;
+  const sinIntentar = sinUbicar.length - intentados;
   if (sinIntentar > 0) {
     advertencias.push(
       `Quedaron ${sinIntentar} pedido(s) sin intentar ubicar. Vuelve a optimizar la ruta para continuar.`,
@@ -152,5 +181,30 @@ export async function corregirAccesos(
       ({ pedido, acceso }) =>
         `"${nombreVisible(pedido)}" quedaba junto a ${acceso.carretera ?? "la carretera"}: se ubicó en ${acceso.calle ?? "la calle de al lado"}, por donde se accede.`,
     ),
+  };
+}
+
+/** reintentarUbicar y después corregirAccesos de los que quedan con punto, en ese orden, como antes de la
+ *  spec 038. La 038 los corría a la vez y la revisión de accesos alcanzaba a casi todas las paradas (sin
+ *  el tope de tiempo por tandas ni lo recordado de lo que no se pudo leer): movía más paradas y la ruta
+ *  cambiaba (dueño, 2026-11-18: «va y vuelve»; volver a como era). `ubicadoEn`: cuándo terminó de ubicar
+ *  (desde ahí cuenta el armado, como antes). */
+export async function ubicarYCorregirAccesos(
+  pendientes: Pedido[],
+  senal?: AbortSignal,
+): Promise<{ pendientes: Pedido[]; ubicados: PedidoUbicado[]; advertencias: string[]; ubicadoEn: number }> {
+  const medido = desde("ruta.preparar");
+  const reintento = await reintentarUbicar(pendientes, senal);
+  const ubicadoEn = Date.now();
+  senal?.throwIfAborted();
+  const conPunto = reintento.pendientes.filter(tieneCoordenadas);
+  // Si la revisión de calles falla, se sigue con los puntos como estaban.
+  const accesos = await corregirAccesos(conPunto).catch(() => ({ ubicados: conPunto, advertencias: [] as string[] }));
+  medido();
+  return {
+    pendientes: reintento.pendientes,
+    ubicados: accesos.ubicados,
+    advertencias: [...reintento.advertencias, ...accesos.advertencias],
+    ubicadoEn,
   };
 }

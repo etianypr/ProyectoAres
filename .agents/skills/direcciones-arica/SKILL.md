@@ -49,7 +49,19 @@ con ese archivo, vale `AGENTS.md`, y hay que avisar la diferencia.
 - **Google y Nominatim van en paralelo, no en cascada** (spec 019): hacen falta las dos listas
   para ver que dos lugares responden al mismo texto. Google solo con número (es el que tiene las
   puertas: «Maps es más bueno para encontrar direcciones», el dueño, 2026-11-06); OSM, las calles
-  y los lugares. Lo ya preguntado a Google se recuerda mientras dure la pantalla.
+  y los lugares. Lo ya preguntado a Google y a Nominatim se recuerda durante el día (spec 038,
+  hasta 1000 consultas cada uno; solo respuestas, nunca un corte) y se olvida con
+  `olvidarMemoriasDelDia()` (`local/olvidar-memorias.ts`): una memoria nueva va ahí.
+- **Nominatim, una consulta abierta a la vez** (spec 038, su política): el turno siguiente sale
+  cuando la anterior llegó o se abortó y pasaron 1,2 s desde que empezó. Lo que está en la caché
+  no gasta turno; una consulta abortada antes de su turno tampoco. El campo y la carga van antes
+  que el adelanto (prioridad baja) que pregunta cada línea mientras se revisa la guía (solo OSM,
+  nunca Google: dueño, 2026-11-17).
+- **La carga ubica de a 3** (`VENTANA`, `ubicar-carga.ts`) y procesa cada resultado en orden,
+  con el mismo código; la IA corrige de a 2 (`DIRECCIONES_A_LA_VEZ`), arranca de a una hasta la
+  primera respuesta buena, y un 429 de Anthropic no es «sin conexión»: baja a una a la vez. El
+  mismo destino se le pregunta una sola vez. Sin respuesta de Google ni de OSM, no se completa el
+  número (no vuelve a esperar a Google).
 - **Sin señal no es «no existe»**: `puertaEnCalle` devuelve `null` y no descarta nada. Ningún error
   de red borra ni descarta.
 - **La IA no escribe coordenadas** (018): elige un candidato por id, su confianza nunca supera la
@@ -140,7 +152,11 @@ tocar la IA, sumar un proveedor) en `references/cambios.md`. Lo común a todos:
   `globalThis.window = {}` simula el teléfono (sin `window` no se pregunta a Google). Molde
   completo en `references/cambios.md`.
 - La IA no usa `fetch` en las pruebas: `corregirConIA(dir, { pedir, buscar, calles })`.
-- Cada `ubicarDireccion` espera el turno real de Nominatim (~1,2 s): junta los casos.
+- Cada `ubicarDireccion` espera el turno real de Nominatim (~1,2 s): junta los casos. Con la
+  caché del día (spec 038), una prueba que repite una consulta con otra respuesta de OSM llama a
+  `olvidarConsultasNominatim()` en su `beforeEach`, como con Google.
+- Tiempos: `npm run medir:direcciones` (y `-- --adelanto 15`, `-- --sin-conexion`) mide «Crear N
+  pedidos» sin red y da un hash de lo ubicado y lo propuesto: un cambio por tiempo lo deja igual.
 - Datos: calles reales del catálogo con números inventados (`ubicar-direcciones` usa 901–914).
   Nunca un nombre, un teléfono ni una dirección de un pedido real (skill
   `privacidad-destinatarios`).

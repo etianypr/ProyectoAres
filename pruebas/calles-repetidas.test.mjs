@@ -91,6 +91,9 @@ test("elegirConLaRuta: lo que calzó con la referencia manda; sin ruta todavía 
 // ---- ubicarDireccion con los buscadores simulados (sin red ni cuota) ----
 const { ubicarDireccion } = await import("@/lib/geo/geocoding");
 const { olvidarConsultasGoogle, googleDirecto } = await import("@/lib/geo/geocoding/google");
+const { olvidarConsultasNominatim } = await import("@/lib/geo/geocoding/nominatim");
+// OSM se recuerda durante el día (spec 038): cada prueba parte sin lo de la anterior.
+test.beforeEach(() => olvidarConsultasNominatim());
 let consultasGoogle = 0;
 const fetchOriginal = globalThis.fetch;
 test.before(() => {

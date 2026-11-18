@@ -1,0 +1,3120 @@
+{
+ "sin-bloques-0930": {
+  "fecha": "2026-12-01",
+  "partida": {
+   "lat": -18.465889,
+   "lng": -70.302556
+  },
+  "llegada": {
+   "lat": -18.465889,
+   "lng": -70.302556
+  },
+  "paradas": [
+   {
+    "nombre": "Prueba 19",
+    "lat": -18.467027,
+    "lng": -70.306592
+   },
+   {
+    "nombre": "Prueba 22",
+    "lat": -18.457849,
+    "lng": -70.297025
+   },
+   {
+    "nombre": "Prueba 4",
+    "lat": -18.449633,
+    "lng": -70.298367
+   },
+   {
+    "nombre": "Prueba 8",
+    "lat": -18.443223,
+    "lng": -70.283658
+   },
+   {
+    "nombre": "Prueba 11",
+    "lat": -18.451414,
+    "lng": -70.289726
+   },
+   {
+    "nombre": "Prueba 14",
+    "lat": -18.464867,
+    "lng": -70.295318
+   },
+   {
+    "nombre": "Prueba 24",
+    "lat": -18.46294,
+    "lng": -70.292346
+   },
+   {
+    "nombre": "Prueba 23",
+    "lat": -18.465231,
+    "lng": -70.288017
+   },
+   {
+    "nombre": "Prueba 2",
+    "lat": -18.469434,
+    "lng": -70.274613
+   },
+   {
+    "nombre": "Prueba 17",
+    "lat": -18.465512,
+    "lng": -70.274947
+   },
+   {
+    "nombre": "Prueba 13",
+    "lat": -18.459163,
+    "lng": -70.277206
+   },
+   {
+    "nombre": "Prueba 9",
+    "lat": -18.461239,
+    "lng": -70.281494
+   },
+   {
+    "nombre": "Prueba 5",
+    "lat": -18.472927,
+    "lng": -70.289301
+   },
+   {
+    "nombre": "Prueba 7",
+    "lat": -18.477618,
+    "lng": -70.29648
+   },
+   {
+    "nombre": "Prueba 10",
+    "lat": -18.481344,
+    "lng": -70.296131
+   },
+   {
+    "nombre": "Prueba 6",
+    "lat": -18.488548,
+    "lng": -70.282835
+   },
+   {
+    "nombre": "Prueba 3",
+    "lat": -18.494773,
+    "lng": -70.272842
+   },
+   {
+    "nombre": "Prueba 18",
+    "lat": -18.489697,
+    "lng": -70.285463
+   },
+   {
+    "nombre": "Prueba 20",
+    "lat": -18.490266,
+    "lng": -70.289014
+   },
+   {
+    "nombre": "Prueba 12",
+    "lat": -18.487801,
+    "lng": -70.302227
+   },
+   {
+    "nombre": "Prueba 16",
+    "lat": -18.499341,
+    "lng": -70.311903
+   },
+   {
+    "nombre": "Prueba 15",
+    "lat": -18.482452,
+    "lng": -70.319379
+   },
+   {
+    "nombre": "Prueba 1",
+    "lat": -18.480552,
+    "lng": -70.311298
+   },
+   {
+    "nombre": "Prueba 21",
+    "lat": -18.475216,
+    "lng": -70.310089
+   }
+  ],
+  "tramos": [
+   {
+    "desde": 0,
+    "hasta": 28,
+    "metros": 852,
+    "segundos": 91,
+    "pedidoId": "@Prueba 19"
+   },
+   {
+    "desde": 28,
+    "hasta": 116,
+    "metros": 2046,
+    "segundos": 221,
+    "pedidoId": "@Prueba 22"
+   },
+   {
+    "desde": 116,
+    "hasta": 169,
+    "metros": 1270,
+    "segundos": 198,
+    "pedidoId": "@Prueba 4"
+   },
+   {
+    "desde": 169,
+    "hasta": 237,
+    "metros": 1997,
+    "segundos": 240,
+    "pedidoId": "@Prueba 8"
+   },
+   {
+    "desde": 237,
+    "hasta": 284,
+    "metros": 1486,
+    "segundos": 182,
+    "pedidoId": "@Prueba 11"
+   },
+   {
+    "desde": 284,
+    "hasta": 319,
+    "metros": 1961,
+    "segundos": 180,
+    "pedidoId": "@Prueba 14"
+   },
+   {
+    "desde": 319,
+    "hasta": 328,
+    "metros": 469,
+    "segundos": 40,
+    "pedidoId": "@Prueba 24"
+   },
+   {
+    "desde": 328,
+    "hasta": 348,
+    "metros": 723,
+    "segundos": 86,
+    "pedidoId": "@Prueba 23"
+   },
+   {
+    "desde": 348,
+    "hasta": 409,
+    "metros": 2925,
+    "segundos": 395,
+    "pedidoId": "@Prueba 2"
+   },
+   {
+    "desde": 409,
+    "hasta": 431,
+    "metros": 1796,
+    "segundos": 305,
+    "pedidoId": "@Prueba 17"
+   },
+   {
+    "desde": 431,
+    "hasta": 476,
+    "metros": 1370,
+    "segundos": 233,
+    "pedidoId": "@Prueba 13"
+   },
+   {
+    "desde": 476,
+    "hasta": 526,
+    "metros": 1314,
+    "segundos": 206,
+    "pedidoId": "@Prueba 9"
+   },
+   {
+    "desde": 526,
+    "hasta": 594,
+    "metros": 2077,
+    "segundos": 211,
+    "pedidoId": "@Prueba 5"
+   },
+   {
+    "desde": 594,
+    "hasta": 627,
+    "metros": 1226,
+    "segundos": 155,
+    "pedidoId": "@Prueba 7"
+   },
+   {
+    "desde": 627,
+    "hasta": 651,
+    "metros": 612,
+    "segundos": 68,
+    "pedidoId": "@Prueba 10"
+   },
+   {
+    "desde": 651,
+    "hasta": 711,
+    "metros": 1902,
+    "segundos": 215,
+    "pedidoId": "@Prueba 6"
+   },
+   {
+    "desde": 711,
+    "hasta": 765,
+    "metros": 1517,
+    "segundos": 162,
+    "pedidoId": "@Prueba 3"
+   },
+   {
+    "desde": 765,
+    "hasta": 817,
+    "metros": 1493,
+    "segundos": 172,
+    "pedidoId": "@Prueba 18"
+   },
+   {
+    "desde": 817,
+    "hasta": 884,
+    "metros": 564,
+    "segundos": 68,
+    "pedidoId": "@Prueba 20"
+   },
+   {
+    "desde": 884,
+    "hasta": 941,
+    "metros": 1669,
+    "segundos": 165,
+    "pedidoId": "@Prueba 12"
+   },
+   {
+    "desde": 941,
+    "hasta": 994,
+    "metros": 2420,
+    "segundos": 212,
+    "pedidoId": "@Prueba 16"
+   },
+   {
+    "desde": 994,
+    "hasta": 1114,
+    "metros": 2851,
+    "segundos": 287,
+    "pedidoId": "@Prueba 15"
+   },
+   {
+    "desde": 1114,
+    "hasta": 1140,
+    "metros": 1220,
+    "segundos": 134,
+    "pedidoId": "@Prueba 1"
+   },
+   {
+    "desde": 1140,
+    "hasta": 1163,
+    "metros": 1109,
+    "segundos": 118,
+    "pedidoId": "@Prueba 21"
+   },
+   {
+    "desde": 1163,
+    "hasta": 1219,
+    "metros": 2369,
+    "segundos": 281,
+    "pedidoId": null
+   }
+  ],
+  "distanciaM": 39236,
+  "duracionS": 4624,
+  "sinUbicar": [],
+  "sinTrazado": false,
+  "motivoSinTrazado": null,
+  "cerradas": 0,
+  "alternativas": [
+   {
+    "estrategia": "corta",
+    "titulo": "La más económica",
+    "motivo": "Menor costo en kilómetros y tiempo de conducción.",
+    "paradas": [
+     {
+      "nombre": "Prueba 19",
+      "lat": -18.467027,
+      "lng": -70.306592
+     },
+     {
+      "nombre": "Prueba 22",
+      "lat": -18.457849,
+      "lng": -70.297025
+     },
+     {
+      "nombre": "Prueba 4",
+      "lat": -18.449633,
+      "lng": -70.298367
+     },
+     {
+      "nombre": "Prueba 8",
+      "lat": -18.443223,
+      "lng": -70.283658
+     },
+     {
+      "nombre": "Prueba 11",
+      "lat": -18.451414,
+      "lng": -70.289726
+     },
+     {
+      "nombre": "Prueba 14",
+      "lat": -18.464867,
+      "lng": -70.295318
+     },
+     {
+      "nombre": "Prueba 24",
+      "lat": -18.46294,
+      "lng": -70.292346
+     },
+     {
+      "nombre": "Prueba 23",
+      "lat": -18.465231,
+      "lng": -70.288017
+     },
+     {
+      "nombre": "Prueba 2",
+      "lat": -18.469434,
+      "lng": -70.274613
+     },
+     {
+      "nombre": "Prueba 17",
+      "lat": -18.465512,
+      "lng": -70.274947
+     },
+     {
+      "nombre": "Prueba 13",
+      "lat": -18.459163,
+      "lng": -70.277206
+     },
+     {
+      "nombre": "Prueba 9",
+      "lat": -18.461239,
+      "lng": -70.281494
+     },
+     {
+      "nombre": "Prueba 5",
+      "lat": -18.472927,
+      "lng": -70.289301
+     },
+     {
+      "nombre": "Prueba 7",
+      "lat": -18.477618,
+      "lng": -70.29648
+     },
+     {
+      "nombre": "Prueba 10",
+      "lat": -18.481344,
+      "lng": -70.296131
+     },
+     {
+      "nombre": "Prueba 6",
+      "lat": -18.488548,
+      "lng": -70.282835
+     },
+     {
+      "nombre": "Prueba 3",
+      "lat": -18.494773,
+      "lng": -70.272842
+     },
+     {
+      "nombre": "Prueba 18",
+      "lat": -18.489697,
+      "lng": -70.285463
+     },
+     {
+      "nombre": "Prueba 20",
+      "lat": -18.490266,
+      "lng": -70.289014
+     },
+     {
+      "nombre": "Prueba 12",
+      "lat": -18.487801,
+      "lng": -70.302227
+     },
+     {
+      "nombre": "Prueba 16",
+      "lat": -18.499341,
+      "lng": -70.311903
+     },
+     {
+      "nombre": "Prueba 15",
+      "lat": -18.482452,
+      "lng": -70.319379
+     },
+     {
+      "nombre": "Prueba 1",
+      "lat": -18.480552,
+      "lng": -70.311298
+     },
+     {
+      "nombre": "Prueba 21",
+      "lat": -18.475216,
+      "lng": -70.310089
+     }
+    ],
+    "metrosEstimados": 39236,
+    "costoEstimado": 12807,
+    "confirmados": 2,
+    "pendientesDeContacto": 22,
+    "bloquesCumplidos": 0,
+    "bloquesIncumplidos": 0,
+    "fueraDeHorario": [],
+    "fueraDeHorarioIds": []
+   }
+  ],
+  "elegida": "corta",
+  "lejanas": [],
+  "advertencias": [],
+  "trazado": {
+   "puntos": 1220,
+   "huella": "4d9f59b522c49e7f"
+  }
+ },
+ "sin-bloques-0950": {
+  "fecha": "2026-12-01",
+  "partida": {
+   "lat": -18.465889,
+   "lng": -70.302556
+  },
+  "llegada": {
+   "lat": -18.465889,
+   "lng": -70.302556
+  },
+  "paradas": [
+   {
+    "nombre": "Prueba 19",
+    "lat": -18.467027,
+    "lng": -70.306592
+   },
+   {
+    "nombre": "Prueba 22",
+    "lat": -18.457849,
+    "lng": -70.297025
+   },
+   {
+    "nombre": "Prueba 4",
+    "lat": -18.449633,
+    "lng": -70.298367
+   },
+   {
+    "nombre": "Prueba 8",
+    "lat": -18.443223,
+    "lng": -70.283658
+   },
+   {
+    "nombre": "Prueba 11",
+    "lat": -18.451414,
+    "lng": -70.289726
+   },
+   {
+    "nombre": "Prueba 14",
+    "lat": -18.464867,
+    "lng": -70.295318
+   },
+   {
+    "nombre": "Prueba 24",
+    "lat": -18.46294,
+    "lng": -70.292346
+   },
+   {
+    "nombre": "Prueba 23",
+    "lat": -18.465231,
+    "lng": -70.288017
+   },
+   {
+    "nombre": "Prueba 2",
+    "lat": -18.469434,
+    "lng": -70.274613
+   },
+   {
+    "nombre": "Prueba 17",
+    "lat": -18.465512,
+    "lng": -70.274947
+   },
+   {
+    "nombre": "Prueba 13",
+    "lat": -18.459163,
+    "lng": -70.277206
+   },
+   {
+    "nombre": "Prueba 9",
+    "lat": -18.461239,
+    "lng": -70.281494
+   },
+   {
+    "nombre": "Prueba 5",
+    "lat": -18.472927,
+    "lng": -70.289301
+   },
+   {
+    "nombre": "Prueba 7",
+    "lat": -18.477618,
+    "lng": -70.29648
+   },
+   {
+    "nombre": "Prueba 10",
+    "lat": -18.481344,
+    "lng": -70.296131
+   },
+   {
+    "nombre": "Prueba 6",
+    "lat": -18.488548,
+    "lng": -70.282835
+   },
+   {
+    "nombre": "Prueba 3",
+    "lat": -18.494773,
+    "lng": -70.272842
+   },
+   {
+    "nombre": "Prueba 18",
+    "lat": -18.489697,
+    "lng": -70.285463
+   },
+   {
+    "nombre": "Prueba 20",
+    "lat": -18.490266,
+    "lng": -70.289014
+   },
+   {
+    "nombre": "Prueba 12",
+    "lat": -18.487801,
+    "lng": -70.302227
+   },
+   {
+    "nombre": "Prueba 16",
+    "lat": -18.499341,
+    "lng": -70.311903
+   },
+   {
+    "nombre": "Prueba 15",
+    "lat": -18.482452,
+    "lng": -70.319379
+   },
+   {
+    "nombre": "Prueba 1",
+    "lat": -18.480552,
+    "lng": -70.311298
+   },
+   {
+    "nombre": "Prueba 21",
+    "lat": -18.475216,
+    "lng": -70.310089
+   }
+  ],
+  "tramos": [
+   {
+    "desde": 0,
+    "hasta": 28,
+    "metros": 852,
+    "segundos": 91,
+    "pedidoId": "@Prueba 19"
+   },
+   {
+    "desde": 28,
+    "hasta": 116,
+    "metros": 2046,
+    "segundos": 221,
+    "pedidoId": "@Prueba 22"
+   },
+   {
+    "desde": 116,
+    "hasta": 169,
+    "metros": 1270,
+    "segundos": 198,
+    "pedidoId": "@Prueba 4"
+   },
+   {
+    "desde": 169,
+    "hasta": 237,
+    "metros": 1997,
+    "segundos": 240,
+    "pedidoId": "@Prueba 8"
+   },
+   {
+    "desde": 237,
+    "hasta": 284,
+    "metros": 1486,
+    "segundos": 182,
+    "pedidoId": "@Prueba 11"
+   },
+   {
+    "desde": 284,
+    "hasta": 319,
+    "metros": 1961,
+    "segundos": 180,
+    "pedidoId": "@Prueba 14"
+   },
+   {
+    "desde": 319,
+    "hasta": 328,
+    "metros": 469,
+    "segundos": 40,
+    "pedidoId": "@Prueba 24"
+   },
+   {
+    "desde": 328,
+    "hasta": 348,
+    "metros": 723,
+    "segundos": 86,
+    "pedidoId": "@Prueba 23"
+   },
+   {
+    "desde": 348,
+    "hasta": 409,
+    "metros": 2925,
+    "segundos": 395,
+    "pedidoId": "@Prueba 2"
+   },
+   {
+    "desde": 409,
+    "hasta": 431,
+    "metros": 1796,
+    "segundos": 305,
+    "pedidoId": "@Prueba 17"
+   },
+   {
+    "desde": 431,
+    "hasta": 476,
+    "metros": 1370,
+    "segundos": 233,
+    "pedidoId": "@Prueba 13"
+   },
+   {
+    "desde": 476,
+    "hasta": 526,
+    "metros": 1314,
+    "segundos": 206,
+    "pedidoId": "@Prueba 9"
+   },
+   {
+    "desde": 526,
+    "hasta": 594,
+    "metros": 2077,
+    "segundos": 211,
+    "pedidoId": "@Prueba 5"
+   },
+   {
+    "desde": 594,
+    "hasta": 627,
+    "metros": 1226,
+    "segundos": 155,
+    "pedidoId": "@Prueba 7"
+   },
+   {
+    "desde": 627,
+    "hasta": 651,
+    "metros": 612,
+    "segundos": 68,
+    "pedidoId": "@Prueba 10"
+   },
+   {
+    "desde": 651,
+    "hasta": 711,
+    "metros": 1902,
+    "segundos": 215,
+    "pedidoId": "@Prueba 6"
+   },
+   {
+    "desde": 711,
+    "hasta": 765,
+    "metros": 1517,
+    "segundos": 162,
+    "pedidoId": "@Prueba 3"
+   },
+   {
+    "desde": 765,
+    "hasta": 817,
+    "metros": 1493,
+    "segundos": 172,
+    "pedidoId": "@Prueba 18"
+   },
+   {
+    "desde": 817,
+    "hasta": 884,
+    "metros": 564,
+    "segundos": 68,
+    "pedidoId": "@Prueba 20"
+   },
+   {
+    "desde": 884,
+    "hasta": 941,
+    "metros": 1669,
+    "segundos": 165,
+    "pedidoId": "@Prueba 12"
+   },
+   {
+    "desde": 941,
+    "hasta": 994,
+    "metros": 2420,
+    "segundos": 212,
+    "pedidoId": "@Prueba 16"
+   },
+   {
+    "desde": 994,
+    "hasta": 1114,
+    "metros": 2851,
+    "segundos": 287,
+    "pedidoId": "@Prueba 15"
+   },
+   {
+    "desde": 1114,
+    "hasta": 1140,
+    "metros": 1220,
+    "segundos": 134,
+    "pedidoId": "@Prueba 1"
+   },
+   {
+    "desde": 1140,
+    "hasta": 1163,
+    "metros": 1109,
+    "segundos": 118,
+    "pedidoId": "@Prueba 21"
+   },
+   {
+    "desde": 1163,
+    "hasta": 1219,
+    "metros": 2369,
+    "segundos": 281,
+    "pedidoId": null
+   }
+  ],
+  "distanciaM": 39236,
+  "duracionS": 4624,
+  "sinUbicar": [],
+  "sinTrazado": false,
+  "motivoSinTrazado": null,
+  "cerradas": 0,
+  "alternativas": [
+   {
+    "estrategia": "corta",
+    "titulo": "La más económica",
+    "motivo": "Menor costo en kilómetros y tiempo de conducción.",
+    "paradas": [
+     {
+      "nombre": "Prueba 19",
+      "lat": -18.467027,
+      "lng": -70.306592
+     },
+     {
+      "nombre": "Prueba 22",
+      "lat": -18.457849,
+      "lng": -70.297025
+     },
+     {
+      "nombre": "Prueba 4",
+      "lat": -18.449633,
+      "lng": -70.298367
+     },
+     {
+      "nombre": "Prueba 8",
+      "lat": -18.443223,
+      "lng": -70.283658
+     },
+     {
+      "nombre": "Prueba 11",
+      "lat": -18.451414,
+      "lng": -70.289726
+     },
+     {
+      "nombre": "Prueba 14",
+      "lat": -18.464867,
+      "lng": -70.295318
+     },
+     {
+      "nombre": "Prueba 24",
+      "lat": -18.46294,
+      "lng": -70.292346
+     },
+     {
+      "nombre": "Prueba 23",
+      "lat": -18.465231,
+      "lng": -70.288017
+     },
+     {
+      "nombre": "Prueba 2",
+      "lat": -18.469434,
+      "lng": -70.274613
+     },
+     {
+      "nombre": "Prueba 17",
+      "lat": -18.465512,
+      "lng": -70.274947
+     },
+     {
+      "nombre": "Prueba 13",
+      "lat": -18.459163,
+      "lng": -70.277206
+     },
+     {
+      "nombre": "Prueba 9",
+      "lat": -18.461239,
+      "lng": -70.281494
+     },
+     {
+      "nombre": "Prueba 5",
+      "lat": -18.472927,
+      "lng": -70.289301
+     },
+     {
+      "nombre": "Prueba 7",
+      "lat": -18.477618,
+      "lng": -70.29648
+     },
+     {
+      "nombre": "Prueba 10",
+      "lat": -18.481344,
+      "lng": -70.296131
+     },
+     {
+      "nombre": "Prueba 6",
+      "lat": -18.488548,
+      "lng": -70.282835
+     },
+     {
+      "nombre": "Prueba 3",
+      "lat": -18.494773,
+      "lng": -70.272842
+     },
+     {
+      "nombre": "Prueba 18",
+      "lat": -18.489697,
+      "lng": -70.285463
+     },
+     {
+      "nombre": "Prueba 20",
+      "lat": -18.490266,
+      "lng": -70.289014
+     },
+     {
+      "nombre": "Prueba 12",
+      "lat": -18.487801,
+      "lng": -70.302227
+     },
+     {
+      "nombre": "Prueba 16",
+      "lat": -18.499341,
+      "lng": -70.311903
+     },
+     {
+      "nombre": "Prueba 15",
+      "lat": -18.482452,
+      "lng": -70.319379
+     },
+     {
+      "nombre": "Prueba 1",
+      "lat": -18.480552,
+      "lng": -70.311298
+     },
+     {
+      "nombre": "Prueba 21",
+      "lat": -18.475216,
+      "lng": -70.310089
+     }
+    ],
+    "metrosEstimados": 39236,
+    "costoEstimado": 12807,
+    "confirmados": 2,
+    "pendientesDeContacto": 22,
+    "bloquesCumplidos": 0,
+    "bloquesIncumplidos": 0,
+    "fueraDeHorario": [],
+    "fueraDeHorarioIds": []
+   }
+  ],
+  "elegida": "corta",
+  "lejanas": [],
+  "advertencias": [],
+  "trazado": {
+   "puntos": 1220,
+   "huella": "4d9f59b522c49e7f"
+  }
+ },
+ "bloque-vigente-0930": {
+  "fecha": "2026-12-02",
+  "partida": {
+   "lat": -18.465889,
+   "lng": -70.302556
+  },
+  "llegada": {
+   "lat": -18.465889,
+   "lng": -70.302556
+  },
+  "paradas": [
+   {
+    "nombre": "Prueba 14",
+    "lat": -18.464867,
+    "lng": -70.295318
+   },
+   {
+    "nombre": "Prueba 24",
+    "lat": -18.46294,
+    "lng": -70.292346
+   },
+   {
+    "nombre": "Prueba 23",
+    "lat": -18.465231,
+    "lng": -70.288017
+   },
+   {
+    "nombre": "Prueba 9",
+    "lat": -18.461239,
+    "lng": -70.281494
+   },
+   {
+    "nombre": "Prueba 2",
+    "lat": -18.469434,
+    "lng": -70.274613
+   },
+   {
+    "nombre": "Prueba 17",
+    "lat": -18.465512,
+    "lng": -70.274947
+   },
+   {
+    "nombre": "Prueba 13",
+    "lat": -18.459163,
+    "lng": -70.277206
+   },
+   {
+    "nombre": "Prueba 8",
+    "lat": -18.443223,
+    "lng": -70.283658
+   },
+   {
+    "nombre": "Prueba 11",
+    "lat": -18.451414,
+    "lng": -70.289726
+   },
+   {
+    "nombre": "Prueba 4",
+    "lat": -18.449633,
+    "lng": -70.298367
+   },
+   {
+    "nombre": "Prueba 22",
+    "lat": -18.457849,
+    "lng": -70.297025
+   },
+   {
+    "nombre": "Prueba 19",
+    "lat": -18.467027,
+    "lng": -70.306592
+   },
+   {
+    "nombre": "Prueba 21",
+    "lat": -18.475216,
+    "lng": -70.310089
+   },
+   {
+    "nombre": "Prueba 1",
+    "lat": -18.480552,
+    "lng": -70.311298
+   },
+   {
+    "nombre": "Prueba 15",
+    "lat": -18.482452,
+    "lng": -70.319379
+   },
+   {
+    "nombre": "Prueba 16",
+    "lat": -18.499341,
+    "lng": -70.311903
+   },
+   {
+    "nombre": "Prueba 6",
+    "lat": -18.488548,
+    "lng": -70.282835
+   },
+   {
+    "nombre": "Prueba 3",
+    "lat": -18.494773,
+    "lng": -70.272842
+   },
+   {
+    "nombre": "Prueba 18",
+    "lat": -18.489697,
+    "lng": -70.285463
+   },
+   {
+    "nombre": "Prueba 20",
+    "lat": -18.490266,
+    "lng": -70.289014
+   },
+   {
+    "nombre": "Prueba 12",
+    "lat": -18.487801,
+    "lng": -70.302227
+   },
+   {
+    "nombre": "Prueba 10",
+    "lat": -18.481344,
+    "lng": -70.296131
+   },
+   {
+    "nombre": "Prueba 7",
+    "lat": -18.477618,
+    "lng": -70.29648
+   },
+   {
+    "nombre": "Prueba 5",
+    "lat": -18.472927,
+    "lng": -70.289301
+   }
+  ],
+  "tramos": [
+   {
+    "desde": 0,
+    "hasta": 16,
+    "metros": 1463,
+    "segundos": 136,
+    "pedidoId": "@Prueba 14"
+   },
+   {
+    "desde": 16,
+    "hasta": 25,
+    "metros": 469,
+    "segundos": 40,
+    "pedidoId": "@Prueba 24"
+   },
+   {
+    "desde": 25,
+    "hasta": 45,
+    "metros": 723,
+    "segundos": 86,
+    "pedidoId": "@Prueba 23"
+   },
+   {
+    "desde": 45,
+    "hasta": 66,
+    "metros": 1251,
+    "segundos": 143,
+    "pedidoId": "@Prueba 9"
+   },
+   {
+    "desde": 66,
+    "hasta": 130,
+    "metros": 2941,
+    "segundos": 395,
+    "pedidoId": "@Prueba 2"
+   },
+   {
+    "desde": 130,
+    "hasta": 152,
+    "metros": 1796,
+    "segundos": 305,
+    "pedidoId": "@Prueba 17"
+   },
+   {
+    "desde": 152,
+    "hasta": 197,
+    "metros": 1370,
+    "segundos": 233,
+    "pedidoId": "@Prueba 13"
+   },
+   {
+    "desde": 197,
+    "hasta": 270,
+    "metros": 2482,
+    "segundos": 300,
+    "pedidoId": "@Prueba 8"
+   },
+   {
+    "desde": 270,
+    "hasta": 317,
+    "metros": 1486,
+    "segundos": 182,
+    "pedidoId": "@Prueba 11"
+   },
+   {
+    "desde": 317,
+    "hasta": 398,
+    "metros": 1689,
+    "segundos": 213,
+    "pedidoId": "@Prueba 4"
+   },
+   {
+    "desde": 398,
+    "hasta": 451,
+    "metros": 1279,
+    "segundos": 198,
+    "pedidoId": "@Prueba 22"
+   },
+   {
+    "desde": 451,
+    "hasta": 510,
+    "metros": 1474,
+    "segundos": 168,
+    "pedidoId": "@Prueba 19"
+   },
+   {
+    "desde": 510,
+    "hasta": 574,
+    "metros": 1533,
+    "segundos": 185,
+    "pedidoId": "@Prueba 21"
+   },
+   {
+    "desde": 574,
+    "hasta": 593,
+    "metros": 840,
+    "segundos": 115,
+    "pedidoId": "@Prueba 1"
+   },
+   {
+    "desde": 593,
+    "hasta": 636,
+    "metros": 1578,
+    "segundos": 157,
+    "pedidoId": "@Prueba 15"
+   },
+   {
+    "desde": 636,
+    "hasta": 733,
+    "metros": 2643,
+    "segundos": 281,
+    "pedidoId": "@Prueba 16"
+   },
+   {
+    "desde": 733,
+    "hasta": 896,
+    "metros": 4262,
+    "segundos": 420,
+    "pedidoId": "@Prueba 6"
+   },
+   {
+    "desde": 896,
+    "hasta": 950,
+    "metros": 1517,
+    "segundos": 162,
+    "pedidoId": "@Prueba 3"
+   },
+   {
+    "desde": 950,
+    "hasta": 1002,
+    "metros": 1493,
+    "segundos": 172,
+    "pedidoId": "@Prueba 18"
+   },
+   {
+    "desde": 1002,
+    "hasta": 1069,
+    "metros": 564,
+    "segundos": 68,
+    "pedidoId": "@Prueba 20"
+   },
+   {
+    "desde": 1069,
+    "hasta": 1126,
+    "metros": 1669,
+    "segundos": 165,
+    "pedidoId": "@Prueba 12"
+   },
+   {
+    "desde": 1126,
+    "hasta": 1196,
+    "metros": 2350,
+    "segundos": 253,
+    "pedidoId": "@Prueba 10"
+   },
+   {
+    "desde": 1196,
+    "hasta": 1223,
+    "metros": 761,
+    "segundos": 98,
+    "pedidoId": "@Prueba 7"
+   },
+   {
+    "desde": 1223,
+    "hasta": 1255,
+    "metros": 1201,
+    "segundos": 149,
+    "pedidoId": "@Prueba 5"
+   },
+   {
+    "desde": 1255,
+    "hasta": 1321,
+    "metros": 2272,
+    "segundos": 248,
+    "pedidoId": null
+   }
+  ],
+  "distanciaM": 41103,
+  "duracionS": 4870,
+  "sinUbicar": [],
+  "sinTrazado": false,
+  "motivoSinTrazado": null,
+  "cerradas": 0,
+  "alternativas": [
+   {
+    "estrategia": "horarios",
+    "titulo": "Respeta horarios",
+    "motivo": "Ordenada para llegar dentro del bloque horario solicitado por cada cliente.",
+    "paradas": [
+     {
+      "nombre": "Prueba 14",
+      "lat": -18.464867,
+      "lng": -70.295318
+     },
+     {
+      "nombre": "Prueba 24",
+      "lat": -18.46294,
+      "lng": -70.292346
+     },
+     {
+      "nombre": "Prueba 23",
+      "lat": -18.465231,
+      "lng": -70.288017
+     },
+     {
+      "nombre": "Prueba 9",
+      "lat": -18.461239,
+      "lng": -70.281494
+     },
+     {
+      "nombre": "Prueba 2",
+      "lat": -18.469434,
+      "lng": -70.274613
+     },
+     {
+      "nombre": "Prueba 17",
+      "lat": -18.465512,
+      "lng": -70.274947
+     },
+     {
+      "nombre": "Prueba 13",
+      "lat": -18.459163,
+      "lng": -70.277206
+     },
+     {
+      "nombre": "Prueba 8",
+      "lat": -18.443223,
+      "lng": -70.283658
+     },
+     {
+      "nombre": "Prueba 11",
+      "lat": -18.451414,
+      "lng": -70.289726
+     },
+     {
+      "nombre": "Prueba 4",
+      "lat": -18.449633,
+      "lng": -70.298367
+     },
+     {
+      "nombre": "Prueba 22",
+      "lat": -18.457849,
+      "lng": -70.297025
+     },
+     {
+      "nombre": "Prueba 19",
+      "lat": -18.467027,
+      "lng": -70.306592
+     },
+     {
+      "nombre": "Prueba 21",
+      "lat": -18.475216,
+      "lng": -70.310089
+     },
+     {
+      "nombre": "Prueba 1",
+      "lat": -18.480552,
+      "lng": -70.311298
+     },
+     {
+      "nombre": "Prueba 15",
+      "lat": -18.482452,
+      "lng": -70.319379
+     },
+     {
+      "nombre": "Prueba 16",
+      "lat": -18.499341,
+      "lng": -70.311903
+     },
+     {
+      "nombre": "Prueba 6",
+      "lat": -18.488548,
+      "lng": -70.282835
+     },
+     {
+      "nombre": "Prueba 3",
+      "lat": -18.494773,
+      "lng": -70.272842
+     },
+     {
+      "nombre": "Prueba 18",
+      "lat": -18.489697,
+      "lng": -70.285463
+     },
+     {
+      "nombre": "Prueba 20",
+      "lat": -18.490266,
+      "lng": -70.289014
+     },
+     {
+      "nombre": "Prueba 12",
+      "lat": -18.487801,
+      "lng": -70.302227
+     },
+     {
+      "nombre": "Prueba 10",
+      "lat": -18.481344,
+      "lng": -70.296131
+     },
+     {
+      "nombre": "Prueba 7",
+      "lat": -18.477618,
+      "lng": -70.29648
+     },
+     {
+      "nombre": "Prueba 5",
+      "lat": -18.472927,
+      "lng": -70.289301
+     }
+    ],
+    "metrosEstimados": 41103,
+    "costoEstimado": 13461,
+    "confirmados": 3,
+    "pendientesDeContacto": 21,
+    "bloquesCumplidos": 2,
+    "bloquesIncumplidos": 0,
+    "fueraDeHorario": [],
+    "fueraDeHorarioIds": []
+   }
+  ],
+  "elegida": "horarios",
+  "lejanas": [],
+  "advertencias": [],
+  "trazado": {
+   "puntos": 1322,
+   "huella": "7149922de621ff7f"
+  }
+ },
+ "bloque-vigente-0950": {
+  "fecha": "2026-12-02",
+  "partida": {
+   "lat": -18.465889,
+   "lng": -70.302556
+  },
+  "llegada": {
+   "lat": -18.465889,
+   "lng": -70.302556
+  },
+  "paradas": [
+   {
+    "nombre": "Prueba 14",
+    "lat": -18.464867,
+    "lng": -70.295318
+   },
+   {
+    "nombre": "Prueba 24",
+    "lat": -18.46294,
+    "lng": -70.292346
+   },
+   {
+    "nombre": "Prueba 23",
+    "lat": -18.465231,
+    "lng": -70.288017
+   },
+   {
+    "nombre": "Prueba 9",
+    "lat": -18.461239,
+    "lng": -70.281494
+   },
+   {
+    "nombre": "Prueba 2",
+    "lat": -18.469434,
+    "lng": -70.274613
+   },
+   {
+    "nombre": "Prueba 17",
+    "lat": -18.465512,
+    "lng": -70.274947
+   },
+   {
+    "nombre": "Prueba 13",
+    "lat": -18.459163,
+    "lng": -70.277206
+   },
+   {
+    "nombre": "Prueba 8",
+    "lat": -18.443223,
+    "lng": -70.283658
+   },
+   {
+    "nombre": "Prueba 11",
+    "lat": -18.451414,
+    "lng": -70.289726
+   },
+   {
+    "nombre": "Prueba 4",
+    "lat": -18.449633,
+    "lng": -70.298367
+   },
+   {
+    "nombre": "Prueba 22",
+    "lat": -18.457849,
+    "lng": -70.297025
+   },
+   {
+    "nombre": "Prueba 19",
+    "lat": -18.467027,
+    "lng": -70.306592
+   },
+   {
+    "nombre": "Prueba 21",
+    "lat": -18.475216,
+    "lng": -70.310089
+   },
+   {
+    "nombre": "Prueba 1",
+    "lat": -18.480552,
+    "lng": -70.311298
+   },
+   {
+    "nombre": "Prueba 15",
+    "lat": -18.482452,
+    "lng": -70.319379
+   },
+   {
+    "nombre": "Prueba 16",
+    "lat": -18.499341,
+    "lng": -70.311903
+   },
+   {
+    "nombre": "Prueba 6",
+    "lat": -18.488548,
+    "lng": -70.282835
+   },
+   {
+    "nombre": "Prueba 3",
+    "lat": -18.494773,
+    "lng": -70.272842
+   },
+   {
+    "nombre": "Prueba 18",
+    "lat": -18.489697,
+    "lng": -70.285463
+   },
+   {
+    "nombre": "Prueba 20",
+    "lat": -18.490266,
+    "lng": -70.289014
+   },
+   {
+    "nombre": "Prueba 12",
+    "lat": -18.487801,
+    "lng": -70.302227
+   },
+   {
+    "nombre": "Prueba 10",
+    "lat": -18.481344,
+    "lng": -70.296131
+   },
+   {
+    "nombre": "Prueba 7",
+    "lat": -18.477618,
+    "lng": -70.29648
+   },
+   {
+    "nombre": "Prueba 5",
+    "lat": -18.472927,
+    "lng": -70.289301
+   }
+  ],
+  "tramos": [
+   {
+    "desde": 0,
+    "hasta": 16,
+    "metros": 1463,
+    "segundos": 136,
+    "pedidoId": "@Prueba 14"
+   },
+   {
+    "desde": 16,
+    "hasta": 25,
+    "metros": 469,
+    "segundos": 40,
+    "pedidoId": "@Prueba 24"
+   },
+   {
+    "desde": 25,
+    "hasta": 45,
+    "metros": 723,
+    "segundos": 86,
+    "pedidoId": "@Prueba 23"
+   },
+   {
+    "desde": 45,
+    "hasta": 66,
+    "metros": 1251,
+    "segundos": 143,
+    "pedidoId": "@Prueba 9"
+   },
+   {
+    "desde": 66,
+    "hasta": 130,
+    "metros": 2941,
+    "segundos": 395,
+    "pedidoId": "@Prueba 2"
+   },
+   {
+    "desde": 130,
+    "hasta": 152,
+    "metros": 1796,
+    "segundos": 305,
+    "pedidoId": "@Prueba 17"
+   },
+   {
+    "desde": 152,
+    "hasta": 197,
+    "metros": 1370,
+    "segundos": 233,
+    "pedidoId": "@Prueba 13"
+   },
+   {
+    "desde": 197,
+    "hasta": 270,
+    "metros": 2482,
+    "segundos": 300,
+    "pedidoId": "@Prueba 8"
+   },
+   {
+    "desde": 270,
+    "hasta": 317,
+    "metros": 1486,
+    "segundos": 182,
+    "pedidoId": "@Prueba 11"
+   },
+   {
+    "desde": 317,
+    "hasta": 398,
+    "metros": 1689,
+    "segundos": 213,
+    "pedidoId": "@Prueba 4"
+   },
+   {
+    "desde": 398,
+    "hasta": 451,
+    "metros": 1279,
+    "segundos": 198,
+    "pedidoId": "@Prueba 22"
+   },
+   {
+    "desde": 451,
+    "hasta": 510,
+    "metros": 1474,
+    "segundos": 168,
+    "pedidoId": "@Prueba 19"
+   },
+   {
+    "desde": 510,
+    "hasta": 574,
+    "metros": 1533,
+    "segundos": 185,
+    "pedidoId": "@Prueba 21"
+   },
+   {
+    "desde": 574,
+    "hasta": 593,
+    "metros": 840,
+    "segundos": 115,
+    "pedidoId": "@Prueba 1"
+   },
+   {
+    "desde": 593,
+    "hasta": 636,
+    "metros": 1578,
+    "segundos": 157,
+    "pedidoId": "@Prueba 15"
+   },
+   {
+    "desde": 636,
+    "hasta": 733,
+    "metros": 2643,
+    "segundos": 281,
+    "pedidoId": "@Prueba 16"
+   },
+   {
+    "desde": 733,
+    "hasta": 896,
+    "metros": 4262,
+    "segundos": 420,
+    "pedidoId": "@Prueba 6"
+   },
+   {
+    "desde": 896,
+    "hasta": 950,
+    "metros": 1517,
+    "segundos": 162,
+    "pedidoId": "@Prueba 3"
+   },
+   {
+    "desde": 950,
+    "hasta": 1002,
+    "metros": 1493,
+    "segundos": 172,
+    "pedidoId": "@Prueba 18"
+   },
+   {
+    "desde": 1002,
+    "hasta": 1069,
+    "metros": 564,
+    "segundos": 68,
+    "pedidoId": "@Prueba 20"
+   },
+   {
+    "desde": 1069,
+    "hasta": 1126,
+    "metros": 1669,
+    "segundos": 165,
+    "pedidoId": "@Prueba 12"
+   },
+   {
+    "desde": 1126,
+    "hasta": 1196,
+    "metros": 2350,
+    "segundos": 253,
+    "pedidoId": "@Prueba 10"
+   },
+   {
+    "desde": 1196,
+    "hasta": 1223,
+    "metros": 761,
+    "segundos": 98,
+    "pedidoId": "@Prueba 7"
+   },
+   {
+    "desde": 1223,
+    "hasta": 1255,
+    "metros": 1201,
+    "segundos": 149,
+    "pedidoId": "@Prueba 5"
+   },
+   {
+    "desde": 1255,
+    "hasta": 1321,
+    "metros": 2272,
+    "segundos": 248,
+    "pedidoId": null
+   }
+  ],
+  "distanciaM": 41103,
+  "duracionS": 4870,
+  "sinUbicar": [],
+  "sinTrazado": false,
+  "motivoSinTrazado": null,
+  "cerradas": 0,
+  "alternativas": [
+   {
+    "estrategia": "horarios",
+    "titulo": "Respeta horarios",
+    "motivo": "Ordenada para llegar dentro del bloque horario solicitado por cada cliente.",
+    "paradas": [
+     {
+      "nombre": "Prueba 14",
+      "lat": -18.464867,
+      "lng": -70.295318
+     },
+     {
+      "nombre": "Prueba 24",
+      "lat": -18.46294,
+      "lng": -70.292346
+     },
+     {
+      "nombre": "Prueba 23",
+      "lat": -18.465231,
+      "lng": -70.288017
+     },
+     {
+      "nombre": "Prueba 9",
+      "lat": -18.461239,
+      "lng": -70.281494
+     },
+     {
+      "nombre": "Prueba 2",
+      "lat": -18.469434,
+      "lng": -70.274613
+     },
+     {
+      "nombre": "Prueba 17",
+      "lat": -18.465512,
+      "lng": -70.274947
+     },
+     {
+      "nombre": "Prueba 13",
+      "lat": -18.459163,
+      "lng": -70.277206
+     },
+     {
+      "nombre": "Prueba 8",
+      "lat": -18.443223,
+      "lng": -70.283658
+     },
+     {
+      "nombre": "Prueba 11",
+      "lat": -18.451414,
+      "lng": -70.289726
+     },
+     {
+      "nombre": "Prueba 4",
+      "lat": -18.449633,
+      "lng": -70.298367
+     },
+     {
+      "nombre": "Prueba 22",
+      "lat": -18.457849,
+      "lng": -70.297025
+     },
+     {
+      "nombre": "Prueba 19",
+      "lat": -18.467027,
+      "lng": -70.306592
+     },
+     {
+      "nombre": "Prueba 21",
+      "lat": -18.475216,
+      "lng": -70.310089
+     },
+     {
+      "nombre": "Prueba 1",
+      "lat": -18.480552,
+      "lng": -70.311298
+     },
+     {
+      "nombre": "Prueba 15",
+      "lat": -18.482452,
+      "lng": -70.319379
+     },
+     {
+      "nombre": "Prueba 16",
+      "lat": -18.499341,
+      "lng": -70.311903
+     },
+     {
+      "nombre": "Prueba 6",
+      "lat": -18.488548,
+      "lng": -70.282835
+     },
+     {
+      "nombre": "Prueba 3",
+      "lat": -18.494773,
+      "lng": -70.272842
+     },
+     {
+      "nombre": "Prueba 18",
+      "lat": -18.489697,
+      "lng": -70.285463
+     },
+     {
+      "nombre": "Prueba 20",
+      "lat": -18.490266,
+      "lng": -70.289014
+     },
+     {
+      "nombre": "Prueba 12",
+      "lat": -18.487801,
+      "lng": -70.302227
+     },
+     {
+      "nombre": "Prueba 10",
+      "lat": -18.481344,
+      "lng": -70.296131
+     },
+     {
+      "nombre": "Prueba 7",
+      "lat": -18.477618,
+      "lng": -70.29648
+     },
+     {
+      "nombre": "Prueba 5",
+      "lat": -18.472927,
+      "lng": -70.289301
+     }
+    ],
+    "metrosEstimados": 41103,
+    "costoEstimado": 13461,
+    "confirmados": 3,
+    "pendientesDeContacto": 21,
+    "bloquesCumplidos": 2,
+    "bloquesIncumplidos": 0,
+    "fueraDeHorario": [],
+    "fueraDeHorarioIds": []
+   }
+  ],
+  "elegida": "horarios",
+  "lejanas": [],
+  "advertencias": [],
+  "trazado": {
+   "puntos": 1322,
+   "huella": "7149922de621ff7f"
+  }
+ },
+ "bloque-cerrado-1500": {
+  "fecha": "2026-12-03",
+  "partida": {
+   "lat": -18.465889,
+   "lng": -70.302556
+  },
+  "llegada": {
+   "lat": -18.465889,
+   "lng": -70.302556
+  },
+  "paradas": [
+   {
+    "nombre": "Prueba 19",
+    "lat": -18.467027,
+    "lng": -70.306592
+   },
+   {
+    "nombre": "Prueba 22",
+    "lat": -18.457849,
+    "lng": -70.297025
+   },
+   {
+    "nombre": "Prueba 4",
+    "lat": -18.449633,
+    "lng": -70.298367
+   },
+   {
+    "nombre": "Prueba 8",
+    "lat": -18.443223,
+    "lng": -70.283658
+   },
+   {
+    "nombre": "Prueba 11",
+    "lat": -18.451414,
+    "lng": -70.289726
+   },
+   {
+    "nombre": "Prueba 14",
+    "lat": -18.464867,
+    "lng": -70.295318
+   },
+   {
+    "nombre": "Prueba 24",
+    "lat": -18.46294,
+    "lng": -70.292346
+   },
+   {
+    "nombre": "Prueba 23",
+    "lat": -18.465231,
+    "lng": -70.288017
+   },
+   {
+    "nombre": "Prueba 2",
+    "lat": -18.469434,
+    "lng": -70.274613
+   },
+   {
+    "nombre": "Prueba 17",
+    "lat": -18.465512,
+    "lng": -70.274947
+   },
+   {
+    "nombre": "Prueba 13",
+    "lat": -18.459163,
+    "lng": -70.277206
+   },
+   {
+    "nombre": "Prueba 9",
+    "lat": -18.461239,
+    "lng": -70.281494
+   },
+   {
+    "nombre": "Prueba 5",
+    "lat": -18.472927,
+    "lng": -70.289301
+   },
+   {
+    "nombre": "Prueba 7",
+    "lat": -18.477618,
+    "lng": -70.29648
+   },
+   {
+    "nombre": "Prueba 10",
+    "lat": -18.481344,
+    "lng": -70.296131
+   },
+   {
+    "nombre": "Prueba 6",
+    "lat": -18.488548,
+    "lng": -70.282835
+   },
+   {
+    "nombre": "Prueba 3",
+    "lat": -18.494773,
+    "lng": -70.272842
+   },
+   {
+    "nombre": "Prueba 18",
+    "lat": -18.489697,
+    "lng": -70.285463
+   },
+   {
+    "nombre": "Prueba 20",
+    "lat": -18.490266,
+    "lng": -70.289014
+   },
+   {
+    "nombre": "Prueba 12",
+    "lat": -18.487801,
+    "lng": -70.302227
+   },
+   {
+    "nombre": "Prueba 16",
+    "lat": -18.499341,
+    "lng": -70.311903
+   },
+   {
+    "nombre": "Prueba 15",
+    "lat": -18.482452,
+    "lng": -70.319379
+   },
+   {
+    "nombre": "Prueba 1",
+    "lat": -18.480552,
+    "lng": -70.311298
+   },
+   {
+    "nombre": "Prueba 21",
+    "lat": -18.475216,
+    "lng": -70.310089
+   }
+  ],
+  "tramos": [
+   {
+    "desde": 0,
+    "hasta": 28,
+    "metros": 852,
+    "segundos": 91,
+    "pedidoId": "@Prueba 19"
+   },
+   {
+    "desde": 28,
+    "hasta": 116,
+    "metros": 2046,
+    "segundos": 221,
+    "pedidoId": "@Prueba 22"
+   },
+   {
+    "desde": 116,
+    "hasta": 169,
+    "metros": 1270,
+    "segundos": 198,
+    "pedidoId": "@Prueba 4"
+   },
+   {
+    "desde": 169,
+    "hasta": 237,
+    "metros": 1997,
+    "segundos": 240,
+    "pedidoId": "@Prueba 8"
+   },
+   {
+    "desde": 237,
+    "hasta": 284,
+    "metros": 1486,
+    "segundos": 182,
+    "pedidoId": "@Prueba 11"
+   },
+   {
+    "desde": 284,
+    "hasta": 319,
+    "metros": 1961,
+    "segundos": 180,
+    "pedidoId": "@Prueba 14"
+   },
+   {
+    "desde": 319,
+    "hasta": 328,
+    "metros": 469,
+    "segundos": 40,
+    "pedidoId": "@Prueba 24"
+   },
+   {
+    "desde": 328,
+    "hasta": 348,
+    "metros": 723,
+    "segundos": 86,
+    "pedidoId": "@Prueba 23"
+   },
+   {
+    "desde": 348,
+    "hasta": 409,
+    "metros": 2925,
+    "segundos": 395,
+    "pedidoId": "@Prueba 2"
+   },
+   {
+    "desde": 409,
+    "hasta": 431,
+    "metros": 1796,
+    "segundos": 305,
+    "pedidoId": "@Prueba 17"
+   },
+   {
+    "desde": 431,
+    "hasta": 476,
+    "metros": 1370,
+    "segundos": 233,
+    "pedidoId": "@Prueba 13"
+   },
+   {
+    "desde": 476,
+    "hasta": 526,
+    "metros": 1314,
+    "segundos": 206,
+    "pedidoId": "@Prueba 9"
+   },
+   {
+    "desde": 526,
+    "hasta": 594,
+    "metros": 2077,
+    "segundos": 211,
+    "pedidoId": "@Prueba 5"
+   },
+   {
+    "desde": 594,
+    "hasta": 627,
+    "metros": 1226,
+    "segundos": 155,
+    "pedidoId": "@Prueba 7"
+   },
+   {
+    "desde": 627,
+    "hasta": 651,
+    "metros": 612,
+    "segundos": 68,
+    "pedidoId": "@Prueba 10"
+   },
+   {
+    "desde": 651,
+    "hasta": 711,
+    "metros": 1902,
+    "segundos": 215,
+    "pedidoId": "@Prueba 6"
+   },
+   {
+    "desde": 711,
+    "hasta": 765,
+    "metros": 1517,
+    "segundos": 162,
+    "pedidoId": "@Prueba 3"
+   },
+   {
+    "desde": 765,
+    "hasta": 817,
+    "metros": 1493,
+    "segundos": 172,
+    "pedidoId": "@Prueba 18"
+   },
+   {
+    "desde": 817,
+    "hasta": 884,
+    "metros": 564,
+    "segundos": 68,
+    "pedidoId": "@Prueba 20"
+   },
+   {
+    "desde": 884,
+    "hasta": 941,
+    "metros": 1669,
+    "segundos": 165,
+    "pedidoId": "@Prueba 12"
+   },
+   {
+    "desde": 941,
+    "hasta": 994,
+    "metros": 2420,
+    "segundos": 212,
+    "pedidoId": "@Prueba 16"
+   },
+   {
+    "desde": 994,
+    "hasta": 1114,
+    "metros": 2851,
+    "segundos": 287,
+    "pedidoId": "@Prueba 15"
+   },
+   {
+    "desde": 1114,
+    "hasta": 1140,
+    "metros": 1220,
+    "segundos": 134,
+    "pedidoId": "@Prueba 1"
+   },
+   {
+    "desde": 1140,
+    "hasta": 1163,
+    "metros": 1109,
+    "segundos": 118,
+    "pedidoId": "@Prueba 21"
+   },
+   {
+    "desde": 1163,
+    "hasta": 1219,
+    "metros": 2369,
+    "segundos": 281,
+    "pedidoId": null
+   }
+  ],
+  "distanciaM": 39236,
+  "duracionS": 4624,
+  "sinUbicar": [],
+  "sinTrazado": false,
+  "motivoSinTrazado": null,
+  "cerradas": 0,
+  "alternativas": [
+   {
+    "estrategia": "corta",
+    "titulo": "La más económica",
+    "motivo": "Menor costo en kilómetros y tiempo de conducción.",
+    "paradas": [
+     {
+      "nombre": "Prueba 19",
+      "lat": -18.467027,
+      "lng": -70.306592
+     },
+     {
+      "nombre": "Prueba 22",
+      "lat": -18.457849,
+      "lng": -70.297025
+     },
+     {
+      "nombre": "Prueba 4",
+      "lat": -18.449633,
+      "lng": -70.298367
+     },
+     {
+      "nombre": "Prueba 8",
+      "lat": -18.443223,
+      "lng": -70.283658
+     },
+     {
+      "nombre": "Prueba 11",
+      "lat": -18.451414,
+      "lng": -70.289726
+     },
+     {
+      "nombre": "Prueba 14",
+      "lat": -18.464867,
+      "lng": -70.295318
+     },
+     {
+      "nombre": "Prueba 24",
+      "lat": -18.46294,
+      "lng": -70.292346
+     },
+     {
+      "nombre": "Prueba 23",
+      "lat": -18.465231,
+      "lng": -70.288017
+     },
+     {
+      "nombre": "Prueba 2",
+      "lat": -18.469434,
+      "lng": -70.274613
+     },
+     {
+      "nombre": "Prueba 17",
+      "lat": -18.465512,
+      "lng": -70.274947
+     },
+     {
+      "nombre": "Prueba 13",
+      "lat": -18.459163,
+      "lng": -70.277206
+     },
+     {
+      "nombre": "Prueba 9",
+      "lat": -18.461239,
+      "lng": -70.281494
+     },
+     {
+      "nombre": "Prueba 5",
+      "lat": -18.472927,
+      "lng": -70.289301
+     },
+     {
+      "nombre": "Prueba 7",
+      "lat": -18.477618,
+      "lng": -70.29648
+     },
+     {
+      "nombre": "Prueba 10",
+      "lat": -18.481344,
+      "lng": -70.296131
+     },
+     {
+      "nombre": "Prueba 6",
+      "lat": -18.488548,
+      "lng": -70.282835
+     },
+     {
+      "nombre": "Prueba 3",
+      "lat": -18.494773,
+      "lng": -70.272842
+     },
+     {
+      "nombre": "Prueba 18",
+      "lat": -18.489697,
+      "lng": -70.285463
+     },
+     {
+      "nombre": "Prueba 20",
+      "lat": -18.490266,
+      "lng": -70.289014
+     },
+     {
+      "nombre": "Prueba 12",
+      "lat": -18.487801,
+      "lng": -70.302227
+     },
+     {
+      "nombre": "Prueba 16",
+      "lat": -18.499341,
+      "lng": -70.311903
+     },
+     {
+      "nombre": "Prueba 15",
+      "lat": -18.482452,
+      "lng": -70.319379
+     },
+     {
+      "nombre": "Prueba 1",
+      "lat": -18.480552,
+      "lng": -70.311298
+     },
+     {
+      "nombre": "Prueba 21",
+      "lat": -18.475216,
+      "lng": -70.310089
+     }
+    ],
+    "metrosEstimados": 39236,
+    "costoEstimado": 12807,
+    "confirmados": 3,
+    "pendientesDeContacto": 21,
+    "bloquesCumplidos": 0,
+    "bloquesIncumplidos": 2,
+    "fueraDeHorario": [
+     "Prueba 5",
+     "Prueba 12"
+    ],
+    "fueraDeHorarioIds": [
+     "@Prueba 5",
+     "@Prueba 12"
+    ]
+   }
+  ],
+  "elegida": "corta",
+  "lejanas": [],
+  "advertencias": [
+   "Con este orden se llegaría fuera de horario a 2 clientes: Prueba 5, Prueba 12."
+  ],
+  "trazado": {
+   "puntos": 1220,
+   "huella": "4d9f59b522c49e7f"
+  }
+ },
+ "ors-bloque-cerrado-1500": {
+  "fecha": "2026-12-04",
+  "partida": {
+   "lat": -18.465889,
+   "lng": -70.302556
+  },
+  "llegada": {
+   "lat": -18.465889,
+   "lng": -70.302556
+  },
+  "paradas": [
+   {
+    "nombre": "Prueba 32",
+    "lat": -18.464074,
+    "lng": -70.299177
+   },
+   {
+    "nombre": "Prueba 31",
+    "lat": -18.470329,
+    "lng": -70.2975
+   },
+   {
+    "nombre": "Prueba 37",
+    "lat": -18.472288,
+    "lng": -70.298848
+   },
+   {
+    "nombre": "Prueba 36",
+    "lat": -18.478552,
+    "lng": -70.309621
+   },
+   {
+    "nombre": "Prueba 38",
+    "lat": -18.492588,
+    "lng": -70.314597
+   },
+   {
+    "nombre": "Prueba 30",
+    "lat": -18.491135,
+    "lng": -70.310163
+   },
+   {
+    "nombre": "Prueba 41",
+    "lat": -18.493258,
+    "lng": -70.285699
+   },
+   {
+    "nombre": "Prueba 34",
+    "lat": -18.492954,
+    "lng": -70.281033
+   },
+   {
+    "nombre": "Prueba 40",
+    "lat": -18.462038,
+    "lng": -70.280087
+   },
+   {
+    "nombre": "Prueba 39",
+    "lat": -18.456906,
+    "lng": -70.28289
+   },
+   {
+    "nombre": "Prueba 35",
+    "lat": -18.452676,
+    "lng": -70.294996
+   },
+   {
+    "nombre": "Prueba 33",
+    "lat": -18.462281,
+    "lng": -70.301384
+   }
+  ],
+  "tramos": null,
+  "distanciaM": null,
+  "duracionS": null,
+  "sinUbicar": [],
+  "sinTrazado": true,
+  "motivoSinTrazado": "sin_senal",
+  "cerradas": 0,
+  "alternativas": [
+   {
+    "estrategia": "corta",
+    "titulo": "La más económica",
+    "motivo": "Menor costo en kilómetros y tiempo de conducción.",
+    "paradas": [
+     {
+      "nombre": "Prueba 32",
+      "lat": -18.464074,
+      "lng": -70.299177
+     },
+     {
+      "nombre": "Prueba 31",
+      "lat": -18.470329,
+      "lng": -70.2975
+     },
+     {
+      "nombre": "Prueba 37",
+      "lat": -18.472288,
+      "lng": -70.298848
+     },
+     {
+      "nombre": "Prueba 36",
+      "lat": -18.478552,
+      "lng": -70.309621
+     },
+     {
+      "nombre": "Prueba 38",
+      "lat": -18.492588,
+      "lng": -70.314597
+     },
+     {
+      "nombre": "Prueba 30",
+      "lat": -18.491135,
+      "lng": -70.310163
+     },
+     {
+      "nombre": "Prueba 41",
+      "lat": -18.493258,
+      "lng": -70.285699
+     },
+     {
+      "nombre": "Prueba 34",
+      "lat": -18.492954,
+      "lng": -70.281033
+     },
+     {
+      "nombre": "Prueba 40",
+      "lat": -18.462038,
+      "lng": -70.280087
+     },
+     {
+      "nombre": "Prueba 39",
+      "lat": -18.456906,
+      "lng": -70.28289
+     },
+     {
+      "nombre": "Prueba 35",
+      "lat": -18.452676,
+      "lng": -70.294996
+     },
+     {
+      "nombre": "Prueba 33",
+      "lat": -18.462281,
+      "lng": -70.301384
+     }
+    ],
+    "metrosEstimados": 19591,
+    "costoEstimado": 19591,
+    "confirmados": 2,
+    "pendientesDeContacto": 10,
+    "bloquesCumplidos": 0,
+    "bloquesIncumplidos": 1,
+    "fueraDeHorario": [
+     "Prueba 33"
+    ],
+    "fueraDeHorarioIds": [
+     "@Prueba 33"
+    ]
+   }
+  ],
+  "elegida": "corta",
+  "lejanas": [],
+  "advertencias": [
+   "Sin conexión para las distancias por calle: el orden se calculó en línea recta.",
+   "Con este orden se llegaría fuera del horario solicitado por Prueba 33. Se recomienda llamar.",
+   "Sin trazado por calles: no hay conexión. El orden de las paradas no cambia y el mapa lo trazará al recuperar la conexión."
+  ],
+  "trazado": null
+ },
+ "ors-bloque-vigente-1100": {
+  "fecha": "2026-12-05",
+  "partida": {
+   "lat": -18.465889,
+   "lng": -70.302556
+  },
+  "llegada": {
+   "lat": -18.465889,
+   "lng": -70.302556
+  },
+  "paradas": [
+   {
+    "nombre": "Prueba 32",
+    "lat": -18.464074,
+    "lng": -70.299177
+   },
+   {
+    "nombre": "Prueba 35",
+    "lat": -18.452676,
+    "lng": -70.294996
+   },
+   {
+    "nombre": "Prueba 39",
+    "lat": -18.456906,
+    "lng": -70.28289
+   },
+   {
+    "nombre": "Prueba 40",
+    "lat": -18.462038,
+    "lng": -70.280087
+   },
+   {
+    "nombre": "Prueba 34",
+    "lat": -18.492954,
+    "lng": -70.281033
+   },
+   {
+    "nombre": "Prueba 41",
+    "lat": -18.493258,
+    "lng": -70.285699
+   },
+   {
+    "nombre": "Prueba 30",
+    "lat": -18.491135,
+    "lng": -70.310163
+   },
+   {
+    "nombre": "Prueba 38",
+    "lat": -18.492588,
+    "lng": -70.314597
+   },
+   {
+    "nombre": "Prueba 36",
+    "lat": -18.478552,
+    "lng": -70.309621
+   },
+   {
+    "nombre": "Prueba 37",
+    "lat": -18.472288,
+    "lng": -70.298848
+   },
+   {
+    "nombre": "Prueba 31",
+    "lat": -18.470329,
+    "lng": -70.2975
+   },
+   {
+    "nombre": "Prueba 33",
+    "lat": -18.462281,
+    "lng": -70.301384
+   }
+  ],
+  "tramos": null,
+  "distanciaM": null,
+  "duracionS": null,
+  "sinUbicar": [],
+  "sinTrazado": true,
+  "motivoSinTrazado": "sin_senal",
+  "cerradas": 0,
+  "alternativas": [
+   {
+    "estrategia": "horarios",
+    "titulo": "Respeta horarios",
+    "motivo": "Ordenada para llegar dentro del bloque horario solicitado por cada cliente.",
+    "paradas": [
+     {
+      "nombre": "Prueba 32",
+      "lat": -18.464074,
+      "lng": -70.299177
+     },
+     {
+      "nombre": "Prueba 35",
+      "lat": -18.452676,
+      "lng": -70.294996
+     },
+     {
+      "nombre": "Prueba 39",
+      "lat": -18.456906,
+      "lng": -70.28289
+     },
+     {
+      "nombre": "Prueba 40",
+      "lat": -18.462038,
+      "lng": -70.280087
+     },
+     {
+      "nombre": "Prueba 34",
+      "lat": -18.492954,
+      "lng": -70.281033
+     },
+     {
+      "nombre": "Prueba 41",
+      "lat": -18.493258,
+      "lng": -70.285699
+     },
+     {
+      "nombre": "Prueba 30",
+      "lat": -18.491135,
+      "lng": -70.310163
+     },
+     {
+      "nombre": "Prueba 38",
+      "lat": -18.492588,
+      "lng": -70.314597
+     },
+     {
+      "nombre": "Prueba 36",
+      "lat": -18.478552,
+      "lng": -70.309621
+     },
+     {
+      "nombre": "Prueba 37",
+      "lat": -18.472288,
+      "lng": -70.298848
+     },
+     {
+      "nombre": "Prueba 31",
+      "lat": -18.470329,
+      "lng": -70.2975
+     },
+     {
+      "nombre": "Prueba 33",
+      "lat": -18.462281,
+      "lng": -70.301384
+     }
+    ],
+    "metrosEstimados": 20041,
+    "costoEstimado": 20041,
+    "confirmados": 2,
+    "pendientesDeContacto": 10,
+    "bloquesCumplidos": 2,
+    "bloquesIncumplidos": 0,
+    "fueraDeHorario": [],
+    "fueraDeHorarioIds": []
+   }
+  ],
+  "elegida": "horarios",
+  "lejanas": [],
+  "advertencias": [
+   "Sin conexión para las distancias por calle: el orden se calculó en línea recta.",
+   "Sin trazado por calles: no hay conexión. El orden de las paradas no cambia y el mapa lo trazará al recuperar la conexión."
+  ],
+  "trazado": null
+ },
+ "accesos-directo": {
+  "ubicados": [
+   {
+    "nombre": "Prueba 52",
+    "lat": -18.479475,
+    "lng": -70.298136
+   },
+   {
+    "nombre": "Prueba 51",
+    "lat": -18.47599,
+    "lng": -70.2806031703949
+   },
+   {
+    "nombre": "Prueba 50",
+    "lat": -18.47306,
+    "lng": -70.30526340007782
+   },
+   {
+    "nombre": "Prueba 49",
+    "lat": -18.490916,
+    "lng": -70.299876
+   },
+   {
+    "nombre": "Prueba 48",
+    "lat": -18.447563,
+    "lng": -70.29128
+   },
+   {
+    "nombre": "Prueba 47",
+    "lat": -18.443884,
+    "lng": -70.302731
+   },
+   {
+    "nombre": "Prueba 46",
+    "lat": -18.492326,
+    "lng": -70.312204
+   },
+   {
+    "nombre": "Prueba 45",
+    "lat": -18.488547,
+    "lng": -70.31372
+   },
+   {
+    "nombre": "Prueba 44",
+    "lat": -18.458041,
+    "lng": -70.27392446994781
+   },
+   {
+    "nombre": "Prueba 43",
+    "lat": -18.46816,
+    "lng": -70.291236
+   },
+   {
+    "nombre": "Prueba 42",
+    "lat": -18.489993,
+    "lng": -70.282786
+   }
+  ],
+  "advertencias": [
+   "\"Prueba 51\" quedaba junto a Avenida Capitán Ávalos: se ubicó en Zapiga, por donde se accede.",
+   "\"Prueba 50\" quedaba junto a Avenida Capitán Ávalos: se ubicó en Zapiga, por donde se accede.",
+   "\"Prueba 44\" quedaba junto a Avenida Capitán Ávalos: se ubicó en Zapiga, por donde se accede."
+  ],
+  "guardados": [
+   {
+    "nombre": "Prueba 42",
+    "lat": -18.489993,
+    "lng": -70.282786,
+    "problemas": []
+   },
+   {
+    "nombre": "Prueba 43",
+    "lat": -18.46816,
+    "lng": -70.291236,
+    "problemas": []
+   },
+   {
+    "nombre": "Prueba 44",
+    "lat": -18.458041,
+    "lng": -70.27392446994781,
+    "problemas": []
+   },
+   {
+    "nombre": "Prueba 45",
+    "lat": -18.488547,
+    "lng": -70.31372,
+    "problemas": []
+   },
+   {
+    "nombre": "Prueba 46",
+    "lat": -18.492326,
+    "lng": -70.312204,
+    "problemas": []
+   },
+   {
+    "nombre": "Prueba 47",
+    "lat": -18.443884,
+    "lng": -70.302731,
+    "problemas": []
+   },
+   {
+    "nombre": "Prueba 48",
+    "lat": -18.447563,
+    "lng": -70.29128,
+    "problemas": []
+   },
+   {
+    "nombre": "Prueba 49",
+    "lat": -18.490916,
+    "lng": -70.299876,
+    "problemas": []
+   },
+   {
+    "nombre": "Prueba 50",
+    "lat": -18.47306,
+    "lng": -70.30526340007782,
+    "problemas": []
+   },
+   {
+    "nombre": "Prueba 51",
+    "lat": -18.47599,
+    "lng": -70.2806031703949,
+    "problemas": []
+   },
+   {
+    "nombre": "Prueba 52",
+    "lat": -18.479475,
+    "lng": -70.298136,
+    "problemas": []
+   }
+  ]
+ },
+ "armado-con-accesos": {
+  "propuesta": {
+   "fecha": "2026-12-07",
+   "partida": {
+    "lat": -18.465889,
+    "lng": -70.302556
+   },
+   "llegada": {
+    "lat": -18.465889,
+    "lng": -70.302556
+   },
+   "paradas": [
+    {
+     "nombre": "Prueba 54",
+     "lat": -18.472032,
+     "lng": -70.30526340007782
+    },
+    {
+     "nombre": "Prueba 55",
+     "lat": -18.477825,
+     "lng": -70.32141
+    },
+    {
+     "nombre": "Prueba 59",
+     "lat": -18.481237500000002,
+     "lng": -70.31917870044708
+    },
+    {
+     "nombre": "Prueba 58",
+     "lat": -18.496524,
+     "lng": -70.30237
+    },
+    {
+     "nombre": "Prueba 53",
+     "lat": -18.47705,
+     "lng": -70.2806031703949
+    },
+    {
+     "nombre": "Prueba 57",
+     "lat": -18.461095,
+     "lng": -70.290732
+    },
+    {
+     "nombre": "Prueba 56",
+     "lat": -18.442579,
+     "lng": -70.30274212360382
+    }
+   ],
+   "tramos": [
+    {
+     "desde": 0,
+     "hasta": 20,
+     "metros": 851,
+     "segundos": 96,
+     "pedidoId": "@Prueba 54"
+    },
+    {
+     "desde": 20,
+     "hasta": 118,
+     "metros": 2859,
+     "segundos": 304,
+     "pedidoId": "@Prueba 55"
+    },
+    {
+     "desde": 118,
+     "hasta": 146,
+     "metros": 862,
+     "segundos": 133,
+     "pedidoId": "@Prueba 59"
+    },
+    {
+     "desde": 146,
+     "hasta": 239,
+     "metros": 3285,
+     "segundos": 285,
+     "pedidoId": "@Prueba 58"
+    },
+    {
+     "desde": 239,
+     "hasta": 423,
+     "metros": 4377,
+     "segundos": 476,
+     "pedidoId": "@Prueba 53"
+    },
+    {
+     "desde": 423,
+     "hasta": 484,
+     "metros": 2654,
+     "segundos": 263,
+     "pedidoId": "@Prueba 57"
+    },
+    {
+     "desde": 484,
+     "hasta": 551,
+     "metros": 3038,
+     "segundos": 257,
+     "pedidoId": "@Prueba 56"
+    },
+    {
+     "desde": 551,
+     "hasta": 645,
+     "metros": 3644,
+     "segundos": 324,
+     "pedidoId": null
+    }
+   ],
+   "distanciaM": 21569,
+   "duracionS": 2138,
+   "sinUbicar": [
+    {
+     "nombre": "Prueba 60",
+     "lat": null,
+     "lng": null
+    }
+   ],
+   "sinTrazado": false,
+   "motivoSinTrazado": null,
+   "cerradas": 0,
+   "alternativas": [
+    {
+     "estrategia": "corta",
+     "titulo": "La más económica",
+     "motivo": "Menor costo en kilómetros y tiempo de conducción.",
+     "paradas": [
+      {
+       "nombre": "Prueba 54",
+       "lat": -18.472032,
+       "lng": -70.30526340007782
+      },
+      {
+       "nombre": "Prueba 55",
+       "lat": -18.477825,
+       "lng": -70.32141
+      },
+      {
+       "nombre": "Prueba 59",
+       "lat": -18.481237500000002,
+       "lng": -70.31917870044708
+      },
+      {
+       "nombre": "Prueba 58",
+       "lat": -18.496524,
+       "lng": -70.30237
+      },
+      {
+       "nombre": "Prueba 53",
+       "lat": -18.47705,
+       "lng": -70.2806031703949
+      },
+      {
+       "nombre": "Prueba 57",
+       "lat": -18.461095,
+       "lng": -70.290732
+      },
+      {
+       "nombre": "Prueba 56",
+       "lat": -18.442579,
+       "lng": -70.30274212360382
+      }
+     ],
+     "metrosEstimados": 21569,
+     "costoEstimado": 6367,
+     "confirmados": 0,
+     "pendientesDeContacto": 7,
+     "bloquesCumplidos": 0,
+     "bloquesIncumplidos": 0,
+     "fueraDeHorario": [],
+     "fueraDeHorarioIds": []
+    }
+   ],
+   "elegida": "corta",
+   "lejanas": [
+    {
+     "pedidoId": "@Prueba 56",
+     "direccion": "Calle inventada 5600, Arica",
+     "metrosAlResto": 2417,
+     "metrosQueSuma": 4867
+    }
+   ],
+   "advertencias": [
+    "Prueba 60: No se encontró la dirección en el mapa. Revísala o pega su Plus Code.",
+    "\"Prueba 59\" quedaba junto a Avenida Capitán Ávalos: se ubicó en Zapiga, por donde se accede.",
+    "\"Prueba 56\" quedaba junto a Avenida Capitán Ávalos: se ubicó en Zapiga, por donde se accede.",
+    "\"Prueba 54\" quedaba junto a Avenida Capitán Ávalos: se ubicó en Zapiga, por donde se accede.",
+    "\"Prueba 53\" quedaba junto a Avenida Capitán Ávalos: se ubicó en Zapiga, por donde se accede.",
+    "\"Prueba 60\" queda fuera de la ruta: su dirección no está ubicada en el mapa.",
+    "Calle inventada 5600, Arica queda a 2.4 km del resto y agrega 4.9 km a la ruta: revisa la dirección."
+   ],
+   "trazado": {
+    "puntos": 646,
+    "huella": "b52fa4cef552b545"
+   }
+  },
+  "guardados": [
+   {
+    "nombre": "Prueba 53",
+    "lat": -18.47705,
+    "lng": -70.2806031703949,
+    "problemas": []
+   },
+   {
+    "nombre": "Prueba 54",
+    "lat": -18.472032,
+    "lng": -70.30526340007782,
+    "problemas": []
+   },
+   {
+    "nombre": "Prueba 55",
+    "lat": -18.477825,
+    "lng": -70.32141,
+    "problemas": []
+   },
+   {
+    "nombre": "Prueba 56",
+    "lat": -18.442579,
+    "lng": -70.30274212360382,
+    "problemas": []
+   },
+   {
+    "nombre": "Prueba 57",
+    "lat": -18.461095,
+    "lng": -70.290732,
+    "problemas": []
+   },
+   {
+    "nombre": "Prueba 58",
+    "lat": -18.496524,
+    "lng": -70.30237,
+    "problemas": []
+   },
+   {
+    "nombre": "Prueba 59",
+    "lat": -18.481237500000002,
+    "lng": -70.31917870044708,
+    "problemas": []
+   },
+   {
+    "nombre": "Prueba 60",
+    "lat": null,
+    "lng": null,
+    "problemas": []
+   }
+  ]
+ },
+ "reintentar": {
+  "pendientes": [
+   {
+    "nombre": "Prueba R6",
+    "lat": -18.469087500000004,
+    "lng": -70.29301562500001
+   },
+   {
+    "nombre": "Prueba R5",
+    "lat": -18.48528749999999,
+    "lng": -70.30485937499999
+   },
+   {
+    "nombre": "Prueba R4",
+    "lat": null,
+    "lng": null
+   },
+   {
+    "nombre": "Prueba R3",
+    "lat": -18.494069,
+    "lng": -70.29723
+   },
+   {
+    "nombre": "Prueba R2",
+    "lat": -18.489505,
+    "lng": -70.282905
+   },
+   {
+    "nombre": "Prueba R1",
+    "lat": null,
+    "lng": null
+   },
+   {
+    "nombre": "Prueba 62",
+    "lat": -18.447349,
+    "lng": -70.282666
+   },
+   {
+    "nombre": "Prueba 61",
+    "lat": -18.474894,
+    "lng": -70.297912
+   }
+  ],
+  "advertencias": [
+   "Prueba R4: No se encontró la dirección en el mapa. Revísala o pega su Plus Code.",
+   "Prueba R3: con dudas, se incluye con la primera opción (⚠).",
+   "Quedaron 1 pedido(s) sin intentar ubicar. Vuelve a optimizar la ruta para continuar."
+  ],
+  "guardados": [
+   {
+    "nombre": "Prueba 61",
+    "lat": -18.474894,
+    "lng": -70.297912,
+    "problemas": []
+   },
+   {
+    "nombre": "Prueba 62",
+    "lat": -18.447349,
+    "lng": -70.282666,
+    "problemas": []
+   },
+   {
+    "nombre": "Prueba R1",
+    "lat": null,
+    "lng": null,
+    "problemas": []
+   },
+   {
+    "nombre": "Prueba R2",
+    "lat": -18.489505,
+    "lng": -70.282905,
+    "problemas": []
+   },
+   {
+    "nombre": "Prueba R3",
+    "lat": -18.494069,
+    "lng": -70.29723,
+    "problemas": [
+     "calle_repetida"
+    ]
+   },
+   {
+    "nombre": "Prueba R4",
+    "lat": null,
+    "lng": null,
+    "problemas": []
+   },
+   {
+    "nombre": "Prueba R5",
+    "lat": -18.48528749999999,
+    "lng": -70.30485937499999,
+    "problemas": []
+   },
+   {
+    "nombre": "Prueba R6",
+    "lat": -18.469087500000004,
+    "lng": -70.29301562500001,
+    "problemas": []
+   }
+  ]
+ }
+}

@@ -9,9 +9,18 @@
 // nada, y con el nombre oficial encuentran la puerta. El catálogo se carga
 // recién la primera vez que hace falta (son ~30 KB que la pantalla no necesita
 // para arrancar).
-import { coincidenciaCalle, compararCoincidencias, normalizar, type Coincidencia } from "./consulta";
+import {
+  coincidenciaPartida,
+  compararCoincidencias,
+  normalizar,
+  palabrasDe,
+  partirEscrito,
+  type Coincidencia,
+} from "./consulta";
 
-type Calle = { nombre: string; largo: number; nombres: string[] };
+/** `palabras`: cada nombre ya partido (palabrasDe), una sola vez al cargar y no en cada
+ *  consulta (spec 038). */
+type Calle = { nombre: string; largo: number; nombres: string[]; palabras: string[][] };
 
 let catalogo: Promise<Calle[]> | null = null;
 
@@ -22,7 +31,8 @@ function cargar(): Promise<Calle[]> {
         .filter(Boolean)
         .map((fila) => {
           const [nombre, largo, otros] = fila.split("|");
-          return { nombre, largo: Number(largo), nombres: [nombre, ...(otros ? otros.split(";") : [])] };
+          const nombres = [nombre, ...(otros ? otros.split(";") : [])];
+          return { nombre, largo: Number(largo), nombres, palabras: nombres.map(palabrasDe) };
         }),
     )
     // Sin señal la primera vez, el archivo no baja: se busca sin catálogo y se
@@ -44,11 +54,15 @@ export type CalleParecida = Coincidencia & { nombre: string; largo: number };
  *  "Maipú" existe. */
 export async function callesParecidas(escrito: string, maximo = 3): Promise<CalleParecida[]> {
   const parecidas: CalleParecida[] = [];
+  // Lo escrito se parte una vez para todo el catálogo (spec 038).
+  const partido = partirEscrito(escrito);
   for (const calle of await cargar()) {
-    const mejor = calle.nombres
-      .map((n) => coincidenciaCalle(escrito, n))
-      .filter((c): c is Coincidencia => c !== null)
-      .sort(compararCoincidencias)[0];
+    // La mejor de sus nombres; ante un empate, la primera (lo que daba el sort estable de antes).
+    let mejor: Coincidencia | null = null;
+    for (const palabras of calle.palabras) {
+      const c = coincidenciaPartida(partido, palabras);
+      if (c && (!mejor || compararCoincidencias(c, mejor) < 0)) mejor = c;
+    }
     if (mejor) parecidas.push({ ...mejor, nombre: calle.nombre, largo: calle.largo });
   }
   if (parecidas.length === 0) return [];

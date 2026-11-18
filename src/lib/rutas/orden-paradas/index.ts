@@ -4,7 +4,7 @@
 // exacto, inviable en tiempo razonable ya pasando ~15-20 paradas), pero es el
 // estándar de la industria para este tamaño de problema sin pagar un solver.
 import { distanciaMetros, type Coordenada } from "@/lib/geo/coordenada";
-import { conFinal, distanciaOrden, type Costo, type Penalizacion } from "./costo";
+import { conFinal, distanciaOrden, enTabla, type Costo, type Penalizacion } from "./costo";
 import { adelantarBultos, type Descarga } from "./descarga";
 import { exacto } from "./exacto";
 import { insercionMasBarata, vecinoMasCercano } from "./construccion";
@@ -90,7 +90,9 @@ export function ordenarParadas(
   const enLineaRecta: Costo = conFinal((a, b) => distanciaMetros(puntos[a], puntos[b]), vuelta);
   // Un tramo sin dato (dos puntos sin camino entre ellos) no puede valer 0 o la
   // mejora local lo elegiría siempre; se lo trata como imposible.
-  const costo: Costo = matriz ? conFinal((a, b) => matriz[a]?.[b] ?? Infinity, vuelta) : enLineaRecta;
+  // En una tabla plana de n × (n + 1) con los mismos números, la vuelta en la
+  // columna de FIN (spec 038): la búsqueda a fondo la lee millones de veces.
+  const costo: Costo = enTabla(n, matriz ? conFinal((a, b) => matriz[a]?.[b] ?? Infinity, vuelta) : enLineaRecta);
   // El orden más corto, y encima los bultos adelantados donde sale casi gratis
   // (spec 024, descarga.ts).
   const terminar = (orden: number[]) => {
@@ -126,7 +128,10 @@ export function ordenarParadas(
   // el de calles no encuentra. Se mide con el costo real, así que no puede
   // salir peor — es el mismo criterio que ya tenía esta función, ahora como un
   // arranque más en vez de una comparación aparte.
-  if (matriz) arranques.push(mejorarLocal(vecinoMasCercano(n, enLineaRecta), enLineaRecta));
+  if (matriz) {
+    const recta = enTabla(n, enLineaRecta);
+    arranques.push(mejorarLocal(vecinoMasCercano(n, recta), recta));
+  }
 
   // Con el tiempo en el costo (spec 024), el mejor orden por metros también: el
   // paisaje con tiempo es más accidentado y la búsqueda sola variaba ±1 % con

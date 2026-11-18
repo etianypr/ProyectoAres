@@ -226,7 +226,7 @@ multiplicaría las consultas de trazado y le haría elegir al conductor entre op
 
 ```text
 src/
-├── proxy.ts                      sesión Supabase por request (lib/supabase/sesion-proxy)
+├── proxy.ts                      sesión Supabase por request (lib/supabase/sesion-proxy); no pasa por las 4 API del conductor que se verifican solas con conductorDeLaApi (geocodificar, direccion-ia, lectura, texto: lista exacta, spec 038). Esas 4 mandan Server-Timing (auth, proveedor: solo cifras) y /api/direccion-ia contesta 429 si Anthropic limita la tasa
 ├── app/(app)/                    panel: encomiendas (dia/_componentes) · conductores (_componentes) · configuracion · @modal
 ├── app/(conductor)/conductor/    PWA y APK: encomiendas (pantalla, que solo une · _componentes: parada activa, carril, hoja, ventanas · _hooks: hacia la parada (km y aviso de 300 m por el tramo de la línea del día), botones de la parada (los de la tarjeta y la burbuja), burbuja, acciones de la parada, propuesta, botón atrás · _mapa: ruta-mapa (MapLibre + OpenFreeMap, spec 019), estilo, cámara (en reparto, «Centrar» encuadra el auto y la parada activa), encuadre de la propuesta, marcadores, capa-paradas: las paradas y su dirección dibujadas por el mapa —WebGL, con choque de símbolos: nunca una sobre otra—, no como elementos de la página) · diagnostico (APK)
 ├── app/(conductor)/tema-dashund  el tema de la app del conductor (diseño "Plano" con el naranja de Dashund, Manrope + IBM Plex Mono); solo lo carga el layout del conductor
