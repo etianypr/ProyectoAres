@@ -9,7 +9,7 @@
 
 import type { ActividadPorEnviar, ResumenDia } from "./almacen/tipos";
 
-export type LineaDia = {
+type LineaDia = {
   /** Debajo de la fecha: «Hoy», «Quedó sin cerrar» o las paradas. */
   texto: string;
   /** El texto se pinta como aviso (no solo por el color: el texto lo dice). */

@@ -2,7 +2,7 @@
 // de la vista sin que nadie lo note.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { rangoPeriodo, enRango, etiquetaPeriodo, periodoACookie, periodoDeCookie } from "@/lib/comun/periodo";
+import { rangoPeriodo, etiquetaPeriodo, periodoACookie, periodoDeCookie } from "@/lib/comun/periodo";
 import { formatDate, formatDistancia, formatCLP, formatNumber } from "@/lib/comun/format";
 import { esFecha, hoyChile, sumarDias } from "@/lib/comun/fechas";
 
@@ -21,8 +21,6 @@ test("ningún día del año queda fuera de su periodo (no se pierde un día de p
     for (let d = 1; d <= dias; d++) {
       const fecha = `2026-${String(mes).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
       assert.ok(fecha >= desde && fecha <= hasta, `${fecha} quedó fuera de su propio mes`);
-      assert.ok(enRango(fecha, { anio: 2026, mes }), `enRango falló con ${fecha}`);
-      assert.ok(enRango(fecha, { anio: 2026, mes: null }), `${fecha} fuera de la vista anual`);
     }
   }
 });

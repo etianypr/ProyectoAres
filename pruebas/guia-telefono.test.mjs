@@ -10,18 +10,9 @@ import assert from "node:assert/strict";
 const almacen = await import("@/lib/encomiendas/local/almacen");
 const { cargarLineasGuia } = await import("@/lib/encomiendas/local/cargar-lineas");
 const { armarGuia } = await import("@/lib/encomiendas/lectura/guia");
-const { conTelefonos, lineasParaCrear, telefonoParaLlamar } = await import("@/lib/encomiendas/lectura/telefono-linea");
+const { conTelefonos, lineasParaCrear } = await import("@/lib/encomiendas/lectura/telefono-linea");
 
 const HOY = "2026-11-13";
-
-test("telefonoParaLlamar: +569 si es chileno; null si no alcanza", () => {
-  assert.equal(telefonoParaLlamar("9 8765 4321"), "+56987654321");
-  assert.equal(telefonoParaLlamar("8765 4321"), "+56987654321", "le falta el 9");
-  assert.equal(telefonoParaLlamar("+56 9 8765 4321"), "+56987654321");
-  assert.equal(telefonoParaLlamar("8765"), null);
-  assert.equal(telefonoParaLlamar(""), null);
-  assert.equal(telefonoParaLlamar(undefined), null);
-});
 
 test("lineasParaCrear: OF sin ceros, destino limpio y el teléfono como lo guarda el formulario", () => {
   const r = lineasParaCrear([

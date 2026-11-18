@@ -5,7 +5,7 @@
 // (geo/ors/cliente.ts), porque Android recarga ARES al ir a Google Maps. Sin localStorage
 // (pruebas, modo privado) no anota nada y no lanza: medir nunca puede romper el flujo.
 
-export const TRAMOS = {
+const TRAMOS = {
   "guia.leer": { titulo: "Leer la guía", unidad: "ms" },
   "carga.ubicar": { titulo: "Crear: ubicar", unidad: "ms" },
   "carga.corregir": { titulo: "Crear: corregir con IA", unidad: "ms" },
@@ -27,7 +27,7 @@ export const TRAMOS = {
 } as const;
 
 export type Tramo = keyof typeof TRAMOS;
-export type Anotacion = { tramo: Tramo; valor: number; cuando: number };
+type Anotacion = { tramo: Tramo; valor: number; cuando: number };
 
 const CLAVE = "ares-tiempos";
 /** Avisa a Diagnóstico que cambiaron (como el modo prueba, modo-prueba.ts). */
@@ -128,7 +128,7 @@ export function borrarTiempos(): void {
   avisar();
 }
 
-export type ResumenTramo = { tramo: Tramo; titulo: string; unidad: string; n: number; mediana: number; p90: number; ultimo: number };
+type ResumenTramo = { tramo: Tramo; titulo: string; unidad: string; n: number; mediana: number; p90: number; ultimo: number };
 
 function percentil(ordenados: number[], p: number): number {
   return ordenados[Math.min(ordenados.length - 1, Math.floor(p * ordenados.length))];

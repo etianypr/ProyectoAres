@@ -66,7 +66,7 @@ export function agregarLineas(mapa: maplibregl.Map): void {
   agregarLinea(mapa, FUENTE_PREVIA, { color: "#d4531a", ancho: 5, opacidad: 1 }, 8.5);
 }
 
-export type LineaGeoJSON = {
+type LineaGeoJSON = {
   type: "Feature";
   properties: Record<string, never>;
   geometry: { type: "LineString"; coordinates: Trazado };

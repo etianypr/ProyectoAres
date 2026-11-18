@@ -16,7 +16,6 @@ import { readFileSync } from "node:fs";
 
 const {
   agruparPorDia,
-  contarActividad,
   calcularPagoDia,
   ingresoEstimado,
   valorPedido,
@@ -81,7 +80,6 @@ test("el total del periodo es la suma de los días, sin dobles conteos", () => {
   assert.equal(dias.length, 10);
   assert.equal(dias.reduce((a, d) => a + d.conteo.entregados, 0), 50);
   assert.equal(dias.reduce((a, d) => a + d.conteo.omitidos, 0), 20);
-  assert.deepEqual(contarActividad(eventos), { entregados: 50, omitidos: 20 });
 });
 
 test("las filas viejas con motivo cuentan igual como no entregadas", () => {
@@ -113,7 +111,6 @@ test("un motivo viejo NO entra en el conteo que paga", () => {
     EV({ tipo: "omision", motivo: "persona_no_encontrada" }),
   ];
 
-  assert.deepEqual(contarActividad(sinMotivos), contarActividad(conMotivos));
   assert.deepEqual(
     agruparPorDia(sinMotivos)[0].conteo,
     agruparPorDia(conMotivos)[0].conteo,

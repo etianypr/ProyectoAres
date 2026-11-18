@@ -17,21 +17,21 @@ import { borrarDatosDestinatarios } from "./almacen";
 
 const CLAVE_BORRADO_PENDIENTE = "ares.borrado-pendiente";
 
-export type RespuestaCierre = { ok: true } | { error: "sin-senal" | "no-cerro" };
+type RespuestaCierre = { ok: true } | { error: "sin-senal" | "no-cerro" };
 
-export type ResultadoSalida =
+type ResultadoSalida =
   | { estado: "listo"; borrado: boolean }
   | { estado: "sin-senal" }
   | { estado: "no-cerro" };
 
-export type DependenciasSalida = {
+type DependenciasSalida = {
   /** La server action `cerrarSesion` (no redirige). Lanza si la llamada no llegó. */
   cerrarSesion: () => Promise<RespuestaCierre>;
   borrar?: () => Promise<void>;
   marca?: { poner: () => void; quitar: () => void };
 };
 
-export const marcaBorradoPendiente = {
+const marcaBorradoPendiente = {
   poner(): void {
     try {
       globalThis.localStorage?.setItem(CLAVE_BORRADO_PENDIENTE, "si");

@@ -78,7 +78,7 @@ const ESPERA_CAMARA_MS = 2000;
 
 export type { Barrido } from "./barrido-en-vivo";
 
-export type OpcionesBarrido = {
+type OpcionesBarrido = {
   /** Atrás de Android termina el barrido (por defecto). «Cargar la guía» lo atiende ella. */
   conAtras?: boolean;
   /** Barrer otra vez sigue la misma lectura en vez de partir de cero. */

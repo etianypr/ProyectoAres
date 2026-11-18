@@ -6,15 +6,9 @@
 // solo en la línea en memoria y pasa al `telefono` del pedido al crearlo
 // (IndexedDB, borrado con el día): nunca a la lectura, a los buscadores ni a la IA.
 
-import { normalizarTelefono, telefonoParaGuardar } from "@/lib/comun/telefono";
+import { telefonoParaGuardar } from "@/lib/comun/telefono";
 import { ofValida } from "../paquete";
 import { limpiarDestino, type LineaGuia } from "./guia";
-
-/** El número para «Llamar» (E.164), o null si lo escrito no es un teléfono chileno. */
-export function telefonoParaLlamar(texto: string | null | undefined): string | null {
-  const r = normalizarTelefono(texto);
-  return r.ok ? r.telefono.e164 : null;
-}
 
 /** Leer otra foto vuelve a armar las líneas (armarGuia): los teléfonos ya
  *  anotados se conservan por OF. */

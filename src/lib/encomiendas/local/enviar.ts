@@ -52,7 +52,7 @@ function aFila(e: ActividadPorEnviar) {
   };
 }
 
-export type ResultadoEnvioCola = {
+type ResultadoEnvioCola = {
   enviados: number;
   /** Lo que sigue en la cola después de este lote. */
   pendientes: number;
@@ -175,7 +175,7 @@ async function borrarCorregidos(supabase: Cliente, lote: ActividadPorEnviar[]): 
   return hechos;
 }
 
-export type EstadoEnvio = {
+type EstadoEnvio = {
   /** Eventos todavía sin confirmar en el servidor. 0 = todo al día. La pantalla
    *  lo muestra: para el conductor es la diferencia entre "mi trabajo está
    *  registrado" y "lo tengo anotado pero nadie más lo sabe". */
@@ -189,7 +189,7 @@ export type EstadoEnvio = {
    *  G5): la entrega sigue contada allá. Se avisa aparte. */
   correccionesRechazadas: number;
   /** Fuerza un intento ahora. Hay que llamarlo después de cada marcarResultado /
-   *  marcarLlamada para que el evento salga en el momento y no espere al
+   *  registrarLlamada para que el evento salga en el momento y no espere al
    *  siguiente reintento. */
   intentar: () => void;
 };

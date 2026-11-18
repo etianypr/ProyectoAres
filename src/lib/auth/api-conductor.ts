@@ -17,7 +17,7 @@ import { leerRol } from "./roles";
 // exigir que cada fila sea del `conductor_id` de quien la pide (ver la migración
 // 0003). Esto es la puerta; RLS es la cerradura.
 
-export type ConductorAutenticado =
+type ConductorAutenticado =
   | { ok: true; conductorId: string; nombre: string }
   | { ok: false; respuesta: NextResponse };
 

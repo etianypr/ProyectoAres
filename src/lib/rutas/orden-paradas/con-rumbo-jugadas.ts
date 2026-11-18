@@ -16,7 +16,7 @@ import { EPSILON } from "./costo";
 import { mejoresEstados, type Tablero } from "./con-rumbo";
 
 /** Lo que se ajusta de las jugadas (afuera solo lo tocan las mediciones). */
-export const AJUSTES_JUGADAS = {
+const AJUSTES_JUGADAS = {
   /** Con cuántas vecinas se prueba cada parada. */
   vecinas: 10,
   /** Cuántas paradas seguidas se mueven juntas, como mucho. Con 3 (lo que mueve
@@ -24,7 +24,7 @@ export const AJUSTES_JUGADAS = {
   tramo: 12,
 };
 
-export type Mesa = {
+type Mesa = {
   /** Cantidad de paradas. */
   m: number;
   /** La ruta: el estado en cada posición. Se lee, no se escribe desde afuera. */

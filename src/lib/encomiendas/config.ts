@@ -80,17 +80,6 @@ export function bloquesActivos(
   return BLOQUES_HORARIOS.filter((b) => elegidos.has(b.id));
 }
 
-/** Minutos desde medianoche del inicio de un bloque. Es la clave con la que la
- *  ruta ordena por ventana horaria; un id desconocido (bloque retirado después
- *  de que el receptor ya había respondido) no puede reventar el cálculo, así
- *  que devuelve null y la parada se trata como sin ventana. */
-export function minutosDesde(bloqueId: string | null | undefined): number | null {
-  const bloque = bloquePorId(bloqueId);
-  if (!bloque) return null;
-  const [h, m] = bloque.desde.split(":").map(Number);
-  return Number.isFinite(h) && Number.isFinite(m) ? h * 60 + m : null;
-}
-
 // ----------------------------------------------------------------------------
 // El payload de los botones de WhatsApp
 // ----------------------------------------------------------------------------
@@ -110,7 +99,7 @@ export function minutosDesde(bloqueId: string | null | undefined): number | null
 // prefijo más largo ("HORARIO_16-18:", 14) queda sitio de sobra para el
 // identificador de correlación.
 
-export type PayloadBoton = {
+type PayloadBoton = {
   accion: AccionWhatsApp;
   correlationId: string;
   /** Solo cuando el receptor eligió un bloque de la lista. */

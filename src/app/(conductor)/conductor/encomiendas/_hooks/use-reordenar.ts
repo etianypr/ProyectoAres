@@ -24,7 +24,7 @@ import type { DiaEnCurso } from "./dia-trabajo-tipos";
 /** Lo mismo que el «Deshacer» de una entrega (MS_DESHACER en use-dia-trabajo). */
 const MS_DESHACER_ORDEN = 8_000;
 
-export type Reordenado = { texto: string; reorden: Reorden; n: number };
+type Reordenado = { texto: string; reorden: Reorden; n: number };
 
 export function useReordenar({
   fecha,

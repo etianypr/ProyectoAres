@@ -19,12 +19,6 @@ export function num(v: FormDataEntryValue | null): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-export function numNull(v: FormDataEntryValue | null): number | null {
-  const t = String(v ?? "").trim();
-  if (t === "") return null;
-  return num(v);
-}
-
 export function intNull(v: FormDataEntryValue | null): number | null {
   const t = String(v ?? "").trim();
   if (t === "") return null;

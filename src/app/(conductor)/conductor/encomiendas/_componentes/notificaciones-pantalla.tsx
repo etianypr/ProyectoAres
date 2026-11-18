@@ -9,7 +9,7 @@ import { nombreVisible } from "@/lib/encomiendas/paquete";
 import type { PedidoEliminado } from "@/lib/encomiendas/local/almacen";
 import type { Notificacion } from "./notificaciones";
 
-export type DatosNotificaciones = {
+type DatosNotificaciones = {
   error: string | null;
   onCerrarError: () => void;
   apkVieja: boolean;

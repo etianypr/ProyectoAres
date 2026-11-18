@@ -95,7 +95,7 @@ export function pideListaDeHorarios(r: RespuestaPendiente): boolean {
 // Aplicar un lote
 // ----------------------------------------------------------------------------
 
-export type ResultadoAplicado = {
+type ResultadoAplicado = {
   /** Respuestas que cambiaron el pedido. */
   aplicadas: number;
   /** Bajadas y descartadas: repetidas, o de un pedido ya cerrado. Se confirman
@@ -204,7 +204,7 @@ export function pedidosSinAviso<T extends Pedido>(pedidos: T[]): T[] {
 // contacto manual (principio IV de la constitución).
 
 /** Un error de red o del servidor, ya listo para mostrar. */
-export type FalloEnvio = { error: string; reintentable: boolean };
+type FalloEnvio = { error: string; reintentable: boolean };
 
 async function pedir(
   url: string,
@@ -312,7 +312,7 @@ export async function pedirListaHorarios(
   return null;
 }
 
-export type ResultadoSincronizacion = {
+type ResultadoSincronizacion = {
   /** Respuestas que cambiaron un pedido. */
   aplicadas: number;
   /** Pedidos a los que hay que mandarles la lista de bloques. */

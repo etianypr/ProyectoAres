@@ -46,7 +46,7 @@ const PREFIJOS_FIJOS = [
   "71", "72", "73", "75", // Maule
 ];
 
-export type TelefonoNormalizado = {
+type TelefonoNormalizado = {
   /** En E.164, listo para Meta: "+56912345678". */
   e164: string;
   /** Para mostrárselo al conductor: "+56 9 1234 5678". */
@@ -55,7 +55,7 @@ export type TelefonoNormalizado = {
   puedeWhatsapp: boolean;
 };
 
-export type ResultadoTelefono =
+type ResultadoTelefono =
   | { ok: true; telefono: TelefonoNormalizado; aviso: string | null }
   /** `motivo` es mostrable tal cual: dice qué hacer, no qué falló. */
   | { ok: false; motivo: string };
@@ -187,11 +187,4 @@ export function normalizarTelefono(texto: string | null | undefined): ResultadoT
 export function telefonoParaGuardar(texto: string): string {
   const r = normalizarTelefono(texto);
   return r.ok ? r.telefono.e164 : texto.trim();
-}
-
-/** Si un teléfono YA guardado puede recibir el aviso. Es la guarda que usa la
- *  ruta de envío antes de llamar a Meta. */
-export function puedeRecibirAviso(telefono: string): boolean {
-  const r = normalizarTelefono(telefono);
-  return r.ok && r.telefono.puedeWhatsapp;
 }

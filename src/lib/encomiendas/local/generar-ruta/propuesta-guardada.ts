@@ -39,7 +39,7 @@ type PropuestaEnElTelefono = Omit<
 };
 
 /** Los pendientes que entran en la propuesta, con lo que cambia el armado. Pura. */
-export function firmaDePendientes(pedidos: Pedido[]): string {
+function firmaDePendientes(pedidos: Pedido[]): string {
   return pedidos
     .filter((p) => p.resultado === "pendiente")
     .map((p) => `${p.id}:${p.lat?.toFixed(5) ?? "-"},${p.lng?.toFixed(5) ?? "-"}:${p.bloqueHorarioId ?? ""}:${p.disponibilidad}:${p.bultos ?? ""}`)
@@ -50,7 +50,7 @@ export function firmaDePendientes(pedidos: Pedido[]): string {
 const aPunto = (p: PedidoUbicado): Punto => ({ id: p.id, lat: p.lat, lng: p.lng });
 
 /** La propuesta sin los pedidos adentro. Pura. */
-export function propuestaParaGuardar(p: PropuestaRuta): PropuestaEnElTelefono {
+function propuestaParaGuardar(p: PropuestaRuta): PropuestaEnElTelefono {
   // `sinUbicar` no se guarda (se lee de los pedidos al rearmarla), ni
   // `esperaTrazado` (una que espera su trazado no se guarda, ver abajo).
   return {
@@ -75,7 +75,7 @@ export function propuestaParaGuardar(p: PropuestaRuta): PropuestaEnElTelefono {
 }
 
 /** La propuesta rearmada con los pedidos de hoy, o null si alguno ya no está. Pura. */
-export function propuestaDesdeGuardada(g: PropuestaEnElTelefono, porId: Map<string, Pedido>): PropuestaRuta | null {
+function propuestaDesdeGuardada(g: PropuestaEnElTelefono, porId: Map<string, Pedido>): PropuestaRuta | null {
   const ubicar = (puntos: Punto[]): PedidoUbicado[] | null => {
     const paradas: PedidoUbicado[] = [];
     for (const { id, lat, lng } of puntos) {

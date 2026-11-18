@@ -9,7 +9,7 @@ import type { PuntoMapa } from "./tipos";
 
 // Más que esto entre dos lecturas no se anima: es la señal que volvió tras un
 // rato sin GPS, y deslizar el punto cruzaría manzanas enteras.
-export const METROS_MAXIMOS_DESLIZAR = 150;
+const METROS_MAXIMOS_DESLIZAR = 150;
 
 /**
  * Lleva el punto a su posición nueva en el mismo tiempo y al mismo ritmo
@@ -49,7 +49,7 @@ export function deslizarMarcador(
 // El elemento del suelo se dibuja acostado sobre la calle: a 55° de
 // inclinación la perspectiva se come casi la mitad del alto, así que necesita
 // bastante más lienzo del que termina ocupando en pantalla.
-export const TAMANO_MARCADOR = 128;
+const TAMANO_MARCADOR = 128;
 
 // ----------------------------------------------------------------------------
 // El tamaño del punto según el zoom
@@ -69,9 +69,9 @@ export const TAMANO_MARCADOR = 128;
 //   · no baja de 0.45, unos 18 px de disco —el tamaño del punto de Mapas—. En
 //     la vista de la ruta entera, el tamaño real serían dos píxeles: un punto
 //     que no se encuentra, y un haz que directamente no se ve.
-export const ESCALA_MINIMA_MARCADOR = 0.45;
+const ESCALA_MINIMA_MARCADOR = 0.45;
 
-export function escalaMarcador(zoom: number): number {
+function escalaMarcador(zoom: number): number {
   return Math.min(1, Math.max(ESCALA_MINIMA_MARCADOR, 2 ** (zoom - ZOOM_NAVEGACION)));
 }
 

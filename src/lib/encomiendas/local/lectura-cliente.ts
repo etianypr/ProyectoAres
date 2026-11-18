@@ -41,7 +41,7 @@ export class ErrorLectura extends Error {
  *  teléfono) o la IA. */
 export type FuenteLectura = "texto" | "ia";
 
-export type LecturaFoto = { tipo: "guia"; guia: GuiaLeida; fuente: FuenteLectura };
+type LecturaFoto = { tipo: "guia"; guia: GuiaLeida; fuente: FuenteLectura };
 
 /** La foto de la etiqueta, leída SOLO en el teléfono (ver la cabecera). Fuera
  *  de la APK no hay lector: la pantalla no ofrece la foto y se pega el texto. */
@@ -56,7 +56,7 @@ export async function leerFotoEtiqueta(foto: Blob): Promise<LecturaEtiqueta> {
 /** Lo que dieron las dos lecturas de la etiqueta: el resultado, el texto de la
  *  grande (Diagnóstico → «Probar etiqueta» lo muestra) y los campos en que no
  *  coincidieron. */
-export type LecturaDoble = { lectura: LecturaEtiqueta; texto: string; distintos: string[] };
+type LecturaDoble = { lectura: LecturaEtiqueta; texto: string; distintos: string[] };
 
 /** ML Kit lee la foto dos veces, a 2400 y a 1600 px, y se juntan
  *  (`combinarLecturas`): manda la precisión sobre la rapidez (el dueño,

@@ -16,10 +16,10 @@ import type * as maplibregl from "maplibre-gl";
 export const ZOOM_NAVEGACION = 15;
 export const ZOOM_LLEGADA = 16.5;
 export const PITCH_NAVEGACION = 40;
-export const METROS_ZOOM_LLEGADA = 250;
+const METROS_ZOOM_LLEGADA = 250;
 /** Para soltar el zoom de llegada hay que alejarse más: el GPS oscila, y justo en
  *  los 250 m el mapa se acercaría y alejaría sin parar. */
-export const METROS_SOLTAR_LLEGADA = 300;
+const METROS_SOLTAR_LLEGADA = 300;
 
 // El GPS avisa cada uno o dos segundos, así que animar cerca de un segundo hace
 // que el mapa "fluya" en vez de dar saltos de una posición a la otra.
@@ -29,14 +29,14 @@ export const MS_DESPLAZAMIENTO = 1000;
 // km/h, medio nivel más lejos, para ver el cruce que viene con unos diez segundos
 // de anticipación y no cuando ya está encima (era un nivel, sobre el 18.4). Solo
 // mientras el conductor no haya elegido su zoom con los dedos.
-export const VELOCIDAD_ZOOM_CERCA_MS = 8;
-export const VELOCIDAD_ZOOM_LEJOS_MS = 17;
-export const ZOOM_MENOS_A_VELOCIDAD = 0.5;
+const VELOCIDAD_ZOOM_CERCA_MS = 8;
+const VELOCIDAD_ZOOM_LEJOS_MS = 17;
+const ZOOM_MENOS_A_VELOCIDAD = 0.5;
 /** Cambios de zoom más chicos que esto no se aplican: la velocidad oscila y el
  *  mapa respiraría todo el viaje. */
 export const ZOOM_MINIMO_PARA_CAMBIAR = 0.3;
 
-export function zoomPorVelocidad(velocidad: number | null | undefined): number {
+function zoomPorVelocidad(velocidad: number | null | undefined): number {
   if (velocidad == null || Number.isNaN(velocidad)) return ZOOM_NAVEGACION;
   const t = Math.min(
     1,

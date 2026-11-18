@@ -3,7 +3,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/db";
 
-export type ConductorDeUsuario = { id: string; nombre: string; activo: boolean };
+type ConductorDeUsuario = { id: string; nombre: string; activo: boolean };
 
 /** null = el usuario no tiene ficha vinculada. Si la consulta falla, LANZA: un
  *  error de red no puede confundirse con "sin ficha", que borra los datos del

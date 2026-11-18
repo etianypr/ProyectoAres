@@ -20,7 +20,7 @@ export const MIN_POR_PARADA = 4;
 /** Cuánto se puede llegar tarde a un bloque antes de AVISAR que no se cumple.
  *  Al ordenar se apunta al bloque mismo: la holgura es para el error de la
  *  estimación, no un objetivo. */
-export const MIN_TOLERANCIA_BLOQUE = 15;
+const MIN_TOLERANCIA_BLOQUE = 15;
 
 /** Sin matriz de calles, la línea recta se alarga en este factor: en Arica las
  *  calles no van derecho, y una quebrada en el medio puede doblar el camino. */
@@ -92,7 +92,7 @@ export function llegadas(orden: PuntoDeRuta[], minutoInicio: number, metros: Met
 }
 
 /** Minutos fuera del bloque elegido, con la tolerancia de aviso (0 = dentro). */
-export function minutosFueraDeBloque(llegada: number, parada: PuntoDeRuta): number {
+function minutosFueraDeBloque(llegada: number, parada: PuntoDeRuta): number {
   return fueraDe(llegada, parada, MIN_TOLERANCIA_BLOQUE);
 }
 

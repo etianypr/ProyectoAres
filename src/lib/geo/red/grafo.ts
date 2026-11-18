@@ -11,7 +11,7 @@ import { distanciaMetros } from "@/lib/geo/coordenada";
 import { leerEnteros } from "./codigo";
 
 /** Lo que guarda red-arica.ts. */
-export type DatosDeRed = { fecha: string; nodos: string; aristas: string; giros: string; cerrados: string; portones: string };
+type DatosDeRed = { fecha: string; nodos: string; aristas: string; giros: string; cerrados: string; portones: string };
 
 /** Bits del código de una arista, encima de la clase (los pone generar-red.mjs). */
 export const UN_SENTIDO = 16;
@@ -61,7 +61,6 @@ export type Red = {
 };
 
 export const nArcos = (red: Red) => red.nAristas * 2;
-export const aristaDe = (arco: number) => arco >> 1;
 /** El nodo donde termina el arco. */
 export const cabeza = (red: Red, arco: number) => (arco & 1 ? red.desde[arco >> 1] : red.hasta[arco >> 1]);
 /** El nodo donde empieza. */

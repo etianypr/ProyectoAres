@@ -35,7 +35,7 @@ import { eliminarIngresoReal, guardarIngresoReal } from "./actions/regla-pago";
  *  periodos (0035). Se muestra de solo lectura: no se convierte a periodo
  *  porque no hay a cuál —un mes no es un corte— y adivinarle uno inventaría una
  *  correspondencia que nadie decidió. */
-export type IngresoPorMes = {
+type IngresoPorMes = {
   id: string;
   anio: number;
   mes: number;
@@ -43,7 +43,7 @@ export type IngresoPorMes = {
   nota: string | null;
 };
 
-export type IngresosDelPeriodo = {
+type IngresosDelPeriodo = {
   /** Todos los cortes definidos, con su estimado y lo real que tengan cargado. */
   periodos: ResumenPeriodo[];
   /** Cuál viene elegido al abrir: el último corte que toca el mes en pantalla. */

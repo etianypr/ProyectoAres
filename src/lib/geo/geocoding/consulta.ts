@@ -183,7 +183,7 @@ export type Coincidencia = {
 /** Lo escrito, ya partido: las palabras que distinguen y, aparte, los grados. Se
  *  parte una sola vez por consulta y no una por cada nombre del catálogo (spec
  *  038: callesParecidas lo compara con ~1.600 nombres). */
-export type EscritoPartido = { buscadas: string[]; titulos: string[] };
+type EscritoPartido = { buscadas: string[]; titulos: string[] };
 
 export function partirEscrito(escrito: string): EscritoPartido {
   const escritas = palabrasDe(escrito).filter(

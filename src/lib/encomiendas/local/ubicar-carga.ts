@@ -24,7 +24,7 @@ export const FALLOS_PARA_PARAR = 2;
 /** Direcciones preguntándose a la vez (spec 038). Nominatim sigue de a una en su fila. */
 export const VENTANA = 3;
 
-export type ResumenUbicarCarga = {
+type ResumenUbicarCarga = {
   ubicados: number;
   /** Los que quedaron sin punto, en el orden de la guía (con los no intentados). */
   sinUbicar: string[];

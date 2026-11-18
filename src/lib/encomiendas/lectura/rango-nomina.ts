@@ -14,13 +14,13 @@ import { LARGO_OF } from "../paquete";
  *  «0» en los tres primeros dígitos (281 → 201 es 80 000 000 de distancia). */
 export const ANCHO_RANGO = 1_000_000;
 /** Firmes de LARGO_OF dígitos que hacen falta para aprender el rango. */
-export const FIRMES_PARA_RANGO = 3;
+const FIRMES_PARA_RANGO = 3;
 /** «Los primeros tres dígitos serán los mismos» (dueño, 2026-11-17). */
 export const DIGITOS_DEL_PREFIJO = 3;
 
 /** `prefijos`: los primeros DIGITOS_DEL_PREFIJO dígitos de las firmes del escaneo (281, y 282 si la
  *  serie ya pasó). */
-export type Rango = { desde: number; hasta: number; prefijos?: string[] };
+type Rango = { desde: number; hasta: number; prefijos?: string[] };
 
 /** El rango del escaneo, o null si todavía no hay firmes suficientes. Solo las OF de LARGO_OF
  *  dígitos: las de otro largo valen (AGENTS.md, «OF») y no se tocan. */

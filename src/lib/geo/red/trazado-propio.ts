@@ -14,7 +14,7 @@ import { buscar, caminoHasta, crearBusqueda, llegada, salidasDe, type Busqueda, 
 import type { Lugar } from "./matriz-con-rumbo";
 
 /** El camino entre dos puntos seguidos de la lista. */
-export type TramoPropio = { linea: Trazado; metros: number; segundos: number };
+type TramoPropio = { linea: Trazado; metros: number; segundos: number };
 
 const M_POR_GRADO = 111_195;
 

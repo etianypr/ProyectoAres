@@ -98,7 +98,7 @@ export function sumarResumenes(antes: ResumenDia, ahora: ResumenDia): ResumenDia
   };
 }
 
-export type EntradaRuta = {
+type EntradaRuta = {
   fecha: string;
   /** Ids de pedido en orden de visita, tal como los calculó el ordenamiento. */
   pedidoIdsEnOrden: string[];

@@ -10,7 +10,7 @@
 import { resultadoNomina } from "./barrido-nomina";
 import type { ReglaFirme, VotosNomina } from "./tipos-nomina";
 
-export const REGLAS: ReglaFirme[] = ["dosDeTres", "confianza06", "ponderada"];
+const REGLAS: ReglaFirme[] = ["dosDeTres", "confianza06", "ponderada"];
 
 /** Por regla: cuándo apareció cada OF en la lista y cuándo quedó firme (ms del reloj del
  *  barrido). */

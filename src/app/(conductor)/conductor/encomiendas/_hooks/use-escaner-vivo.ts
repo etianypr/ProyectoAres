@@ -44,7 +44,7 @@ const SALIDA_MS = 1500;
 /** Después de escribir la OF, la cámara vuelve cuando el teclado ya bajó. */
 const ESPERA_TECLADO_MS = 800;
 
-export type EstadoVivo =
+type EstadoVivo =
   | { tipo: "prendiendo" }
   | { tipo: "sinCamara"; motivo: string }
   | { tipo: "buscando" }

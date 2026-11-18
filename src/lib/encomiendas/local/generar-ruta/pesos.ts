@@ -12,9 +12,9 @@
 // van en su propia propuesta (estrategias.ts). Puro.
 
 /** Bencina por km (dueño, 2026-11-08). */
-export const PESOS_POR_KM = 130;
+const PESOS_POR_KM = 130;
 /** Una hora manejando (dueño, 2026-11-08). */
-export const PESOS_POR_HORA = 6000;
+const PESOS_POR_HORA = 6000;
 
 /** Metros que vale un segundo al volante: ($6.000 / 3.600 s) / ($130 / 1.000 m). */
 export const METROS_POR_SEGUNDO = PESOS_POR_HORA / 3600 / (PESOS_POR_KM / 1000);

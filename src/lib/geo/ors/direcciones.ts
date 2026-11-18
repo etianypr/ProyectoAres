@@ -13,7 +13,7 @@ const MAX_PUNTOS_POR_CONSULTA = 70;
 
 /** Falta la clave: es un error de configuración del despliegue, no una falla de
  *  red, así que se avisa fuerte en vez de degradar en silencio. */
-export class ErrorClaveOrs extends Error {
+class ErrorClaveOrs extends Error {
   constructor() {
     super("Falta configurar NEXT_PUBLIC_ORS_KEY. Sin esa clave no hay trazado por calles.");
   }
@@ -101,7 +101,7 @@ const metrosEntre = (a: [number, number], b: [number, number]) =>
   distanciaMetros({ lng: a[0], lat: a[1] }, { lng: b[0], lat: b[1] });
 
 /** Rumbo con el que se llega al final de la línea (sus últimos metros). */
-export function rumboAlLlegar(linea: Trazado): number | null {
+function rumboAlLlegar(linea: Trazado): number | null {
   const fin = linea[linea.length - 1];
   for (let i = linea.length - 2, acumulado = 0; i >= 0; i--) {
     acumulado += metrosEntre(linea[i], linea[i + 1]);
@@ -111,7 +111,7 @@ export function rumboAlLlegar(linea: Trazado): number | null {
 }
 
 /** Rumbo con el que sale la línea (sus primeros metros). */
-export function rumboAlSalir(linea: Trazado): number | null {
+function rumboAlSalir(linea: Trazado): number | null {
   for (let i = 1, acumulado = 0; i < linea.length; i++) {
     acumulado += metrosEntre(linea[i - 1], linea[i]);
     if (acumulado >= METROS_RUMBO) return rumboEntrePuntos(linea[0], linea[i]);

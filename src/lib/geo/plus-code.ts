@@ -24,7 +24,7 @@ import { CENTRO_ARICA, METROS_POR_GRADO_LAT, type Coordenada, type Recuadro } fr
 
 const olc = new OpenLocationCode();
 
-export type PlusCodeResuelto = {
+type PlusCodeResuelto = {
   /** Centro del recuadro. Es la coordenada que usa la ruta. */
   lat: number;
   lng: number;

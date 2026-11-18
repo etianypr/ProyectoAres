@@ -4,11 +4,7 @@
 // el evento de la cola en UNA transacción, y no toca la ruta, que solo guarda
 // el orden de visita.
 
-import {
-  tipoEventoDe,
-  type ResultadoMarcable,
-  type ResultadoLlamada,
-} from "@/lib/encomiendas/estados";
+import { tipoEventoDe, type ResultadoMarcable } from "@/lib/encomiendas/estados";
 import { STORES, escribir, leerUno } from "../idb";
 import { nuevoEvento } from "./cola";
 import { enFila } from "./fila";
@@ -25,7 +21,7 @@ function esPrimeraAccion(enRuta: Pedido[]): boolean {
 }
 
 /** Qué pedido se marca: lo usan las operaciones de terreno. */
-export type MarcaPedido = {
+type MarcaPedido = {
   fecha: string;
   pedidoId: string;
   conductorId: string;
@@ -38,26 +34,6 @@ async function rutaConPedido(fecha: string, pedidoId: string) {
   if (!pedido) throw new Error("El pedido ya no existe en este dispositivo.");
   if (!ruta.orden.includes(pedidoId)) throw new Error("El pedido no está en la ruta del día.");
   return { ruta, pedido };
-}
-
-/** Registra el resultado de llamar al destinatario. No suma ni resta entregas:
- *  solo prueba que el conductor está trabajando (ver esPrimeraAccion). */
-export function marcarLlamada(
-  { fecha, pedidoId, conductorId }: MarcaPedido,
-  resultado: Exclude<ResultadoLlamada, "pendiente">,
-): Promise<void> {
-  return enFila(async () => {
-    const { ruta, pedido } = await rutaConPedido(fecha, pedidoId);
-    const primera = esPrimeraAccion(pedidosEnOrden(ruta, await leerPedidos(fecha)));
-
-    const hora = new Date().toISOString();
-    const actualizado: Pedido = { ...pedido, llamada: resultado, horaLlamada: hora };
-
-    await escribir([STORES.pedidos, STORES.cola], ({ guardar }) => {
-      guardar(STORES.pedidos, actualizado);
-      if (primera) guardar(STORES.cola, nuevoEvento(conductorId, fecha, "llamada", hora));
-    });
-  });
 }
 
 /** El conductor llamó al destinatario. Desde la spec 020 no se anota si contestó
@@ -157,33 +133,5 @@ export function deshacerResultado(
     });
 
     return true;
-  });
-}
-
-/** Manda un pedido al final del recorrido, sin cerrarlo. Es lo que pasa cuando
- *  el destinatario no contesta y el conductor decide reintentar al terminar: el
- *  pedido sigue pendiente, solo cambia de lugar en la fila.
- *
- *  No toca el trazado: la línea gris del día queda dibujada en el orden viejo
- *  hasta que se rehaga la ruta. La que importa manejando —la azul, hasta la
- *  parada activa— se recalcula sola contra la posición del conductor. */
-export function moverAlFinal({
-  fecha,
-  pedidoId,
-}: {
-  fecha: string;
-  pedidoId: string;
-}): Promise<void> {
-  return enFila(async () => {
-    const ruta = await leerRuta(fecha);
-    if (!ruta) throw new Error("No hay una ruta para ese día.");
-    if (!ruta.orden.includes(pedidoId)) throw new Error("El pedido no está en la ruta del día.");
-
-    const actualizada: Ruta = {
-      ...ruta,
-      orden: [...ruta.orden.filter((id) => id !== pedidoId), pedidoId],
-    };
-
-    await escribir([STORES.rutas], ({ guardar }) => guardar(STORES.rutas, actualizada));
   });
 }

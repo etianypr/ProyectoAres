@@ -27,11 +27,11 @@ import { EPSILON, FIN } from "./costo";
 
 /** Un minuto fuera del bloque vale como 2 km de camino: llegar fuera de horario
  *  es un viaje perdido, y eso pesa más que dar una vuelta. */
-export const PESO_FUERA = 2000;
+const PESO_FUERA = 2000;
 /** Un minuto esperando a que abra vale 50 m. */
-export const PESO_ESPERA = 50;
+const PESO_ESPERA = 50;
 /** Un minuto de parada pasadas las 18:00 vale 5 km: el día se termina. */
-export const PESO_TARDE = 5000;
+const PESO_TARDE = 5000;
 const FIN_DEL_DIA = 18 * 60;
 
 export type Ventana = { abre: number; cierra: number };
@@ -52,7 +52,7 @@ export type DiaConHorarios = {
   vuelta?: ArrayLike<number>;
 };
 
-export type Evaluacion = { costo: number; metros: number; fuera: number; espera: number; tarde: number };
+type Evaluacion = { costo: number; metros: number; fuera: number; espera: number; tarde: number };
 
 /** Mide un orden (que empieza en 0) con el reloj de planificar.ts. */
 export function evaluar(orden: number[], dia: DiaConHorarios): Evaluacion {

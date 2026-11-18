@@ -12,7 +12,7 @@
 export const NOTAS = { re5: 587.33, sol5: 783.99, do6: 1046.5, mi6: 1318.51, sol6: 1567.98, do7: 2093 } as const;
 
 /** La nota de cada tic, de grave a agudo: siempre suben. */
-export const NOTAS_TIC = [NOTAS.do6, NOTAS.mi6, NOTAS.sol6] as const;
+const NOTAS_TIC = [NOTAS.do6, NOTAS.mi6, NOTAS.sol6] as const;
 
 let contexto: AudioContext | null = null;
 let salida: GainNode | null = null;

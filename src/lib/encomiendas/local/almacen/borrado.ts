@@ -61,7 +61,7 @@ export function borrarSueltos(hoy: string): Promise<number> {
 /** Cuántos días de resúmenes quedan en el teléfono (spec 033, G5): «Tus días»
  *  muestra unos pocos y el panel tiene el historial. Un resumen por día, solo
  *  cifras, pero sin tope crecían para siempre. */
-export const DIAS_DE_RESUMEN = 60;
+const DIAS_DE_RESUMEN = 60;
 
 /** Los resúmenes que ya sobran: más viejos que DIAS_DE_RESUMEN y sin eventos en
  *  la cola (su día todavía tiene que salir al servidor con ellos). Pura. */

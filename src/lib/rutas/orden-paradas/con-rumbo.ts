@@ -33,7 +33,7 @@ export type RutaConRumbo = {
 
 /** Un tramo sin camino cuesta esto: grande, pero finito para que las cuentas no
  *  den NaN y la búsqueda siga prefiriendo lo que sí tiene camino. */
-export const SIN_CAMINO = 1e12;
+const SIN_CAMINO = 1e12;
 
 /** Lo que la búsqueda necesita del día, ya masticado. */
 export type Tablero = {
@@ -136,7 +136,7 @@ export function mejoresEstados(t: Tablero, orden: ArrayLike<number>): RutaConRum
 }
 
 /** Hasta cuántas paradas se resuelve exacto: la tabla es 2^paradas × estados. */
-export const MAX_EXACTO_CON_RUMBO = 13;
+const MAX_EXACTO_CON_RUMBO = 13;
 
 /** El óptimo exacto de un día chico (Held-Karp con el sentido como parte del
  *  estado): no existe un orden ni un sentido de paso mejores. null si no entra. */

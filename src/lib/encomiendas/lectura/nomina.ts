@@ -60,7 +60,7 @@ const MAX_RENGLONES = 3;
 /** Un bloque entero de la nómina y en qué renglones del texto estaba (para marcarlo
  *  sobre la cámara): `hasta` es su último renglón, el pie «VALOR $ …» con sus valores
  *  si se leyeron. `bultos`: la columna BULTOS de su fila, o null si no se leyó entera. */
-export type BloqueNomina = { of: string; destino: string; filaOf: number; filasDireccion: number[]; hasta: number; bultos: number | null };
+type BloqueNomina = { of: string; destino: string; filaOf: number; filasDireccion: number[]; hasta: number; bultos: number | null };
 
 /** La fila de un encargo con sus números chicos: «OF TOTAL DOCTOS BULTOS». */
 const FILA_CON_NUMEROS = /^\s*(\d{7,10})((?:[ \t]+\d{1,2}){1,3})(?=\s|$)/;
@@ -108,7 +108,7 @@ export function bloquesNomina(renglones: string[]): BloqueNomina[] {
  *  y exigir el encargo entero botaba casi todos los cuadros). `destino`: la dirección
  *  llegó al borde del cuadro sin el renglón que la cierra, así que puede venir cortada;
  *  null si solo se vio la fila de la OF. */
-export type PiezaNomina = { of: string; destino: string | null; filaOf: number };
+type PiezaNomina = { of: string; destino: string | null; filaOf: number };
 
 /** Los encargos enteros de un cuadro y, aparte, las piezas: las OF que se leyeron sin su
  *  dirección entera. Las piezas votan los dígitos de la OF (barrido-nomina.ts). */

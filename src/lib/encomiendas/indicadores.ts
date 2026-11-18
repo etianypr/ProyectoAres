@@ -5,17 +5,16 @@
 // congelados— más dos conteos diarios sin datos personales (asignados y
 // contactados) que manda el teléfono al cerrar el día.
 
-import { sumarDias } from "@/lib/comun/fechas";
 import type { Periodo } from "@/lib/comun/periodo";
 
-export type FilaActividad = {
+type FilaActividad = {
   conductor_id: string | null;
   fecha: string;
   tipo: string;
   origen: string;
   hora: string;
 };
-export type FilaDia = {
+type FilaDia = {
   conductor_id: string | null;
   fecha: string;
   inicio: string | null;
@@ -23,9 +22,9 @@ export type FilaDia = {
   asignados: number | null;
   contactados: number | null;
 };
-export type FilaPago = { conductor_id: string | null; fecha: string; ingresos_totales: number; pago_total: number };
+type FilaPago = { conductor_id: string | null; fecha: string; ingresos_totales: number; pago_total: number };
 
-export type DatosPeriodo = { actividad: FilaActividad[]; dias: FilaDia[]; pagos: FilaPago[] };
+type DatosPeriodo = { actividad: FilaActividad[]; dias: FilaDia[]; pagos: FilaPago[] };
 
 export type Indicadores = {
   /** (conductor, día) con al menos un evento. */
@@ -128,12 +127,6 @@ export function calcularIndicadores({ actividad, dias, pagos }: DatosPeriodo): I
 export function periodoAnterior(p: Periodo): Periodo {
   if (p.mes === null) return { anio: p.anio - 1, mes: null };
   return p.mes === 1 ? { anio: p.anio - 1, mes: 12 } : { anio: p.anio, mes: p.mes - 1 };
-}
-
-/** Un rango arbitrario corrido hacia atrás en su propio largo. */
-export function rangoAnterior({ desde, hasta }: { desde: string; hasta: string }): { desde: string; hasta: string } {
-  const largo = Math.round((Date.parse(hasta) - Date.parse(desde)) / 86400000) + 1;
-  return { desde: sumarDias(desde, -largo), hasta: sumarDias(desde, -1) };
 }
 
 /** Diferencia actual − anterior de una cifra; null si falta alguna de las dos. */

@@ -55,14 +55,6 @@ export function formatoEtiqueta(texto: string): FormatoEtiqueta {
   return FORMATOS.find((f) => f.marca.test(todo))?.formato ?? "desconocido";
 }
 
-/** ¿Alcanza lo leído para repartir sin volver a leer la foto? Hacen falta el
- *  nombre, un teléfono válido y el pago (con su monto si es POR PAGAR). La
- *  dirección no: la parada ya tiene la de la guía. */
-export function etiquetaCompleta(e: LecturaEtiqueta): boolean {
-  const imprescindibles = ["destinatario", "telefono", "pago", "montoPorPagar"];
-  return Boolean(e.destinatario && e.telefono) && !e.dudosos.some((d) => imprescindibles.includes(d));
-}
-
 export function leerEtiqueta(texto: string): LecturaEtiqueta {
   const lista = renglones(texto);
   const zonasDe = zonas(lista);

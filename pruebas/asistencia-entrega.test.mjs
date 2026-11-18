@@ -15,18 +15,19 @@ const almacen = await import("@/lib/encomiendas/local/almacen");
 const {
   guardarPedido,
   leerPedidos,
-  pedidosPendientes,
   guardarRuta,
   leerRuta,
   cerrarDia,
   rutaTerminada,
   leerCola,
   marcarResultado,
-  marcarLlamada,
+  registrarLlamada,
   deshacerResultado,
-  moverAlFinal,
   registrarDisponibilidad,
 } = almacen;
+
+/** Los pedidos del día que siguen pendientes. */
+const pendientes = async (fecha) => (await leerPedidos(fecha)).filter((p) => p.resultado === "pendiente");
 
 const { enviarActividadPendiente, sincronizarDiaTrabajo } = await import(
   "@/lib/encomiendas/local/enviar"
@@ -115,14 +116,14 @@ test("llamar y entregar son dos dimensiones distintas", async () => {
   const [id] = await cargar(1);
   await rutaCon([id]);
 
-  await marcarLlamada(marca(id), "contesto");
+  await registrarLlamada(marca(id));
   let p = await paradaDe(id);
-  assert.equal(p.llamada, "contesto");
+  assert.ok(p.horaLlamada, "no quedó la llamada");
   assert.equal(p.resultado, "pendiente", "llamar cerró la entrega");
 
   await marcarResultado(marca(id), "entregado");
   p = await paradaDe(id);
-  assert.equal(p.llamada, "contesto", "entregar borró el resultado de la llamada");
+  assert.ok(p.horaLlamada, "entregar borró la llamada");
   assert.equal(p.resultado, "entregado");
 });
 
@@ -148,7 +149,7 @@ test("cada resultado queda en el pedido y lo cierra por el día", async () => {
     await marcarResultado(marca(id), resultado);
 
     assert.equal((await pedido(id)).resultado, resultado);
-    assert.deepEqual(await pedidosPendientes(HOY), [], `${resultado} dejó el pedido en juego`);
+    assert.deepEqual(await pendientes(HOY), [], `${resultado} dejó el pedido en juego`);
   }
 });
 
@@ -164,18 +165,6 @@ test("la hora de entrega se guarda al cerrar, y no antes", async () => {
   } finally {
     t();
   }
-});
-
-test("mandar una parada al final no la cierra: solo cambia de lugar", async () => {
-  const [a, b, c] = await cargar(3);
-  await rutaCon([a, b, c]);
-
-  await moverAlFinal({ fecha: HOY, pedidoId: a });
-
-  const ruta = await leerRuta(HOY);
-  assert.deepEqual(ruta.orden, [b, c, a]);
-  assert.equal((await pedido(a)).resultado, "pendiente", "mover al final cerró la parada");
-  assert.equal((await leerCola()).length, 0, "mover al final encoló un evento");
 });
 
 // ===========================================================================
@@ -432,8 +421,8 @@ test("nada se arrastra: lo no entregado se tacha, no pasa a la ruta de mañana",
   await marcarResultado(marca(c), "no_entregado");
   await marcarResultado(marca(d), "no_entregado");
 
-  assert.deepEqual(await pedidosPendientes(HOY), []);
-  assert.deepEqual(await pedidosPendientes("2026-08-21"), [], "un pedido de hoy pasó a mañana");
+  assert.deepEqual(await pendientes(HOY), []);
+  assert.deepEqual(await pendientes("2026-08-21"), [], "un pedido de hoy pasó a mañana");
 });
 
 test("regenerar la ruta conserva lo cerrado, en su orden", async () => {
@@ -457,13 +446,12 @@ test("regenerar conserva la llamada de un pedido que sigue pendiente", async () 
   // Ya llamó: no tiene por qué volver a llamar solo porque rehizo la ruta.
   const [a, b] = await cargar(2);
   await rutaCon([a, b]);
-  await marcarLlamada(marca(a), "no_contesto");
+  await registrarLlamada(marca(a));
 
   await rutaCon([b, a]);
 
   const parada = await paradaDe(a);
-  assert.equal(parada.llamada, "no_contesto");
-  assert.ok(parada.horaLlamada);
+  assert.ok(parada.horaLlamada, "rehacer la ruta borró la llamada");
 });
 
 test("regenerar REABRE el día: entraron paradas nuevas", async () => {
@@ -488,13 +476,13 @@ test("la primera acción del día se registra aunque no se entregue nada", async
   const [a, b] = await cargar(2);
   await rutaCon([a, b]);
 
-  await marcarLlamada(marca(a), "no_contesto");
+  await registrarLlamada(marca(a));
   const cola = await leerCola();
   assert.equal(cola.length, 1);
   assert.equal(cola[0].tipo, "llamada");
 
   // La segunda llamada no encola otra: cualquier evento del día prueba lo mismo.
-  await marcarLlamada(marca(b), "no_contesto");
+  await registrarLlamada(marca(b));
   assert.equal((await leerCola()).filter((e) => e.tipo === "llamada").length, 1);
 });
 
@@ -532,7 +520,7 @@ test("'Mañana' cierra el pedido como no entregado y lo cuenta, con la ruta en c
   assert.equal(p.disponibilidad, "manana");
   assert.equal(p.resultado, "no_entregado");
   assert.ok(p.horaResultado);
-  assert.deepEqual((await pedidosPendientes(HOY)).map((x) => x.id), [b]);
+  assert.deepEqual((await pendientes(HOY)).map((x) => x.id), [b]);
 
   await enviarActividadPendiente();
   const fila = espia.llamadas[0].filas[0];

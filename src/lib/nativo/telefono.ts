@@ -11,7 +11,7 @@ type EstadoPermiso = "granted" | "denied" | "prompt" | "prompt-with-rationale";
 
 /** Permisos de la APK; `ubicacion` = ubicación precisa (el WebView no trae
  *  `navigator.permissions`). */
-export type PermisosApp = { llamadas: EstadoPermiso; ubicacion: EstadoPermiso };
+type PermisosApp = { llamadas: EstadoPermiso; ubicacion: EstadoPermiso };
 
 type PluginTelefono = {
   checkPermissions(): Promise<PermisosApp>;

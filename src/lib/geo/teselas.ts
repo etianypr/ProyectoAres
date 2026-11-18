@@ -53,7 +53,7 @@ function direccionDeTeselas(): Promise<string | null> {
 }
 
 /** Las calles de una tesela, ya en latitud y longitud. */
-export function lineasDeTesela(datos: Uint8Array, x: number, y: number): Linea[] {
+function lineasDeTesela(datos: Uint8Array, x: number, y: number): Linea[] {
   const tesela = new VectorTile(new PbfReader(datos));
   const lineas: Linea[] = [];
   for (const capa of ["transportation", "transportation_name"]) {
@@ -139,7 +139,7 @@ function masCercano(punto: Coordenada, tramos: number[][][]): { metros: number; 
 }
 
 /** Pura: las calles a menos de `radioM`, sin repetir la misma sin nombre. */
-export function viasDeLineas(punto: Coordenada, lineas: Linea[], radioM: number): ViaCercana[] {
+function viasDeLineas(punto: Coordenada, lineas: Linea[], radioM: number): ViaCercana[] {
   const vias: ViaCercana[] = [];
   for (const l of lineas) {
     const c = masCercano(punto, l.tramos);

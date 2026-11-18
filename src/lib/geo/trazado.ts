@@ -188,7 +188,7 @@ export type PosicionPegada = {
   indice: number;
 };
 
-export type OpcionesPegado = {
+type OpcionesPegado = {
   /** Último vértice emparejado, para buscar alrededor de él. Sin esto se busca
    *  desde el principio, que es lo que corresponde en un trazado recién pedido:
    *  el punto cae en el INICIO de la ruta, la salida al camino. */

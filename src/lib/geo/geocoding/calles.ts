@@ -45,7 +45,7 @@ function cargar(): Promise<Calle[]> {
   return catalogo;
 }
 
-export type CalleParecida = Coincidencia & { nombre: string; largo: number };
+type CalleParecida = Coincidencia & { nombre: string; largo: number };
 
 /** Las calles del catálogo que pueden ser la escrita, la más parecida primero.
  *

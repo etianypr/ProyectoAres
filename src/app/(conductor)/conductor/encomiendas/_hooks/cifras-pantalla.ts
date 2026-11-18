@@ -4,7 +4,7 @@
 import type { Pedido } from "@/lib/encomiendas/local/almacen";
 import type { Parada } from "./use-dia-trabajo";
 
-export type CifrasPantalla = {
+type CifrasPantalla = {
   /** Pendientes que no están en la ruta. */
   sinRutear: Pedido[];
   /** Cuántos de ellos no tienen punto en el mapa. */

@@ -37,7 +37,7 @@ export type ModoGuia = "foto" | "nomina";
 
 /** La cámara en vivo del recuadro (use-visor-vivo.ts): si está sacando una foto, y su
  *  linterna. */
-export type VisorVivo = {
+type VisorVivo = {
   sacando: boolean;
   conLinterna: boolean;
   linterna: boolean;

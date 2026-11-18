@@ -19,7 +19,7 @@ export const ZOOM_PUNTO = 15.5;
 /** Sin el mapa dibujado en esto (sin señal), la estampilla dice que falló. */
 const MS_TOPE = 12_000;
 
-export type PedidoEstampilla = { lat: number; lng: number; ancho: number; alto: number; zoom?: number };
+type PedidoEstampilla = { lat: number; lng: number; ancho: number; alto: number; zoom?: number };
 
 /** La misma esquina con un decimal de más es la misma foto: ~1 m. Pura. */
 export function claveEstampilla({ lat, lng, ancho, alto, zoom = ZOOM_PUNTO }: PedidoEstampilla): string {

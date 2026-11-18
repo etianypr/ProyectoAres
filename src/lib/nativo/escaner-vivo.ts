@@ -10,7 +10,7 @@ import { esApp } from "./entorno";
 /** Un renglón de texto con su caja, en píxeles del cuadro ya derecho. `numeros`: sus
  *  palabras con 7 dígitos o más, con la confianza de ML Kit en cada carácter (desde la
  *  APK de los recuadros de la nómina; antes no viene). */
-export type RenglonVivo = {
+type RenglonVivo = {
   texto: string;
   x: number;
   y: number;
@@ -54,7 +54,7 @@ export type CamaraViva = {
 };
 
 /** La captura en alta, ya leída por ML Kit en el teléfono. */
-export type CapturaViva = { imagen: Blob; codigos: string[]; texto: string };
+type CapturaViva = { imagen: Blob; codigos: string[]; texto: string };
 
 /** Un recuadro sobre la cámara, en las coordenadas del cuadro (las de `RenglonVivo`):
  *  confirmada (relleno), leyendo (punteado) o, con línea fina y sin etiqueta, cargada
@@ -83,7 +83,7 @@ export type ExposicionViva = "auto" | "corta" | "cortaOscura";
 
 /** `codigos: false`: no se buscan códigos de barras en cada cuadro (la nómina no trae).
  *  Una APK anterior a la de la 034 ignora `codigos` y `exposicion`. */
-export type OpcionesEscanerVivo = {
+type OpcionesEscanerVivo = {
   captura?: boolean;
   codigos?: boolean;
   exposicion?: ExposicionViva;

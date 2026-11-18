@@ -2,7 +2,7 @@
 // teléfono la lee con PerformanceResourceTiming.serverTiming y Diagnóstico la muestra. Solo
 // nombres fijos y milisegundos: nunca una dirección ni nada del pedido.
 
-export type TramoServidor = "auth" | "proveedor";
+type TramoServidor = "auth" | "proveedor";
 
 export function tiemposServidor() {
   const tramos: [TramoServidor, number][] = [];

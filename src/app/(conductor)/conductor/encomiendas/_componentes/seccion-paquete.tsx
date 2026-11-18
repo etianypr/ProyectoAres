@@ -53,7 +53,7 @@ export function usePaqueteForm(pedido?: Pedido) {
   };
 }
 
-export type PaqueteForm = ReturnType<typeof usePaqueteForm>;
+type PaqueteForm = ReturnType<typeof usePaqueteForm>;
 
 const OPCION = "flex h-10 items-center justify-center rounded-full text-sm font-semibold";
 

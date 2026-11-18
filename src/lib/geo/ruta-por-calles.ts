@@ -15,7 +15,7 @@ import { pegarALaRed } from "./red/pegar";
 import { trazarPorLaRed } from "./red/trazado-propio";
 
 /** Quién dibujó el último trazado (para Diagnóstico). */
-export type OrigenDelTrazado = "red" | "ors" | null;
+type OrigenDelTrazado = "red" | "ors" | null;
 let ultimoOrigen: OrigenDelTrazado = null;
 export const origenDelUltimoTrazado = (): OrigenDelTrazado => ultimoOrigen;
 

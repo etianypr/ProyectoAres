@@ -5,7 +5,7 @@
 import type { GuiaIA } from "./esquemas";
 
 /** Qué foto es. Con ella se elige cuánto se achica en el teléfono. */
-export type TipoLectura = "guia" | "etiqueta";
+type TipoLectura = "guia" | "etiqueta";
 
 /** Lo que devuelve el servidor: la guía cruda (se juntan varias fotos en el
  *  teléfono). */

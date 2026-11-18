@@ -9,7 +9,7 @@
 import type { Coordenada } from "./coordenada";
 
 export const SECTORES_ARICA = ["Lluta", "Norte", "Borde Costero", "San José", "Centro", "Sur", "Azapa"] as const;
-export type SectorArica = (typeof SECTORES_ARICA)[number];
+type SectorArica = (typeof SECTORES_ARICA)[number];
 
 /** El borde de cada sector, [lat, lng] por vértice; el último se une con el primero. */
 const LIMITES: Record<SectorArica, [number, number][]> = {

@@ -70,7 +70,7 @@ export const STORES = {
 } as const satisfies { [S in Store]: S };
 
 /** Índice de `fotos` por día: las claves de un día sin cargar las imágenes. */
-export const INDICE_FOTOS_POR_FECHA = "por_fecha";
+const INDICE_FOTOS_POR_FECHA = "por_fecha";
 
 /** Los stores con datos de destinatarios: el cierre del día los vacía para esa
  *  fecha y el cierre de sesión, entero (spec 007). Todo store con datos de
@@ -79,7 +79,7 @@ export const INDICE_FOTOS_POR_FECHA = "por_fecha";
 export const STORES_DEL_DIA = [STORES.pedidos, STORES.rutas, STORES.fotos, STORES.propuestas, STORES.borradoresGuia] as const;
 
 /** Qué forma guarda cada store. Leer y escribir quedan tipados por store. */
-export type FilaDe = {
+type FilaDe = {
   pedidos: Pedido;
   rutas: Ruta;
   cola: ActividadPorEnviar;
@@ -89,7 +89,7 @@ export type FilaDe = {
   borradoresGuia: BorradorGuia;
 };
 
-export type Store = keyof FilaDe;
+type Store = keyof FilaDe;
 
 /** Índice de la v1–v2 sobre `estado`, campo que ya no existe. La v3 lo borra. */
 const INDICE_VIEJO_POR_ESTADO = "por_estado";
@@ -97,7 +97,7 @@ const INDICE_VIEJO_POR_ESTADO = "por_estado";
 /** Store de la v2 con el aviso de cada pedido. La v3 lo funde en el pedido. */
 const STORE_VIEJO_WHATSAPP = "whatsapp";
 
-export class ErrorAlmacenLocal extends Error {}
+class ErrorAlmacenLocal extends Error {}
 
 const SIN_SOPORTE =
   "Este navegador no puede guardar la ruta en el dispositivo. Abre la app instalada desde la pantalla de inicio (y no en una ventana privada).";
@@ -272,7 +272,7 @@ export async function fechasDeFotos(): Promise<string[]> {
   });
 }
 
-export type Escritor = {
+type Escritor = {
   guardar: <S extends Store>(store: S, valor: FilaDe[S]) => void;
   borrar: (store: Store, clave: string) => void;
   /** Vacía el store entero (cierre de sesión, spec 007). */

@@ -24,7 +24,6 @@
 
 import { VALOR_APROXIMADO_PEDIDO } from "./config";
 import type { Actividad, ReglaDePago, TarifaDelDia } from "@/types/db";
-import type { TipoEvento } from "@/lib/encomiendas/catalogos";
 
 /** Cómo cerró el día un conductor. Sale de contar los eventos que el teléfono
  *  registró en encomienda_actividad para ese (conductor, fecha) — ver 0026.
@@ -101,7 +100,7 @@ export function ingresoEstimado(entregados: number, valorPorEntrega: number): nu
 // se fue con el historial (0031): ahora hay una sola regla y lo que protege al
 // pasado no es la vigencia, son las cifras ya escritas de cada día.
 
-export type PagoDesglose = {
+type PagoDesglose = {
   /** Por cantidad de pedidos entregados. */
   base: number;
   /** Fijo por el día trabajado. */
@@ -148,19 +147,9 @@ export function calcularPagoDia(
   return { base, dia, bono, total: base + dia + bono };
 }
 
-/** Cuenta los eventos de un (conductor, fecha). Los de tipo "llamada" no suman ni
- *  restan: están para probar que el conductor salió, y eso ya lo dice el hecho
- *  de que exista aunque sea una fila. */
-export function contarActividad(eventos: { tipo: TipoEvento }[]): ConteoDia {
-  return {
-    entregados: eventos.filter((e) => e.tipo === "entrega").length,
-    omitidos: eventos.filter((e) => e.tipo === "omision").length,
-  };
-}
-
 export type EventoActividad = Pick<Actividad, "conductor_id" | "fecha" | "tipo" | "origen">;
 
-export type DiaActividad<T extends EventoActividad> = {
+type DiaActividad<T extends EventoActividad> = {
   /** null si el conductor fue eliminado después (la FK es on delete set null,
    *  ver 0026): el día se sigue viendo, pero no se puede liquidar. */
   conductorId: string | null;

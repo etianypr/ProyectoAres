@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-const { calcularIndicadores, periodoAnterior, rangoAnterior, diferencia } = await import(
+const { calcularIndicadores, periodoAnterior, diferencia } = await import(
   "@/lib/encomiendas/indicadores"
 );
 
@@ -85,7 +85,6 @@ test("el período anterior tiene el mismo largo", () => {
   assert.deepEqual(periodoAnterior({ anio: 2026, mes: 1 }), { anio: 2025, mes: 12 });
   assert.deepEqual(periodoAnterior({ anio: 2026, mes: 10 }), { anio: 2026, mes: 9 });
   assert.deepEqual(periodoAnterior({ anio: 2026, mes: null }), { anio: 2025, mes: null });
-  assert.deepEqual(rangoAnterior({ desde: "2026-10-08", hasta: "2026-10-14" }), { desde: "2026-10-01", hasta: "2026-10-07" });
   assert.equal(diferencia(0.9, 0.8).toFixed(2), "0.10");
   assert.equal(diferencia(null, 0.8), null);
 });

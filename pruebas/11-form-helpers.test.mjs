@@ -3,7 +3,7 @@
 // ningún error a la vista.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { s, sReq, num, numNull, intNull, bool } from "@/lib/comun/forms";
+import { s, sReq, num, intNull, bool } from "@/lib/comun/forms";
 
 test("num entiende el formato chileno de miles", () => {
   assert.equal(num("1.234.567"), 1234567);
@@ -40,16 +40,6 @@ test("num nunca devuelve NaN: lo que no se entiende vale 0", () => {
 test("num conserva el signo negativo", () => {
   assert.equal(num("-500"), -500);
   assert.equal(num("-1.500"), -1500);
-});
-
-test("numNull distingue 'vacío' de 'cero'", () => {
-  // Es la diferencia entre "no lo cargué" y "no gastó nada", y en una columna
-  // opcional eso cambia lo que se muestra.
-  assert.equal(numNull(""), null);
-  assert.equal(numNull("   "), null);
-  assert.equal(numNull(null), null);
-  assert.equal(numNull("0"), 0);
-  assert.equal(numNull("1.500"), 1500);
 });
 
 test("intNull redondea y respeta el vacío", () => {

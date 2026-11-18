@@ -31,7 +31,7 @@ const USER_AGENT = "ares-dashund/1.0 (encomiendas; contacto: admin de la empresa
 const MS_ENTRE_CONSULTAS_OSM = 1200;
 
 /** "alta": el campo y la carga de la guía; "baja": el adelanto mientras se revisan las líneas. */
-export type PrioridadOsm = "alta" | "baja";
+type PrioridadOsm = "alta" | "baja";
 
 type Espera = { prioridad: PrioridadOsm; dar: () => void };
 const enEspera: Espera[] = [];

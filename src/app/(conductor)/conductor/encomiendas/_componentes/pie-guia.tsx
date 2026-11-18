@@ -10,7 +10,7 @@ import { ClipboardPaste, Loader2 } from "lucide-react";
 import type { FinGuia } from "./fin-guia";
 import { FranjaConfirmar } from "./franja-confirmar";
 
-export const BOTON_GUIA =
+const BOTON_GUIA =
   "flex h-12 w-full items-center justify-center gap-2 rounded-full bg-brand text-[15px] font-semibold text-brand-foreground transition-transform active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50";
 
 export const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`;
