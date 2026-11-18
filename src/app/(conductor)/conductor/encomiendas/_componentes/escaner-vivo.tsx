@@ -180,6 +180,8 @@ export function EscanerVivo({
             </div>
             <p className="font-mono text-sm tabular-nums text-muted">
               OF {formatoOf(estado.r.pedido.of ?? "")}
+              {/* Spec 039: la nómina la dejó con un «0» donde el código dice «8». */}
+              {estado.r.ofAntes ? ` · corregida (era ${formatoOf(estado.r.ofAntes)})` : ""}
               {!estado.leida && estado.votos ? ` · leyendo, ${estado.votos.cuadros} cuadros` : ""}
             </p>
             {(estado.r.pedido.bultos != null && estado.r.pedido.bultos > 1) || sePuedeQuitarBulto(estado.r) ? (

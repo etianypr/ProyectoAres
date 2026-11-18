@@ -10,7 +10,7 @@ pedido. Un *Pendiente* en `AGENTS.md` apunta a su carpeta.
 - Spec Kit en Claude Code: `/speckit-specify` (crea la carpeta aquí), `/speckit-clarify`,
   `/speckit-plan`, `/speckit-tasks`, `/speckit-analyze` y `/speckit-implement`.
 
-**Próximo número: 039.**
+**Próximo número: 040.**
 
 ## Preparar el día real (prioridad, dueño 2026-11-09)
 
@@ -96,6 +96,7 @@ Estados: borrador → definida → en curso → hecha (falta día real) · poste
 | 1 | [036](036-nomina-completa/spec.md) nómina completa | escanear la nómina más rápido (decidir con cada cuadro y 30× más barato), los bultos de cada OF contra el TOTAL BULTOS de la boleta (y al pedido), lo que falta confirmar vence a los 5 min, y una flecha sobre la cámara a lo que quedó atrás (huecos, fantasmas y dos cuadros a la vez, con interruptor) | en curso | `036-nomina-completa` | — | probar en el V2430 con la nómina real (`spec.md`, «Falta»); toca `android/`: APK 1.10.0 |
 | 1 | [037](037-corregir-lejanas/spec.md) corregir lejanas | editar una dirección lejana o sin ubicar desde la ruta propuesta, con una franja que recuerda cuál falta y «Recalcular ruta» manual | en `main` desde 2026-11-18; falta la prueba en terreno | — | — | recorrer a 360 px con una dirección lejana (`spec.md`, «Verificación») |
 | 1 y 3 | [038](038-tiempos/spec.md) tiempos | ubicar la guía, corregir con IA y optimizar la ruta más rápido, con los mismos resultados | en `main` desde 2026-11-18 (mismos resultados, medido en el PC); falta medir en el teléfono | — | — | comparar «Tiempos» de Diagnóstico con la línea base (`spec.md`) |
+| 1 y 4 | [039](039-nomina-ocho-cero/spec.md) el 8 que se lee 0 | al escanear la nómina, un «8» leído «0» se corrige con el rango del escaneo y los votos; al escanear la etiqueta, el código de barras corrige la OF del pedido | en `main` desde 2026-11-18; falta la prueba en terreno | — | — | escanear una nómina real y comparar con el papel (`spec.md`) |
 | 1 | [035](035-calles-repetidas/spec.md) calles repetidas | «Pasaje 1» en muchos lugares: la población o la calle que cruza, escritas en la guía, eligen el lugar de inmediato; si no, cada opción con su población y sector, solo las de la zona de la ruta | en `main` desde 2026-11-16 (probada en modo prueba); falta la prueba en terreno | — | 025 | probar con una guía real |
 | 1 | [016](016-ubicar-direcciones/spec.md) ubicar direcciones | tipeo de la guía y calles cortas sin numerar | en curso (Google conectado) | — | 11/13 | ≤ 3 direcciones a corregir en un día real (T013) |
 | 1 | [018](018-corregir-direcciones-ia/spec.md) corregir direcciones con IA | las «Sin ubicar» se corrigen con los buscadores y el catálogo de calles; lápiz en cada propuesta (2026-11-11) | hecha (falta día real) | — | 10/11 | una guía real (T008); abiertos: una «segura» con la calle en dos lugares (SC-002) y los ⚠ calle repetida no le llegan a la IA (`MEMORY.md`) |

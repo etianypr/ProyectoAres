@@ -74,6 +74,8 @@ const conSuma = (nuevo: ResultadoEscaneo, de: ResultadoEscaneo): ResultadoEscane
   bultoAMano: de.bultoAMano,
   bultoSumado: de.bultoSumado,
   bultosAntes: de.bultosAntes,
+  // La OF corregida por el código (spec 039) se sigue viendo después de guardar la foto.
+  ofAntes: nuevo.ofAntes ?? de.ofAntes,
 });
 
 /** Solo lo firme va al pedido: lo visto una vez o empatado queda sin leer. */

@@ -330,10 +330,10 @@ test("una OF sin dirección o vista una sola vez queda «a medias» en la lista 
     `${guia("200000001")}\n${guia("200000002", "AV SANTA MARIA 2000")}\n${guia("200000009", "PATRICIO LYNCH 45")}`,
     `${guia("200000001")}\n${guia("200000002", "AV SANTA MARIA 2000")}`,
     `${guia("200000001")}\n${guia("200000002", "AV SANTA MARIA 2000")}`,
-    // La 279000500 sale 3 veces pero nunca con su dirección.
-    sinDestino("279000500"),
-    sinDestino("279000500"),
-    sinDestino("279000500"),
+    // La 200555500 sale 3 veces pero nunca con su dirección (de la misma serie, como en un día real).
+    sinDestino("200555500"),
+    sinDestino("200555500"),
+    sinDestino("200555500"),
   ]);
   assert.deepEqual(
     r.lista.map((l) => [l.of, l.estado, l.motivo ?? null]),
@@ -341,7 +341,7 @@ test("una OF sin dirección o vista una sola vez queda «a medias» en la lista 
       ["200000001", "firme", null],
       ["200000002", "firme", null],
       ["200000009", "aMedias", "unaVez"],
-      ["279000500", "aMedias", "sinDireccion"],
+      ["200555500", "aMedias", "sinDireccion"],
     ],
   );
   assert.equal(r.unaVez, 1, "el conteo de Diagnóstico sigue igual");
@@ -513,15 +513,17 @@ test("una lectura parecida a una OF firme, con otra dirección y menos cuadros, 
   assert.equal(barrer([bien, otro, bien, bien, otro, bien, bien, bien, bien]).lista.length, 3);
 });
 
-test("dos firmes que parecen la misma fila quedan las dos, por confirmar con el papel", () => {
+test("dos firmes que parecen la misma fila: la leída primero sigue firme y la otra queda por confirmar", () => {
+  // Spec 039 (dueño, 2026-11-18): una OF ya leída no vuelve a «por confirmar» por algo parecido que
+  // se leyó después (antes quedaban las dos). La otra no se bota: se confirma con el papel.
   const una = ENTERO("281000276", "21 DE MAYO 123");
   const otra = ENTERO("281000278", "21 DE MAYO 123 B");
   const r = barrer([una, otra, una, otra, una, otra, una]);
   assert.deepEqual(r.lista.map((l) => [l.of, l.estado, l.ofFirme]), [
-    ["281000276", "porConfirmar", true],
+    ["281000276", "firme", true],
     ["281000278", "porConfirmar", true],
   ]);
-  assert.deepEqual([r.firmes, r.porConfirmar, r.dobles], [0, 2, 2]);
+  assert.deepEqual([r.firmes, r.porConfirmar, r.dobles], [1, 1, 1]);
 });
 
 test("una lectura de un solo cuadro a tres dígitos de una firme a la vista es un fallo de lectura", () => {
@@ -562,18 +564,19 @@ test("al empezar otra pasada sigue lo leído y lo que faltaba confirmar parte de
 });
 
 test("lo leído conserva sus malas lecturas apuntando a la buena, y el orden de la nómina", () => {
-  const una = ENTERO("200000123", "21 DE MAYO 123");
-  const mal = ENTERO("200000128", "21 DE MAYO 123");
-  const dos = ENTERO("279000500", "BAQUEDANO 488");
+  // OF de una misma serie, como las de un día (spec 039: fuera del rango del escaneo se corrigen).
+  const una = ENTERO("281000123", "21 DE MAYO 123");
+  const mal = ENTERO("281000128", "21 DE MAYO 123");
+  const dos = ENTERO("281279500", "BAQUEDANO 488");
   const pendiente = ENTERO("281999000", "PATRICIO LYNCH 45");
   const limpio = votosDeLoLeido(sumar([pendiente, pendiente, una, mal, una, una, dos, dos, dos]));
   const r = resultadoNomina(limpio);
-  assert.deepEqual(r.lista.map((l) => l.of), ["200000123", "279000500"]);
-  assert.equal(r.deLectura["200000128"], "200000123");
+  assert.deepEqual(r.lista.map((l) => l.of), ["281000123", "281279500"]);
+  assert.equal(r.deLectura["281000128"], "281000123");
   // Una OF nueva queda después de las que ya estaban.
-  const tres = ENTERO("281000111", "BOLOGNESI 300");
+  const tres = ENTERO("281300111", "BOLOGNESI 300");
   const conNueva = resultadoNomina([tres, tres, tres].reduce((v, t) => sumarCuadroNomina(v, t), limpio));
-  assert.deepEqual(conNueva.lista.map((l) => l.of), ["200000123", "279000500", "281000111"]);
+  assert.deepEqual(conNueva.lista.map((l) => l.of), ["281000123", "281279500", "281300111"]);
 });
 
 test("una línea entregada por confirmar no se quita de la guía porque se empezó otra pasada", async () => {
@@ -611,21 +614,22 @@ test("«DD», el título de la última columna del pie, no se pega a la direcci�
 
 test("el informe sale en el orden de la hoja, aunque un encargo se haya leído al repasar", async () => {
   const { lineasDelBarrido, enOrdenDeLaNomina } = await import("@/lib/encomiendas/lectura/barrido-nomina");
-  const a = ENTERO("200000001", "21 DE MAYO 123");
-  const b = ENTERO("279000500", "BAQUEDANO 488");
-  const c = ENTERO("281000111", "BOLOGNESI 300");
-  const d = ENTERO("283000222", "PATRICIO LYNCH 45");
+  // OF de una misma serie, como las de un día (spec 039).
+  const a = ENTERO("281000001", "21 DE MAYO 123");
+  const b = ENTERO("281279500", "BAQUEDANO 488");
+  const c = ENTERO("281300111", "BOLOGNESI 300");
+  const d = ENTERO("281583222", "PATRICIO LYNCH 45");
   // Primera pasada: la B se salta (solo se ven A, C y D). Al repasar sale entre la A y la C.
   const cuadros = [a, a, `${a}\n${c}`, `${c}\n${d}`, `${c}\n${d}`, d, `${a}\n${b}`, `${a}\n${b}\n${c}`, `${b}\n${c}`];
   const r = barrer(cuadros);
-  assert.deepEqual(r.lista.map((l) => l.of), ["200000001", "279000500", "281000111", "283000222"]);
-  assert.deepEqual(r.lineas.map((l) => l.of), ["200000001", "279000500", "281000111", "283000222"]);
+  assert.deepEqual(r.lista.map((l) => l.of), ["281000001", "281279500", "281300111", "281583222"]);
+  assert.deepEqual(r.lineas.map((l) => l.of), ["281000001", "281279500", "281300111", "281583222"]);
   // Así llega a «Cargar la guía», y las líneas que ya estaban ahí se reordenan igual.
   const leido = lineasDelBarrido(r);
-  assert.deepEqual(leido.orden, ["200000001", "279000500", "281000111", "283000222"]);
+  assert.deepEqual(leido.orden, ["281000001", "281279500", "281300111", "281583222"]);
   const linea = (of) => ({ of, destino: "X 1", dudosa: false });
-  const enGuia = [linea("7000123"), linea("281000111"), linea("200000001"), linea("283000222"), linea("279000500")];
-  assert.deepEqual(enOrdenDeLaNomina(enGuia, leido.orden).map((l) => l.of), ["7000123", "200000001", "279000500", "281000111", "283000222"]);
+  const enGuia = [linea("7000123"), linea("281300111"), linea("281000001"), linea("281583222"), linea("281279500")];
+  assert.deepEqual(enOrdenDeLaNomina(enGuia, leido.orden).map((l) => l.of), ["7000123", "281000001", "281279500", "281300111", "281583222"]);
 });
 
 test("el orden de la hoja no depende de cómo entregue los renglones ML Kit, y sobrevive a otra pasada", () => {

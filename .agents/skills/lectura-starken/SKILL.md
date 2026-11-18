@@ -55,7 +55,14 @@ romper lo que ya se aprendió en terreno. Las reglas vienen de `AGENTS.md` y de 
 - **Escanear dos veces el mismo bulto no lo duplica**: `bultosEscaneados` guarda la lista de números de
   bulto, y la pantalla muestra «Bultos: 1 de 2 · falta 1».
 - **OF que no está en el día**: «Este paquete no está en los pedidos de hoy» → «Agregarlo como pedido»,
-  que abre el formulario con la OF puesta.
+  que abre el formulario con la OF puesta. Antes, si el código de barras difiere de **un solo** pedido
+  sin etiquetas escaneadas solo en «0»/«8», es ese pedido y su OF se corrige con la del código (spec 039:
+  al escanear la nómina el lector ve «0» donde hay un «8»). Nunca con una OF escrita a mano.
+- **Escanear la nómina** (spec 039): las OF del escaneo caen en un rango (mediana de las firmes ± 1 000 000,
+  `lectura/rango-nomina.ts`) y un «0» con «8» al lado en sus votos es un «8» (`decidir`). Juntar
+  lecturas que difieren solo en 0/8 se midió y se descartó (juntaba encargos vecinos). Lo ya leído no vuelve
+  atrás (`revisarParecidas`): el mismo número es un encargo, una firme no vuelve a «por confirmar» por algo
+  parecido leído después, y la misma calle con otro número de casa son dos encargos.
 - **Funciona sin señal**: el escáner de Google y el lector de texto (ML Kit) vienen dentro de la APK, y
   los datos van a IndexedDB. No hay lecturas pendientes con reintento (T009 y T023 se descartaron): si
   no sale texto, se pega o se escribe.
