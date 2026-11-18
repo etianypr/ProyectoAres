@@ -94,6 +94,8 @@ export {
   aplicarLecturaEtiqueta,
   crearDesdeGuia,
   deshacerCarga,
+  borrarSinIniciar,
+  sinIniciar,
   avanceCarga,
   bultosIncompletos,
   quitarBulto,

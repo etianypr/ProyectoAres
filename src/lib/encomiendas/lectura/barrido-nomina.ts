@@ -20,6 +20,7 @@
 import { elegirTexto, distancia, parecidos } from "./etiqueta/votos";
 import { leerGuia } from "./guia";
 import { piezasNomina, totalDeBultos } from "./nomina";
+import { alRango, rangoDelEscaneo } from "./rango-nomina";
 import {
   armarBloques,
   CONFIANZA_ALTA,
@@ -241,7 +242,11 @@ export function resultadoNomina(
     fuente: o,
   }));
   const armado = armarBloques(lecturas);
-  const todos = armado.bloques.map((b) => decidirGuardado(b, regla));
+  // Spec 039: las OF del escaneo caen en un mismo rango; la que queda fuera por un «8» leído
+  // «0» vuelve a él, o queda por confirmar (rango-nomina.ts).
+  const sinRango = armado.bloques.map((b) => decidirGuardado(b, regla));
+  const rango = rangoDelEscaneo(sinRango);
+  const todos = sinRango.map((d) => alRango(d, rango));
   // Una mala lectura de un encargo que ya quedó firme no se lista: apunta al firme. Dos
   // firmes que parecen la misma fila quedan los dos, por confirmar.
   const parecidas = revisarParecidas(armado.bloques, todos);

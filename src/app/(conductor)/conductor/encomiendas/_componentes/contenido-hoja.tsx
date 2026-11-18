@@ -15,6 +15,7 @@ import type { Paso } from "../_hooks/paso-del-dia";
 import type { FaltaEscanear } from "../_hooks/use-carga-auto";
 import { AdvertenciasRuta } from "./advertencias-ruta";
 import { AyerHoja } from "./ayer-hoja";
+import { BorrarPedidos } from "./borrar-pedidos";
 import { EnlacesHoja } from "./enlaces-hoja";
 import { FaltanEscanear } from "./faltan-escanear";
 import { GenerarRutaLocal } from "./generar-ruta-local";
@@ -74,7 +75,8 @@ export function ContenidoHoja({
   onSumar: () => Promise<void>;
   onCargarGuia: () => void;
   onAgregar: () => void;
-  onPropuesta: (propuesta: PropuestaRuta) => void;
+  /** null descarta la propuesta a la vista (después de «Borrar pedidos» traería paradas que ya no están). */
+  onPropuesta: (propuesta: PropuestaRuta | null) => void;
   /** Abre de a uno los pedidos pendientes con ⚠. */
   onResolver: () => void;
 }) {
@@ -167,6 +169,23 @@ export function ContenidoHoja({
     );
   }
 
+  // «Borrar pedidos» (dueño, 2026-11-18): al final de la hoja antes de la ruta, para volver a cargar la
+  // guía. Arriba, en la cabecera, alargaba la pestaña y cambiaba el diseño.
+  const borrar = (
+    <div className="mt-4">
+      <BorrarPedidos
+        fecha={fecha}
+        pedidos={pedidos}
+        idsEnRuta={new Set(paradas.map((p) => p.pedido.id))}
+        onBorrados={async () => {
+          // Una ruta propuesta a la vista traería paradas que ya no están: se descarta.
+          onPropuesta(null);
+          await dia.recargar();
+        }}
+      />
+    </div>
+  );
+
   if (paso === "resolver") {
     const conProblema = sinRutear.filter((p) => problemasDelPedido(p).length > 0);
     return (
@@ -182,6 +201,7 @@ export function ContenidoHoja({
           onRecargar={() => void dia.recargar()}
         />
         {tuDia}
+        {borrar}
       </>
     );
   }
@@ -193,6 +213,7 @@ export function ContenidoHoja({
       <>
         {fuera(`Pedidos · ${sinRutear.length}`)}
         {tuDia}
+        {borrar}
       </>
     );
   }

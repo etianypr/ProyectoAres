@@ -41,10 +41,12 @@ const NOMBRES = ["JUAN PEREZ", "MARIA ROJAS", "PEDRO TAPIA", "ANA SOTO", "LUIS M
 
 /** Los encargos de la nómina: OF de la misma serie (muchas a 1 o 2 dígitos de otra, como
  *  en un día real), una dirección y sus bultos (casi siempre 1). */
-export function nominaInventada(n = 100, semilla = 36) {
+export function nominaInventada(n = 100, semilla = 36, { desde = null } = {}) {
   const r = azar(semilla);
   const encargos = [];
-  let base = 270000000 + Math.floor(r() * 9000000);
+  // `desde` (spec 039): la serie del día, p. ej. 281 000 000 (dos «8» que el lector lee «0»).
+  let base = desde ?? 270000000 + Math.floor(r() * 9000000);
+  if (desde != null) r();
   for (let i = 0; i < n; i++) {
     base += 1 + Math.floor(r() * (r() < 0.6 ? 40 : 4000));
     const bultos = r() < 0.15 ? 2 : r() < 0.04 ? 3 : 1;
@@ -100,12 +102,17 @@ const PARECIDO = { 0: "86", 1: "7", 2: "7", 3: "8", 4: "1", 5: "6", 6: "58", 7: 
 const LETRA = { I: "1", O: "0", S: "5", B: "8", A: "4", E: "F" };
 
 /** La OF como la lee ML Kit en un cuadro: a veces con un dígito cambiado, que casi
- *  siempre sale con poca confianza. */
-function leerOf(of, r, error) {
+ *  siempre sale con poca confianza. `ochoACero` (spec 039, terreno 2026-11-17): la
+ *  probabilidad de que un «8» salga «0» con confianza suficiente para votar (lo que el
+ *  dueño ve en casi todos los escaneos); con 0, nada cambia. */
+function leerOf(of, r, error, ochoACero = 0) {
   let texto = "";
   const confianzas = [];
   for (const d of of) {
-    if (r() < error) {
+    if (ochoACero > 0 && d === "8" && r() < ochoACero) {
+      texto += "0";
+      confianzas.push(0.52 + r() * 0.16);
+    } else if (r() < error) {
       const otros = PARECIDO[d];
       texto += otros[Math.floor(r() * otros.length)];
       confianzas.push(r() < 0.8 ? 0.35 + r() * 0.2 : 0.6 + r() * 0.3);
@@ -122,8 +129,9 @@ function leerOf(of, r, error) {
  *  el reloj (ms) en que llegó.
  *  - `paso`: cuántos px baja la cámara por cuadro, en promedio.
  *  - `saltos`: índices de encargos que la cámara se salta (pasa rápido sin leerlos).
- *  - `error`: probabilidad de que ML Kit cambie un dígito de la OF. */
-export function barrer(hoja, { semilla = 7, paso = 80, error = 0.05, saltos = [], altoCuadro = 1920, msPorCuadro = 280 } = {}) {
+ *  - `error`: probabilidad de que ML Kit cambie un dígito de la OF.
+ *  - `ochoACero`: probabilidad de que lea «0» un «8» de la OF (spec 039). */
+export function barrer(hoja, { semilla = 7, paso = 80, error = 0.05, saltos = [], altoCuadro = 1920, msPorCuadro = 280, ochoACero = 0 } = {}) {
   const r = azar(semilla);
   const cuadros = [];
   const saltados = new Set(saltos);
@@ -140,7 +148,7 @@ export function barrer(hoja, { semilla = 7, paso = 80, error = 0.05, saltos = []
       const caja = { x: renglon.x + temblor, y: y + temblor, ancho: renglon.ancho, alto: renglon.alto };
       if (renglon.fila === "of") {
         const [of, ...resto] = renglon.texto.split(" ");
-        const leida = leerOf(of, r, error);
+        const leida = leerOf(of, r, error, ochoACero);
         const pegado = r() < 0.1;
         const chicos = r() < 0.08 ? [] : pegado ? resto.slice(1) : resto;
         const palabra = pegado ? `${leida.texto}${resto[0]}` : leida.texto;

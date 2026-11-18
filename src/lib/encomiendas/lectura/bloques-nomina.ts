@@ -3,6 +3,7 @@
 // barrido-nomina.ts, que lo usa, para no pasar de 400 líneas (A7).
 
 import { elegirTexto, distancia, parecidos } from "./etiqueta/votos";
+import { DIGITOS_DEL_PREFIJO, sinOchos } from "./rango-nomina";
 import type { LineaNomina, ReglaFirme } from "./tipos-nomina";
 
 /** Cuántas veces tiene que salir igual cada dígito de la OF. */
@@ -27,6 +28,10 @@ export function pesoDeConfianza(confianza: number | null): number {
 }
 /** Hasta cuántos dígitos mal (o perdidos) se juntan con la lectura buena. */
 export const DIGITOS_DE_ERROR = 2;
+/** Spec 039: el lector ve «0» donde hay un «8» (casi nunca al revés). En una posición con votos
+ *  de los dos gana el «8» si salió al menos estas veces y suma al menos un cuarto de los «0»:
+ *  un «0» de verdad casi nunca junta tantos «8». */
+export const OCHOS_PARA_GANAR = 2;
 /** Cuántos cuadros antes o después de leer bien un encargo puede salir una mala lectura
  *  suya: ~2 s, lo que ese encargo sigue a la vista. */
 const CUADROS_CERCA = 20;
@@ -58,7 +63,9 @@ export type Lectura = {
 };
 
 export type Bloque = { semilla: Lectura; cuadros: Set<number>; lecturas: Lectura[] };
-export type Decidido = LineaNomina & { orden: number; corregidas: number };
+/** `firmeSinPrefijo`: firme sin contar los primeros DIGITOS_DEL_PREFIJO dígitos (spec 039: los del
+ *  día; si el rango los corrige, la OF vale por el resto). */
+export type Decidido = LineaNomina & { orden: number; corregidas: number; firmeSinPrefijo?: boolean };
 
 const CUENTAS = new Int32Array(10);
 
@@ -82,6 +89,8 @@ export function aLoMas(a: string, b: string, tope: number): boolean {
 
 /** ¿Esta lectura es del bloque que empezó `semilla`? */
 function delMismoBloque(semilla: Lectura, cuadros: Set<number>, lectura: Lectura): boolean {
+  // Spec 039: juntar también las que difieren solo en «8» leídos «0» se midió y se descartó: en un
+  // escaneo sin ese error juntaba encargos vecinos de la misma serie (más OF con otro número).
   if (!aLoMas(semilla.of, lectura.of, DIGITOS_DE_ERROR)) return false;
   // Salieron en un mismo cuadro: son dos bloques de la hoja.
   for (const c of lectura.cuadros) if (cuadros.has(c)) return false;
@@ -151,6 +160,7 @@ export function decidir({ lecturas }: Bloque, regla: ReglaFirme = "dosDeTres"): 
   const delLargo = lecturas.filter((l) => l.of.length === largo);
   let of = "";
   let firme = votosLargo >= VOTOS_PARA_FIRME && 3 * votosLargo >= 2 * total;
+  let firmeSinPrefijo = firme;
   for (let i = 0; i < largo; i++) {
     // Votan solo las lecturas en que ese dígito salió con confianza; si ninguna, se
     // muestra el más leído pero la OF no queda firme.
@@ -170,13 +180,25 @@ export function decidir({ lecturas }: Bloque, regla: ReglaFirme = "dosDeTres"): 
       // y VOTOS_PARA_FIRME votos con confianza.
       const [[digito, peso], segundo] = [...pesos].sort((a, b) => b[1] - a[1]);
       of += digito;
-      if (peso < PESO_FIRME || (segundo && peso < VECES_EL_SEGUNDO * segundo[1]) || (conConfianza.get(digito) ?? 0) < VOTOS_PARA_FIRME) firme = false;
+      if (peso < PESO_FIRME || (segundo && peso < VECES_EL_SEGUNDO * segundo[1]) || (conConfianza.get(digito) ?? 0) < VOTOS_PARA_FIRME) {
+        firme = false;
+        if (i >= DIGITOS_DEL_PREFIJO) firmeSinPrefijo = false;
+      }
       continue;
     }
     const conteo = votosPosicion > 0 ? conConfianza : todos;
-    const [digito, n] = [...conteo].sort((a, b) => b[1] - a[1])[0];
+    let [digito, n] = [...conteo].sort((a, b) => b[1] - a[1])[0];
+    // Spec 039: un «0» con «8» al lado suele ser un «8» mal leído; y los «0» de una posición
+    // que es «8» son ese mismo «8» mal leído, así que cuentan para firmarlo.
+    const ochos = conteo.get("8") ?? 0;
+    const ceros = conteo.get("0") ?? 0;
+    if (digito === "0" && ochos >= OCHOS_PARA_GANAR && 3 * ochos >= ceros) digito = "8";
+    if (digito === "8") n = ochos + ceros;
     of += digito;
-    if (votosPosicion === 0 || n < VOTOS_PARA_FIRME || 3 * n < 2 * votosPosicion) firme = false;
+    if (votosPosicion === 0 || n < VOTOS_PARA_FIRME || 3 * n < 2 * votosPosicion) {
+      firme = false;
+      if (i >= DIGITOS_DEL_PREFIJO) firmeSinPrefijo = false;
+    }
   }
   const destinos: Record<string, number> = {};
   const abiertos: Record<string, number> = {};
@@ -202,6 +224,7 @@ export function decidir({ lecturas }: Bloque, regla: ReglaFirme = "dosDeTres"): 
     bultos,
     orden: Math.min(...lecturas.map((l) => l.orden)),
     corregidas: total - (lecturas.find((l) => l.of === of)?.votos ?? 0),
+    firmeSinPrefijo,
   };
 }
 
@@ -252,10 +275,18 @@ export function olvidarDecididos(): void {
  *   · `malas`: la lectura más débil (sin firmar y con menos cuadros, o firme con un tercio
  *     o menos) → el índice del encargo firme. No se lista.
  *   · `dobles`: los dos quedaron firmes con cuadros parecidos y no se sabe cuál dígito es:
- *     se dejan los dos, por confirmar con el papel. No se bota nada a ciegas. */
+ *     queda por confirmar el que se vio después; nunca el que ya estaba leído (spec 039).
+ *
+ *  Spec 039 (dueño, 2026-11-18: al volver a pasar por la misma boleta salían «por confirmar»
+ *  OF ya leídas): una OF firme no vuelve atrás por algo parecido que se leyó después, y lo que
+ *  se le parece —contando el «8» leído «0» como igual— y no juntó más cuadros que ella es ella
+ *  misma: no se lista ni se intenta leer entero. Las dos protecciones de siempre siguen: dos
+ *  números en un mismo cuadro, o con direcciones firmes distintas, son dos encargos. */
 export function revisarParecidas(bloques: Bloque[], decididos: Decidido[]): { malas: Map<number, number>; dobles: Set<number> } {
   const malas = new Map<number, number>();
   const dobles = new Set<number>();
+  /** Con quién quedaría por confirmar cada uno: si todos sus rivales resultan malas lecturas, no. */
+  const rivales = new Map<number, number[]>();
   const juntas = (i: number, k: number) => [...bloques[i].cuadros].some((c) => bloques[k].cuadros.has(c));
   // Los cuadros de cada encargo en orden: «a la vista» se responde recorriendo las dos
   // listas una vez, no cada cuadro contra todos los del otro (spec 036).
@@ -275,20 +306,52 @@ export function revisarParecidas(bloques: Bloque[], decididos: Decidido[]): { ma
     // Una lectura de uno o dos cuadros puede venir con un dígito más de error.
     const tolerancia = d.cuadros <= 2 ? DIGITOS_DE_ERROR + 1 : DIGITOS_DE_ERROR;
     decididos.forEach((o, k) => {
-      if (k === i || malas.has(i) || !o.firme) return;
-      if (!aLoMas(o.of, d.of, tolerancia)) return;
+      if (k === i || malas.has(i) || malas.has(k)) return;
+      // El mismo número es el mismo encargo, firme o no (spec 039: al volver a pasar por la boleta
+      // la misma OF salía dos veces, una leída y otra por confirmar). Se queda el que juntó más
+      // cuadros; solo dos filas en un mismo cuadro y con otra dirección serían dos encargos.
+      if (d.of === o.of) {
+        const mismaFila = !juntas(i, k) || (d.destino != null && o.destino != null && parecidos(d.destino, o.destino));
+        if (mismaFila && (d.cuadros < o.cuadros || (d.cuadros === o.cuadros && i > k))) malas.set(i, k);
+        return;
+      }
+      if (!o.firme) return;
+      if (!aLoMas(o.of, d.of, tolerancia) && !aLoMas(sinOchos(o.of), sinOchos(d.of), tolerancia)) return;
       if (juntas(i, k) || !aLaVista(i, k)) return;
-      if (d.destinoFirme && o.destinoFirme && d.destino && o.destino && !parecidos(d.destino, o.destino, DIRECCION_MOVIDA)) {
+      if (d.destinoFirme && o.destinoFirme && d.destino && o.destino && (!parecidos(d.destino, o.destino, DIRECCION_MOVIDA) || otraCasa(d.destino, o.destino))) {
         const suya = d.destino;
         const deUnaVecina = decididos.some((m, j) => j !== i && j !== k && m.destino && juntas(j, k) && parecidos(suya, m.destino));
         if (!deUnaVecina) return;
       }
-      if (d.firme ? 3 * d.cuadros <= o.cuadros : d.cuadros < o.cuadros) malas.set(i, k);
-      else if (d.firme) dobles.add(i).add(k);
+      // La firme con un «0» donde ella tiene «8» (y nada más distinto) es ella: el lector ve «0» donde
+      // hay «8» y no al revés, así que gana la del «8» aunque la otra se haya visto antes o más veces.
+      if (soloCerosPorOchos(o.of, d.of) || (d.firme ? 3 * d.cuadros <= o.cuadros : d.cuadros < o.cuadros)) malas.set(i, k);
+      // Se vio después que la ya leída y no se sabe cuál dígito es: queda por confirmar ella sola;
+      // la ya leída sigue firme. No se bota: podría ser el encargo de al lado (una de la misma serie).
+      else if (d.firme && d.orden > o.orden) rivales.set(i, [...(rivales.get(i) ?? []), k]);
     });
   });
+  for (const [i, ks] of rivales) if (!malas.has(i) && ks.some((k) => !malas.has(k))) dobles.add(i);
   for (const i of malas.keys()) dobles.delete(i);
   return { malas, dobles };
+}
+
+/** La misma calle con otro número de casa (spec 039): en una nómina de una misma zona dos encargos
+ *  seguidos suelen ser de la misma calle («AV SANTA MARIA 1239» y «… 2278» se parecen en un 75 %),
+ *  y con las dos direcciones firmes eso son dos casas. Una dirección mal leída por un cuadro movido
+ *  («Z1 OE HAY0 I2») cambia también las letras: esa no es otra casa. */
+function otraCasa(a: string, b: string): boolean {
+  const calle = (t: string) => t.replace(/\d+/g, " ").replace(/[^A-ZÑ ]/gi, "").replace(/\s+/g, " ").trim().toUpperCase();
+  const numeros = (t: string) => t.match(/\d+/g)?.join(" ") ?? null;
+  const [x, y] = [numeros(a), numeros(b)];
+  return x != null && y != null && x !== y && calle(a) !== "" && calle(a) === calle(b);
+}
+
+/** `leida` es `firme` salvo «0» donde `firme` tiene «8» (spec 039: el error del lector). */
+function soloCerosPorOchos(firme: string, leida: string): boolean {
+  if (firme.length !== leida.length || firme === leida) return false;
+  for (let p = 0; p < firme.length; p++) if (leida[p] !== firme[p] && !(leida[p] === "0" && firme[p] === "8")) return false;
+  return true;
 }
 
 /** Los encargos en el orden en que van en la hoja (dueño, 2026-11-15: el informe de lo leído

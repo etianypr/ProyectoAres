@@ -16,7 +16,7 @@ const SECCIONES: { titulo: string; pasos: string[] }[] = [
       "Abajo, el número grande son los bultos leídos contra el TOTAL BULTOS del pie de la boleta («47 de 52 bultos»; con ✓, se leyó todo). Una flecha ▲ o ▼ sobre la cámara apunta a la OF por confirmar más cercana, más arriba o más abajo en la nómina, con cuántos encargos hay hasta ella. Lo que falta confirmar y no se vuelve a ver en 5 minutos de escaneo deja de estar.",
       "Revisar: las líneas con ⚠ (sin OF, OF mal leída, sin destino o por confirmar) aparecen de a una; el botón del teléfono registra el número y «Llamar»; «Quitar» / «Confirmar»; «Siguiente» pasa a la otra. «Ver las n líneas» muestra todas: tocar una la abre para corregirla → «Crear n pedidos».",
       "Arriba, tocar «1 Fotos» permite agregar más fotos o texto, y «2 Revisar» vuelve a las líneas.",
-      "Ubicando: «Detener ubicación» deja el resto sin ubicar. Al terminar, tocar un no ubicado abre su pedido; «Corregir dirección con IA» lo intenta de nuevo con conexión, y cada propuesta de la IA se confirma de a una. «Deshacer carga» borra lo recién creado; con la ruta ya optimizada, «Agregar n a la ruta».",
+      "Ubicando: «Detener ubicación» deja el resto sin ubicar. Al terminar, tocar un no ubicado abre su pedido; «Corregir dirección con IA» lo intenta de nuevo con conexión, y cada propuesta de la IA se confirma de a una. «Deshacer carga» borra lo recién creado; con la ruta ya optimizada, «Agregar n a la ruta». Después, «Borrar pedidos» (al final de la hoja) borra los que nadie tocó, para volver a cargar la guía; los que tienen etiqueta, ruta o resultado quedan.",
     ],
   },
   {

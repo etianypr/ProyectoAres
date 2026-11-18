@@ -5,6 +5,7 @@
 
 import { uuidv7 } from "@/lib/comun/uuid";
 import { separarReferencias } from "@/lib/geo/geocoding/referencias";
+import { mismaSalvoOchoYCero } from "@/lib/encomiendas/lectura/rango-nomina";
 import { STORES, escribir } from "../idb";
 import { enFila } from "./fila";
 import { leerPedidos, leerRuta, pedidosEnOrden } from "./lecturas";
@@ -97,6 +98,23 @@ function sinTocar(p: Pedido, enRuta: Set<string>): boolean {
  *  carga de la guía, en una transacción, salvo los que ya se tocaron (están en la
  *  ruta, tienen bultos o resultado): esos quedan. Devuelve cuántos se borraron y
  *  cuántos quedaron. No toca la cola: un pedido sin tocar no tiene actividad. */
+/** Los pedidos que nadie tocó todavía (sin etiqueta, resultado, llamada ni foto, y fuera de la ruta):
+ *  los que «Borrar pedidos» puede borrar. */
+export function sinIniciar(pedidos: Pedido[], idsEnRuta: Set<string>): Pedido[] {
+  return pedidos.filter((p) => sinTocar(p, idsEnRuta));
+}
+
+/** «Borrar pedidos» (dueño, 2026-11-18: «no existe forma de borrar las OF con sus direcciones para
+ *  poder hacer un nuevo escaneo»): lo mismo que «Deshacer esta carga», pero con todos los pedidos del
+ *  día y sin depender del resumen de la carga, que se cierra. Los ya iniciados quedan. */
+export async function borrarSinIniciar(fecha: string): Promise<{ borrados: number; quedan: number }> {
+  const pedidos = await leerPedidos(fecha);
+  return deshacerCarga(
+    pedidos.map((p) => p.id),
+    fecha,
+  );
+}
+
 export function deshacerCarga(ids: string[], fecha: string): Promise<{ borrados: number; quedan: number }> {
   return enFila(async () => {
     const [ruta, pedidos] = await Promise.all([leerRuta(fecha), leerPedidos(fecha)]);
@@ -149,6 +167,9 @@ export type ResultadoEscaneo = {
    *  había antes: con eso «−1 bulto» la deshace (spec 033). Solo en memoria. */
   bultoSumado: number | null;
   bultosAntes: number | null;
+  /** La OF que tenía el pedido si el código de barras la corrigió (spec 039: la nómina leyó un
+   *  «0» donde había un «8»); null si no. */
+  ofAntes?: string | null;
 };
 
 /** «−1 bulto» vale solo para un bulto sumado de más: la OF escrita a mano, o un
@@ -217,7 +238,20 @@ export function bultosIncompletos(pedidos: Pedido[]): Pedido[] {
 export function aplicarLecturaEtiqueta(fecha: string, lectura: LecturaParaAplicar): Promise<ResultadoEscaneo | null> {
   return enFila(async () => {
     const [pedidos, ruta] = await Promise.all([leerPedidos(fecha), leerRuta(fecha)]);
-    const pedido = pedidos.find((p) => p.of === lectura.of);
+    let pedido = pedidos.find((p) => p.of === lectura.of);
+    // Spec 039 (dueño, 2026-11-17): al escanear la nómina el lector ve «0» donde hay un «8». El
+    // código de barras es exacto: si su OF no está en el día pero hay UN solo pedido cuya OF es
+    // esa salvo «0» y «8», y que todavía no tiene ninguna etiqueta escaneada (otra etiqueta ya lo
+    // habría corregido), es ese pedido y se queda con la OF del código. Solo con el código (trae
+    // el bulto): una OF escrita a mano puede venir mal escrita.
+    let ofAntes: string | null = null;
+    if (!pedido && lectura.bulto != null) {
+      const parecidos = pedidos.filter((p) => p.of != null && p.bultosEscaneados.length === 0 && mismaSalvoOchoYCero(p.of, lectura.of));
+      if (parecidos.length === 1) {
+        pedido = parecidos[0];
+        ofAntes = pedido.of;
+      }
+    }
     if (!pedido) return null;
 
     const { escaneados, aMano } = contarBulto(pedido.bultosEscaneados, lectura);
@@ -244,6 +278,7 @@ export function aplicarLecturaEtiqueta(fecha: string, lectura: LecturaParaAplica
     const conocidos = lectura.bultosTotal != null && manda(pedido.bultos) ? lectura.bultosTotal : pedido.bultos;
     const actualizado: Pedido = {
       ...pedido,
+      of: ofAntes != null ? lectura.of : pedido.of,
       nombre: (lectura.ofConfirmada && lectura.destinatario) || pedido.nombre || lectura.destinatario || "",
       telefono: (lectura.ofConfirmada && lectura.telefono) || pedido.telefono || lectura.telefono || "",
       bultos: escaneados.length > (conocidos ?? 1) ? escaneados.length : conocidos,
@@ -263,6 +298,7 @@ export function aplicarLecturaEtiqueta(fecha: string, lectura: LecturaParaAplica
       bultoAMano: aMano,
       bultoSumado: sumado,
       bultosAntes: pedido.bultos,
+      ofAntes,
     };
   });
 }

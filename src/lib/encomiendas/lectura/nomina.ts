@@ -16,6 +16,7 @@
 // columnas: con el papel curvo ML Kit puede entregar el nombre antes que la OF.
 
 import { LARGO_OF, ofValida } from "../paquete";
+import { distancia } from "./etiqueta/votos";
 import { limpiarDestino } from "./guia";
 
 /** La fila de datos empieza con la OF: 7 a 10 dígitos al comienzo del renglón
@@ -24,6 +25,25 @@ const FILA_OF = /^\s*(\d{7,10})(?=\s|$)/;
 /** «DIRECCION», también como la lee ML Kit («D1RECCION», «DIRECCI0N»), con la
  *  dirección en el mismo renglón o en el siguiente. */
 const DIRECCION = /^\s*D[I1L]RECC[I1L][O0Ó]N\b\s*:?\s*(.*)$/i;
+/** La primera palabra del renglón y lo que sigue (la dirección, si vino en el mismo renglón). */
+const PRIMERA_PALABRA = /^\s*([^\s:]+):?\s*(.*)$/;
+
+/** El título «DIRECCION» de un encargo: lo que sigue en el renglón (la dirección, o "" si viene en
+ *  el siguiente), o null si el renglón no es el título. Spec 039 (terreno 2026-11-18): en una fila la
+ *  OF, la dirección y el pie se leían bien, pero el título salía «VLRECCION», «LRECCION» o
+ *  «4LRECCION» en todos los cuadros, y sin el título el encargo nunca se armaba: una sola OF de la
+ *  boleta no se leía nunca. Vale una primera palabra a 2 letras o menos de «DIRECCION» («SECCION»
+ *  y «ELECCION», que pueden empezar una dirección, quedan a 3). */
+function tituloDireccion(renglon: string): string | null {
+  const exacto = renglon.match(DIRECCION);
+  if (exacto) return exacto[1];
+  const partes = renglon.match(PRIMERA_PALABRA);
+  if (!partes) return null;
+  const palabra = partes[1].toUpperCase().replace(/Ó/g, "O").replace(/0/g, "O").replace(/1/g, "I");
+  if (palabra.length < 7 || palabra.length > 11) return null;
+  return distancia(palabra, "DIRECCION") <= 2 ? partes[2] : null;
+}
+const esTituloDireccion = (renglon: string) => tituloDireccion(renglon) != null;
 /** Lo que viene después de la dirección: el pie del bloque o el encabezado del
  *  siguiente. Un renglón vacío o de signos («=====») también la cierra. */
 const FIN_DIRECCION = /VAL[O0]R|F[O0]RMA|PAG[O0]|NUMER[O0]|ENCARG|DESTINATAR|C[O0]MUNA|^\s*DD\s*$|^[\s=_.-]*$/i;
@@ -104,16 +124,16 @@ export function piezasNomina(renglones: string[]): { bloques: BloqueNomina[]; pi
       if (of.valor) filasOf.push({ valor: of.valor, fila: i });
       continue;
     }
-    const direccion = renglon.match(DIRECCION);
-    if (!direccion) {
+    const enElRenglon = tituloDireccion(renglon);
+    if (enElRenglon == null) {
       if (ENCABEZADO.test(renglon)) of = null;
       continue;
     }
-    const partes = direccion[1].trim() ? [direccion[1]] : [];
+    const partes = enElRenglon.trim() ? [enElRenglon] : [];
     let j = i + 1;
     for (; j < renglones.length && partes.length <= MAX_RENGLONES; j++) {
       const s = renglones[j];
-      if (FILA_OF.test(s) || DIRECCION.test(s) || FIN_DIRECCION.test(s)) break;
+      if (FILA_OF.test(s) || esTituloDireccion(s) || FIN_DIRECCION.test(s)) break;
       partes.push(s);
     }
     const cerrada = j < renglones.length && partes.length <= MAX_RENGLONES;
@@ -125,7 +145,7 @@ export function piezasNomina(renglones: string[]): { bloques: BloqueNomina[]; pi
       if (PIE.test(renglones[j])) {
         hasta = j;
         const valores = renglones[j + 1];
-        if (valores != null && !FILA_OF.test(valores) && !DIRECCION.test(valores) && !ENCABEZADO.test(valores)) hasta = j + 1;
+        if (valores != null && !FILA_OF.test(valores) && !esTituloDireccion(valores) && !ENCABEZADO.test(valores)) hasta = j + 1;
       }
       bloques.push({
         of: of.valor,

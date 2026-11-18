@@ -25,12 +25,14 @@ test("el peso de un dígito por su confianza: 0 hasta 0,5, con tope, y sin confi
   assert.equal(pesoDeConfianza(null), pesoDeConfianza(0.85));
 });
 
-test("la OF con un «8» que se lee «6» o «0» 4 de cada 10 veces: la de siempre no confirma, las otras sí", () => {
+test("la OF con un «8» que se lee «6» o «0» 4 de cada 10 veces: confirman las tres reglas, con el «8»", () => {
   // Medido en la spec 034: bien con 0,66 de confianza y mal con 0,54.
   const bien = ["280000123", confianza(1, 0.66)];
   const v = conPesos([bien, ["260000123", confianza(1, 0.54)], bien, ["200000123", confianza(1, 0.54)], bien, bien, ["260000123", confianza(1, 0.54)], bien, ["200000123", confianza(1, 0.54)], bien]);
   const decidir = (regla) => resultadoNomina(v, { regla }).lineas.map((l) => [l.of, l.firme]);
-  assert.deepEqual(decidir("dosDeTres"), [["280000123", false]], "6 de 10: no llega a 2 de cada 3");
+  // Antes de la 039 la de siempre no confirmaba (6 de 10 no llega a 2 de cada 3). Ahora los «0» de
+  // una posición que es «8» son ese «8» mal leído y cuentan para firmarlo: 8 de 10.
+  assert.deepEqual(decidir("dosDeTres"), [["280000123", true]], "los «0» del «8» lo firman (spec 039)");
   assert.deepEqual(decidir("confianza06"), [["280000123", true]]);
   assert.deepEqual(decidir("ponderada"), [["280000123", true]]);
 });

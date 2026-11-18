@@ -105,7 +105,8 @@ test("la flecha apunta a una OF que quedó por confirmar más arriba", () => {
   const { nomina, votos } = barrerNomina(12);
   // La cámara vuelve a pasar por el encargo 3 con la OF mal leída en un cuadro suelto: queda
   // un pendiente a la altura del 3 (salió junto al 2).
-  const otra = "281999777";
+  // De la misma serie que la nómina, como en un día real (spec 039: otra serie se corrige).
+  const otra = `${nomina[0].of.slice(0, 3)}999777`;
   const renglones = [
     { texto: `${nomina[2].of} 1 0 1`, x: 10, y: 100, ancho: 300, alto: 32, numeros: [] },
     { texto: "DIRECCION", x: 10, y: 170, ancho: 150, alto: 32 },
@@ -152,9 +153,9 @@ const encargo = (of, y, destino = "21 DE MAYO 123") => [
 const barrerCuadros = (cuadros) => cuadros.reduce((v, renglones) => sumarCuadroAlBarrido(v, renglones), { porFilas: votosNominaVacios(), comoLlegan: votosNominaVacios() });
 
 test("una OF por confirmar que solo salió en el lugar de otra firme es un fantasma: se va y apunta a ella", () => {
-  const [a, b, c, g] = ["270000101", "270000202", "270000303", "281999777"];
+  const [a, b, c, g] = ["270000101", "270000202", "270000303", "270999777"];
   const normal = [...encargo(a, 100), ...encargo(b, 660, "BOLOGNESI 300"), ...encargo(c, 1220, "MAIPU 700")];
-  // Dos cuadros en que la fila de B se leyó como otro número (4 dígitos distintos).
+  // Dos cuadros en que la fila de B se leyó como otro número (6 dígitos distintos).
   const movido = [...encargo(a, 100), ...encargo(g, 660, "BOLOGNESI 300"), ...encargo(c, 1220, "MAIPU 700")];
   const votos = barrerCuadros([normal, normal, normal, movido, movido, normal]);
   const r = resultadoDelBarrido(votos);
@@ -167,7 +168,7 @@ test("una OF por confirmar que solo salió en el lugar de otra firme es un fanta
 });
 
 test("una OF de verdad entre dos firmes no es fantasma: entre ellas cabía otra", () => {
-  const [a, x, b, c] = ["270000101", "281999777", "270000202", "270000303"];
+  const [a, x, b, c] = ["270000101", "270999777", "270000202", "270000303"];
   // Con las tres, X va a un encargo de A y B a dos. Sin la fila de X (ML Kit no la leyó), A y B
   // siguen a dos alturas de encargo: hay lugar para X.
   const tres = [...encargo(a, 100), ...encargo(x, 660, "MAIPU 700"), ...encargo(b, 1220, "BOLOGNESI 300")];
