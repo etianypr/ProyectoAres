@@ -23,6 +23,13 @@ export type ParadaLejana = {
   metrosQueSuma: number;
 };
 
+/** ¿Sigue lejos de todo (la central y las demás paradas), en línea recta? Es lo que
+ *  se puede saber sin recalcular, para sacar de los pendientes una parada recién
+ *  corregida (spec 037): lo que suma por calle se mide al recalcular la ruta. */
+export function sigueLejos(parada: Coordenada, otras: Coordenada[], base: Coordenada): boolean {
+  return Math.min(...[base, ...otras].map((q) => distanciaMetros(parada, q))) >= METROS_SOLA;
+}
+
 export function paradasLejanas(
   paradas: PedidoUbicado[],
   base: Coordenada,

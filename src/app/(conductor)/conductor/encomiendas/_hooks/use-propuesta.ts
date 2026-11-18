@@ -4,13 +4,16 @@
 // usarla (sale de pantalla.tsx, spec 002 T036).
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { PedidoEliminado } from "@/lib/encomiendas/local/almacen";
+import { leerPedidos, type PedidoEliminado } from "@/lib/encomiendas/local/almacen";
 import {
+  calcularRutaLocal,
+  conPedidoCorregido,
   confirmarRutaLocal,
   devolverParada,
   elegirAlternativa,
   guardarPropuestaVista,
   invertirOrden,
+  mantenerLejana,
   olvidarPropuesta,
   propuestaGuardada,
   quitarParada,
@@ -150,6 +153,40 @@ export function usePropuesta({ dia, fecha }: { dia: DiaEnCurso; fecha: string })
     setPropuestaEstado(conTrazado);
   }, []);
 
+  /** Se guardó la corrección de un pedido con la propuesta a la vista (spec 037): su
+   *  punto nuevo entra a la propuesta sin mover el orden, y el trazado se rehace
+   *  aparte. El orden nuevo lo pide el conductor con «Recalcular ruta». */
+  const onPedidoCorregido = useCallback(
+    async (pedidoId: string) => {
+      const actual = actualRef.current;
+      if (!actual) return;
+      const pedido = (await leerPedidos(fecha)).find((p) => p.id === pedidoId);
+      const vigente = actualRef.current;
+      if (!pedido || !vigente) return;
+      ponerParadas(conPedidoCorregido(vigente, pedido));
+    },
+    [fecha, ponerParadas],
+  );
+
+  /** «Mantener»: la lejana se queda en la ruta tal como está (spec 037). */
+  const onMantenerLejana = useCallback((pedidoId: string) => {
+    const actual = actualRef.current;
+    if (!actual) return;
+    actualRef.current = mantenerLejana(actual, pedidoId);
+    setPropuestaEstado(actualRef.current);
+  }, []);
+
+  /** «Recalcular ruta» (spec 037): vuelve a optimizar con los puntos corregidos, desde
+   *  y hasta donde estaba la propuesta. Lee los pedidos del teléfono, así que no hace
+   *  falta pasarle nada. Si falla, la propuesta a la vista queda como estaba. */
+  const onRecalcular = useCallback(async () => {
+    const actual = actualRef.current;
+    if (!actual) return;
+    const desde = { tipo: "gps", lat: actual.partida.lat, lng: actual.partida.lng } as const;
+    const hasta = actual.llegada ? ({ tipo: "gps", lat: actual.llegada.lat, lng: actual.llegada.lng } as const) : undefined;
+    setPropuesta(await calcularRutaLocal(fecha, desde, hasta));
+  }, [fecha, setPropuesta]);
+
   const onUsarPropuesta = useCallback(async () => {
     if (!propuesta) return;
     const enLaRuta = propuesta.paradas.map((p) => p.id);
@@ -170,5 +207,8 @@ export function usePropuesta({ dia, fecha }: { dia: DiaEnCurso; fecha: string })
     void dia.avisarPedidos(enLaRuta);
   }, [propuesta, dia, setPropuesta]);
 
-  return { propuesta, setPropuesta, onElegirAlternativa, onUsarPropuesta, quitado, onQuitar, onDeshacerQuitar, onInvertir };
+  return {
+    propuesta, setPropuesta, onElegirAlternativa, onUsarPropuesta, quitado, onQuitar, onDeshacerQuitar, onInvertir,
+    onPedidoCorregido, onMantenerLejana, onRecalcular,
+  };
 }

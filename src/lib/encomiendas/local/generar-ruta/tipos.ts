@@ -69,6 +69,9 @@ export type PropuestaRuta = {
   alReves?: PropuestaRuta;
   /** El trazado todavía es del orden anterior: hay que pedir el de este (retrazar). */
   esperaTrazado?: boolean;
+  /** Se corrigió una dirección con la propuesta a la vista y el orden es el de antes:
+   *  falta «Recalcular ruta» (spec 037). Solo de pantalla, no se guarda. */
+  conCambios?: boolean;
 };
 
 export type ResultadoRuta = {

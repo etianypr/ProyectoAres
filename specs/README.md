@@ -10,7 +10,7 @@ pedido. Un *Pendiente* en `AGENTS.md` apunta a su carpeta.
 - Spec Kit en Claude Code: `/speckit-specify` (crea la carpeta aquí), `/speckit-clarify`,
   `/speckit-plan`, `/speckit-tasks`, `/speckit-analyze` y `/speckit-implement`.
 
-**Próximo número: 037.**
+**Próximo número: 038.**
 
 ## Preparar el día real (prioridad, dueño 2026-11-09)
 
@@ -94,6 +94,7 @@ Estados: borrador → definida → en curso → hecha (falta día real) · poste
 | 1 | [029](029-barrido-nomina/spec.md) barrer la nómina | «Cargar la guía» → «Barrer la nómina»: la cámara en vivo lee la OF y la dirección de cada encargo de la nómina de reparto, la OF dígito por dígito | hecha (falta día real) | — (en `main` desde 2026-11-11) | — | APK 1.7.0 (tag y `APK_VERSION_MINIMA`); barrer una nómina real contra el papel |
 | 1 | [034](034-barrido-sin-saltos/spec.md) barrer sin saltos | al barrer la nómina lo leído queda en verde, arriba se ve lo que falta confirmar, la lectura cuenta también los encargos que entran cortados al cuadro (el celular y la boleta se mueven), bota el ruido y se guarda para seguirla si el celular se bloquea | en `main` desde 2026-11-16 (medida con una nómina real: 15 de 15); falta la prueba en terreno | — | — | probar el guardado y la velocidad de los cuadros (`spec.md`, «Falta»); toca `android/`: APK 1.9.0 (`apk-v1.9.0`) |
 | 1 | [036](036-nomina-completa/spec.md) nómina completa | escanear la nómina más rápido (decidir con cada cuadro y 30× más barato), los bultos de cada OF contra el TOTAL BULTOS de la boleta (y al pedido), lo que falta confirmar vence a los 5 min, y una flecha sobre la cámara a lo que quedó atrás (huecos, fantasmas y dos cuadros a la vez, con interruptor) | en curso | `036-nomina-completa` | — | probar en el V2430 con la nómina real (`spec.md`, «Falta»); toca `android/`: APK 1.10.0 |
+| 1 | [037](037-corregir-lejanas/spec.md) corregir lejanas | editar una dirección lejana o sin ubicar desde la ruta propuesta, con una franja que recuerda cuál falta y «Recalcular ruta» manual | en curso | `037-corregir-lejanas` | — | recorrer a 360 px con una dirección lejana (`spec.md`, «Verificación») |
 | 1 | [035](035-calles-repetidas/spec.md) calles repetidas | «Pasaje 1» en muchos lugares: la población o la calle que cruza, escritas en la guía, eligen el lugar de inmediato; si no, cada opción con su población y sector, solo las de la zona de la ruta | en `main` desde 2026-11-16 (probada en modo prueba); falta la prueba en terreno | — | 025 | probar con una guía real |
 | 1 | [016](016-ubicar-direcciones/spec.md) ubicar direcciones | tipeo de la guía y calles cortas sin numerar | en curso (Google conectado) | — | 11/13 | ≤ 3 direcciones a corregir en un día real (T013) |
 | 1 | [018](018-corregir-direcciones-ia/spec.md) corregir direcciones con IA | las «Sin ubicar» se corrigen con los buscadores y el catálogo de calles; lápiz en cada propuesta (2026-11-11) | hecha (falta día real) | — | 10/11 | una guía real (T008); abiertos: una «segura» con la calle en dos lugares (SC-002) y los ⚠ calle repetida no le llegan a la IA (`MEMORY.md`) |

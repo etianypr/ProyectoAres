@@ -38,6 +38,7 @@ const SECCIONES: { titulo: string; pasos: string[] }[] = [
       "En la propuesta, «Ver las N» muestra toda la lista; toca una fila para verla en el mapa. Para descartarla, ✕ dos veces.",
       "En un condominio la ruta llega a su entrada, y «Navegar» lleva a ella. El número de la parada queda en el edificio.",
       "Para excluir un pedido: 🗑 en la lista de la ruta propuesta («Deshacer» lo restituye).",
+      "Una dirección lejos de las demás, o sin ubicar, aparece en la franja amarilla sobre «Usar esta ruta»: «Editar» abre el pedido y «Mantener» la deja en la ruta. Con direcciones corregidas, «Recalcular ruta» vuelve a optimizar.",
       "La misma ruta en sentido inverso (la última parada primero): «Invertir orden de ruta». Otro toque la deja como la propuso ARES.",
       "Cargar vehículo: «Escanear paquete» (el ícono de escanear de arriba aparece con la ruta optimizada) y pasa las etiquetas frente a la cámara: un tono por dato leído y otro cuando la etiqueta queda leída. «Iniciar ruta» muestra la primera parada (con paquetes sin escanear, toca de nuevo «Iniciar de todos modos»); lo no escaneado queda en «Sin escanear», con «Reanudar carga» hasta cerrar la primera parada.",
       "Si la cámara no responde: Diagnóstico → «Cargar vehículo con el escáner de Google» (una etiqueta por toque).",

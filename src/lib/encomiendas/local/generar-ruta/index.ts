@@ -373,7 +373,7 @@ export async function calcularRutaLocal(
   return propuesta;
 }
 
-export { devolverParada, elegirAlternativa, quitarParada, retrazar } from "./cambiar-propuesta";
+export { conPedidoCorregido, devolverParada, elegirAlternativa, mantenerLejana, quitarParada, retrazar } from "./cambiar-propuesta";
 export { confirmarRutaLocal, problemasDelArmado } from "./confirmar";
 export { invertirOrden } from "./invertir";
 export { guardarPropuestaVista, olvidarPropuesta, propuestaGuardada } from "./propuesta-guardada";

@@ -133,8 +133,8 @@ export function PantallaEncomiendas({
   });
   const [alturaCerrada, setAlturaCerrada] = useState(140);
   // La ruta propuesta a la vista, elegir otra alternativa y usarla.
-  const { propuesta, setPropuesta, onElegirAlternativa, onUsarPropuesta, quitado, onQuitar, onDeshacerQuitar, onInvertir } =
-    usePropuesta({ dia, fecha });
+  const { propuesta, setPropuesta, onElegirAlternativa, onUsarPropuesta, quitado, onQuitar, onDeshacerQuitar, onInvertir,
+    onPedidoCorregido, onMantenerLejana, onRecalcular } = usePropuesta({ dia, fecha });
   const carga = useCargaAuto({ dia, fecha });
   const [ofParaNuevo, setOfParaNuevo] = useState<string | undefined>(undefined);
   const nuevoPedido = (of?: string) => {
@@ -348,7 +348,9 @@ export function PantallaEncomiendas({
                 // nuevos se queda (van en tanda). Una advertencia queda escrita en el formulario.
                 if (!esNuevo) resolver.despuesDeGuardar(pedidos);
                 // Otro lugar (> 150 m): la parada se reubica (spec 033, cambio-dir-ruta).
-                if (!esNuevo) void reordenar.direccionCambiada(formPedido);
+                // Con la propuesta a la vista el punto nuevo entra a ella (spec 037).
+                if (!esNuevo && propuesta) void onPedidoCorregido(formPedido.id);
+                else if (!esNuevo) void reordenar.direccionCambiada(formPedido);
                 if (esNuevo && aviso == null) avisar("Pedido agregado");
               }}
             />
@@ -383,10 +385,12 @@ export function PantallaEncomiendas({
 
       {/* Por encima de la hoja: mientras haya una ruta propuesta, decidir si se
           usa es lo único que hay que hacer en esta pantalla. */}
-      {propuesta ? (
+      {/* Se esconde mientras se corrige una dirección en la hoja (spec 037). */}
+      {propuesta && !formPedido ? (
         <div className="fixed inset-x-0 bottom-0 z-30">
           <VistaPreviaRuta propuesta={propuesta} onUsar={onUsarPropuesta} onElegir={onElegirAlternativa} onDescartar={() => setPropuesta(null)}
-            quitado={quitado} onQuitar={onQuitar} onDeshacerQuitar={onDeshacerQuitar} onInvertir={onInvertir} onVer={cerca.enfocarPunto} />
+            quitado={quitado} onQuitar={onQuitar} onDeshacerQuitar={onDeshacerQuitar} onInvertir={onInvertir} onVer={cerca.enfocarPunto}
+            onEditar={editarDeLaLista} onMantener={onMantenerLejana} onRecalcular={onRecalcular} />
         </div>
       ) : null}
     </div>
