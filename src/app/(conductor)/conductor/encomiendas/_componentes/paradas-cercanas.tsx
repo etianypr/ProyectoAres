@@ -49,7 +49,7 @@ export function ParadasCercanas({
         <>
           {/* Tocar fuera de la lista la cierra. */}
           <button type="button" aria-label="Cerrar" onClick={() => setAbierta(false)} className="fixed inset-0 cursor-default" />
-          <ul className="absolute bottom-full right-0 mb-2 w-[calc(100vw-1.5rem)] max-w-sm divide-y divide-divider rounded-2xl bg-card px-1 shadow-md">
+          <ul className="absolute bottom-full right-0 mb-2 w-[calc(100vw-1.5rem)] max-w-sm divide-y divide-divider rounded-2xl bg-card px-1 shadow-float">
             {cercanas.map((c) => (
               <li key={c.pedido.id} className="flex items-center gap-1.5 py-1">
                 <button
@@ -61,7 +61,7 @@ export function ParadasCercanas({
                   <span
                     className={cn(
                       "flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full border border-brand px-1 text-xs font-semibold text-brand",
-                      c.secuencia != null && "font-mono",
+                      c.secuencia != null && "tabular-nums",
                     )}
                   >
                     {c.secuencia ?? "+"}
@@ -101,7 +101,7 @@ export function ParadasCercanas({
         type="button"
         onClick={() => setAbierta(!abierta)}
         aria-expanded={abierta}
-        className="relative flex h-11 items-center gap-1.5 rounded-full bg-card px-3.5 text-sm font-semibold shadow-md active:scale-[0.97]"
+        className="relative flex h-11 items-center gap-1.5 rounded-full bg-card px-3.5 text-sm font-semibold shadow-float active:scale-[0.97]"
       >
         <Radar className="h-4 w-4 text-brand" aria-hidden />
         {cercanas.length} cerca

@@ -67,7 +67,7 @@ export function TarjetaParada({
                   {faltan && faltan.metros > 0 ? formatDistancia(faltan.metros) : "Navegar"}
                 </button>
                 {faltan?.segundos != null && faltan.segundos > 0 ? (
-                  <span className="mt-0.5 text-[11px] tabular-nums text-muted">
+                  <span className="mt-0.5 text-xs tabular-nums text-muted">
                     {formatDuracion(faltan.segundos)}
                     {faltan.llegada != null ? ` · ${formatTime(new Date(faltan.llegada))}` : ""}
                   </span>

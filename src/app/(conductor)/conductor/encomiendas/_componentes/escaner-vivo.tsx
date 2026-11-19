@@ -19,10 +19,10 @@ import { sePuedeQuitarBulto } from "@/lib/encomiendas/local/almacen";
 import { useAtrasPropio } from "../_hooks/use-atras-propio";
 import { useEscanerVivo } from "../_hooks/use-escaner-vivo";
 import { AvisoOtraParada, tituloEsperado, type PaqueteEsperado } from "./aviso-otra-parada";
+import { BOTON_PRINCIPAL, BOTON_SECUNDARIO } from "./botones";
 
-const BOTON =
-  "flex h-12 w-full items-center justify-center gap-2 rounded-full bg-brand text-[15px] font-semibold text-brand-foreground transition-transform active:scale-[0.97]";
-const BOTON_SUAVE = "flex h-11 w-full items-center justify-center gap-2 rounded-full border border-separator bg-card text-sm font-semibold text-brand";
+// «Seguir» y «Buscar» sobre la cámara: el secundario, con la letra de marca.
+const BOTON_SUAVE = cn(BOTON_SECUNDARIO, "text-brand");
 
 function Dato({ valor, firme, vacio }: { valor: string | null; firme: boolean; vacio: string }) {
   return (
@@ -145,7 +145,7 @@ export function EscanerVivo({
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
               {estado.motivo}
             </p>
-            <button type="button" onClick={onClasico} className={BOTON}>
+            <button type="button" onClick={onClasico} className={BOTON_PRINCIPAL}>
               Usar escáner de Google
             </button>
           </div>
@@ -229,8 +229,8 @@ export function EscanerVivo({
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
               Este paquete no está en los pedidos de hoy.
             </p>
-            <p className="font-mono text-lg font-bold tabular-nums">OF {formatoOf(estado.of)}</p>
-            <button type="button" onClick={() => onAgregarPedido(estado.of)} className={BOTON}>
+            <p className="font-mono text-lg font-semibold tabular-nums">OF {formatoOf(estado.of)}</p>
+            <button type="button" onClick={() => onAgregarPedido(estado.of)} className={BOTON_PRINCIPAL}>
               <PackagePlus className="h-4 w-4" />
               Agregar como pedido
             </button>
@@ -246,7 +246,7 @@ export function EscanerVivo({
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
               La etiqueta dice &ldquo;{estado.direccion}&rdquo;, distinto de la guía.
             </p>
-            <button type="button" onClick={() => void usarDireccion()} className={BOTON}>
+            <button type="button" onClick={() => void usarDireccion()} className={BOTON_PRINCIPAL}>
               Usar dirección de la etiqueta
             </button>
             <button type="button" onClick={seguir} className={BOTON_SUAVE}>

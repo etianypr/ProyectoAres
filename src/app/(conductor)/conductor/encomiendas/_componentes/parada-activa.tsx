@@ -17,18 +17,7 @@ import { FranjaConfirmar } from "./franja-confirmar";
 import { tituloAvisoAdelante, type AvisoAdelante } from "../_hooks/aviso-adelante";
 import { lugarSupuesto } from "@/lib/encomiendas/problemas";
 
-// Botones de la hoja: a ancho completo y de 48 px. Es lo que el conductor aprieta
-// manejando, con el pulgar y sin mirar mucho.
-export const BOTON_PRINCIPAL =
-  "flex h-12 w-full items-center justify-center gap-2 rounded-full bg-brand text-[15px] font-semibold text-brand-foreground shadow-[0_1px_2px_var(--brand-shadow)] transition-transform active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50";
-// Los que van de a dos en una grilla. `min-w-0` no es decorativo: un elemento de
-// grilla tiene `min-width: auto`, así que el botón de texto más largo se
-// ensanchaba por encima de su columna y quedaba visiblemente más grande que el
-// de al lado, pisando el hueco. Con el mínimo en cero los dos miden exactamente
-// lo mismo, y sin `whitespace-nowrap` una etiqueta larga parte en dos renglones
-// en vez de desbordar la píldora.
-const BOTON_RESULTADO =
-  "flex h-12 min-w-0 items-center justify-center gap-1.5 rounded-full px-2.5 text-center text-sm font-semibold leading-tight transition-transform active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50";
+import { BOTON_PRINCIPAL, BOTON_RESULTADO } from "./botones";
 
 /** El renglón de estado del receptor, debajo de la dirección. */
 const LINEA_ESTADO = "mt-0.5 flex items-center gap-1 text-xs font-medium";
@@ -107,7 +96,7 @@ export function ParadaActiva({
         <div className="flex items-center gap-2 rounded-xl bg-warn-bg py-1.5 pl-3 pr-1.5 text-warn">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           <div className="min-w-0 flex-1 text-xs">
-            <p className="truncate text-[13px] font-semibold">{tituloAvisoAdelante(adelante)}</p>
+            <p className="truncate text-sm font-semibold">{tituloAvisoAdelante(adelante)}</p>
             <p className="truncate">{lugarSupuesto(adelante.parada.pedido) ?? adelante.problema.texto}</p>
           </div>
           {/* Spec 035: con la calle en duda, cambiar el lugar sin buscar el pedido (abre su ⚠). */}
@@ -256,7 +245,7 @@ function BotonSalida({ boton, guardando, onBoton }: { boton: BotonParada; guarda
         <X className="h-4 w-4 shrink-0 text-danger" />
       )}
       <span className="min-w-0 flex-1">{boton.texto}</span>
-      <span className="shrink-0 text-[11px] font-medium text-muted">{boton.detalle}</span>
+      <span className="shrink-0 text-xs font-medium text-muted">{boton.detalle}</span>
     </button>
   );
 }

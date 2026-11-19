@@ -68,7 +68,7 @@ export function VistaFinGuia({
           <Loader2 className="h-4 w-4 animate-spin text-brand" />
           {corrigiendo ? "Corrigiendo con IA" : "Ubicando direcciones"}
         </p>
-        <p className="font-mono text-4xl font-semibold tabular-nums">
+        <p className="text-4xl font-bold tabular-nums">
           {paso.hechos}
           <span className="text-xl text-muted"> de {paso.total}</span>
         </p>
@@ -104,7 +104,7 @@ export function VistaFinGuia({
       <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[15px] font-bold">
         <span className="flex items-baseline gap-1.5">
           {pendientes === 0 && creados > 0 ? <Check aria-label="todos ubicados" className="h-4 w-4 self-center text-ok" /> : null}
-          <span className="font-mono text-xl font-semibold tabular-nums">{creados}</span>
+          <span className="text-xl font-bold tabular-nums">{creados}</span>
           {creados === 1 ? "pedido" : "pedidos"}
         </span>
         {pendientes > 0 ? (
@@ -113,14 +113,14 @@ export function VistaFinGuia({
               ·
             </span>
             <AlertTriangle className="h-4 w-4 self-center" />
-            <span className="font-mono text-xl font-semibold tabular-nums">{pendientes}</span>
+            <span className="text-xl font-bold tabular-nums">{pendientes}</span>
             por confirmar
           </span>
         ) : null}
       </p>
       {paso.yaEstaban > 0 ? (
         <p className="text-xs text-muted">
-          <span className="font-mono">{paso.yaEstaban}</span> {paso.yaEstaban === 1 ? "ya estaba cargado" : "ya estaban cargados"}
+          <span className="tabular-nums">{paso.yaEstaban}</span> {paso.yaEstaban === 1 ? "ya estaba cargado" : "ya estaban cargados"}
         </p>
       ) : null}
 

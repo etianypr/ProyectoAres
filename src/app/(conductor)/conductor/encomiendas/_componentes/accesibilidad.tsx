@@ -43,7 +43,7 @@ function Interruptor({
           activado ? "border-brand bg-brand" : "border-separator bg-background",
         )}
       >
-        <span className={cn("h-6 w-6 rounded-full bg-white shadow-md transition-transform duration-150", activado && "translate-x-[22px]")} />
+        <span className={cn("h-6 w-6 rounded-full bg-card shadow-float transition-transform duration-150", activado && "translate-x-[22px]")} />
       </span>
     </button>
   );

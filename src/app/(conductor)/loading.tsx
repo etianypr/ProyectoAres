@@ -27,7 +27,7 @@ export default function CargandoConductor() {
 
         {/* El carril de arriba: el botón del menú y el cartel. */}
         <div className="absolute inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] flex items-center gap-2">
-          <div className="h-10 w-10 shrink-0 animate-pulse rounded-full bg-card shadow-md" />
+          <div className="h-11 w-11 shrink-0 animate-pulse rounded-full bg-card shadow-float" />
           <div className="h-12 flex-1 animate-pulse rounded-2xl bg-card shadow-card" />
         </div>
 

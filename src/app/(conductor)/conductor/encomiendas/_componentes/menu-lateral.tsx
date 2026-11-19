@@ -36,6 +36,7 @@ import { formatCLP, formatDateLong } from "@/lib/comun/format";
 import type { ResumenDia } from "@/lib/encomiendas/local/almacen";
 import { lineaDelDia } from "@/lib/encomiendas/local/dias-del-menu";
 import { ConfirmarSalida, useCerrarSesion } from "../../../cerrar-sesion";
+import { BOTON_REDONDO } from "./botones";
 
 /** El botón que lo abre. Vive acá, junto al panel, para que no haya dos lugares
  *  que decidir cómo se ve el menú. */
@@ -45,9 +46,9 @@ export function BotonMenu({ onAbrir }: { onAbrir: () => void }) {
       type="button"
       onClick={onAbrir}
       aria-label="Abrir menú"
-      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-card shadow-md active:bg-background"
+      className={cn(BOTON_REDONDO, "active:bg-background")}
     >
-      <Menu className="h-4 w-4" />
+      <Menu className="h-5 w-5" />
     </button>
   );
 }

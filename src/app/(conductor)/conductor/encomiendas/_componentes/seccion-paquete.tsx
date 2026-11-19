@@ -113,7 +113,7 @@ export function SeccionPaquete({ form, fotoGuardadaId, deshabilitado }: { form: 
               placeholder="12.345"
               value={cobro.monto}
               onChange={(e) => setCobro({ ...cobro, monto: e.target.value })}
-              className="font-mono tabular-nums"
+              className="tabular-nums"
             />
           ) : null}
           <div className="flex items-center gap-2">
@@ -127,7 +127,7 @@ export function SeccionPaquete({ form, fotoGuardadaId, deshabilitado }: { form: 
             >
               <Minus className="h-4 w-4" />
             </button>
-            <span className="w-8 text-center font-mono text-base font-semibold tabular-nums">{bultos ?? 1}</span>
+            <span className="w-8 text-center text-base font-bold tabular-nums">{bultos ?? 1}</span>
             <button
               type="button"
               aria-label="Un bulto más"

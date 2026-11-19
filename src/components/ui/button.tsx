@@ -7,9 +7,9 @@ type Size = "sm" | "md" | "lg" | "icon";
 const variantClasses: Record<Variant, string> = {
   primary:
     "bg-brand text-brand-foreground shadow-[0_1px_2px_var(--brand-shadow)] hover:bg-brand-dark hover:shadow-[0_4px_14px_var(--brand-shadow-alta)]",
-  secondary: "bg-[#ececef] text-foreground hover:bg-[#e2e2e6]",
+  secondary: "bg-surface text-foreground hover:bg-surface-hover",
   outline:
-    "border border-separator bg-white text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:border-[#b6b6bd] hover:bg-background",
+    "border border-separator bg-card text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:border-border-strong hover:bg-background",
   ghost: "text-brand hover:bg-brand-soft",
   danger:
     "bg-danger text-white shadow-[0_1px_2px_rgba(192,54,44,0.3)] hover:bg-[#a32a21] hover:shadow-[0_4px_14px_rgba(192,54,44,0.28)]",

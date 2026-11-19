@@ -45,11 +45,8 @@ import { useSegundoToque } from "../_hooks/use-segundo-toque";
 import { CifrasRuta } from "./cifras-ruta";
 import { ListaPropuesta } from "./lista-propuesta";
 import { FranjaPendientes, pendientesDeCorregir } from "./franja-pendientes";
+import { BOTON_PRINCIPAL } from "./botones";
 
-// Mismas medidas que los botones de la tarjeta de la parada activa (ver
-// parada-activa.tsx): 48 px de alto, para el pulgar y sin mirar mucho.
-const BOTON_PRINCIPAL =
-  "flex h-12 items-center justify-center gap-2 rounded-full bg-brand text-[15px] font-semibold text-brand-foreground shadow-[0_1px_2px_var(--brand-shadow)] transition-transform active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50";
 
 function Advertencia({ icono, children }: { icono: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -256,7 +253,7 @@ export function VistaPreviaRuta({
                         <span className="shrink-0 text-xs text-muted">calculando…</span>
                       ) : null}
                     </span>
-                    <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted">
+                    <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted">
                       <span>{a.paradas.length === 1 ? "1 parada" : `${a.paradas.length} paradas`}</span>
                       {a.confirmados > 0 ? (
                         <span className="flex items-center gap-0.5 text-ok">
@@ -287,7 +284,7 @@ export function VistaPreviaRuta({
               );
             })}
           </div>
-          <p className="mt-1 px-1 text-[11px] text-muted">{actual.motivo}</p>
+          <p className="mt-1 px-1 text-xs text-muted">{actual.motivo}</p>
         </div>
       ) : null}
 

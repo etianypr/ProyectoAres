@@ -73,7 +73,7 @@ export function ResolverDireccion({
                       </span>
                     </span>
                     {s.soloCalle ? (
-                      <span className="mt-0.5 shrink-0 rounded-full bg-warn-bg px-1.5 py-0.5 text-[10px] font-semibold text-warn">
+                      <span className="mt-0.5 shrink-0 rounded-full bg-warn-bg px-1.5 py-0.5 text-xs font-semibold text-warn">
                         sin número
                       </span>
                     ) : null}

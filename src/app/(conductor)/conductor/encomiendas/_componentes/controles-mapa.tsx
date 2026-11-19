@@ -6,6 +6,8 @@
 
 import type { ReactNode } from "react";
 import { LocateFixed } from "lucide-react";
+import { cn } from "@/lib/comun/utils";
+import { BOTON_REDONDO } from "./botones";
 
 export function ControlesMapa({
   abajo,
@@ -26,12 +28,15 @@ export function ControlesMapa({
   return (
     <div className="absolute right-3 z-10 flex items-center gap-2" style={{ bottom: abajo }}>
       {alLado}
+      {/* Siguiendo: fondo y anillo de marca, no solo el color del ícono (spec 041). */}
       <button
+        type="button"
         onClick={onCentrar}
-        className="flex h-11 w-11 items-center justify-center rounded-full bg-card shadow-md"
+        className={cn(BOTON_REDONDO, siguiendo ? "bg-brand-soft text-brand ring-2 ring-brand ring-inset" : "text-muted")}
         aria-label="Centrar y seguir mi ubicación"
+        aria-pressed={siguiendo}
       >
-        <LocateFixed className={`h-5 w-5 ${siguiendo ? "text-brand" : "text-muted"}`} />
+        <LocateFixed className="h-5 w-5" />
       </button>
     </div>
   );

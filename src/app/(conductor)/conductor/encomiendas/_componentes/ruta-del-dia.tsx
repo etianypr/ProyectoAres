@@ -84,8 +84,9 @@ export const RutaDelDia = memo(function RutaDelDia({
                   >
                     <span
                       className={cn(
-                        "w-5 shrink-0 text-center text-xs font-semibold tabular-nums",
-                        esActiva ? "text-brand" : "text-muted",
+                        "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold tabular-nums",
+                        // La activa, con su círculo lleno: no solo el color (spec 041).
+                        esActiva ? "bg-brand font-bold text-brand-foreground" : "text-muted",
                       )}
                     >
                       {p.secuencia}
@@ -105,7 +106,7 @@ export const RutaDelDia = memo(function RutaDelDia({
                       {/* El ⚠ de la parada, en palabras (spec 027). */}
                       {editable
                         ? etiquetasDelPedido(p.pedido).map((x) => (
-                            <span key={x.tipo} className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-warn">
+                            <span key={x.tipo} className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-warn">
                               <AlertTriangle className="h-3 w-3 shrink-0" />
                               {x.texto}
                             </span>
@@ -117,7 +118,7 @@ export const RutaDelDia = memo(function RutaDelDia({
                         quién llamar. Cada estado con icono, no solo color. */}
                     {p.pedido.resultado === "pendiente" ? (
                       p.pedido.bloqueHorarioId ? (
-                        <span className="flex shrink-0 items-center gap-0.5 text-[10px] font-semibold tabular-nums text-brand">
+                        <span className="flex shrink-0 items-center gap-0.5 text-xs font-semibold tabular-nums text-brand">
                           <Clock className="h-3 w-3" />
                           {bloquePorId(p.pedido.bloqueHorarioId)?.desde ?? ""}
                         </span>
@@ -155,7 +156,7 @@ export const RutaDelDia = memo(function RutaDelDia({
   return (
     <Seccion titulo="Ruta del día">
           <div className="mb-2.5 flex items-center gap-3">
-            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#ececef]">
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-divider">
               <div
                 className="h-full rounded-full bg-ok transition-[width] duration-500"
                 style={{ width: `${porcentaje}%` }}

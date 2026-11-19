@@ -33,7 +33,7 @@ export function CampoTelefono({ valor, onCambiar }: { valor: string; onCambiar: 
         tono={conAviso ? "aviso" : "normal"}
         fin={numero && !conAviso ? <Check aria-label="válido" className="h-4 w-4 text-ok" /> : null}
         cajaClassName="min-w-0 flex-1"
-        className="font-mono tabular-nums"
+        className="tabular-nums"
       />
       {numero ? (
         <button

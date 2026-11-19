@@ -107,7 +107,7 @@ export function FranjaPendientes({
           {primera.direccion || "Sin dirección"}
         </span>
       </p>
-      <p className="mt-0.5 truncate pl-[22px] text-[11px]">{primera.motivo}</p>
+      <p className="mt-0.5 truncate pl-[22px] text-xs">{primera.motivo}</p>
       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
         <button type="button" onClick={() => onEditar(primera.pedidoId)} disabled={bloqueada} className={cn(BOTON, "bg-warn text-white")}>
           <Pencil className="h-3.5 w-3.5" />

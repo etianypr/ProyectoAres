@@ -19,6 +19,7 @@ import { esApp } from "@/lib/nativo/entorno";
 import { escanearConMotivo, type LecturaEscaner } from "@/lib/nativo/escaner";
 import { Resultado } from "./resultado-escaneo";
 import { AvisoOtraParada, tituloEsperado, type PaqueteEsperado } from "./aviso-otra-parada";
+import { BOTON_PRINCIPAL } from "./botones";
 
 /** Por qué se cayó a escribir la OF (spec 033, clasico-silencio). Si lo cerró
  *  él, no hay nada que decir. */
@@ -35,9 +36,6 @@ type Fase =
   | { tipo: "escribir"; error: string | null }
   | { tipo: "resultado"; r: ResultadoEscaneo; codigo: CodigoEtiqueta }
   | { tipo: "noEsta"; of: string };
-
-const BOTON =
-  "flex h-12 w-full items-center justify-center gap-2 rounded-full bg-brand text-[15px] font-semibold text-brand-foreground transition-transform active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50";
 
 export function EscanearEtiqueta({
   fecha,
@@ -214,7 +212,7 @@ export function EscanearEtiqueta({
       </div>
 
       <div className="border-t border-divider px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
-        <button type="button" onClick={() => void escanear()} disabled={fase.tipo === "escaneando"} className={BOTON}>
+        <button type="button" onClick={() => void escanear()} disabled={fase.tipo === "escaneando"} className={BOTON_PRINCIPAL}>
           <ScanLine className="h-4 w-4" />
           {fase.tipo === "resultado" || fase.tipo === "noEsta"
             ? avance.total > 0 && avance.escaneados >= avance.total

@@ -10,7 +10,7 @@ const Label = React.forwardRef<
     className={cn(
       // Dentro de un <Field>, la etiqueta se tiñe de marca cuando su campo
       // toma el foco (group/field). Fuera de Field, el modificador no aplica.
-      "mb-1.5 block text-xs font-semibold tracking-[0.01em] text-[#48484d] transition-colors duration-150 group-focus-within/field:text-brand",
+      "mb-1.5 block text-xs font-semibold tracking-[0.01em] text-label transition-colors duration-150 group-focus-within/field:text-brand",
       className,
     )}
     {...props}

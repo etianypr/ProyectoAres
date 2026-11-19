@@ -24,7 +24,7 @@ const SECCIONES: { titulo: string; pasos: string[] }[] = [
     pasos: [
       "«N por resolver» abre el primero; al guardarlo, pasa al siguiente. También se puede tocar el pedido en la lista.",
       "«Corregir dirección con IA»: las propuestas quedan guardadas aunque se cierre la app; confirma cada una revisando el mapa; si no corresponde, toca la dirección, elige otra de la lista y «Confirmar». El botón del teléfono abre el campo del teléfono y, con un número válido, «Llamar» (también en las líneas con ⚠ de la guía).",
-      "Si no se resuelve: «Optimizar ruta» → «Optimizar ahora». Después, «Resolver los ⚠» sigue disponible dentro de la hoja.",
+      "Si no se resuelve: «Optimizar ruta» → «Optimizar ahora». Después, «Resolver advertencias» sigue disponible dentro de la hoja.",
       "Arriba del pedido va «⚠ N por resolver»: tocarlo abre sus ⚠. Una calle en varios lugares se elige entre sus opciones; «Mantener en ruta» (lejana, horario) y «Confirmar» (no figura en la guía) lo dan por revisado.",
       "Una calle en varios lugares («Pasaje 1»): si la guía nombra la población o una calle que la cruza, se ubica sola; si no, cada opción muestra su mapa, población, sector y las calles que la cruzan, solo las de la zona de la ruta (la que coincide con la guía va primero): «Elegir». Dos paradas antes, «Cambiar lugar» abre las opciones.",
       "Resolviendo: «Siguiente» pasa al próximo ⚠ sin guardar; con un teléfono ingresado, «Llamar». Del pedido solo la dirección (*) es obligatoria; el destinatario y el teléfono son opcionales.",

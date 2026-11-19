@@ -86,7 +86,7 @@ export function PilaNotificaciones({
           key={aviso.id}
           role="status"
           className={cn(
-            "animate-slide-down flex items-center gap-3 rounded-2xl px-4 py-3 text-white shadow-lg",
+            "animate-slide-down flex items-center gap-3 rounded-2xl px-4 py-3 text-white shadow-float",
             aviso.tono === "error" ? "bg-danger" : "bg-foreground",
             !aviso.accion && !aviso.cerrar && "pointer-events-none",
           )}

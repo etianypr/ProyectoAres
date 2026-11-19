@@ -17,7 +17,7 @@
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { Flashlight, FlashlightOff, Loader2, X } from "lucide-react";
+import { AlertTriangle, Check, Circle, Flashlight, FlashlightOff, Loader2, X } from "lucide-react";
 import type { LineaNomina } from "@/lib/encomiendas/lectura/barrido-nomina";
 import { formatoOf } from "@/lib/encomiendas/paquete";
 import { cn } from "@/lib/comun/utils";
@@ -61,7 +61,10 @@ export function FaltanBarrido({ faltan }: { faltan: string[] }) {
   if (faltan.length === 0) return null;
   return (
     <>
-      <p className="text-xs font-semibold text-amber-200">⚠ Falta confirmar {faltan.length}</p>
+      <p className="flex items-center gap-1 text-xs font-semibold text-warn-bg">
+        <AlertTriangle aria-hidden className="h-3.5 w-3.5 shrink-0" />
+        Falta confirmar {faltan.length}
+      </p>
       <p className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 font-mono text-xs tabular-nums">
         {faltan.slice(0, FALTAN_A_LA_VISTA).map((of) => (
           <span key={of}>{formatoOf(of)}</span>
@@ -90,25 +93,29 @@ export function ResumenBarrido({ vista, sobreCamara = false }: { vista: VistaBar
     </>
   );
   const estado = (
-    <>
-      {vista.estado === "leyendo" ? "● " : "⚠ "}
+    <span className="inline-flex items-center gap-1">
+      {vista.estado === "leyendo" ? (
+        <Circle aria-hidden className="h-2.5 w-2.5 shrink-0 fill-current" />
+      ) : (
+        <AlertTriangle aria-hidden className="h-3.5 w-3.5 shrink-0" />
+      )}
       {ESTADOS[vista.estado]}
-    </>
+    </span>
   );
   if (sobreCamara) {
     return (
       <>
-        <p className={cn("text-xs font-semibold", vista.estado !== "leyendo" && "text-amber-200")}>{estado}</p>
+        <p className={cn("text-xs font-semibold", vista.estado !== "leyendo" && "text-warn-bg")}>{estado}</p>
         <p className="text-xs">
-          {completa ? <span className="mr-1 text-base font-bold">✓</span> : null}
-          <span className="mr-1.5 font-mono text-xl font-bold tabular-nums">{vista.bultos}</span>
+          {completa ? <Check aria-label="Completa" strokeWidth={3} className="mr-1 inline h-4 w-4 align-[-2px]" /> : null}
+          <span className="mr-1.5 text-xl font-bold tabular-nums">{vista.bultos}</span>
           {conteos}
         </p>
         <p className="truncate text-xs">
           Última OF confirmada:{" "}
           {vista.ultima ? (
             <>
-              <span className="font-mono font-bold tabular-nums">{formatoOf(vista.ultima.of)}</span> · {vista.ultima.destino ?? "sin dirección"}
+              <span className="font-mono font-semibold tabular-nums">{formatoOf(vista.ultima.of)}</span> · {vista.ultima.destino ?? "sin dirección"}
             </>
           ) : (
             "ninguna aún"
@@ -121,15 +128,15 @@ export function ResumenBarrido({ vista, sobreCamara = false }: { vista: VistaBar
     <>
       <p className={vista.estado === "leyendo" ? "text-sm font-semibold" : "text-sm font-semibold text-warn"}>{estado}</p>
       <p>
-        {completa ? <span className="mr-1.5 text-2xl font-bold">✓</span> : null}
-        <span className="font-mono text-3xl font-bold tabular-nums">{vista.bultos}</span>
+        {completa ? <Check aria-label="Completa" strokeWidth={3} className="mr-1.5 inline h-6 w-6 align-[-3px] text-ok" /> : null}
+        <span className="text-3xl font-bold tabular-nums">{vista.bultos}</span>
         <span className="ml-2 text-sm text-muted">{conteos}</span>
       </p>
       <div className="rounded-xl border border-separator px-3 py-2">
         <p className="text-xs text-muted">Última OF confirmada</p>
         {vista.ultima ? (
           <>
-            <p className="font-mono text-xl font-bold tabular-nums">{formatoOf(vista.ultima.of)}</p>
+            <p className="font-mono text-xl font-semibold tabular-nums">{formatoOf(vista.ultima.of)}</p>
             <p className="text-sm">{vista.ultima.destino ?? "sin dirección"}</p>
           </>
         ) : (

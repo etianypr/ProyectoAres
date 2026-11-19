@@ -10,7 +10,7 @@
 import { ScanLine, Truck } from "lucide-react";
 import type { CargaAuto } from "../_hooks/use-carga-auto";
 import { useSegundoToque } from "../_hooks/use-segundo-toque";
-import { BOTON_PRINCIPAL } from "./parada-activa";
+import { BOTON_PRINCIPAL } from "./botones";
 
 export function CabeceraCarga({
   carga,
@@ -30,12 +30,12 @@ export function CabeceraCarga({
     <div className="space-y-2.5">
       <div className="space-y-2">
         <p className="flex items-baseline gap-2">
-          <span className="font-mono text-[30px] font-semibold leading-none tracking-tight tabular-nums">{escaneados}</span>
+          <span className="text-3xl font-bold leading-none tracking-tight tabular-nums">{escaneados}</span>
           <span className="text-sm text-muted">
             de {total} {total === 1 ? "paquete escaneado" : "paquetes escaneados"}
           </span>
         </p>
-        <div className="h-1.5 overflow-hidden rounded-full bg-[#ececef]">
+        <div className="h-1.5 overflow-hidden rounded-full bg-divider">
           <div
             className="h-full rounded-full bg-ok transition-[width] duration-500"
             style={{ width: `${total > 0 ? (escaneados / total) * 100 : 0}%` }}

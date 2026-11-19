@@ -26,6 +26,16 @@
   /* 5.45:1 sobre --background */
   --muted: #6b5f57;
 
+  /* Los grises de los controles, cálidos (spec 041): sin esto el botón
+     secundario, el chip y las sombras salían en el gris azulado del panel. */
+  --surface: #ebe3dc;
+  --surface-hover: #e1d7ce;
+  /* 4.9:1 sobre --surface */
+  --surface-ink: #6b5f57;
+  --border-strong: #bfb1a5;
+  --label: #4a3f38;
+  --shadow-ink: 34 26 21;
+
   /* 4.87:1 con texto blanco; 4.51:1 como texto sobre --brand-soft. */
   --brand: #c4491a;
   --brand-dark: #9e3912;

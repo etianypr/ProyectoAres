@@ -57,7 +57,7 @@ export function CajaCampo({
         <label
           htmlFor={htmlFor}
           className={cn(
-            "block cursor-text truncate text-[11px] font-semibold leading-[14px] tracking-[0.02em] transition-colors duration-150",
+            "block cursor-text truncate text-xs font-semibold leading-4 tracking-[0.02em] transition-colors duration-150",
             tono === "aviso" ? "text-warn" : "text-muted group-focus-within/campo:text-brand",
           )}
         >

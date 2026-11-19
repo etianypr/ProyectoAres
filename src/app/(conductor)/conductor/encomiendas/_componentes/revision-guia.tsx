@@ -69,7 +69,7 @@ export function RevisionGuia({
           <div className="flex items-center justify-between">
             <span className="inline-flex items-center gap-1 rounded-full bg-warn-bg px-2.5 py-1 text-xs font-bold text-warn">
               <AlertTriangle className="h-3.5 w-3.5" />
-              <span className="font-mono">
+              <span className="tabular-nums">
                 {cola.indexOf(mostrada) + 1} de {cola.length}
               </span>
             </span>
@@ -117,7 +117,7 @@ export function RevisionGuia({
               className="flex items-center gap-1 rounded-full bg-warn-bg px-2.5 py-1 text-xs font-bold text-warn active:opacity-70"
             >
               <AlertTriangle className="h-3.5 w-3.5" />
-              <span className="font-mono">{problemas}</span> por revisar
+              <span className="tabular-nums">{problemas}</span> por revisar
               <ChevronRight className="h-3.5 w-3.5" />
             </button>
           ) : null}

@@ -23,6 +23,7 @@ import { usarDireccionDeEtiqueta } from "@/lib/encomiendas/local/direccion-etiqu
 import { esApp } from "@/lib/nativo/entorno";
 import { comprimirFoto } from "@/lib/encomiendas/local/foto";
 import { CamposPaquete, paqueteDe, type EstadoPaquete } from "./campos-paquete";
+import { BOTON_PRINCIPAL } from "./botones";
 
 /** Lo que se leyó y lo que falta completar del pedido escaneado. */
 export function Resultado({
@@ -240,7 +241,7 @@ export function Resultado({
           type="button"
           disabled={leyendo}
           onClick={() => entradaFoto.current?.click()}
-          className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-brand text-[15px] font-semibold text-brand-foreground disabled:opacity-60"
+          className={BOTON_PRINCIPAL}
         >
           {leyendo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
           {leyendo ? "Leyendo etiqueta…" : "Foto de la etiqueta"}
