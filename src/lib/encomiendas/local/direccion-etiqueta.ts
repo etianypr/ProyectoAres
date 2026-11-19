@@ -15,7 +15,7 @@ export async function usarDireccionDeEtiqueta(
 ): Promise<"ubicada" | "en_duda" | "sin_ubicar"> {
   const r = await ubicarDireccion(direccion);
   const provisorio = r.elegida ? null : lugarProvisorio(r);
-  await cambiarDireccion(pedidoId, direccion, r.elegida ?? provisorio?.punto ?? null);
+  await cambiarDireccion(pedidoId, direccion, r.elegida ?? provisorio?.punto ?? null, null, r.elegida != null && r.tipo !== "exacta");
   if (provisorio) await ubicarConDuda([{ id: pedidoId, ...provisorio }]);
   return r.elegida ? "ubicada" : provisorio ? "en_duda" : "sin_ubicar";
 }

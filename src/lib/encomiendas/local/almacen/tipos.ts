@@ -85,6 +85,11 @@ export type Pedido = {
    *  veces; dueño, 2026-11-13). Vale solo mientras `direccion` siga siendo
    *  `original`; cambiar la dirección la quita. Los pedidos de antes no la tienen. */
   propuestaIA?: PropuestaIAGuardada;
+  /** El punto es la cuadra o la calle, no la puerta: en pantalla, «Aproximada» (spec 040). Sin el
+   *  campo, el punto es la puerta o lo eligió el conductor. Lo escriben la carga, el reintento al
+   *  optimizar, la corrección de la IA confirmada y la dirección de la etiqueta; cambiar la dirección
+   *  lo borra. Los pedidos de antes no lo tienen (sin subir la versión de IndexedDB). */
+  aproximada?: true;
 };
 
 /** Lo que contestó la IA para un pedido sin ubicar (corregir-direcciones.ts). */

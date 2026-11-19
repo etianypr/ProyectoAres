@@ -58,10 +58,11 @@ export const PROBLEMAS_DE_LUGAR: ReadonlySet<ProblemaGuardado["tipo"]> = new Set
 
 function textoGuardado(p: ProblemaGuardado): string {
   switch (p.tipo) {
+    // Spec 040: en las listas, tres estados (Ubicada, Aproximada, Sin ubicar). El detalle («está en
+    // 3 lugares», «sin número») se ve al abrir el pedido para elegir (opciones-lugar.tsx).
     case "calle_repetida":
-      return `Calle en ${p.opciones.length} lugares`;
     case "solo_calle":
-      return "Sin número: va a mitad de cuadra";
+      return APROXIMADA;
     case "lejana":
     case "horario":
       return p.texto;
@@ -89,6 +90,37 @@ export function problemasDelPedido(p: {
   // Sin OF no es algo que resolver (dueño, 2026-11-16): la OF es solo el id del paquete; la
   // parada vale por su dirección. Se completa al escanear la etiqueta.
   return problemas;
+}
+
+/** Lo que ve el conductor de una dirección (spec 040, dueño: «muchos tipos confunde»). */
+const APROXIMADA = "Aproximada";
+
+export type EstadoUbicacion = "ubicada" | "aproximada" | "sin_ubicar";
+
+/** Tres estados: sin punto → sin ubicar; con un ⚠ de lugar (calle repetida, solo la calle) o con el
+ *  punto en la cuadra (`aproximada`) → aproximada; lo demás → ubicada. Pura. */
+export function estadoUbicacion(p: {
+  lat: number | null;
+  lng: number | null;
+  aproximada?: true;
+  problemas?: ProblemaGuardado[];
+}): EstadoUbicacion {
+  if (p.lat == null || p.lng == null) return "sin_ubicar";
+  const deLugar = (p.problemas ?? []).some((x) => x.tipo === "calle_repetida" || x.tipo === "solo_calle");
+  return deLugar || p.aproximada === true ? "aproximada" : "ubicada";
+}
+
+/** Una etiqueta de las listas: los ⚠ del pedido y, si el punto es la cuadra sin un ⚠, «Aproximada». */
+export type EtiquetaPedido = { tipo: TipoProblema | "aproximada"; texto: string };
+
+/** Lo que muestran la fila, la tarjeta de la parada y la ruta (spec 040). La cuadra se ve
+ *  «Aproximada», pero no es un ⚠: no entra a «Por resolver» ni pide nada (no hay qué elegir); de eso
+ *  sigue encargándose problemasDelPedido. Pura. */
+export function etiquetasDelPedido(p: Parameters<typeof problemasDelPedido>[0] & { aproximada?: true }): EtiquetaPedido[] {
+  const etiquetas: EtiquetaPedido[] = problemasDelPedido(p).map(({ tipo, texto }) => ({ tipo, texto }));
+  const yaDice = etiquetas.some((e) => e.texto === APROXIMADA);
+  if (!yaDice && estadoUbicacion(p) === "aproximada") etiquetas.unshift({ tipo: "aproximada", texto: APROXIMADA });
+  return etiquetas;
 }
 
 /** Spec 035, para el aviso dos paradas antes: «Va a Pob. Linderos · Sur; hay 3 lugares más».

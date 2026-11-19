@@ -5,10 +5,9 @@
 
 import { cronometrar } from "@/lib/comun/cronometro";
 import type { ResultadoUbicacion } from "@/lib/geo/geocoding";
-import type { ResultadoIA } from "@/lib/geo/direccion-ia/contrato";
 import type { LineaParaCrear, OrigenCarga } from "./almacen";
 import { crearDesdeGuia, leerPedidos } from "./almacen";
-import { corregirDirecciones, type PropuestaCorreccion, type ResumenCorreccion } from "./corregir-direcciones";
+import { corregirDirecciones, type Corregir, type PropuestaCorreccion, type ResumenCorreccion } from "./corregir-direcciones";
 import { hayRed, ubicarCarga } from "./ubicar-carga";
 
 /** Qué pasó con la IA: apagada (sin clave o sin «Corregir con IA»), sin señal,
@@ -56,7 +55,8 @@ export async function cargarLineasGuia(
     alCrear?: () => void;
     /** Para las pruebas: los buscadores y la IA. */
     ubicar?: (direccion: string, senal?: AbortSignal) => Promise<ResultadoUbicacion>;
-    corregir?: (direccion: string) => Promise<ResultadoIA>;
+    /** La IA en lote (spec 040): un resultado por dirección, en orden. */
+    corregir?: Corregir;
     enLinea?: () => boolean;
   },
 ): Promise<ResumenCarga> {

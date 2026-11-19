@@ -26,6 +26,8 @@ export function guardarPedido(
   return enFila(async () => {
     const anterior = id ? await leerPedido(id) : null;
 
+    // Un punto que el conductor cambió en el formulario ya no es «aproximado» (spec 040).
+    const mismoPunto = anterior != null && anterior.direccion === datos.direccion && anterior.lat === datos.lat && anterior.lng === datos.lng;
     const pedido: Pedido = {
       ...datos,
       id: anterior?.id ?? id ?? uuidv7(),
@@ -62,8 +64,10 @@ export function guardarPedido(
         : (nuevo?.problemas ?? []),
     };
 
-    await escribir([STORES.pedidos], ({ guardar }) => guardar(STORES.pedidos, pedido));
-    return pedido;
+    // La marca la decide el almacén, no lo que venga en `datos`.
+    const guardado = conAproximada(pedido, mismoPunto && anterior.aproximada === true);
+    await escribir([STORES.pedidos], ({ guardar }) => guardar(STORES.pedidos, guardado));
+    return guardado;
   });
 }
 
@@ -72,7 +76,9 @@ export function guardarPedido(
  *  ../generar-ruta.ts). Los que ya no existan se ignoran en silencio — el conductor
  *  pudo borrarlos mientras corría la geocodificación. */
 export function fijarCoordenadas(
-  coordenadas: { id: string; lat: number; lng: number }[],
+  /** `aproximada` (spec 040): true marca el punto como la cuadra o la calle; false lo quita; sin el
+   *  campo se conserva lo que tenía (mover el punto a la calle de acceso no cambia su precisión). */
+  coordenadas: { id: string; lat: number; lng: number; aproximada?: boolean }[],
 ): Promise<void> {
   if (coordenadas.length === 0) return Promise.resolve();
   return enFila(async () => {
@@ -81,10 +87,18 @@ export function fijarCoordenadas(
     await escribir([STORES.pedidos], ({ guardar }) => {
       actuales.forEach((pedido, i) => {
         if (!pedido) return;
-        guardar(STORES.pedidos, { ...pedido, lat: coordenadas[i].lat, lng: coordenadas[i].lng });
+        const { lat, lng, aproximada } = coordenadas[i];
+        guardar(STORES.pedidos, conAproximada({ ...pedido, lat, lng }, aproximada ?? pedido.aproximada === true));
       });
     });
   });
+}
+
+/** El pedido con `aproximada` puesto o quitado (spec 040): el campo existe solo cuando es true. */
+function conAproximada(p: Pedido, aproximada: boolean): Pedido {
+  const { aproximada: _antes, ...resto } = p;
+  void _antes;
+  return aproximada ? { ...resto, aproximada: true } : resto;
 }
 
 /** Cambia la dirección de un pedido y su punto (spec 005: la etiqueta dice otra
@@ -97,13 +111,15 @@ export function cambiarDireccion(
   punto: { lat: number; lng: number } | null,
   /** Se suma a las notas del pedido (por ejemplo, qué decía antes de corregirla). */
   nota: string | null = null,
+  /** El punto nuevo es la cuadra o la calle, no la puerta (spec 040). */
+  aproximada = false,
 ): Promise<Pedido | null> {
   return enFila(async () => {
     const pedido = await leerPedido(id);
     if (!pedido) return null;
     const notas = nota ? (pedido.notas ? `${pedido.notas} · ${nota}` : nota) : pedido.notas;
     const cambiado: Pedido = {
-      ...pedido,
+      ...conAproximada(pedido, aproximada && punto != null),
       direccion,
       notas,
       lat: punto?.lat ?? null,

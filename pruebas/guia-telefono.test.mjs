@@ -87,20 +87,24 @@ test("aplicarCorreccion: el teléfono anotado en la tarjeta de la IA queda en el
   const vistas = [];
   const r = await corregirSinUbicar(HOY, {
     enLinea: () => true,
-    corregir: async (...args) => {
-      vistas.push(args);
-      return {
+    corregir: async (direcciones, contexto) => {
+      vistas.push({ direcciones, zona: contexto.zona });
+      return direcciones.map(() => ({
         tipo: "propuesta",
         direccion: "Pasaje Inventado 401, Arica",
         motivo: "m",
         candidato: { direccion: "Pasaje Inventado 401", lat: -18.48, lng: -70.31, confianza: "exacta", soloCalle: false, coincideNumero: true, fuente: "google" },
-      };
+      }));
     },
   });
   const p = r.propuestas.find((x) => x.pedidoId === creados[0].id);
   assert.ok(p, "sin propuesta");
   assert.equal(p.telefono, "");
-  assert.ok(vistas.every((a) => a.length === 1 && typeof a[0] === "string"), "la IA recibió algo más que la dirección");
+  // Spec 040: la IA recibe la lista de direcciones y la zona del día (sectores y cifras), nada más.
+  assert.ok(vistas.every((v) => v.direcciones.every((d) => typeof d === "string")), "la IA recibió algo más que la dirección");
+  assert.ok(vistas.some((v) => v.direcciones.includes("Pasaje Inventado 401")));
+  assert.doesNotMatch(JSON.stringify(vistas), /\+569/, "a la IA le llegó un teléfono");
+  assert.ok(vistas.every((v) => v.zona.every((z) => Object.keys(z).sort().join() === "pedidos,sector")));
   await aplicarCorreccion(p, undefined, "9 2468 1357");
   const guardado = (await almacen.leerPedidos(HOY)).find((x) => x.id === creados[0].id);
   assert.equal(guardado.telefono, "+56924681357");

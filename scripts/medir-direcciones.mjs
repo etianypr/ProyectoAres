@@ -2,7 +2,8 @@
 // sin red, sin cuota y sin datos de nadie. Corre el cargarLineasGuia real sobre una IndexedDB
 // falsa (fake-indexeddb), con la fila real de Nominatim (1,2 s entre consultas) y un `fetch`
 // falso que contesta cada proveedor con una demora fija: Google por /api/geocodificar,
-// Nominatim y la IA por /api/direccion-ia, que sigue un guion (busca y propone el primero).
+// Nominatim y la IA por /api/direccion-ia, que sigue un guion (spec 040: un lote; pide buscar lo de
+// IA_BUSCA y si no elige el primer candidato).
 // Las calles son del catálogo y los números, inventados.
 //
 //   npm run medir:direcciones                      la carga en línea
@@ -131,21 +132,22 @@ function demora(ms, senal) {
   });
 }
 
-function respuestaIA(mensajes) {
-  const ultimo = mensajes.at(-1);
-  if (typeof ultimo.content === "string") {
-    const direccion = /«(.*)»/.exec(ultimo.content)?.[1] ?? "";
-    const consulta = IA_BUSCA.get(direccion) ?? direccion;
-    return { contenido: [{ type: "tool_use", id: "t1", name: "buscar_direccion", input: { consulta } }], fin: "tool_use" };
-  }
-  const resultado = ultimo.content.find((b) => b.type === "tool_result");
-  const lista = resultado?.content?.startsWith("[") ? JSON.parse(resultado.content) : [];
-  if (lista.length === 0) return { contenido: [{ type: "text", text: "Sin candidatos." }], fin: "end_turn" };
-  const c = lista[0];
-  return {
-    contenido: [{ type: "tool_use", id: "t2", name: "proponer", input: { candidato: c.id, direccion: c.direccion, confianza: "media", motivo: "guion" } }],
-    fin: "tool_use",
-  };
+/** La IA en lote (spec 040): en la ronda 1 pide buscar lo que diga IA_BUSCA y, si no, elige el
+ *  primer candidato; en la ronda 2 elige el primero. */
+function respuestaIA(lote) {
+  const resultados = lote.direcciones.map((d) => {
+    const buscar = lote.ronda === 1 ? (IA_BUSCA.get(d.escrita) ?? null) : null;
+    const c = buscar ? null : d.candidatos[0];
+    return {
+      direccion: d.id,
+      candidato: c?.id ?? null,
+      confianza: "media",
+      direccion_corregida: c?.direccion ?? d.escrita,
+      buscar,
+      motivo: "guion",
+    };
+  });
+  return { resultados };
 }
 
 globalThis.window = {}; // Google se pregunta desde el teléfono
@@ -166,7 +168,7 @@ globalThis.fetch = async (entrada, opciones = {}) => {
   if (url === "/api/direccion-ia") {
     consultas.ia++;
     await demora(DEMORA.ia, senal);
-    return json(respuestaIA(JSON.parse(opciones.body).mensajes));
+    return json(respuestaIA(JSON.parse(opciones.body).lote));
   }
   if (url.includes("nominatim")) {
     consultas.osm++;

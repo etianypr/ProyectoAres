@@ -8,7 +8,7 @@ import { AlertTriangle, Check, Clock, Phone, RotateCcw, X } from "lucide-react";
 import { cn } from "@/lib/comun/utils";
 import { bloquePorId } from "@/lib/encomiendas/config";
 import { nombreVisible, subtituloPedido } from "@/lib/encomiendas/paquete";
-import { problemasDelPedido } from "@/lib/encomiendas/problemas";
+import { etiquetasDelPedido } from "@/lib/encomiendas/problemas";
 import { sePuedeCambiar, type Pedido } from "@/lib/encomiendas/local/almacen";
 import type { ResultadoVisita } from "@/lib/encomiendas/estados";
 import type { Parada } from "../_hooks/use-dia-trabajo";
@@ -104,7 +104,7 @@ export const RutaDelDia = memo(function RutaDelDia({
                       </span>
                       {/* El ⚠ de la parada, en palabras (spec 027). */}
                       {editable
-                        ? problemasDelPedido(p.pedido).map((x) => (
+                        ? etiquetasDelPedido(p.pedido).map((x) => (
                             <span key={x.tipo} className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-warn">
                               <AlertTriangle className="h-3 w-3 shrink-0" />
                               {x.texto}

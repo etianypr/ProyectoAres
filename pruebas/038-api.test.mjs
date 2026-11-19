@@ -141,8 +141,9 @@ function pedidoA(ruta) {
     return new Request(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ direccion: "Pasaje Inventado 901" }) });
   }
   if (ruta === "/api/direccion-ia") {
-    const mensajes = [{ role: "user", content: "Dirección escrita: «PASAJE INVENTADO 901». Ciudad: Arica, Chile." }];
-    return new Request(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mensajes }) });
+    // Spec 040: un lote (direcciones con sus candidatos), no una conversación.
+    const lote = { ronda: 1, zona: [], direcciones: [{ id: "d1", escrita: "PASAJE INVENTADO 901", candidatos: [], calles_parecidas: [] }] };
+    return new Request(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ lote }) });
   }
   const datos = new FormData();
   if (ruta === "/api/lectura") datos.set("tipo", "guia");
@@ -310,22 +311,24 @@ test("/api/direccion-ia: el prompt va con caché y la respuesta trae solo sus ci
   delete process.env.DIRECCION_MODELO;
   supabase();
   const uso = { cache_read_input_tokens: 812, cache_creation_input_tokens: 64 };
-  const cuerpos = anthropic(() => mensajeIA([{ type: "tool_use", id: "t1", name: "buscar_direccion", input: { consulta: "Pasaje Inventado 901" } }], uso));
+  const resultados = [{ direccion: "d1", candidato: null, confianza: "baja", direccion_corregida: "Pasaje Inventado 901", buscar: null, motivo: "m" }];
+  const cuerpos = anthropic(() => mensajeIA([{ type: "tool_use", id: "t1", name: "resultados", input: { resultados } }], uso));
   const res = await RUTAS["/api/direccion-ia"].POST(pedidoA("/api/direccion-ia"));
   assert.equal(res.status, 200);
   const cuerpo = cuerpos[0];
   assert.equal(cuerpo.model, "claude-sonnet-5", "no cambia el modelo");
-  assert.deepEqual(cuerpo.cache_control, { type: "ephemeral" }, "falta el cache_control de la petición");
   assert.equal(cuerpo.system.length, 1);
   assert.equal(cuerpo.system[0].type, "text");
   assert.deepEqual(cuerpo.system[0].cache_control, { type: "ephemeral" }, "falta el cache_control del SISTEMA");
   assert.match(cuerpo.system[0].text, /^Corriges direcciones de entrega/);
   assert.deepEqual(cuerpo.thinking, { type: "disabled" });
   assert.deepEqual(cuerpo.output_config, { effort: "low" });
-  assert.deepEqual(cuerpo.tools.map((h) => h.name), ["buscar_direccion", "calles_parecidas", "proponer"]);
+  assert.deepEqual(cuerpo.tools.map((h) => h.name), ["resultados"]);
+  assert.deepEqual(cuerpo.tool_choice, { type: "auto", disable_parallel_tool_use: true }, "forzada da 400 en los modelos 5.5");
+  assert.match(cuerpo.messages[0].content, /^Ronda 1\./);
   const datos = await res.json();
   assert.deepEqual(datos.uso, { cacheLeidos: 812, cacheCreados: 64 });
-  assert.equal(datos.contenido[0].name, "buscar_direccion");
+  assert.deepEqual(datos.resultados, resultados);
   const st = res.headers.get("server-timing");
   assert.match(st, SERVER_TIMING);
   assert.doesNotMatch(st, /inventado|901/i, "la dirección salió en la cabecera");
@@ -346,8 +349,10 @@ test("/api/direccion-ia: Anthropic limita la tasa → 429 (no 503); el teléfono
   anthropic(() => json({ type: "error", error: { type: "api_error", message: "x" } }, 500, { "x-should-retry": "false" }));
   assert.equal((await RUTAS["/api/direccion-ia"].POST(pedidoA("/api/direccion-ia"))).status, 503);
 
-  // El teléfono: 429 → error «ocupada»; 503 sin configurar → IANoDisponible; 503 caída → error.
-  const { corregirConIA, IANoDisponible } = await import("@/lib/geo/direccion-ia/cliente");
+  // El teléfono: 429 → IAOcupada; 503 sin configurar → IANoDisponible; 503 caída → error (spec 040:
+  // la ronda 1 de un lote los deja salir, y corregirDirecciones decide).
+  const { corregirEnLote, IANoDisponible, IAOcupada } = await import("@/lib/geo/direccion-ia/cliente");
+  const unaDireccion = () => corregirEnLote([{ escrita: "PASAJE INVENTADO 901", candidatos: [], calles: [] }], { zona: [] });
   const servidor = (estado, error) => {
     globalThis.fetch = async (url) => {
       assert.equal(String(url), "/api/direccion-ia");
@@ -355,15 +360,11 @@ test("/api/direccion-ia: Anthropic limita la tasa → 429 (no 503); el teléfono
     };
   };
   servidor(429, "La IA está ocupada. Intenta de nuevo en un momento.");
-  assert.deepEqual(await corregirConIA("PASAJE INVENTADO 901"), {
-    tipo: "error",
-    mensaje: "La IA está ocupada. Intenta de nuevo en un momento.",
-    ocupada: true,
-  });
+  await assert.rejects(unaDireccion, IAOcupada);
   servidor(503, "La IA no respondió. Intenta de nuevo.");
-  assert.deepEqual(await corregirConIA("PASAJE INVENTADO 901"), { tipo: "error", mensaje: "La IA no respondió. Intenta de nuevo." });
+  await assert.rejects(unaDireccion, (e) => !(e instanceof IANoDisponible) && /no respondió/.test(e.message));
   servidor(503, "La IA no está configurada.");
-  await assert.rejects(() => corregirConIA("PASAJE INVENTADO 901"), IANoDisponible);
+  await assert.rejects(unaDireccion, IANoDisponible);
 });
 
 test("/api/geocodificar y /api/lectura: Server-Timing con solo cifras", async () => {

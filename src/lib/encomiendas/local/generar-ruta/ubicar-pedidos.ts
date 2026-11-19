@@ -44,7 +44,7 @@ export async function reintentarUbicar(
   const sinUbicar = pendientes.filter((p) => !tieneCoordenadas(p));
   if (sinUbicar.length === 0) return { pendientes, advertencias: [] };
 
-  const encontradas: { id: string; lat: number; lng: number }[] = [];
+  const encontradas: { id: string; lat: number; lng: number; aproximada: boolean }[] = [];
   const enDuda: { id: string; punto: { lat: number; lng: number }; problema: ProblemaGuardado }[] = [];
   const advertencias: string[] = [];
   const aIntentar = sinUbicar.slice(0, MAX_REINTENTOS_UBICAR);
@@ -57,7 +57,7 @@ export async function reintentarUbicar(
   const puntosDelDia = pendientes.filter(tieneCoordenadas).map((p) => ({ lat: p.lat, lng: p.lng }));
   const anotar = (pedido: Pedido, r: ResultadoUbicacion) => {
     if (r.elegida) {
-      encontradas.push({ id: pedido.id, lat: r.elegida.lat, lng: r.elegida.lng });
+      encontradas.push({ id: pedido.id, lat: r.elegida.lat, lng: r.elegida.lng, aproximada: r.tipo !== "exacta" });
       // Entró a la ruta, pero puede haber entrado con la puerta interpolada
       // (tipo "aproximada"): se avisa igual. Un pedido que entra con una
       // coordenada aproximada y sin decirlo es el conductor buscando el número a
