@@ -326,62 +326,64 @@ export function PantallaEncomiendas({
         />
       ) : null}
 
-      <BottomSheet
-        cabecera={cabecera}
-        senalCerrar={propuesta ?? null}
-        onAlturaCerrada={setAlturaCerrada}
-        vista={
-          formPedido ? (
-            <VistaPedido
-              // Resolviendo los ⚠ se pasa de uno a otro: el formulario empieza de cero.
-              key={formPedido === "nuevo" ? "nuevo" : formPedido.id}
-              pedido={formPedido === "nuevo" ? undefined : formPedido}
-              ofInicial={formPedido === "nuevo" ? ofParaNuevo : undefined}
-              fecha={fecha}
-              titulo={formPedido === "nuevo" ? undefined : resolver.titulo}
-              onCerrar={resolver.cerrar}
-              onSiguiente={formPedido !== "nuevo" && resolver.hayMas ? () => resolver.despuesDeGuardar(pedidos) : undefined}
-              onGuardado={(aviso) => {
-                void dia.recargar();
-                const esNuevo = formPedido === "nuevo";
-                // Corrigiendo se cierra o, resolviendo los ⚠, abre el siguiente; cargando
-                // nuevos se queda (van en tanda). Una advertencia queda escrita en el formulario.
-                if (!esNuevo) resolver.despuesDeGuardar(pedidos);
-                // Otro lugar (> 150 m): la parada se reubica (spec 033, cambio-dir-ruta).
-                // Con la propuesta a la vista el punto nuevo entra a ella (spec 037).
-                if (!esNuevo && propuesta) void onPedidoCorregido(formPedido.id);
-                else if (!esNuevo) void reordenar.direccionCambiada(formPedido);
-                if (esNuevo && aviso == null) avisar("Pedido agregado");
-              }}
-            />
-          ) : null
-        }
-      >
-        <ContenidoHoja
-          paso={paso}
-          dia={dia}
-          fecha={fecha}
-          direccionEmpresa={direccionEmpresa}
-          lecturaIA={lecturaIA}
-          guardando={guardando}
-          metaBono={metaBono}
-          ayer={ayer}
-          sinRutear={sinRutear}
-          sinUbicar={sinUbicar}
-          entregadas={entregadas}
-          noEntregadas={noEntregadas}
-          porcentaje={porcentaje}
-          faltan={carga.faltan}
-          onEliminar={eliminarDeLaLista}
-          onEditar={editarDeLaLista}
-          onCambiar={cambiarDeLaLista}
-          onSumar={sumarALaRuta}
-          onCargarGuia={() => setCargandoGuia(true)}
-          onAgregar={() => nuevoPedido()}
-          onPropuesta={setPropuesta}
-          onResolver={() => resolver.empezar(conProblema)}
-        />
-      </BottomSheet>
+      <div className={propuesta && !formPedido ? "invisible" : undefined}>
+        <BottomSheet
+          cabecera={cabecera}
+          senalCerrar={propuesta ?? null}
+          onAlturaCerrada={setAlturaCerrada}
+          vista={
+            formPedido ? (
+              <VistaPedido
+                // Resolviendo los ⚠ se pasa de uno a otro: el formulario empieza de cero.
+                key={formPedido === "nuevo" ? "nuevo" : formPedido.id}
+                pedido={formPedido === "nuevo" ? undefined : formPedido}
+                ofInicial={formPedido === "nuevo" ? ofParaNuevo : undefined}
+                fecha={fecha}
+                titulo={formPedido === "nuevo" ? undefined : resolver.titulo}
+                onCerrar={resolver.cerrar}
+                onSiguiente={formPedido !== "nuevo" && resolver.hayMas ? () => resolver.despuesDeGuardar(pedidos) : undefined}
+                onGuardado={(aviso) => {
+                  void dia.recargar();
+                  const esNuevo = formPedido === "nuevo";
+                  // Corrigiendo se cierra o, resolviendo los ⚠, abre el siguiente; cargando
+                  // nuevos se queda (van en tanda). Una advertencia queda escrita en el formulario.
+                  if (!esNuevo) resolver.despuesDeGuardar(pedidos);
+                  // Otro lugar (> 150 m): la parada se reubica (spec 033, cambio-dir-ruta).
+                  // Con la propuesta a la vista el punto nuevo entra a ella (spec 037).
+                  if (!esNuevo && propuesta) void onPedidoCorregido(formPedido.id);
+                  else if (!esNuevo) void reordenar.direccionCambiada(formPedido);
+                  if (esNuevo && aviso == null) avisar("Pedido agregado");
+                }}
+              />
+            ) : null
+          }
+        >
+          <ContenidoHoja
+            paso={paso}
+            dia={dia}
+            fecha={fecha}
+            direccionEmpresa={direccionEmpresa}
+            lecturaIA={lecturaIA}
+            guardando={guardando}
+            metaBono={metaBono}
+            ayer={ayer}
+            sinRutear={sinRutear}
+            sinUbicar={sinUbicar}
+            entregadas={entregadas}
+            noEntregadas={noEntregadas}
+            porcentaje={porcentaje}
+            faltan={carga.faltan}
+            onEliminar={eliminarDeLaLista}
+            onEditar={editarDeLaLista}
+            onCambiar={cambiarDeLaLista}
+            onSumar={sumarALaRuta}
+            onCargarGuia={() => setCargandoGuia(true)}
+            onAgregar={() => nuevoPedido()}
+            onPropuesta={setPropuesta}
+            onResolver={() => resolver.empezar(conProblema)}
+          />
+        </BottomSheet>
+      </div>
 
       {/* Por encima de la hoja: mientras haya una ruta propuesta, decidir si se
           usa es lo único que hay que hacer en esta pantalla. */}

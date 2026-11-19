@@ -27,13 +27,23 @@ OF), grises azulados que el tema cálido no alcanzaba y el marcador del conducto
 - **Glifos**: ✓, ● y ⚠ del barrido → íconos de lucide; «Resolver el ⚠» → «Resolver advertencia(s)»
   (y la Ayuda).
 - **Marcador del conductor**: azul plano (elegido por el dueño), sin degradados.
+- **Ruta propuesta deslizable** (dueño, 2026-11-19): la cabecera es un tirador
+  (`cabecera-propuesta.tsx`); abajo quedan «Ruta propuesta · N paradas», la ✕ y «Usar esta ruta»
+  sobre el mapa, arriba (o un toque) el detalle. «Ver las N» (lista a pantalla completa, spec 033)
+  salió: «es inútil»; la lista ocupa lo que deja el panel y se desplaza. Mientras hay propuesta, la hoja del día queda invisible (`pantalla.tsx`), si no
+  asomaba su cabecera sobre la propuesta plegada.
 
 ## Fuera
 Panel del jefe, puntos del mapa en canvas, capas (z-index), radios de cada tarjeta, `.cifra` y
 `.rotulo` sin uso.
 
+## Recorrido (2026-11-19)
+En Chrome a 360 px (iframe de 360 × 800, modo prueba, 6 pedidos con Plus Code, APIs que gastan
+bloqueadas: 0 consultas): cargar guía (pegar → revisar → crear), optimizar ruta, cargar vehículo
+(OF escrita), parada activa con una entrega, ruta del día y menú. Sin cortes ni scroll horizontal;
+los rótulos de 12 px del visor caben. Arreglado en el camino: la OF de la tarjeta del escaneo, de
+«no está en los pedidos» y de «Buscar paquete por OF» pasa a mono.
+
 ## Falta
-Recorrer a 360 px en el teléfono (skill `recorrer-conductor`): cargar guía, optimizar ruta, cargar
-vehículo, parada activa, ruta del día, controles del mapa y menú. Ojo con lo que creció a 12 px:
-los rótulos bajo los botones del visor («Galería», «Descartar», «Pegar») y los números en círculos
-de 24 px.
+Lo que solo existe en la APK: cámara en vivo del visor y del escáner, barrido de la nómina
+(íconos nuevos sobre la cámara) y la burbuja.

@@ -1,29 +1,24 @@
 "use client";
 
-// Las paradas de la ruta propuesta, en orden (sale de vista-previa-ruta.tsx). Con
-// 86 paradas la lista chica mostraba 2 (spec 033, nuevo-propuesta-lista-chica):
-// «Ver las N» la sube a pantalla completa, y tocar una fila la achica y lleva el
-// mapa a su pin.
+// Las paradas de la ruta propuesta, en orden (sale de vista-previa-ruta.tsx). Tocar
+// una fila lleva el mapa a su pin. «Ver las N» (la lista a pantalla completa, spec
+// 033) salió (dueño, 2026-11-19: «es inútil»): la lista ocupa lo que deja el panel
+// y se desplaza, y para mirar el mapa el panel se desliza hacia abajo (spec 041).
 
-import { Check, ChevronDown, ChevronUp, Clock, Phone, Trash2 } from "lucide-react";
+import { Check, Clock, Phone, Trash2 } from "lucide-react";
 import { nombreVisible, subtituloPedido } from "@/lib/encomiendas/paquete";
 import { bloquePorId } from "@/lib/encomiendas/config";
 import type { PedidoUbicado } from "@/lib/encomiendas/local/generar-ruta";
-import { cn } from "@/lib/comun/utils";
 
 export function ListaPropuesta({
   paradas,
   numero,
-  entera,
-  onEntera,
   onVer,
   onQuitar,
   ocupada,
 }: {
   paradas: PedidoUbicado[];
   numero: (i: number) => number;
-  entera: boolean;
-  onEntera: (entera: boolean) => void;
   /** Lleva el mapa al pin de la parada. */
   onVer?: (p: PedidoUbicado) => void;
   onQuitar: (pedidoId: string) => void;
@@ -31,27 +26,12 @@ export function ListaPropuesta({
 }) {
   return (
     <>
-      {paradas.length > 2 ? (
-        <button
-          type="button"
-          onClick={() => onEntera(!entera)}
-          className="mt-2 flex h-9 shrink-0 items-center justify-center gap-1 text-xs font-semibold text-brand"
-        >
-          {entera ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-          {entera ? "Ver mapa" : `Ver las ${paradas.length}`}
-        </button>
-      ) : null}
-      {/* El orden es lo que el conductor viene a revisar: se puede desplazar, pero
-          sin comerse la pantalla — el mapa de atrás también es parte de esto. */}
-      <ol className={cn("min-h-0 flex-1 overflow-y-auto rounded-2xl bg-background", entera ? "mt-1" : "mt-1 max-h-[17vh]")}>
+      <ol className="mt-2.5 min-h-0 flex-1 overflow-y-auto rounded-2xl bg-background">
         {paradas.map((p, i) => (
           <li key={p.id} className={`flex items-center gap-2.5 text-sm ${i > 0 ? "border-t border-divider" : ""}`}>
             <button
               type="button"
-              onClick={() => {
-                onEntera(false);
-                onVer?.(p);
-              }}
+              onClick={() => onVer?.(p)}
               className="flex min-w-0 flex-1 items-center gap-2.5 py-2 pl-3 text-left active:bg-card"
             >
               <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand text-xs font-bold tabular-nums text-brand-foreground">

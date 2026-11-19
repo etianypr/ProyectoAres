@@ -180,7 +180,7 @@ export function Resultado({
           <p className="text-base">Optimiza la ruta para conocer su parada.</p>
         )}
         <p className="mt-2 text-2xl font-bold leading-tight">{referencia ?? "Sin descripción"}</p>
-        <p className="mt-1 text-sm font-semibold tabular-nums opacity-90">OF {formatoOf(p.of ?? "")}</p>
+        <p className="mt-1 font-mono text-sm font-semibold tabular-nums opacity-90">OF {formatoOf(p.of ?? "")}</p>
       </div>
 
       {p.bultos != null && p.bultos > 1 ? (

@@ -172,7 +172,7 @@ export function EscanearEtiqueta({
 
         {fase.tipo === "noEsta" ? (
           <div className="space-y-3 py-6 text-center">
-            <p className="text-xl font-bold tabular-nums">OF {formatoOf(fase.of)}</p>
+            <p className="font-mono text-xl font-semibold tabular-nums">OF {formatoOf(fase.of)}</p>
             <p className="text-sm text-muted">Este paquete no está en los pedidos de hoy.</p>
             <button
               type="button"

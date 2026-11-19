@@ -83,7 +83,7 @@ export function BuscarOf({
                     {secuencia ?? "—"}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="font-bold tabular-nums tracking-wide">OF {formatoOf(p.of ?? "")}</p>
+                    <p className="font-mono font-semibold tabular-nums">OF {formatoOf(p.of ?? "")}</p>
                     {referencia ? <p className="text-sm font-semibold text-brand">{referencia}</p> : null}
                     <p className="truncate text-sm">{nombreVisible(p)}</p>
                     <p className="truncate text-xs text-muted">

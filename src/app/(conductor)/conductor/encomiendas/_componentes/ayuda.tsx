@@ -35,7 +35,7 @@ const SECCIONES: { titulo: string; pasos: string[] }[] = [
     titulo: "Optimizar ruta",
     pasos: [
       "«Optimizar ruta» → elige una alternativa → «Usar esta ruta». Durante el cálculo, «Cancelar» (o atrás) vuelve sin ruta.",
-      "En la propuesta, «Ver las N» muestra toda la lista; toca una fila para verla en el mapa. Para descartarla, ✕ dos veces.",
+      "En la propuesta, toca una fila para verla en el mapa; deslízala hacia abajo para ver el mapa entero. Para descartarla, ✕ dos veces.",
       "En un condominio la ruta llega a su entrada, y «Navegar» lleva a ella. El número de la parada queda en el edificio.",
       "Para excluir un pedido: 🗑 en la lista de la ruta propuesta («Deshacer» lo restituye).",
       "Una dirección lejos de las demás, o sin ubicar, aparece en la franja amarilla sobre «Usar esta ruta»: «Editar» abre el pedido y «Mantener» la deja en la ruta. Con direcciones corregidas, «Recalcular ruta» vuelve a optimizar.",
