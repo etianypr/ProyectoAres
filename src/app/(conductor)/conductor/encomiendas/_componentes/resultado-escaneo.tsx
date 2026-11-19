@@ -169,7 +169,7 @@ export function Resultado({
 
   return (
     <div className="space-y-3">
-      <div className="rounded-3xl bg-brand px-5 py-4 text-brand-foreground">
+      <div className="rounded-2xl bg-brand px-5 py-4 text-brand-foreground">
         <p className="text-sm font-medium opacity-80">{r.parada ? "PARADA" : "SIN RUTA ASIGNADA"}</p>
         {r.parada ? (
           <p className="text-6xl font-bold leading-none tabular-nums">

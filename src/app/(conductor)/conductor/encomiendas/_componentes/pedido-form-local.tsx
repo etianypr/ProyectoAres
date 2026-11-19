@@ -473,12 +473,12 @@ export function PedidoFormLocal({
         ) : null}
 
         {error ? (
-          <p className="rounded-lg border border-danger/20 bg-danger-bg px-3 py-2 text-sm text-danger">
+          <p className="rounded-xl border border-danger/20 bg-danger-bg px-3 py-2 text-sm text-danger">
             {error}
           </p>
         ) : null}
         {aviso ? (
-          <p className="rounded-lg bg-warn-bg px-3 py-2 text-sm text-warn">{aviso}</p>
+          <p className="rounded-xl bg-warn-bg px-3 py-2 text-sm text-warn">{aviso}</p>
         ) : null}
       </div>
 

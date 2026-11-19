@@ -239,7 +239,7 @@ export function CargarGuia({
       // Siempre `capa-camara`: con una cámara prendida, lo que no la lleva queda oculto, y
       // esta ventana no puede desaparecer aunque la cámara quede a medio prender. El fondo
       // se quita solo cuando el recuadro muestra la cámara.
-      className={`capa-camara animate-fade-in fixed inset-0 z-50 flex flex-col ${visor.vivo || barrer.activo ? "" : "bg-background"}`}
+      className={`capa-camara animate-fade-in fixed inset-0 z-pantalla flex flex-col ${visor.vivo || barrer.activo ? "" : "bg-background"}`}
       role="dialog"
       aria-modal="true"
       aria-label="Cargar guía"

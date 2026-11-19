@@ -193,7 +193,7 @@ export function CamaraBarrido({
   const faltan = vista?.faltan ?? [];
 
   return createPortal(
-    <div className="capa-camara fixed inset-0 z-[60] flex flex-col">
+    <div className="capa-camara fixed inset-0 z-ventana flex flex-col">
       <div className="flex items-center gap-2 bg-black/60 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] text-white">
         <p className="flex-1 text-sm font-semibold">Escaneo de nómina</p>
         {conLinterna ? <LinternaBarrido /> : null}

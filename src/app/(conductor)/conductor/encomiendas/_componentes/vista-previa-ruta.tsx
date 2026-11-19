@@ -46,6 +46,7 @@ import { ListaPropuesta } from "./lista-propuesta";
 import { FranjaPendientes, pendientesDeCorregir } from "./franja-pendientes";
 import { BOTON_PRINCIPAL } from "./botones";
 import { CabeceraPropuesta } from "./cabecera-propuesta";
+import { HOJA } from "./superficies";
 
 function Advertencia({ icono, children }: { icono: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -185,8 +186,8 @@ export function VistaPreviaRuta({
     <div
       data-propuesta-ruta
       className={cn(
-        "sube-y-frena flex flex-col bg-card px-4 pb-5 pt-2.5 shadow-[0_-8px_30px_rgba(34,26,21,0.16)]",
-        "max-h-[52vh] rounded-t-[26px]",
+        "sube-y-frena flex max-h-[52vh] flex-col px-4 pb-5 pt-2.5",
+        HOJA,
       )}
     >
       <CabeceraPropuesta paradas={paradas.length} plegada={plegada} onPlegada={setPlegada} />

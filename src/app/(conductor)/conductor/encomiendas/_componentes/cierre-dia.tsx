@@ -13,6 +13,7 @@ import { useSegundoToque } from "../_hooks/use-segundo-toque";
 import { formatCLP, formatDateLong } from "@/lib/comun/format";
 import type { CierrePendiente } from "../_hooks/use-cierre-dia";
 import { ListaNoEntregados } from "./lista-no-entregados";
+import { PANTALLA } from "./superficies";
 
 export function CierreDia({
   cierre,
@@ -34,7 +35,7 @@ export function CierreDia({
 
   return createPortal(
     <div
-      className="animate-fade-in fixed inset-0 z-50 flex flex-col bg-background pt-[max(1rem,env(safe-area-inset-top))]"
+      className={`${PANTALLA} z-pantalla`}
       role="dialog"
       aria-modal="true"
       aria-label="Cierre del día"

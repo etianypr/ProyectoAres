@@ -25,7 +25,7 @@ export function BuscandoRuta({ onCancelar }: { onCancelar?: () => void }) {
     <div
       role="status"
       aria-live="polite"
-      className="animate-fade-in fixed inset-0 z-[70] flex flex-col items-center justify-center gap-5 bg-background px-8 text-center"
+      className="animate-fade-in fixed inset-0 z-bloqueo flex flex-col items-center justify-center gap-5 bg-background px-8 text-center"
     >
       <LogoDashund animado titulo="" className="h-24 w-24" />
       {/* Ya no es la de menos km sino la que menos cuesta en km y tiempo (spec 024). */}

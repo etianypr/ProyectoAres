@@ -230,10 +230,10 @@ export function PieFotos({
         <div className="absolute inset-x-0 bottom-full mb-5 flex items-stretch gap-2 rounded-2xl bg-card p-2 shadow-soft">
           <ul aria-label="Fotos tomadas" className="flex min-w-0 flex-1 gap-2 overflow-x-auto">
             {fotos.map((f, i) => (
-              <li key={f.id} className="relative aspect-[3/4] w-14 shrink-0 overflow-hidden rounded-lg bg-background">
+              <li key={f.id} className="relative aspect-[3/4] w-14 shrink-0 overflow-hidden rounded-xl bg-background">
                 {/* eslint-disable-next-line @next/next/no-img-element -- foto local del teléfono */}
                 <img src={f.url} alt={`Foto ${i + 1} de la guía`} className="h-full w-full object-cover" />
-                <span className="absolute bottom-0.5 left-0.5 rounded bg-foreground/80 px-1 text-xs font-bold tabular-nums text-background">
+                <span className="absolute bottom-0.5 left-0.5 rounded-full bg-foreground/80 px-1 text-xs font-bold tabular-nums text-background">
                   {i + 1}
                 </span>
                 <button
@@ -297,7 +297,7 @@ export function PieFotos({
           >
             {/* eslint-disable-next-line @next/next/no-img-element -- foto local del teléfono */}
             <img src={ultima.url} alt="" className="absolute inset-0 h-full w-full object-cover" />
-            <span className="absolute bottom-0.5 right-0.5 rounded bg-foreground/80 px-1 text-xs font-bold tabular-nums text-background">
+            <span className="absolute bottom-0.5 right-0.5 rounded-full bg-foreground/80 px-1 text-xs font-bold tabular-nums text-background">
               {fotos.length}
             </span>
           </button>

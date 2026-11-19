@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { HOJA, TIRADOR } from "./superficies";
 
 const ALTURA_VH = 78; // alto total de la hoja abierta, en % del viewport
 
@@ -166,7 +167,7 @@ export function BottomSheet({
 
   return (
     <div
-      className="fixed inset-x-0 bottom-0 z-20 flex flex-col rounded-t-[26px] bg-card shadow-[0_-8px_30px_rgba(34,26,21,0.14)]"
+      className={`fixed inset-x-0 bottom-0 z-hoja flex flex-col ${HOJA}`}
       style={{
         height: altoSheet > 0 ? `${altoSheet}px` : `${ALTURA_VH}vh`,
         transform: `translateY(${translateY}px)`,
@@ -190,7 +191,7 @@ export function BottomSheet({
           tabIndex={0}
           aria-label={expandido ? "Cerrar panel" : "Abrir panel"}
         >
-          <div className="h-1.5 w-10 rounded-full bg-separator" />
+          <div className={TIRADOR} />
         </div>
         {/* El aire de abajo no es decorativo: con la hoja cerrada, este bloque
             queda al ras del borde inferior de la pantalla, así que lo último que

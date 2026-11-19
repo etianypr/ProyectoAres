@@ -33,9 +33,21 @@ OF), grises azulados que el tema cálido no alcanzaba y el marcador del conducto
   salió: «es inútil»; la lista ocupa lo que deja el panel y se desplaza. Mientras hay propuesta, la hoja del día queda invisible (`pantalla.tsx`), si no
   asomaba su cabecera sobre la propuesta plegada.
 
+## Fase 2 (dueño, 2026-11-19: «dale con fase 2»)
+- **Botón de ícono** (`BOTON_ICONO`, 44 px): cerrar, volver, ayuda y los ± de bultos, que eran de
+  36 y 40 px escritos a mano en 9 archivos.
+- **Superficies** (`_componentes/superficies.ts`): `PANTALLA` (5 pantallas completas), `HOJA` y
+  `TIRADOR` (la hoja del día y la ruta propuesta, que tenían sombra y radio distintos).
+- **Capas con nombre** (`@utility` en `globals.css`): `z-mapa` 10, `z-hoja` 20, `z-sobre-hoja` 30,
+  `z-pantalla` 50, `z-cinta` 55, `z-ventana` 60, `z-bloqueo` 70. Mismos valores que antes.
+- **Radios**: `rounded-t-hoja` (26 px) y `rounded-campo` (14 px) como tokens; `rounded-lg` →
+  `rounded-xl` (10), y los sueltos (`3xl`, `[22px]`, `rounded`) a la escala.
+- **Mapa**: la parada entregada lleva ✓ antes del número (antes solo era verde contra gris).
+- **⚠**: el «⚠ revisar» del escáner en vivo es ícono; `AlertTriangle` en dos tamaños (3,5 y 4).
+
 ## Fuera
-Panel del jefe, puntos del mapa en canvas, capas (z-index), radios de cada tarjeta, `.cifra` y
-`.rotulo` sin uso.
+Panel del jefe, `.cifra` y `.rotulo` sin uso, los ⚠ que van dentro de textos (avisos, burbuja,
+Ayuda: son parte del mensaje) y los colores del mapa en `_mapa/` (MapLibre pide valores literales).
 
 ## Recorrido (2026-11-19)
 En Chrome a 360 px (iframe de 360 × 800, modo prueba, 6 pedidos con Plus Code, APIs que gastan

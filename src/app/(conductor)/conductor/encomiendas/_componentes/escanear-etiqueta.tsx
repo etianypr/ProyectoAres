@@ -19,7 +19,8 @@ import { esApp } from "@/lib/nativo/entorno";
 import { escanearConMotivo, type LecturaEscaner } from "@/lib/nativo/escaner";
 import { Resultado } from "./resultado-escaneo";
 import { AvisoOtraParada, tituloEsperado, type PaqueteEsperado } from "./aviso-otra-parada";
-import { BOTON_PRINCIPAL } from "./botones";
+import { BOTON_PRINCIPAL, BOTON_ICONO } from "./botones";
+import { PANTALLA } from "./superficies";
 
 /** Por qué se cayó a escribir la OF (spec 033, clasico-silencio). Si lo cerró
  *  él, no hay nada que decir. */
@@ -109,7 +110,7 @@ export function EscanearEtiqueta({
 
   return createPortal(
     <div
-      className="animate-fade-in fixed inset-0 z-50 flex flex-col bg-background pt-[max(0.75rem,env(safe-area-inset-top))]"
+      className={`${PANTALLA} z-pantalla`}
       role="dialog"
       aria-modal="true"
       aria-label="Escanear etiqueta"
@@ -125,7 +126,7 @@ export function EscanearEtiqueta({
           type="button"
           onClick={onCerrar}
           aria-label="Cerrar"
-          className="flex h-10 w-10 items-center justify-center rounded-full text-muted active:bg-card"
+          className={BOTON_ICONO}
         >
           <X className="h-5 w-5" />
         </button>

@@ -26,7 +26,7 @@ export function ControlesMapa({
   alLado?: ReactNode;
 }) {
   return (
-    <div className="absolute right-3 z-10 flex items-center gap-2" style={{ bottom: abajo }}>
+    <div className="absolute right-3 z-mapa flex items-center gap-2" style={{ bottom: abajo }}>
       {alLado}
       {/* Siguiendo: fondo y anillo de marca, no solo el color del ícono (spec 041). */}
       <button

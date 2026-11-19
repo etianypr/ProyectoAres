@@ -6,6 +6,8 @@
 
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import { PANTALLA } from "./superficies";
+import { BOTON_ICONO } from "./botones";
 
 const SECCIONES: { titulo: string; pasos: string[] }[] = [
   {
@@ -99,7 +101,7 @@ export function Ayuda({ onCerrar }: { onCerrar: () => void }) {
   if (typeof document === "undefined") return null;
   return createPortal(
     <div
-      className="capa-camara animate-fade-in fixed inset-0 z-[60] flex flex-col bg-background pt-[max(0.75rem,env(safe-area-inset-top))]"
+      className={`capa-camara ${PANTALLA} z-ventana`}
       role="dialog"
       aria-modal="true"
       aria-label="Ayuda"
@@ -110,7 +112,7 @@ export function Ayuda({ onCerrar }: { onCerrar: () => void }) {
           type="button"
           onClick={onCerrar}
           aria-label="Cerrar"
-          className="flex h-10 w-10 items-center justify-center rounded-full text-muted active:bg-card"
+          className={BOTON_ICONO}
         >
           <X className="h-5 w-5" />
         </button>

@@ -89,7 +89,7 @@ export function TarjetaParada({
             {pedido.of ? <p className="font-mono text-sm font-semibold tabular-nums">OF {formatoOf(pedido.of)}</p> : null}
             {/* Spec 005: lo que hay que cobrar, en palabras y no solo en color. */}
             {pedido.porPagar ? (
-              <p className="rounded-lg bg-danger-bg px-2 py-0.5 text-sm font-bold text-danger">
+              <p className="rounded-xl bg-danger-bg px-2 py-0.5 text-sm font-bold text-danger">
                 POR PAGAR {pedido.montoPorPagar != null ? formatCLP(pedido.montoPorPagar) : "· monto por revisar"}
               </p>
             ) : porPagarPorRevisar(pedido) ? (
@@ -138,7 +138,7 @@ export function TarjetaParada({
               type="button"
               onClick={() => setAmpliada(false)}
               aria-label="Cerrar foto"
-              className="animate-fade-in fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
+              className="animate-fade-in fixed inset-0 z-pantalla flex items-center justify-center bg-black/90 p-4"
             >
               {/* eslint-disable-next-line @next/next/no-img-element -- URL local del teléfono */}
               <img src={urlFoto} alt="Foto del paquete" className="max-h-full max-w-full rounded-xl object-contain" />

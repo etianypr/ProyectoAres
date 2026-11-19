@@ -23,5 +23,9 @@ export const BOTON_SECUNDARIO = `${BASE} border border-separator bg-card text-fo
  */
 export const BOTON_RESULTADO = `flex h-12 min-w-0 items-center justify-center gap-1.5 rounded-full px-2.5 text-center text-sm font-semibold leading-tight ${PULSAR} ${APAGADO}`;
 
+/** Cerrar, volver, ayuda: solo un ícono, sin fondo. 44 px, lo mínimo para el pulgar
+ *  (eran de 36 y 40 según la pantalla). */
+export const BOTON_ICONO = `flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted active:bg-surface disabled:opacity-40`;
+
 /** Los redondos que flotan sobre el mapa (menú, centrar, cercanas). */
 export const BOTON_REDONDO = `flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-card text-foreground shadow-float ${PULSAR}`;

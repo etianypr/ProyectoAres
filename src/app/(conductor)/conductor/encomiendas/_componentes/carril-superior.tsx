@@ -66,7 +66,7 @@ export function CarrilSuperior({
   // ellos.
   return (
     <div
-      className="absolute inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] z-10 flex flex-col gap-2 transition-[margin-top] duration-200"
+      className="absolute inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] z-mapa flex flex-col gap-2 transition-[margin-top] duration-200"
       style={{ marginTop: altoNotificaciones }}
     >
       <div className="flex items-center gap-2">

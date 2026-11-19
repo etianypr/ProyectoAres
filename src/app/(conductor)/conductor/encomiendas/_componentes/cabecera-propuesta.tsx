@@ -8,6 +8,7 @@
 import { useRef } from "react";
 import { ChevronUp, Route } from "lucide-react";
 import { cn } from "@/lib/comun/utils";
+import { TIRADOR } from "./superficies";
 
 /** Lo que tiene que moverse el dedo para que cuente como deslizar y no como toque. */
 const UMBRAL_PX = 24;
@@ -53,7 +54,7 @@ export function CabeceraPropuesta({
       className="shrink-0 cursor-grab select-none pb-1 active:cursor-grabbing"
       style={{ touchAction: "none" }}
     >
-      <div className="mx-auto mb-2.5 h-1.5 w-10 rounded-full bg-separator" />
+      <div className={cn("mx-auto mb-2.5", TIRADOR)} />
       <div className="flex items-center gap-2">
         <Route className="h-4 w-4 shrink-0 text-brand" />
         <p className="flex-1 text-sm font-semibold">Ruta propuesta</p>

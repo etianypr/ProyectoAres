@@ -107,7 +107,7 @@ export const RutaDelDia = memo(function RutaDelDia({
                       {editable
                         ? etiquetasDelPedido(p.pedido).map((x) => (
                             <span key={x.tipo} className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-warn">
-                              <AlertTriangle className="h-3 w-3 shrink-0" />
+                              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
                               {x.texto}
                             </span>
                           ))

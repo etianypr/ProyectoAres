@@ -389,7 +389,7 @@ export function PantallaEncomiendas({
           usa es lo único que hay que hacer en esta pantalla. */}
       {/* Se esconde mientras se corrige una dirección en la hoja (spec 037). */}
       {propuesta && !formPedido ? (
-        <div className="fixed inset-x-0 bottom-0 z-30">
+        <div className="fixed inset-x-0 bottom-0 z-sobre-hoja">
           <VistaPreviaRuta propuesta={propuesta} onUsar={onUsarPropuesta} onElegir={onElegirAlternativa} onDescartar={() => setPropuesta(null)}
             quitado={quitado} onQuitar={onQuitar} onDeshacerQuitar={onDeshacerQuitar} onInvertir={onInvertir} onVer={cerca.enfocarPunto}
             onEditar={editarDeLaLista} onMantener={onMantenerLejana} onRecalcular={onRecalcular} />

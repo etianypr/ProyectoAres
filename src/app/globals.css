@@ -153,6 +153,12 @@
   --shadow-float: 0 2px 6px rgb(var(--shadow-ink) / 0.14),
     0 6px 18px rgb(var(--shadow-ink) / 0.1);
 
+  /* Radios con nombre (spec 041): la hoja que sube desde abajo y la caja de un
+     campo. El resto de la escala es la de Tailwind: botones y chips `full`,
+     tarjetas `2xl`, cajas internas `xl`. */
+  --radius-hoja: 26px;
+  --radius-campo: 14px;
+
   /* Animaciones del sistema: rápidas y con curva suave (nada "rebotón").
      La curva 0.16,1,0.3,1 desacelera al final — se siente de producto. */
   --ease-suave: cubic-bezier(0.16, 1, 0.3, 1);
@@ -201,6 +207,24 @@
   from { transform: translateX(-100%); }
   to { transform: none; }
 }
+
+/* Las capas de la app del conductor, de abajo hacia arriba (spec 041). Antes eran
+   números sueltos (z-10…z-[70]) y había que leer cada archivo para saber qué
+   tapaba a qué. */
+/* Botones y avisos sobre el mapa. */
+@utility z-mapa { z-index: 10; }
+/* La hoja del día. */
+@utility z-hoja { z-index: 20; }
+/* Encima de la hoja: los avisos de arriba y la ruta propuesta. */
+@utility z-sobre-hoja { z-index: 30; }
+/* Pantallas completas: escáner, cargar guía, buscar OF, cerrar el día, menú. */
+@utility z-pantalla { z-index: 50; }
+/* La cinta del modo prueba: sobre las pantallas, debajo de las ventanas. */
+@utility z-cinta { z-index: 55; }
+/* Lo que se abre desde una pantalla: Ayuda, Accesibilidad, la cámara de Diagnóstico. */
+@utility z-ventana { z-index: 60; }
+/* «Buscando la ruta»: tapa todo mientras calcula. */
+@utility z-bloqueo { z-index: 70; }
 
 /* Entrada de los hijos de una rejilla (KPIs, listas cortas). Todos a la vez y
    muy corta: escalonarla competía con la transición de página. */

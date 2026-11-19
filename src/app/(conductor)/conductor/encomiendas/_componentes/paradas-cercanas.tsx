@@ -14,6 +14,7 @@ import { formatDistancia } from "@/lib/comun/format";
 import { cn } from "@/lib/comun/utils";
 import { formatoOf } from "@/lib/encomiendas/paquete";
 import type { Cercana } from "../_hooks/paradas-cercanas";
+import { BOTON_ICONO } from "./botones";
 
 export function ParadasCercanas({
   cercanas,
@@ -79,7 +80,7 @@ export function ParadasCercanas({
                     type="button"
                     onClick={() => onLlamar(c)}
                     aria-label="Llamar"
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-brand active:bg-background"
+                    className={cn(BOTON_ICONO, "text-brand")}
                   >
                     <Phone className="h-4 w-4" />
                   </button>

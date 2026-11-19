@@ -79,7 +79,7 @@ export function PilaNotificaciones({
   return (
     <div
       ref={ref}
-      className="absolute inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] z-30 flex flex-col gap-2"
+      className="absolute inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] z-sobre-hoja flex flex-col gap-2"
     >
       {notificaciones.map((aviso) => (
         <div

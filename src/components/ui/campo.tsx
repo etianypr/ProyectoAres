@@ -47,7 +47,7 @@ export function CajaCampo({
         document.getElementById(htmlFor)?.focus();
       }}
       className={cn(
-        "group/campo flex cursor-text items-center gap-2 rounded-[14px] border bg-card px-3.5 transition-[border-color,box-shadow] duration-150 focus-within:shadow-[0_0_0_3.5px_var(--brand-ring)]",
+        "group/campo flex cursor-text items-center gap-2 rounded-campo border bg-card px-3.5 transition-[border-color,box-shadow] duration-150 focus-within:shadow-[0_0_0_3.5px_var(--brand-ring)]",
         compacto ? "min-h-11 py-1" : "min-h-[52px] py-1.5",
         tono === "aviso" ? "border-warn/60" : "border-separator focus-within:border-brand",
         className,
