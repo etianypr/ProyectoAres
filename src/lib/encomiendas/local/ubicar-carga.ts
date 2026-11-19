@@ -32,8 +32,9 @@ type ResumenUbicarCarga = {
   sinSenal: boolean;
   /** El conductor tocó «Dejar de ubicar». */
   cortado: boolean;
-  /** Ubicados con duda (2026-11-16): la cuadra y no la puerta, solo la calle, o una calle
-   *  repetida sin resolver. Van a la IA junto con los sin ubicar. */
+  /** Ubicados sin la puerta: la cuadra, solo la calle o una calle repetida, elegida o no. Van a la
+   *  IA junto con los sin ubicar (2026-11-16; spec 040: todo lo que no es exacto, también la calle
+   *  repetida, porque en el lote la IA ve la zona del día). */
   dudosos: string[];
 };
 
@@ -128,17 +129,18 @@ export async function ubicarCarga(
 async function guardarUbicacion(id: string, r: ResultadoUbicacion, resumen: ResumenUbicarCarga): Promise<void> {
   const provisorio = lugarProvisorio(r);
   if (r.elegida) {
-    await fijarCoordenadas([{ id, lat: r.elegida.lat, lng: r.elegida.lng }]);
+    // Spec 040: lo que no es la puerta queda «Aproximada» en pantalla.
+    const aproximada = r.tipo !== "exacta";
+    await fijarCoordenadas([{ id, lat: r.elegida.lat, lng: r.elegida.lng, aproximada }]);
     resumen.ubicados++;
-    // La cuadra y no la puerta. Lo elegido por la referencia de la guía o por la ruta no es duda.
-    if (r.tipo === "aproximada" && !r.elegida.sector && r.elegida.fuente !== "plus_code") resumen.dudosos.push(id);
+    // Un Plus Code impreciso no lo mejora la IA: es lo que dictó el receptor.
+    if (aproximada && r.elegida.fuente !== "plus_code") resumen.dudosos.push(id);
   } else if (provisorio) {
-    // En duda pero con opciones: entra con la primera y ⚠ (spec 022).
+    // En duda pero con opciones: entra con la primera y ⚠ (spec 022). Va a la IA (spec 040), que en
+    // el lote ve la zona del día; lo que no resuelva se elige en «Por resolver».
     await ubicarConDuda([{ id, ...provisorio }]);
     resumen.ubicados++;
-    // Solo la calle va a la IA; una calle repetida no: la IA no sabe dónde anda la ruta y
-    // elegía el lugar equivocado (dueño, 2026-11-16). Se elige en «Por confirmar».
-    if (provisorio.problema.tipo === "solo_calle") resumen.dudosos.push(id);
+    resumen.dudosos.push(id);
   } else {
     resumen.sinUbicar.push(id);
   }

@@ -48,8 +48,8 @@ test("spec 022: los ⚠ guardados, con su texto y si avisan dos paradas antes", 
   assert.deepEqual(
     problemasDelPedido(pedido({ problemas: guardados })).map((x) => [x.texto, x.avisaAntes]),
     [
-      ["Calle en 3 lugares", true],
-      ["Sin número: va a mitad de cuadra", true],
+      ["Aproximada", true],
+      ["Aproximada", true],
       ["Queda a 6,2 km del resto", true],
       ["No alcanza su horario", true],
       ["La etiqueta indica otra dirección", true],

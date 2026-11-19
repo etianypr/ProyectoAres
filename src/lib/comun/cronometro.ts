@@ -18,7 +18,7 @@ const TRAMOS = {
   "osm.consulta": { titulo: "OSM: consulta", unidad: "ms" },
   "google.consulta": { titulo: "Google: consulta", unidad: "ms" },
   "ia.ida": { titulo: "IA: ida", unidad: "ms" },
-  "ia.idas": { titulo: "IA: idas por dirección", unidad: "n" },
+  "ia.idas": { titulo: "IA: llamadas por lote", unidad: "n" },
   "ia.cache": { titulo: "IA: caché leída", unidad: "tokens" },
   "api.auth": { titulo: "API: sesión", unidad: "ms" },
   "api.proveedor": { titulo: "API: proveedor", unidad: "ms" },

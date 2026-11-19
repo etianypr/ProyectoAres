@@ -131,7 +131,7 @@ test("cargarLineasGuia: la IA solo ve los de ESTA carga, y sin señal no se le p
     origen: "guia_pegada",
     lecturaIA: true,
     ubicar: async () => noExiste,
-    corregir: async (d) => (vistas.push(d), { tipo: "sin_arreglo", motivo: "m" }),
+    corregir: async (ds) => ds.map((d) => (vistas.push(d), { tipo: "sin_arreglo", motivo: "m" })),
   });
   assert.deepEqual(vistas, ["Pasaje Nuevo 5"], "le preguntó por pedidos de otra carga");
   assert.equal(r.ia, "hecha");
@@ -143,26 +143,36 @@ test("cargarLineasGuia: la IA solo ve los de ESTA carga, y sin señal no se le p
     origen: "guia_pegada",
     lecturaIA: true,
     ubicar: async () => sinRespuesta,
-    corregir: async () => (preguntas++, { tipo: "sin_arreglo", motivo: "m" }),
+    corregir: async (ds) => (preguntas++, ds.map(() => ({ tipo: "sin_arreglo", motivo: "m" }))),
   });
   assert.equal(r2.sinSenal, true);
   assert.equal(r2.ia, "sinSenal");
   assert.equal(preguntas, 0);
 });
 
-test("corregirSinUbicar: los errores son «sin señal», no «sin arreglo», y paran a las 2", async () => {
+test("corregirSinUbicar: los errores son «sin señal», no «sin arreglo»; un lote que no llega no se repite (spec 040)", async () => {
   await crear(4);
   let preguntas = 0;
-  const r = await corregirSinUbicar(HOY, { corregir: async () => (preguntas++, { tipo: "error", mensaje: "sin red" }) });
-  assert.equal(preguntas, 2);
+  // Error por dirección: cada una queda «sin señal».
+  const r = await corregirSinUbicar(HOY, { corregir: async (ds) => (preguntas++, ds.map(() => ({ tipo: "error", mensaje: "sin red" }))) });
+  assert.equal(preguntas, 1, "las 4 en una llamada");
   assert.equal(r.sinSenal, 4);
   assert.equal(r.sinArreglo, 0);
+  // El lote entero no llega: todas «sin señal», sin otro intento.
+  const r2 = await corregirSinUbicar(HOY, {
+    corregir: async () => {
+      preguntas++;
+      throw new Error("sin red");
+    },
+  });
+  assert.equal(preguntas, 2);
+  assert.equal(r2.sinSenal, 4);
 });
 
 test("corregirSinUbicar: no vuelve a pagar por las que ya tienen propuesta", async () => {
   const [a, b] = await crear(2);
   const vistas = [];
-  await corregirSinUbicar(HOY, { excluir: [a.id], corregir: async (d) => (vistas.push(d), { tipo: "sin_arreglo", motivo: "m" }) });
+  await corregirSinUbicar(HOY, { excluir: [a.id], corregir: async (ds) => ds.map((d) => (vistas.push(d), { tipo: "sin_arreglo", motivo: "m" })) });
   assert.deepEqual(vistas, [b.direccion]);
 });
 

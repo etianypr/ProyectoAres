@@ -160,7 +160,7 @@ test("avisoAdelante: el ⚠ a una o dos paradas pendientes; más lejos, no", () 
   const a = avisoAdelante(paradas, "p12");
   assert.equal(a.parada.secuencia, 14);
   assert.equal(a.cuantas, 2);
-  assert.equal(lineaAvisoAdelante(a), "⚠ En 2 paradas: la 14 · Calle en 3 lugares");
+  assert.equal(lineaAvisoAdelante(a), "⚠ En 2 paradas: la 14 · Aproximada");
 
   assert.equal(avisoAdelante(paradas, "p13").cuantas, 1, "la próxima");
   assert.equal(avisoAdelante(paradas, "p11"), null, "a tres paradas todavía no");

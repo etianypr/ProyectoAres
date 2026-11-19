@@ -5,7 +5,7 @@
 
 import { AlertTriangle, MapPinOff } from "lucide-react";
 import { nombreVisible, subtituloPedido } from "@/lib/encomiendas/paquete";
-import { problemasDelPedido, type TipoProblema } from "@/lib/encomiendas/problemas";
+import { etiquetasDelPedido, problemasDelPedido, type TipoProblema } from "@/lib/encomiendas/problemas";
 import type { Pedido } from "@/lib/encomiendas/local/almacen";
 import { FilaDeslizable } from "./fila-deslizable";
 
@@ -58,7 +58,8 @@ export function FilaPedido({
           {/* Lo principal es la dirección; la OF es el id (dueño, 2026-11-16). */}
           <p className="truncate font-medium leading-tight">{pedido.direccion || "Sin dirección"}</p>
           <p className="truncate text-xs text-muted">{subtituloPedido(pedido)}</p>
-          {problemas.map((p) => {
+          {/* Spec 040: Sin ubicar o Aproximada (y los demás ⚠); la acción sigue a los ⚠ de verdad. */}
+          {etiquetasDelPedido(pedido).map((p) => {
             const Icono = p.tipo === "sin_ubicar" ? MapPinOff : AlertTriangle;
             return (
               <p key={p.tipo} className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-warn">

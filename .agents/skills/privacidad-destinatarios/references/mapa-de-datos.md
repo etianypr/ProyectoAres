@@ -10,7 +10,7 @@ sale. Si el código cambió, manda el código: actualiza esta tabla o avisa la d
 | `lectura/route.ts` | `conductorDeLaApi()` | `tipo` (`guia`, `etiqueta`), fotos JPEG/PNG/WebP, `revisar` | Anthropic con el SDK (`lib/encomiendas/lectura/servidor.ts`): etiqueta con Haiku (`LECTURA_MODELO`), guía con Opus (`LECTURA_MODELO_GUIA`) | nada |
 | `texto/route.ts` | `conductorDeLaApi()` | una foto (`imagen`) | `vision.googleapis.com` (`lectura/vision.ts`), con `GOOGLE_VISION_KEY` o, si está vacía, `GOOGLE_MAPS_KEY` | nada |
 | `geocodificar/route.ts` | `conductorDeLaApi()` | `direccion` (POST, máx. 200 caracteres) | `maps.googleapis.com` (`googleDirecto` en `geo/geocoding/google.ts`) | nada |
-| `direccion-ia/route.ts` | `conductorDeLaApi()` | la conversación: dirección escrita y lo que contestaron los buscadores, sin nombre ni teléfono | Anthropic (`geo/direccion-ia/servidor.ts`) | nada |
+| `direccion-ia/route.ts` | `conductorDeLaApi()` | el lote (spec 040): las direcciones escritas, los candidatos de los buscadores (punto con 4 decimales), nombres del catálogo y la zona del día (nombre de sector y cuántos pedidos), sin nombre ni teléfono | Anthropic (`geo/direccion-ia/servidor.ts`) | nada |
 | `whatsapp/send/route.ts` | `conductorDeLaApi()` | `pedidoId`, `fecha`, `nombre` (máx. 60), `telefono`, `cuando` | `graph.facebook.com` (`lib/whatsapp/meta.ts`); en pausa salvo `WHATSAPP_EN_PAUSA=no` | correlación: código opaco, id local del pedido, fecha, estado |
 | `whatsapp/status/route.ts` | `conductorDeLaApi()` | — | — | lee y confirma correlaciones propias |
 | `whatsapp/webhook/route.ts` | firma HMAC de Meta, sin sesión (`createAdminClient`) | — | — | botón y bloque; **no** guarda `messages[].from` ni texto libre |

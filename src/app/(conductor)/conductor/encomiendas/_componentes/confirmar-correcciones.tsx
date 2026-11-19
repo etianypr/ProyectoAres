@@ -147,16 +147,12 @@ export function ConfirmarCorrecciones({
                     onClick={() => setAbiertos((s) => ({ ...s, [p.pedidoId]: !conTelefono(p) }))}
                   />
                 </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {p.soloCalle ? (
-                    <span className="rounded-full bg-warn-bg px-2 py-0.5 text-xs font-medium text-warn">Solo la calle</span>
-                  ) : p.enLaCuadra ? (
-                    <span className="rounded-full bg-background px-2 py-0.5 text-xs font-medium">En la cuadra</span>
-                  ) : null}
-                  {!p.segura ? (
-                    <span className="rounded-full bg-warn-bg px-2 py-0.5 text-xs font-medium text-warn">Dudosa</span>
-                  ) : null}
-                </div>
+                {/* Spec 040: una sola etiqueta en vez de «Solo la calle», «En la cuadra» y «Dudosa». */}
+                {p.soloCalle || p.enLaCuadra || !p.segura ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    <span className="rounded-full bg-warn-bg px-2 py-0.5 text-xs font-medium text-warn">Aproximada</span>
+                  </div>
+                ) : null}
                 <MapaPunto lat={p.lat} lng={p.lng} etiqueta={p.direccion} alto={130} />
               </>
             )}

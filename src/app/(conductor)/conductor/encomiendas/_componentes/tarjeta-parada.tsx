@@ -10,7 +10,7 @@ import { createPortal } from "react-dom";
 import { formatCLP, formatDistancia, formatDuracion, formatTime } from "@/lib/comun/format";
 import { AlertTriangle, Navigation, Package } from "lucide-react";
 import { formatoOf, textoReferencia } from "@/lib/encomiendas/paquete";
-import { problemasDelPedido } from "@/lib/encomiendas/problemas";
+import { etiquetasDelPedido } from "@/lib/encomiendas/problemas";
 import type { Pedido } from "@/lib/encomiendas/local/almacen";
 import { useFotoGuardada } from "../_hooks/use-foto-paquete";
 import { porPagarPorRevisar } from "../_hooks/por-pagar";
@@ -106,7 +106,7 @@ export function TarjetaParada({
             aviso que había acá estorbaba más de lo que ayudaba (terreno 2026-10-29). */}
         {pedido.nombre ? <p className="mt-0.5 truncate text-sm text-muted">{pedido.nombre}</p> : null}
         {/* Su ⚠, en palabras (spec 022): al llegar se ve qué estaba en duda. */}
-        {problemasDelPedido(pedido).map((x) => (
+        {etiquetasDelPedido(pedido).map((x) => (
           <p key={x.tipo} className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-warn">
             <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
             {x.texto}

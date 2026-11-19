@@ -58,15 +58,24 @@ con ese archivo, vale `AGENTS.md`, y hay que avisar la diferencia.
   que el adelanto (prioridad baja) que pregunta cada línea mientras se revisa la guía (solo OSM,
   nunca Google: dueño, 2026-11-17).
 - **La carga ubica de a 3** (`VENTANA`, `ubicar-carga.ts`) y procesa cada resultado en orden,
-  con el mismo código; la IA corrige de a 2 (`DIRECCIONES_A_LA_VEZ`), arranca de a una hasta la
-  primera respuesta buena, y un 429 de Anthropic no es «sin conexión»: baja a una a la vez. El
-  mismo destino se le pregunta una sola vez. Sin respuesta de Google ni de OSM, no se completa el
-  número (no vuelve a esperar a Google).
+  con el mismo código. Sin respuesta de Google ni de OSM, no se completa el número (no vuelve a
+  esperar a Google).
+- **La IA corrige en lote** (spec 040, dueño 2026-11-18): todo lo que no quedó en la puerta (sin
+  ubicar, la cuadra, solo la calle y la calle repetida) va en una llamada de hasta `LOTE_MAXIMO`
+  (15) direcciones, con los candidatos que ya tenía `ubicarDireccion` (caché del día), los nombres
+  parecidos del catálogo y la zona del día (sector y cifra). Ronda 1: elige o pide buscar un texto;
+  ronda 2: solo esas, con lo nuevo; no hay ronda 3. El mismo destino va una vez. Un 429 se reintenta
+  una vez; un lote que no llega deja ese y los siguientes «sin señal».
 - **Sin señal no es «no existe»**: `puertaEnCalle` devuelve `null` y no descarta nada. Ningún error
   de red borra ni descarta.
-- **La IA no escribe coordenadas** (018): elige un candidato por id, su confianza nunca supera la
-  del candidato (`interpretar`) y el conductor confirma cada una (nada se aplica solo). A
-  Anthropic va la dirección y lo que devolvieron los buscadores, sin nombre ni teléfono.
+- **La IA no escribe coordenadas** (018): elige un candidato de ESA dirección por id (`d1c2`; uno de
+  otra no sirve), su confianza nunca supera la del candidato (`interpretar`) y el conductor
+  confirma cada una (nada se aplica solo). A Anthropic van las direcciones, lo que devolvieron los
+  buscadores y la zona del día en sectores, sin nombre ni teléfono.
+- **En pantalla, tres estados** (spec 040): Ubicada, Aproximada y Sin ubicar (`estadoUbicacion`,
+  `etiquetasDelPedido`). Lo que no es la puerta queda con `Pedido.aproximada` (la carga, el reintento,
+  la IA confirmada y la etiqueta lo escriben; cambiar la dirección lo borra). La cuadra se ve
+  «Aproximada» pero no es un ⚠: no entra a «Por resolver».
 - **El catálogo de calles viaja en el código** (`calles-arica.ts`, 1.563 calles, generado): corrige
   sin red y no gasta turnos de Nominatim. No se edita a mano; A7 lo exime por `// GENERADO`.
 - **Nada se recuerda de un día para otro** (016, fuera de alcance; borrado diario de la 007).
@@ -129,7 +138,7 @@ tocar la IA, sumar un proveedor) en `references/cambios.md`. Lo común a todos:
 | Nominatim | gratis; política: máx. 1 consulta/s, nada en volumen | fila en `nominatim.ts` (`MS_ENTRE_CONSULTAS_OSM` = 1,2 s): 100 direcciones son ≥ 2 min |
 | Google Geocoding | 10.000 gratis al mes; un día usa ~100; decidido: ~300 al día | **en la consola de Google Cloud, no en el código**: no hay contador. La cuota la crea el dueño (019 T012, *pendiente*) |
 | OpenFreeMap (mapa y calles alrededor de cada parada) | gratis, sin clave ni límite | — |
-| Anthropic (IA 018) | ~US$0,02 por dirección (`claude-sonnet-5`, `DIRECCION_MODELO`) | `MAX_DIRECCIONES_POR_TANDA` = 100, `MAX_VUELTAS` = 6. Revisa los sin ubicar y los dudosos de cada carga (la cuadra, solo la calle; spec 035) |
+| Anthropic (IA 018, en lote desde la 040) | 1 o 2 llamadas por cada 15 direcciones (`claude-sonnet-5`, `DIRECCION_MODELO`); antes ~US$0,02 por dirección en ~3 idas | `MAX_DIRECCIONES_POR_TANDA` = 100, `LOTE_MAXIMO` = 15. Revisa todo lo que no quedó en la puerta (spec 040) |
 | Overpass (`npm run calles`) | gratis; solo recibe el recuadro | uso razonable |
 
 - Google se pide por cada dirección con número (menos los Plus Codes), por cada «nombre oficial
@@ -151,7 +160,8 @@ tocar la IA, sumar un proveedor) en `references/cambios.md`. Lo común a todos:
   `/api/geocodificar` llamando a `googleDirecto(direccion, "clave-prueba")`, y
   `globalThis.window = {}` simula el teléfono (sin `window` no se pregunta a Google). Molde
   completo en `references/cambios.md`.
-- La IA no usa `fetch` en las pruebas: `corregirConIA(dir, { pedir, buscar, calles })`.
+- La IA no usa `fetch` en las pruebas: `corregirEnLote(entradas, { zona }, { pedir, buscar })` o, en
+  `corregirDirecciones`, `corregir: async (direcciones, { zona }) => resultados` (uno por dirección).
 - Cada `ubicarDireccion` espera el turno real de Nominatim (~1,2 s): junta los casos. Con la
   caché del día (spec 038), una prueba que repite una consulta con otra respuesta de OSM llama a
   `olvidarConsultasNominatim()` en su `beforeEach`, como con Google.

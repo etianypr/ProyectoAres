@@ -1,15 +1,14 @@
-// Corregir con IA las direcciones que no se ubicaron (spec 018).
+// Corregir con IA las direcciones que no se ubicaron (spec 018; en lote desde la spec 040, que
+// prueba el lote en 040-ia-lote.test.mjs).
 //
-// La IA y los buscadores van en dobles: lo que se prueba es que la conversación
-// tenga la forma que acepta la API, que las coordenadas salgan SIEMPRE de un
-// buscador (nunca de la IA), que la confianza no supere a la del candidato, y
-// que solo la corrección segura se aplique sola.
+// La IA va en un doble: lo que se prueba es que las coordenadas salgan SIEMPRE de un buscador
+// (nunca de la IA), que la confianza no supere a la del candidato, y que nada se aplique sin que
+// el conductor confirme.
 import "fake-indexeddb/auto";
 import test from "node:test";
 import assert from "node:assert/strict";
 
-const { conversacionValida, MAX_VUELTAS } = await import("@/lib/geo/direccion-ia/contrato");
-const { corregirConIA, interpretar, IANoDisponible } = await import("@/lib/geo/direccion-ia/cliente");
+const { interpretar, IANoDisponible } = await import("@/lib/geo/direccion-ia/cliente");
 const { corregirSinUbicar, esSegura, aplicarCorreccion } = await import("@/lib/encomiendas/local/corregir-direcciones");
 const almacen = await import("@/lib/encomiendas/local/almacen");
 const idb = await import("@/lib/encomiendas/local/idb");
@@ -26,61 +25,11 @@ const SANTA_MARIA = {
   fuente: "google",
 };
 
-/** La IA de mentira: contesta por turno lo que diga el guion. */
-function iaConGuion(guion) {
-  const conversaciones = [];
-  return {
-    conversaciones,
-    pedir: async (mensajes) => {
-      assert.ok(conversacionValida(mensajes), "la conversación no la aceptaría el servidor");
-      conversaciones.push(structuredClone(mensajes));
-      const turno = guion[conversaciones.length - 1];
-      if (turno instanceof Error) throw turno;
-      return { contenido: turno, fin: "tool_use" };
-    },
-  };
-}
-const usar = (id, name, input) => ({ type: "tool_use", id, name, input });
-
-// ---------------------------------------------------------------- contrato
-test("conversacionValida: turnos alternados, empieza el usuario, tamaño acotado", () => {
-  const inicio = { role: "user", content: "Dirección escrita: «X»." };
-  assert.equal(conversacionValida([inicio]), true);
-  assert.equal(conversacionValida([]), false);
-  assert.equal(conversacionValida([{ role: "assistant", content: [{ type: "text", text: "hola" }] }]), false);
-  assert.equal(conversacionValida([inicio, inicio]), false, "dos del usuario seguidos");
-  assert.equal(conversacionValida([inicio, { role: "assistant", content: [{ type: "image" }] }]), false);
-  assert.equal(conversacionValida([{ role: "user", content: "x".repeat(70_000) }]), false, "demasiado grande");
-  const larga = [inicio];
-  for (let i = 0; i < MAX_VUELTAS + 1; i++) {
-    larga.push({ role: "assistant", content: [usar(`t${i}`, "buscar_direccion", { consulta: "x" })] });
-    larga.push({ role: "user", content: [{ type: "tool_result", tool_use_id: `t${i}`, content: "[]" }] });
-  }
-  assert.equal(conversacionValida(larga), false, "más vueltas de las permitidas");
-});
+/** La IA de corregirDirecciones (spec 040: una llamada con la lista), armada con una respuesta
+ *  por dirección. */
+const cadaUna = (responder) => async (direcciones) => Promise.all(direcciones.map((d) => responder(d)));
 
 // ---------------------------------------------------------------- cliente
-test("corregirConIA: busca, elige un candidato por su id y las coordenadas son del buscador", async () => {
-  const ia = iaConGuion([
-    [usar("t1", "calles_parecidas", { nombre: "STA MARIA" })],
-    [usar("t2", "buscar_direccion", { consulta: "Avenida Santa María 2150" })],
-    [usar("t3", "proponer", { candidato: "c1", direccion: "Avenida Santa María 2150", confianza: "alta", motivo: "Faltaba Avenida." })],
-  ]);
-  const consultas = [];
-  const r = await corregirConIA("AV STA MARIA 2150", {
-    pedir: ia.pedir,
-    calles: async () => [{ nombre: "Avenida Santa María", largo: 3400 }],
-    buscar: async (q) => (consultas.push(q), [SANTA_MARIA]),
-  });
-  assert.equal(r.tipo, "propuesta");
-  assert.equal(r.confianza, "alta");
-  assert.deepEqual([r.candidato.lat, r.candidato.lng], [SANTA_MARIA.lat, SANTA_MARIA.lng]);
-  assert.deepEqual(consultas, ["Avenida Santa María 2150"]);
-  // La IA recibió lo que devolvió cada herramienta.
-  const ultima = ia.conversaciones.at(-1);
-  assert.match(ultima.at(-1).content[0].content, /"id":"c1"/);
-});
-
 test("interpretar: un id que ningún buscador devolvió no se acepta (la IA no inventa puntos)", () => {
   const r = interpretar({ candidato: "c9", direccion: "Calle Inventada 1", confianza: "alta", motivo: "x" }, new Map());
   assert.equal(r.tipo, "sin_arreglo");
@@ -96,22 +45,6 @@ test("interpretar: la confianza nunca supera a la del candidato", () => {
   assert.equal(de("c1"), "media", "una cuadra no es la puerta");
   assert.equal(de("c2"), "media", "el número no coincide");
   assert.equal(de("c3", "media"), "baja", "un barrio no es una dirección");
-});
-
-test("corregirConIA: si la IA no propone nada o se pasa de vueltas, queda sin arreglo", async () => {
-  const sinNada = await corregirConIA("X 1", { pedir: iaConGuion([[{ type: "text", text: "No sé." }]]).pedir });
-  assert.deepEqual(sinNada, { tipo: "sin_arreglo", motivo: "No sé." });
-
-  const eterna = iaConGuion(Array.from({ length: MAX_VUELTAS }, (_, i) => [usar(`t${i}`, "buscar_direccion", { consulta: "x" })]));
-  const r = await corregirConIA("X 1", { pedir: eterna.pedir, buscar: async () => [] });
-  assert.equal(r.tipo, "sin_arreglo");
-  assert.equal(eterna.conversaciones.length, MAX_VUELTAS);
-});
-
-test("corregirConIA: sin señal devuelve error; sin IA en el servidor avisa para no seguir", async () => {
-  const r = await corregirConIA("X 1", { pedir: iaConGuion([new Error("sin señal")]).pedir });
-  assert.equal(r.tipo, "error");
-  await assert.rejects(() => corregirConIA("X 1", { pedir: iaConGuion([new IANoDisponible()]).pedir }), IANoDisponible);
 });
 
 // ------------------------------------------------------------ el lote del día
@@ -144,7 +77,7 @@ test("corregirSinUbicar: propone y NO cambia nada; el conductor confirma (terren
   const yaUbicado = await pedido("Calle Real 1", { lat: -18.47, lng: -70.3 });
   const vistos = [];
   const r = await corregirSinUbicar(HOY, {
-    corregir: async (d) => {
+    corregir: cadaUna(async (d) => {
       vistos.push(d);
       if (d.startsWith("AV")) {
         return { tipo: "propuesta", candidato: SANTA_MARIA, direccion: "Avenida Santa María 2150", confianza: "alta", motivo: "m" };
@@ -153,7 +86,7 @@ test("corregirSinUbicar: propone y NO cambia nada; el conductor confirma (terren
         return { tipo: "propuesta", candidato: { ...SANTA_MARIA, coincideNumero: false }, direccion: "Pasaje 3 1200", confianza: "media", motivo: "Otro número." };
       }
       return { tipo: "propuesta", candidato: { ...SANTA_MARIA, confianza: "baja" }, direccion: "La Chimba", confianza: "baja", motivo: "Solo el barrio." };
-    },
+    }),
   });
   assert.ok(!vistos.includes(yaUbicado.direccion), "intentó corregir uno ya ubicado");
   const porId = Object.fromEntries(r.propuestas.map((p) => [p.pedidoId, p.segura]));
@@ -176,7 +109,7 @@ test("aplicarCorreccion: corregida con el lápiz, queda la que eligió el conduc
   const mala = await pedido("AV STA MARIA 2150");
   const igual = await pedido("AV STA MARIA 2151");
   const r = await corregirSinUbicar(HOY, {
-    corregir: async () => ({ tipo: "propuesta", candidato: SANTA_MARIA, direccion: "Avenida Santa María 2150", confianza: "alta", motivo: "m" }),
+    corregir: cadaUna(async () => ({ tipo: "propuesta", candidato: SANTA_MARIA, direccion: "Avenida Santa María 2150", confianza: "alta", motivo: "m" })),
   });
   const de = (id) => r.propuestas.find((p) => p.pedidoId === id);
 
@@ -223,10 +156,10 @@ test("corregirSinUbicar: sin IA en el servidor no sigue con las demás", async (
 test("corregirSinUbicar: la propuesta queda guardada y no se vuelve a pagar al reabrir (dueño, 2026-11-13)", async () => {
   const mala = await pedido("AV STA MARIA 2150");
   let llamadas = 0;
-  const corregir = async () => (
+  const corregir = cadaUna(async () => (
     llamadas++,
     { tipo: "propuesta", candidato: SANTA_MARIA, direccion: "Avenida Santa María 2150", confianza: "alta", motivo: "m" }
-  );
+  ));
   await corregirSinUbicar(HOY, { ids: [mala.id], corregir });
   assert.equal(llamadas, 1);
 
@@ -253,7 +186,7 @@ test("propuestasGuardadas: si el conductor cambió la dirección a mano, la prop
   const mala = await pedido("PJE 9 CASA 4");
   await corregirSinUbicar(HOY, {
     ids: [mala.id],
-    corregir: async () => ({ tipo: "propuesta", candidato: SANTA_MARIA, direccion: "Pasaje 9 1200", confianza: "media", motivo: "m" }),
+    corregir: cadaUna(async () => ({ tipo: "propuesta", candidato: SANTA_MARIA, direccion: "Pasaje 9 1200", confianza: "media", motivo: "m" })),
   });
   await almacen.cambiarDireccion(mala.id, "Pasaje 9 1204", null);
   const { propuestasGuardadas } = await import("@/lib/encomiendas/local/corregir-direcciones");
@@ -273,7 +206,7 @@ test("corregirDirecciones: un dudoso de la carga (con punto) recibe propuesta, y
   const { corregirDirecciones } = await import("@/lib/encomiendas/local/corregir-direcciones");
   const dudoso = await pedido("PASAJE 1 1450", { lat: -18.43, lng: -70.29 });
   await almacen.ubicarConDuda([{ id: dudoso.id, punto: { lat: -18.43, lng: -70.29 }, problema: { tipo: "calle_repetida", opciones: [{ direccion: "Pasaje 1", detalle: null, lat: -18.43, lng: -70.29 }] } }]);
-  const r = await corregirDirecciones(HOY, { ids: [dudoso.id], corregir: propuestaEn(SANTA_MARIA.lat, SANTA_MARIA.lng) });
+  const r = await corregirDirecciones(HOY, { ids: [dudoso.id], corregir: cadaUna(propuestaEn(SANTA_MARIA.lat, SANTA_MARIA.lng)) });
   assert.equal(r.propuestas.length, 1);
   await aplicarCorreccion(r.propuestas[0]);
   const p = (await almacen.leerPedidos(HOY)).find((x) => x.id === dudoso.id);
@@ -288,7 +221,7 @@ test("corregirDirecciones: sin ids revisa los sin ubicar y los de lugar en duda;
   const bien = await pedido("Calle Real 1", { lat: -18.47, lng: -70.3 });
   const vistos = [];
   const r = await corregirDirecciones(HOY, {
-    corregir: async (d) => (vistos.push(d), propuestaEn(-18.50001, -70.30001)()),
+    corregir: cadaUna(async (d) => (vistos.push(d), propuestaEn(-18.50001, -70.30001)())),
   });
   assert.deepEqual(vistos, ["PJE 2 900"], "el bien ubicado no se paga");
   assert.equal(r.propuestas.length, 0, "a 1 m del punto que ya tenía: no cambia nada");
@@ -300,6 +233,6 @@ test("corregirDirecciones: pasa de 15 pedidos en una carga", async () => {
   const ids = [];
   for (let i = 0; i < 20; i++) ids.push((await pedido(`CALLE INVENTADA ${900 + i}`)).id);
   let preguntas = 0;
-  await corregirDirecciones(HOY, { ids, corregir: async () => (preguntas++, { tipo: "sin_arreglo", motivo: "m" }) });
+  await corregirDirecciones(HOY, { ids, corregir: cadaUna(async () => (preguntas++, { tipo: "sin_arreglo", motivo: "m" })) });
   assert.equal(preguntas, 20);
 });
