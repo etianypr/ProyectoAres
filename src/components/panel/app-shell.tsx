@@ -13,6 +13,7 @@ import {
   Package,
 } from "lucide-react";
 import { cn } from "@/lib/comun/utils";
+import { LogoDashund } from "@/components/marca/logo-dashund";
 import { logout } from "@/lib/auth/acciones";
 import { PeriodoSelector } from "@/components/panel/periodo-selector";
 import { Notificaciones } from "@/components/panel/notificaciones";
@@ -63,13 +64,13 @@ export function AppShell({
 
   const SidebarContent = (
     <div className="flex h-full flex-col">
+      {/* La marca de ARES, la misma del login (spec 042): antes, un ícono de caja y
+          «Gestión interna». El nombre de la empresa sigue saliendo de Configuración. */}
       <div className="flex items-center gap-2.5 px-5 py-5">
-        <div className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-brand text-brand-foreground">
-          <Package className="h-5 w-5" />
-        </div>
+        <LogoDashund className="h-9 w-9 shrink-0" />
         <div className="leading-tight">
-          <div className="text-sm font-semibold">{empresaNombre}</div>
-          <div className="text-[11px] text-white/60">Gestión interna</div>
+          <div className="text-sm font-extrabold tracking-tight">ARES</div>
+          <div className="text-xs text-white/60">{empresaNombre}</div>
         </div>
       </div>
 
@@ -77,7 +78,7 @@ export function AppShell({
         {grupos.map((grupo, gi) => (
           <div key={gi} className="space-y-1">
             {grupo.label ? (
-              <p className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-white/35">
+              <p className="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wider text-white/40">
                 {grupo.label}
               </p>
             ) : null}
@@ -90,9 +91,9 @@ export function AppShell({
                   href={item.href}
                   onClick={() => setOpen(false)}
                   className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                    "flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
                     active
-                      ? "bg-white/10 text-white"
+                      ? "bg-white/10 font-semibold text-white"
                       : "text-white/60 hover:bg-white/[0.06] hover:text-white",
                   )}
                 >
@@ -110,9 +111,9 @@ export function AppShell({
           href="/configuracion"
           onClick={() => setOpen(false)}
           className={cn(
-            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+            "flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
             isActive("/configuracion")
-              ? "bg-white/10 text-white"
+              ? "bg-white/10 font-semibold text-white"
               : "text-white/60 hover:bg-white/[0.06] hover:text-white",
           )}
         >
@@ -125,7 +126,7 @@ export function AppShell({
         <form action={logout}>
           <button
             type="submit"
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-white/60 transition-colors hover:bg-white/[0.06] hover:text-white"
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-white/60 transition-colors hover:bg-white/[0.06] hover:text-white"
           >
             <LogOut className="h-4 w-4" />
             Cerrar sesión
@@ -138,15 +139,15 @@ export function AppShell({
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[16rem_1fr]">
       {/* Sidebar de escritorio: fijo; solo scrollea el contenido */}
-      <aside className="hidden bg-[#1d1d1f] text-white lg:sticky lg:top-0 lg:block lg:h-screen">
+      <aside className="hidden bg-foreground text-white lg:sticky lg:top-0 lg:block lg:h-screen">
         {SidebarContent}
       </aside>
 
       {/* Barra superior móvil */}
-      <header className="flex items-center justify-between bg-[#1d1d1f] px-4 py-3 text-white lg:hidden">
+      <header className="flex items-center justify-between bg-foreground px-4 py-3 text-white lg:hidden">
         <div className="flex items-center gap-2">
-          <Package className="h-5 w-5" />
-          <span className="text-sm font-semibold">{empresaNombre}</span>
+          <LogoDashund className="h-6 w-6" />
+          <span className="text-sm font-extrabold tracking-tight">ARES</span>
         </div>
         <button onClick={() => setOpen(true)} aria-label="Abrir menú">
           <Menu className="h-6 w-6" />
@@ -160,7 +161,7 @@ export function AppShell({
             className="absolute inset-0 bg-black/40"
             onClick={() => setOpen(false)}
           />
-          <div className="absolute left-0 top-0 h-full w-64 bg-[#1d1d1f] text-white shadow-xl">
+          <div className="absolute left-0 top-0 h-full w-64 bg-foreground text-white shadow-xl">
             <button
               onClick={() => setOpen(false)}
               className="absolute right-3 top-4 text-white/70"

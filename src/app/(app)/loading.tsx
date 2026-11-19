@@ -7,7 +7,7 @@
 // Next.js muestra este archivo automáticamente mientras la página de al lado
 // se resuelve en el servidor, así que cubre las 15 rutas del panel de una vez.
 function Bloque({ className }: { className?: string }) {
-  return <div className={`animate-pulse rounded-lg bg-border/50 ${className ?? ""}`} />;
+  return <div className={`animate-pulse rounded-xl bg-border/50 ${className ?? ""}`} />;
 }
 
 export default function CargandoPanel() {
@@ -28,7 +28,7 @@ export default function CargandoPanel() {
         {/* Fila de indicadores */}
         <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="rounded-[18px] bg-card p-6 shadow-soft">
+            <div key={i} className="rounded-2xl bg-card p-6 shadow-soft">
               <Bloque className="h-3 w-24" />
               <Bloque className="mt-3 h-7 w-32" />
             </div>
@@ -36,7 +36,7 @@ export default function CargandoPanel() {
         </div>
 
         {/* Listado */}
-        <div className="overflow-hidden rounded-[18px] bg-card shadow-soft">
+        <div className="overflow-hidden rounded-2xl bg-card shadow-soft">
           <div className="border-b border-border bg-background px-4 py-3">
             <Bloque className="h-3 w-28" />
           </div>

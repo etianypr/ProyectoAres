@@ -81,7 +81,7 @@ export function FotoUploader({
       />
 
       {msg ? (
-        <p className="absolute left-1/2 top-full mt-1 w-40 -translate-x-1/2 text-center text-[11px] text-muted">
+        <p className="absolute left-1/2 top-full mt-1 w-40 -translate-x-1/2 text-center text-xs text-muted">
           {msg}
         </p>
       ) : null}

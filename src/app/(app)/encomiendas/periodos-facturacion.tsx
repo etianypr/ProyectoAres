@@ -179,7 +179,7 @@ function Formulario({
         />
       </Field>
 
-      <div className="flex items-center gap-2.5 rounded-xl bg-white px-4 py-3 text-sm sm:col-span-2">
+      <div className="flex items-center gap-2.5 rounded-xl bg-card px-4 py-3 text-sm sm:col-span-2">
         <span
           className="h-3 w-3 shrink-0 rounded-full"
           // Todos los periodos son de este color, se esté creando uno o editando
@@ -197,12 +197,12 @@ function Formulario({
       </div>
 
       {state.error ? (
-        <p className="rounded-lg border border-danger/20 bg-danger-bg px-3 py-2 text-sm text-danger sm:col-span-2">
+        <p className="rounded-xl bg-danger-bg px-3 py-2 text-sm text-danger sm:col-span-2">
           {state.error}
         </p>
       ) : null}
       {errorBorrar ? (
-        <p className="rounded-lg border border-danger/20 bg-danger-bg px-3 py-2 text-sm text-danger sm:col-span-2">
+        <p className="rounded-xl bg-danger-bg px-3 py-2 text-sm text-danger sm:col-span-2">
           {errorBorrar}
         </p>
       ) : null}

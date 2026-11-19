@@ -24,7 +24,7 @@ export function Kpi({
     <Card className="group transition-[box-shadow,transform] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5 hover:shadow-card">
       <CardBody>
         <div className="flex items-start justify-between gap-2">
-          <span className="text-sm text-muted">{label}</span>
+          <span className="rotulo text-xs text-muted">{label}</span>
           <span
             className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-110 ${tint}`}
           >
@@ -32,7 +32,7 @@ export function Kpi({
           </span>
         </div>
         <div
-          className={`mt-1 text-[26px] font-semibold tracking-[-0.02em] tabular-nums ${valueClass}`}
+          className={`mt-1 text-2xl font-extrabold tracking-tight tabular-nums ${valueClass}`}
         >
           {value}
         </div>

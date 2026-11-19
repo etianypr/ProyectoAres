@@ -10,7 +10,7 @@ import { LogoDashund } from "@/components/marca/logo-dashund";
 import { Bus, LogIn, RotateCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Field } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
+import { Button, buttonClass } from "@/components/ui/button";
 
 // Página a la que llega el link del correo de invitación/reseteo (ver
 // invitarConductor en conductores/actions.ts). El link entrega la sesión en el
@@ -129,7 +129,7 @@ export default function SetPasswordPage() {
             <p className="text-sm text-muted">Verificando enlace…</p>
           ) : estado === "sin-senal" ? (
             <div className="space-y-4">
-              <p className="rounded-lg border border-danger/20 bg-danger-bg px-3 py-2 text-sm text-danger">
+              <p className="rounded-xl bg-danger-bg px-3 py-2 text-sm text-danger">
                 Sin señal: no se pudo comprobar el enlace.
               </p>
               <Button type="button" size="lg" className="w-full" onClick={() => {
@@ -142,12 +142,12 @@ export default function SetPasswordPage() {
             </div>
           ) : estado === "vencido" ? (
             <div className="space-y-4">
-              <p className="rounded-lg border border-danger/20 bg-danger-bg px-3 py-2 text-sm text-danger">
+              <p className="rounded-xl bg-danger-bg px-3 py-2 text-sm text-danger">
                 Este enlace no es válido o ya venció.
               </p>
               <Link
                 href="/login"
-                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-brand text-sm font-semibold text-white"
+                className={buttonClass({ className: "w-full" })}
               >
                 <LogIn className="h-4 w-4" />
                 Ir a iniciar sesión
@@ -179,7 +179,7 @@ export default function SetPasswordPage() {
               </Field>
 
               {error ? (
-                <p className="rounded-lg border border-danger/20 bg-danger-bg px-3 py-2 text-sm text-danger">
+                <p className="rounded-xl bg-danger-bg px-3 py-2 text-sm text-danger">
                   {error}
                 </p>
               ) : null}

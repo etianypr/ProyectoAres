@@ -23,7 +23,7 @@ const tono = (d: number | null, mejorSiSube = true) =>
 export function IndicadoresPeriodo({ actual, anterior }: { actual: Indicadores; anterior: Indicadores }) {
   if (actual.diasTrabajados === 0) {
     return (
-      <p className="rounded-[14px] border border-separator bg-card px-4 py-3 text-sm text-muted">
+      <p className="rounded-xl border border-separator bg-card px-4 py-3 text-sm text-muted">
         Sin días trabajados en el período: no hay indicadores que mostrar.
       </p>
     );

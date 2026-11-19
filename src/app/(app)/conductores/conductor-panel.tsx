@@ -29,7 +29,7 @@ function LinkAcceso({ link }: { link: string }) {
   }
 
   return (
-    <div className="mt-2 flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2">
+    <div className="mt-2 flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2">
       <input
         readOnly
         value={link}
@@ -236,7 +236,7 @@ export function ConductorPanel({ conductor }: { conductor: Conductor }) {
       <div className="grid items-stretch gap-5 lg:grid-cols-2">
         <div className="flex flex-col">
           <p className="mb-2 text-sm font-semibold">Documentos</p>
-          <div className="flex flex-1 flex-col rounded-xl border border-border bg-white p-4">
+          <div className="flex flex-1 flex-col rounded-xl border border-border bg-card p-4">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="font-medium">Licencia de conducir</p>
@@ -277,7 +277,7 @@ export function ConductorPanel({ conductor }: { conductor: Conductor }) {
           cobrar si a nadie se le ocurría marcar la casilla. */}
       <div>
         <p className="mb-2 text-sm font-semibold">Acceso a la app del conductor</p>
-        <div className="rounded-xl border border-border bg-white p-4">
+        <div className="rounded-xl border border-border bg-card p-4">
           <AccesoConductor conductor={conductor} />
         </div>
       </div>

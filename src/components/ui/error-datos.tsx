@@ -34,7 +34,7 @@ export function ErrorDatos({
             No confirmes liquidaciones hasta que se resuelva.
           </p>
           {detalle ? (
-            <p className="mt-2 break-words rounded-lg bg-white/60 px-3 py-2 font-mono text-xs text-danger">
+            <p className="mt-2 break-words rounded-xl bg-white/60 px-3 py-2 font-mono text-xs text-danger">
               {detalle}
             </p>
           ) : null}

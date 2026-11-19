@@ -12,7 +12,7 @@ const variantClasses: Record<Variant, string> = {
     "border border-separator bg-card text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:border-border-strong hover:bg-background",
   ghost: "text-brand hover:bg-brand-soft",
   danger:
-    "bg-danger text-white shadow-[0_1px_2px_rgba(192,54,44,0.3)] hover:bg-[#a32a21] hover:shadow-[0_4px_14px_rgba(192,54,44,0.28)]",
+    "bg-danger text-white shadow-[0_1px_2px_color-mix(in_srgb,var(--danger)_30%,transparent)] hover:bg-danger/90 hover:shadow-[0_4px_14px_color-mix(in_srgb,var(--danger)_28%,transparent)]",
   // Acción destructiva secundaria (el "Eliminar" que convive con otros
   // controles en un panel): pesa menos que el rojo sólido, pero usa el rojo
   // del sistema y la misma altura que el resto de los botones.
@@ -21,10 +21,10 @@ const variantClasses: Record<Variant, string> = {
 };
 
 const sizeClasses: Record<Size, string> = {
-  sm: "h-[34px] px-[15px] text-[13px] gap-1.5",
-  md: "h-[42px] px-[21px] text-[14.5px] gap-2",
-  lg: "h-[50px] px-[27px] text-base gap-2",
-  icon: "h-[42px] w-[42px]",
+  sm: "h-9 px-4 text-sm gap-1.5",
+  md: "h-11 px-5 text-sm gap-2",
+  lg: "h-12 px-7 text-base gap-2",
+  icon: "h-11 w-11",
 };
 
 export function buttonClass(opts?: { variant?: Variant; size?: Size; className?: string }) {

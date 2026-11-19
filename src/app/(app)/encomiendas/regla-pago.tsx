@@ -82,7 +82,7 @@ function Formulario({
 
   return (
     <form action={formAction} className="grid gap-4 sm:grid-cols-2">
-      <p className="rounded-lg border border-info/25 bg-info-bg px-3 py-2 text-xs text-info sm:col-span-2">
+      <p className="rounded-xl bg-info-bg px-3 py-2 text-xs text-info sm:col-span-2">
         {regla ? (
           <>
             Rige desde el {formatDate(regla.updated_at)}. Al guardar, el cambio se aplica a los
@@ -110,7 +110,7 @@ function Formulario({
 
       <div className="flex flex-wrap items-center justify-end gap-2 sm:col-span-2">
         {state.error ? (
-          <p className="mr-auto rounded-lg border border-danger/20 bg-danger-bg px-3 py-2 text-sm text-danger">
+          <p className="mr-auto rounded-xl bg-danger-bg px-3 py-2 text-sm text-danger">
             {state.error}
           </p>
         ) : null}
