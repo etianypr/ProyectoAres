@@ -28,12 +28,16 @@ export function Dialogo({
   titulo,
   descripcion,
   ancho = "2xl",
+  relleno = true,
   onCerrar,
   children,
 }: {
   titulo: string;
   descripcion?: string;
   ancho?: keyof typeof ANCHOS;
+  /** false: el contenido maneja su propio scroll y márgenes (un formulario con
+   *  el pie de botones fijo abajo). */
+  relleno?: boolean;
   onCerrar: () => void;
   children: React.ReactNode;
 }) {
@@ -65,11 +69,11 @@ export function Dialogo({
       <div
         onClick={(e) => e.stopPropagation()}
         className={cn(
-          "animate-scale-in flex max-h-[90vh] w-full flex-col overflow-hidden rounded-[18px] bg-background shadow-card",
+          "animate-scale-in flex max-h-[90vh] w-full flex-col overflow-hidden rounded-2xl bg-background shadow-card",
           ANCHOS[ancho],
         )}
       >
-        <div className="flex items-start justify-between gap-3 border-b border-border bg-white px-5 py-3.5 sm:px-6">
+        <div className="flex items-start justify-between gap-3 border-b border-border bg-card px-5 py-3.5 sm:px-6">
           <div className="min-w-0">
             <h2 className="text-lg font-semibold">{titulo}</h2>
             {descripcion ? <p className="mt-0.5 text-xs text-muted">{descripcion}</p> : null}
@@ -78,12 +82,16 @@ export function Dialogo({
             type="button"
             onClick={onCerrar}
             aria-label="Cerrar"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-background hover:text-foreground"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-surface hover:text-foreground"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="min-h-0 overflow-y-auto p-5 sm:p-6">{children}</div>
+        {relleno ? (
+          <div className="min-h-0 overflow-y-auto p-5 sm:p-6">{children}</div>
+        ) : (
+          <div className="flex min-h-0 flex-col bg-card">{children}</div>
+        )}
       </div>
     </div>,
     document.body,

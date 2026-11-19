@@ -235,7 +235,7 @@ export function ConductorPanel({ conductor }: { conductor: Conductor }) {
       {/* Documentos (izquierda) · Notas (derecha) */}
       <div className="grid items-stretch gap-5 lg:grid-cols-2">
         <div className="flex flex-col">
-          <p className="mb-2 text-sm font-semibold">Documentos</p>
+          <p className="rotulo mb-2 text-xs text-muted">Documentos</p>
           <div className="flex flex-1 flex-col rounded-xl border border-border bg-card p-4">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
@@ -257,7 +257,7 @@ export function ConductorPanel({ conductor }: { conductor: Conductor }) {
         </div>
 
         <div className="flex flex-col">
-          <p className="mb-2 text-sm font-semibold">Notas</p>
+          <p className="rotulo mb-2 text-xs text-muted">Notas</p>
           <Textarea
             name="notas"
             form={formId}
@@ -276,7 +276,7 @@ export function ConductorPanel({ conductor }: { conductor: Conductor }) {
           categoría no distinguía nada y sí podía dejar a alguien sin poder
           cobrar si a nadie se le ocurría marcar la casilla. */}
       <div>
-        <p className="mb-2 text-sm font-semibold">Acceso a la app del conductor</p>
+        <p className="rotulo mb-2 text-xs text-muted">Acceso a la app del conductor</p>
         <div className="rounded-xl border border-border bg-card p-4">
           <AccesoConductor conductor={conductor} />
         </div>
