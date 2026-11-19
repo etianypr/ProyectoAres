@@ -25,7 +25,7 @@ import type { SugerenciaDireccion } from "./tipos";
 const GOOGLE_GEOCODE = "https://maps.googleapis.com/maps/api/geocode/json";
 
 type Componente = { long_name: string; short_name: string; types: string[] };
-export type ResultadoGoogle = {
+type ResultadoGoogle = {
   place_id?: string;
   formatted_address?: string;
   address_components?: Componente[];

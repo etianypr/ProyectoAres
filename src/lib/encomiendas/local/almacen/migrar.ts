@@ -100,7 +100,7 @@ export function avisoVacio(): Aviso {
 // generadaEn, cerradaEn): son los datos guardados en los teléfonos.
 
 /** La visita de un pedido en un día, tal como la guardaba la v2 dentro de la ruta. */
-export type ParadaV2 = {
+type ParadaV2 = {
   pedidoId: string;
   llamada: ResultadoLlamada;
   /** Valores de la v2: entregado, persona_no_encontrada, rechazo, omitido… */

@@ -38,7 +38,7 @@ export function buttonClass(opts?: { variant?: Variant; size?: Size; className?:
   );
 }
 
-export interface ButtonProps
+interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
   size?: Size;

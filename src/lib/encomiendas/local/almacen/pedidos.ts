@@ -1,19 +1,10 @@
 import { uuidv7 } from "@/lib/comun/uuid";
 import { STORES, escribir } from "../idb";
 import { enFila } from "./fila";
-import { leerPedido, leerPedidos, leerRuta } from "./lecturas";
+import { leerPedido, leerRuta } from "./lecturas";
 import { avisoVacio } from "./migrar";
 import { PROBLEMAS_DE_LUGAR, type ProblemaGuardado } from "@/lib/encomiendas/problemas";
 import type { OrigenCarga, Pedido, PropuestaIAGuardada, Ruta } from "./tipos";
-
-/** Los del día que todavía hay que visitar: la entrada para armar la ruta.
- *
- *  Un pedido cerrado —entregado o no entregado— NO está acá: lo tachado no se
- *  vuelve a rutear. */
-export async function pedidosPendientes(fecha: string): Promise<Pedido[]> {
-  const pedidos = await leerPedidos(fecha);
-  return pedidos.filter((p) => p.resultado === "pendiente");
-}
 
 /** Lo que el formulario edita: el resto del pedido lo maneja el almacén. */
 export type DatosPedido = Pick<Pedido, "nombre" | "telefono" | "direccion" | "lat" | "lng" | "notas"> &

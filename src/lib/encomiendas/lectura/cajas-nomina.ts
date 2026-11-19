@@ -7,7 +7,7 @@ import { LARGO_OF } from "../paquete";
 
 /** Una palabra con 7 dígitos o más y la confianza de ML Kit en cada carácter (APK con
  *  los recuadros de la nómina; antes no viene). */
-export type NumeroLeido = { texto: string; confianzas: number[] };
+type NumeroLeido = { texto: string; confianzas: number[] };
 
 /** Un renglón con su caja, como lo da el escáner en vivo (`RenglonVivo`). */
 export type RenglonCaja = { texto: string; x: number; y: number; ancho: number; alto: number; numeros?: NumeroLeido[] };

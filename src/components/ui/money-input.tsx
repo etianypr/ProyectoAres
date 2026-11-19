@@ -6,7 +6,7 @@ import { inputClass } from "./input";
 
 // Formatea a miles chilenos: "100000" → "100.000". Toma solo la parte entera
 // (CLP no usa decimales) para tolerar valores como "100000.00" desde la base.
-export function formatMiles(raw: string | number): string {
+function formatMiles(raw: string | number): string {
   const d = String(raw).split(/[.,]/)[0].replace(/\D/g, "");
   return d ? Number(d).toLocaleString("es-CL") : "";
 }

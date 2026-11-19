@@ -96,7 +96,7 @@ export function vueltaPorMatriz(
 export const MINUTO_SALIDA_MAS_TEMPRANA = 8 * 60;
 
 /** Metros del orden completo, volviendo a la base al final. */
-export function metrosConVuelta(orden: PedidoUbicado[], metros: MetrosEntre, vuelta: VueltaABase): number {
+function metrosConVuelta(orden: PedidoUbicado[], metros: MetrosEntre, vuelta: VueltaABase): number {
   return metrosDelOrden(orden, metros) + (orden.length > 0 ? vuelta(orden[orden.length - 1]) : 0);
 }
 
@@ -305,7 +305,7 @@ function reordenarTramos(
 
 /** Lo que cuesta cada tramo para el orden (metros con el tiempo, spec 024) y
  *  volver a la base, con la misma escala que los metros. */
-export type CostoEntre = { entre: MetrosEntre; vuelta: VueltaABase };
+type CostoEntre = { entre: MetrosEntre; vuelta: VueltaABase };
 
 /** Mide un orden: cuántos metros, cuánto cuesta y a qué bloques se llegaría
  *  fuera de horario. Sin `costo`, cuesta lo que mide. */

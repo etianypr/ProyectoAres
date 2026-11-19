@@ -11,7 +11,7 @@ import { cn } from "@/lib/comun/utils";
 
 const PASOS = ["Fotos", "Revisar", "Listo"] as const;
 
-export function PasosGuia({
+function PasosGuia({
   actual,
   puede,
   onIr,

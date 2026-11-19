@@ -37,14 +37,6 @@ export function rangoPeriodo(p: Periodo): { desde: string; hasta: string } {
   };
 }
 
-// ¿La fecha cae dentro del periodo? (para filtrar en memoria)
-export function enRango(fecha: string | null | undefined, p: Periodo): boolean {
-  if (!fecha) return false;
-  const f = fecha.slice(0, 10);
-  const { desde, hasta } = rangoPeriodo(p);
-  return f >= desde && f <= hasta;
-}
-
 export function etiquetaPeriodo(p: Periodo): string {
   return p.mes === null ? `Año ${p.anio}` : `${MESES[p.mes - 1]} ${p.anio}`;
 }

@@ -63,7 +63,7 @@ function mensajeError(e: GeolocationPositionError): string {
   return "No se pudo obtener la ubicación.";
 }
 
-export type EstadoUbicacion = {
+type EstadoUbicacion = {
   ubicacion: Ubicacion | null;
   /** Mensaje listo para mostrar, o null si todo va bien / aún no se sabe. */
   error: string | null;

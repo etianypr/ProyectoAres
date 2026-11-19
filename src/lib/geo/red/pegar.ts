@@ -6,7 +6,7 @@
 import type { Coordenada } from "@/lib/geo/coordenada";
 import { SIN_PARADA, type Red } from "./grafo";
 
-export type Pegado = {
+type Pegado = {
   arista: number;
   /** En qué parte de la arista queda, de 0 (su nodo `desde`) a 1 (su nodo `hasta`). */
   fraccion: number;
@@ -19,7 +19,7 @@ export type Pegado = {
 /** Lado de cada casilla del índice, en grados (~110 m). */
 const CASILLA = 0.001;
 /** Más lejos que esto de toda calle, el punto no está en la red. */
-export const RADIO_PEGADO_M = 400;
+const RADIO_PEGADO_M = 400;
 const M_POR_GRADO = 111_195;
 
 type Indice = { casillas: Map<number, number[]>; segInicio: Int32Array; segLat: Float64Array; segLng: Float64Array; acumulado: Float64Array };

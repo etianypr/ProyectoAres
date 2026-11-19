@@ -15,7 +15,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const { normalizarTelefono, telefonoParaGuardar, puedeRecibirAviso } = await import(
+const { normalizarTelefono, telefonoParaGuardar } = await import(
   "@/lib/comun/telefono"
 );
 const geo = await import("@/lib/geo/geocoding");
@@ -167,12 +167,10 @@ test("un fijo se normaliza pero se avisa que no le llega WhatsApp", () => {
   assert.equal(r.telefono.e164, "+56582123456");
   assert.equal(r.telefono.puedeWhatsapp, false);
   assert.match(r.aviso, /WhatsApp/);
-  assert.equal(puedeRecibirAviso("+56582123456"), false);
 });
 
 test("un celular sí puede recibir el aviso", () => {
   assert.equal(normalizarTelefono("912345678").telefono.puedeWhatsapp, true);
-  assert.equal(puedeRecibirAviso("+56912345678"), true);
 });
 
 test("normalizar es idempotente: guardar dos veces da lo mismo", () => {

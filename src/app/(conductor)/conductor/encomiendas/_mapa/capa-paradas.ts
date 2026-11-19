@@ -16,7 +16,7 @@ import type * as maplibregl from "maplibre-gl";
 import type { Coordenada } from "@/lib/geo/coordenada";
 import type { LugarMapa } from "./marcadores-dom";
 
-export const FUENTE_PARADAS = "paradas";
+const FUENTE_PARADAS = "paradas";
 const CAPA_PINES = "paradas-pines";
 const CAPA_DIRECCIONES = "paradas-direcciones";
 
@@ -92,7 +92,7 @@ function ordenDelTexto(l: LugarMapa, estado: Estado): number {
 
 type Propiedades = { i: number; imagen: string; encima: number; texto: string; orden: number };
 type Punto = { type: "Feature"; geometry: { type: "Point"; coordinates: [number, number] }; properties: Propiedades };
-export type DatosParadas = { type: "FeatureCollection"; features: Punto[] };
+type DatosParadas = { type: "FeatureCollection"; features: Punto[] };
 
 const idImagen = (estado: Estado, cifra: string) => `pin|${estado}|${cifra}`;
 

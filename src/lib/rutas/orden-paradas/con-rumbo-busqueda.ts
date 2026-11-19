@@ -15,7 +15,7 @@ import { crearMesa } from "./con-rumbo-jugadas";
  *  con estos valores la búsqueda llega, desde cualquier arranque, a la mejor ruta
  *  conocida o a 0,15 % de ella en ~1,5 s en el PC. Llegar siempre a la mejor
  *  (tramos de 20 a 30 paradas) cuesta cuatro veces más tiempo. */
-export const AJUSTES = {
+const AJUSTES = {
   /** Se sacude hasta que pasan estas sacudidas seguidas sin nada mejor… */
   sinMejora: 1500,
   /** …o hasta este tope. */

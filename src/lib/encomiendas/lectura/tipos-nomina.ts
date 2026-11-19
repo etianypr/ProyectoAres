@@ -3,7 +3,7 @@
 
 /** `abiertos`: direcciones que llegaron al borde del cuadro sin cerrarse (pueden venir
  *  cortadas): solo cuentan si se parecen a una cerrada, o si nunca hubo otra (spec 034). */
-export type VotosOf = {
+type VotosOf = {
   cuadros: number[];
   orden: number;
   destinos: Record<string, number>;
@@ -82,7 +82,7 @@ export type LineaNomina = {
 /** Una OF del barrido para la lista y para «Cargar la guía» (spec 034). `aMedias`: se vio
  *  pero no entera, y antes se perdía en silencio: sin su dirección (`sinDireccion`) o en un
  *  solo cuadro (`unaVez`). `porConfirmar`: número o dirección sin firmar. */
-export type EstadoLista = "firme" | "porConfirmar" | "aMedias";
+type EstadoLista = "firme" | "porConfirmar" | "aMedias";
 export type LineaListada = {
   of: string;
   destino: string | null;

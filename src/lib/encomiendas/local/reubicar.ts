@@ -37,7 +37,7 @@ const ubicado = (p: Pedido): p is Ubicado => p.lat != null && p.lng != null;
 const coord = (p: Ubicado): Coordenada => ({ lat: p.lat, lng: p.lng });
 
 /** Lo que el pedido tenía antes de «Pidió otra hora», para deshacerlo. */
-export type HorarioAntes = Pick<Pedido, "id" | "disponibilidad" | "bloqueHorarioId">;
+type HorarioAntes = Pick<Pedido, "id" | "disponibilidad" | "bloqueHorarioId">;
 
 /** Un cambio de orden que se puede deshacer: el orden de lo pendiente de antes. */
 export type Reorden = { ordenAntes: string[]; horarioAntes?: HorarioAntes };
@@ -100,7 +100,7 @@ function desdeDonde(ruta: Ruta, enRuta: Pedido[]): Coordenada | null {
   return ruta.trazado?.[0] ? deLngLat(ruta.trazado[0]) : null;
 }
 
-export type ResultadoReubicar =
+type ResultadoReubicar =
   | { tipo: "igual" }
   /** Es la parada activa: el conductor elige «Seguir con esta» o «Moverla». */
   | { tipo: "activa" }

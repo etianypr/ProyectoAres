@@ -22,7 +22,7 @@ import type { Actividad, DiaTrabajo, PagoDelDia, ReglaDePago } from "@/types/db"
 import { DialogoRecalcular } from "./dialogo-recalcular";
 
 /** Un evento del día tal como lo muestra el panel. */
-export type EventoDia = Pick<Actividad, "id" | "tipo" | "origen">;
+type EventoDia = Pick<Actividad, "id" | "tipo" | "origen">;
 
 // Acá vivían PRESENTACION (el ícono y la etiqueta de cada tipo de evento) y
 // MINUTOS_RETRASO_NOTABLE, que marcaba las entregas cuya hora del teléfono

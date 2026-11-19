@@ -6,7 +6,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const { etiquetaCompleta, formatoEtiqueta, leerEtiqueta, pagoDe } = await import("@/lib/encomiendas/lectura/etiqueta");
+const { formatoEtiqueta, leerEtiqueta, pagoDe } = await import("@/lib/encomiendas/lectura/etiqueta");
+
+// Nombre y teléfono leídos, y sin dudas en el nombre, el teléfono ni el pago: lo que revisaba
+// etiquetaCompleta, que la app ya no usa. Aquí sirve para revisar lo que deja leerEtiqueta.
+const sinDudas = (e) =>
+  Boolean(e.destinatario && e.telefono) &&
+  !e.dudosos.some((d) => ["destinatario", "telefono", "pago", "montoPorPagar"].includes(d));
 
 const fixture = (n) => readFileSync(new URL(`./fixtures/lectura/${n}`, import.meta.url), "utf8");
 
@@ -83,7 +89,7 @@ test("Lion en varios renglones: la OF impresa sale de los dígitos 15–23 del c
   assert.equal(e.ofImpresa, "200000123");
   assert.equal(e.porPagar, false, "CTA CTE: no se cobra");
   assert.deepEqual([e.bulto, e.bultosTotal], [1, 1]);
-  assert.equal(etiquetaCompleta(e), true);
+  assert.equal(sinDudas(e), true);
 });
 
 test("Lion: el teléfono también se encuentra si ML Kit lo pone antes del destinatario", () => {
@@ -159,7 +165,7 @@ test("EXPRES real: «$0» impreso sin POR PAGAR es «no se cobra» (el dueño, 2
   assert.equal(e.ofImpresa, "200000789");
   assert.deepEqual([e.bulto, e.bultosTotal], [1, 1]);
   assert.equal(e.direccion, "LA JJIZIOMAHI 8574 8379 ARICA ARICA");
-  assert.equal(etiquetaCompleta(e), true);
+  assert.equal(sinDudas(e), true);
 });
 
 test("«$0» impreso: sin POR PAGAR no se cobra; con POR PAGAR, monto por revisar", () => {
@@ -272,7 +278,7 @@ test("la O de 'O.F.' leída como cero no pierde la OF ni el monto", () => {
   const e = leerEtiqueta("DESTINATARIO: JUAN PEREZ SOTO\nTel. 9 1234 5678\nPOR PAGAR\n0.F. 200000002\nTotal Monto 0.F. $ 12.990");
   assert.equal(e.ofImpresa, "200000002");
   assert.equal(e.montoPorPagar, 12990);
-  assert.equal(etiquetaCompleta(e), true);
+  assert.equal(sinDudas(e), true);
 });
 
 test("cada valor en el renglón siguiente a su palabra clave también sirve", () => {
@@ -282,7 +288,7 @@ test("cada valor en el renglón siguiente a su palabra clave también sirve", ()
   assert.equal(e.destinatario, "JUAN PEREZ SOTO");
   assert.equal(e.telefono, "+56912345678");
   assert.equal(e.montoPorPagar, 12990);
-  assert.equal(etiquetaCompleta(e), true);
+  assert.equal(sinDudas(e), true);
 });
 
 // ------------------------------------------------------------------ pago
@@ -344,14 +350,14 @@ test("no se extrae nada que no haga falta para repartir", () => {
 });
 
 test("con nombre, teléfono y pago la etiqueta está completa", () => {
-  assert.equal(etiquetaCompleta(leerEtiqueta(fixture("etiqueta-por-pagar.txt"))), true);
-  assert.equal(etiquetaCompleta(leerEtiqueta(fixture("etiqueta-contado.txt"))), true);
+  assert.equal(sinDudas(leerEtiqueta(fixture("etiqueta-por-pagar.txt"))), true);
+  assert.equal(sinDudas(leerEtiqueta(fixture("etiqueta-contado.txt"))), true);
 });
 
 test("sin teléfono, sin pago o POR PAGAR sin monto, la etiqueta no está completa", () => {
-  assert.equal(etiquetaCompleta(leerEtiqueta("DESTINATARIO: ANA\nDIRECCIÓN: CALLE 1\nCONTADO")), false);
-  assert.equal(etiquetaCompleta(leerEtiqueta("DESTINATARIO: ANA\nTel. 912345678")), false);
-  assert.equal(etiquetaCompleta(leerEtiqueta("DESTINATARIO: ANA\nTel. 912345678\nPOR PAGAR")), false);
+  assert.equal(sinDudas(leerEtiqueta("DESTINATARIO: ANA\nDIRECCIÓN: CALLE 1\nCONTADO")), false);
+  assert.equal(sinDudas(leerEtiqueta("DESTINATARIO: ANA\nTel. 912345678")), false);
+  assert.equal(sinDudas(leerEtiqueta("DESTINATARIO: ANA\nTel. 912345678\nPOR PAGAR")), false);
 });
 
 test("un formato que no se conoce se lee igual", () => {

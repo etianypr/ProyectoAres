@@ -12,7 +12,7 @@ import * as React from "react";
 import { AlertTriangle, Check } from "lucide-react";
 import { cn } from "@/lib/comun/utils";
 
-export type TonoCampo = "normal" | "aviso";
+type TonoCampo = "normal" | "aviso";
 
 /** El texto que se escribe: sin borde ni fondo propios, los pone la caja. */
 export const entradaCampo =

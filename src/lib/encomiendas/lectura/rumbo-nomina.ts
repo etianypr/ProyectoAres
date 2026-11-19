@@ -50,7 +50,7 @@ export function sumarVecinos(v: VotosNomina, cajas: CajaEncargo[]): VotosNomina 
 }
 
 /** Un encargo que la cámara se saltó: va entre el de lugar `despuesDe` y el que le sigue. */
-export type HuecoHoja = { despuesDe: number; motivo: "separados" | "filaSola" };
+type HuecoHoja = { despuesDe: number; motivo: "separados" | "filaSola" };
 
 export type Hoja = {
   /** OF de la lista → su lugar en la lista. */
@@ -160,8 +160,8 @@ export function hojaDelBarrido(r: ResultadoNomina, v: VotosNomina, { huecos: con
   return { ...sinHuecos, huecos, posibles, alto };
 }
 
-export type FlechaHoja = { sentido: "arriba" | "abajo"; tipo: "falta" | "hueco"; etiqueta: string };
-export type CajaHueco = { x: number; y: number; ancho: number; alto: number };
+type FlechaHoja = { sentido: "arriba" | "abajo"; tipo: "falta" | "hueco"; etiqueta: string };
+type CajaHueco = { x: number; y: number; ancho: number; alto: number };
 
 /** Las flechas de un cuadro: la pendiente o el hueco más cercano hacia arriba de lo que se ve
  *  (▲) y hacia abajo (▼), a lo más una por sentido, con cuántos encargos hay hasta ahí. Un

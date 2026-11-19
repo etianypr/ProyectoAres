@@ -12,9 +12,9 @@ import { esApp } from "./entorno";
 import { abrirEnMapas } from "./mapas";
 
 /** Lo mismo que IdBoton de botones-parada.ts; lib no importa de app. */
-export type IdBotonBurbuja = string;
+type IdBotonBurbuja = string;
 
-export type BotonBurbuja = {
+type BotonBurbuja = {
   id: IdBotonBurbuja;
   texto: string;
   detalle?: string;

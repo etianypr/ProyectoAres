@@ -10,7 +10,7 @@ import type { LineaNomina, ReglaFirme } from "./tipos-nomina";
 export const VOTOS_PARA_FIRME = 3;
 /** Cuántas veces tiene que leerse igual la columna BULTOS de un encargo (y en 2 de cada 3
  *  lecturas de la columna) para valer (spec 036). */
-export const VOTOS_BULTOS = 2;
+const VOTOS_BULTOS = 2;
 /** Regla «confianza06» (spec 036, solo se mide): la confianza desde la que un dígito vota. */
 export const CONFIANZA_ALTA = 0.6;
 /** Regla «ponderada» (spec 036, solo se mide): el peso que tiene que juntar el dígito que
@@ -31,7 +31,7 @@ export const DIGITOS_DE_ERROR = 2;
 /** Spec 039: el lector ve «0» donde hay un «8» (casi nunca al revés). En una posición con votos
  *  de los dos gana el «8» si salió al menos estas veces y suma al menos un cuarto de los «0»:
  *  un «0» de verdad casi nunca junta tantos «8». */
-export const OCHOS_PARA_GANAR = 2;
+const OCHOS_PARA_GANAR = 2;
 /** Cuántos cuadros antes o después de leer bien un encargo puede salir una mala lectura
  *  suya: ~2 s, lo que ese encargo sigue a la vista. */
 const CUADROS_CERCA = 20;
@@ -65,7 +65,7 @@ export type Lectura = {
 export type Bloque = { semilla: Lectura; cuadros: Set<number>; lecturas: Lectura[] };
 /** `firmeSinPrefijo`: firme sin contar los primeros DIGITOS_DEL_PREFIJO dígitos (spec 039: los del
  *  día; si el rango los corrige, la OF vale por el resto). */
-export type Decidido = LineaNomina & { orden: number; corregidas: number; firmeSinPrefijo?: boolean };
+type Decidido = LineaNomina & { orden: number; corregidas: number; firmeSinPrefijo?: boolean };
 
 const CUENTAS = new Int32Array(10);
 

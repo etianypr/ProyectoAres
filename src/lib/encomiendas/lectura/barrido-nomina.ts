@@ -37,9 +37,9 @@ import type { LineaListada, ReglaFirme, ResultadoNomina, VotosNomina } from "./t
 export { VOTOS_PARA_FIRME } from "./bloques-nomina";
 
 /** Bajo esta confianza de ML Kit (0 a 1) un dígito no vota. A medir en terreno. */
-export const CONFIANZA_MINIMA = 0.5;
+const CONFIANZA_MINIMA = 0.5;
 
-export type { EstadoLista, LineaListada, LineaNomina, ReglaFirme, ResultadoNomina, VotosNomina, VotosOf } from "./tipos-nomina";
+export type { LineaListada, LineaNomina, ReglaFirme, ResultadoNomina, VotosNomina } from "./tipos-nomina";
 
 /** Lo que falta confirmar (a medias, o con el número sin firmar) y no vuelve a salir en
  *  este tiempo de cámara leyendo deja de estar (dueño, 2026-11-16: «a veces son inventadas
@@ -59,7 +59,7 @@ export function mejorResultado(a: ResultadoNomina, b: ResultadoNomina): Resultad
 
 export { lineasDelBarrido, conPorConfirmar, enOrdenDeLaNomina } from "./barrido-a-guia";
 export { cajasDelCuadro, confianzasDelCuadro, filasDe, textoPorFilas } from "./cajas-nomina";
-export type { CajaEncargo, NumeroLeido, RenglonCaja } from "./cajas-nomina";
+export type { CajaEncargo, RenglonCaja } from "./cajas-nomina";
 
 export function votosNominaVacios(): VotosNomina {
   return {

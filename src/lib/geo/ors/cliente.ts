@@ -21,7 +21,7 @@ export function claveOrs(): string | null {
 
 /** Lo que contestó ORS: los datos, `cupo` (se acabaron las del día) o null (sin
  *  clave, sin red, sin camino o un error). */
-export type RespuestaOrs<T> = { datos: T } | { cupo: true } | null;
+type RespuestaOrs<T> = { datos: T } | { cupo: true } | null;
 
 /** Por qué no llegó la última consulta (spec 024). "cupo": ORS dijo que se
  *  acabaron las del día, o no contestó con la red andando —el 403 «Quota

@@ -44,7 +44,7 @@ export function mismaCalle(a: string, b: string): boolean {
 }
 
 /** La calle de una dirección: lo que va antes del primer número o coma. */
-export function calleDeLaDireccion(direccion: string): string {
+function calleDeLaDireccion(direccion: string): string {
   return direccion.split(/[,\d]/)[0].trim();
 }
 

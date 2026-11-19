@@ -28,10 +28,10 @@ function msLectura(): number {
 }
 
 export const VELOCIDADES = [1, 5, 10, 20] as const;
-export type ConfigGps = { activo: boolean; velocidad: number };
+type ConfigGps = { activo: boolean; velocidad: number };
 
 /** Sin nada guardado, activo: en modo prueba lo normal es no tener el GPS real. */
-export function leerConfigGps(): ConfigGps {
+function leerConfigGps(): ConfigGps {
   try {
     const c = JSON.parse(globalThis.localStorage?.getItem(CLAVE) ?? "null") as Partial<ConfigGps> | null;
     return { activo: c?.activo ?? true, velocidad: c?.velocidad ?? 5 };
@@ -164,14 +164,14 @@ function programar(): void {
 
 /** El camino a seguir: la línea de navegación hasta la parada activa. Se
  *  retoma desde donde está el punto (el camino nuevo empieza ahí). */
-export function seguirCamino(nuevo: Trazado | null): void {
+function seguirCamino(nuevo: Trazado | null): void {
   if (nuevo === camino) return;
   camino = nuevo && nuevo.length > 1 ? nuevo : null;
   recorrido = camino && posicion ? metrosHasta(camino, posicion) : 0;
 }
 
 /** Imita navigator.geolocation. */
-export const geolocalizacionSimulada = {
+const geolocalizacionSimulada = {
   watchPosition(avisar: Avisar): number {
     const id = siguienteId++;
     oyentes.set(id, avisar);
@@ -194,7 +194,7 @@ export const geolocalizacionSimulada = {
   },
 };
 
-export type FuenteUbicacion = Pick<Geolocation, "watchPosition" | "clearWatch" | "getCurrentPosition">;
+type FuenteUbicacion = Pick<Geolocation, "watchPosition" | "clearWatch" | "getCurrentPosition">;
 
 /** De dónde sale la ubicación: el simulador en modo prueba, el aparato si no. */
 export function fuenteUbicacion(): FuenteUbicacion | null {

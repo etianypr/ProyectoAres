@@ -102,7 +102,7 @@ export function botonesDeParada(activa: Parada, fase: Fase, extra: ExtraBotones 
  *  punto (spec 033). Sin esto, los botones de siempre. */
 export type ExtraBotones = { pendientes?: number; bloques?: readonly BloqueHorario[]; juntas?: number };
 
-export type EstadoParada = { texto: string; tono: "marca" | "ok" | "neutro"; icono: "reloj" | "check" | "telefono" };
+type EstadoParada = { texto: string; tono: "marca" | "ok" | "neutro"; icono: "reloj" | "check" | "telefono" };
 
 /** Qué contestó ESTE receptor: lo primero que se necesita al llegar. Cada estado
  *  lleva ícono Y texto (a pleno sol el color solo no se distingue). No va lo que

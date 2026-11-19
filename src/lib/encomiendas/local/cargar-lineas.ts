@@ -13,7 +13,7 @@ import { hayRed, ubicarCarga } from "./ubicar-carga";
 
 /** Qué pasó con la IA: apagada (sin clave o sin «Corregir con IA»), sin señal,
  *  cortada por el conductor, preguntada, o no hizo falta (null). */
-export type EstadoIA = "apagada" | "sinSenal" | "cortada" | "hecha" | null;
+type EstadoIA = "apagada" | "sinSenal" | "cortada" | "hecha" | null;
 
 export type ResumenCarga = {
   /** Los ids creados: «Deshacer esta carga» borra estos. */
@@ -31,7 +31,7 @@ export type ResumenCarga = {
   propuestas: PropuestaCorreccion[];
 };
 
-export type FaseCarga = "ubicando" | "corrigiendo";
+type FaseCarga = "ubicando" | "corrigiendo";
 
 export async function cargarLineasGuia(
   lineas: LineaParaCrear[],

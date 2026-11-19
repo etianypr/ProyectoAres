@@ -54,7 +54,7 @@ export function useCerrarSesion() {
   return { confirmando, saliendo, error, pedir, salir, cancelar: () => setConfirmando(null) };
 }
 
-export type CerrarSesion = ReturnType<typeof useCerrarSesion>;
+type CerrarSesion = ReturnType<typeof useCerrarSesion>;
 
 /** La confirmación (ya pedida con `pedir`). */
 export function ConfirmarSalida({ salida, className }: { salida: CerrarSesion; className?: string }) {

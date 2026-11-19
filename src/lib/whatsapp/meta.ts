@@ -89,7 +89,7 @@ type ConfigMeta = {
  *  sin WhatsApp configurado: no sale ningún aviso ni se consultan respuestas.
  *  Pausado salvo que el entorno diga WHATSAPP_EN_PAUSA=no: para reactivar se
  *  carga esa variable en Vercel (o se cambia acá y se publica). */
-export function whatsappEnPausa(): boolean {
+function whatsappEnPausa(): boolean {
   return process.env.WHATSAPP_EN_PAUSA !== "no";
 }
 
@@ -117,7 +117,7 @@ export function whatsappActivo(): boolean {
   return configMeta() !== null;
 }
 
-export type ResultadoEnvioMeta =
+type ResultadoEnvioMeta =
   | { ok: true; mensajeId: string }
   | {
       ok: false;
@@ -241,7 +241,7 @@ function esErrorReintentable(estado: number, codigo: number | null): boolean {
 // 1. El aviso
 // ----------------------------------------------------------------------------
 
-export type AvisoDisponibilidad = {
+type AvisoDisponibilidad = {
   /** En E.164, ya normalizado (ver lib/comun/telefono.ts). */
   telefono: string;
   /** Nombre de presentación del receptor. Va al cuerpo de la plantilla. */

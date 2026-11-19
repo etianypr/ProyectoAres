@@ -259,7 +259,7 @@ export function salidasDe(red: Red, arista: number, fraccion: number, sentido: 0
 
 /** Segundos de dar la vuelta parado en esa arista (a mitad de cuadra), o −1 si
  *  ahí no se puede: las mismas reglas de `giro`. */
-export function maniobraEn(red: Red, arista: number): number {
+function maniobraEn(red: Red, arista: number): number {
   if (red.sinSalida[arista]) return MANIOBRA_REVERSA_S;
   return esAncha(red.codigo[arista]) && !(red.codigo[arista] & UN_SENTIDO) ? MANIOBRA_U_S : -1;
 }

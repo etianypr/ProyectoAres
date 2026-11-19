@@ -29,7 +29,7 @@ export const MAX_DIRECCIONES_POR_TANDA = 100;
  *  429 de Anthropic; con un 429 la tanda sigue de a una. */
 export const DIRECCIONES_A_LA_VEZ = 2;
 /** Tamaño máximo de la conversación que acepta el servidor (caracteres). */
-export const MAX_CARACTERES_CONVERSACION = 60_000;
+const MAX_CARACTERES_CONVERSACION = 60_000;
 
 /** Un lugar devuelto por un buscador, con el id que la IA usa para elegirlo. */
 export type CandidatoIA = {
@@ -47,7 +47,7 @@ export type CandidatoIA = {
   fuente: Fuente;
 };
 
-export type BloqueTexto = { type: "text"; text: string };
+type BloqueTexto = { type: "text"; text: string };
 export type BloqueHerramienta = { type: "tool_use"; id: string; name: string; input: Record<string, unknown> };
 export type BloqueResultado = { type: "tool_result"; tool_use_id: string; content: string; is_error?: boolean };
 
@@ -56,7 +56,7 @@ export type MensajeIA =
   | { role: "assistant"; content: (BloqueTexto | BloqueHerramienta)[] };
 
 /** Tokens de la caché de prompt en una ida (spec 038): solo cifras, para Diagnóstico. */
-export type UsoCache = { cacheLeidos: number; cacheCreados: number };
+type UsoCache = { cacheLeidos: number; cacheCreados: number };
 
 /** Lo que devuelve el servidor por cada ida. */
 export type RespuestaPaso = { contenido: (BloqueTexto | BloqueHerramienta)[]; fin: string | null; uso?: UsoCache };

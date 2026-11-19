@@ -13,7 +13,7 @@ import type { Pedido } from "@/lib/encomiendas/local/almacen";
 import type { PedidoUbicado } from "@/lib/encomiendas/local/generar-ruta";
 import type { ParadaLejana } from "@/lib/encomiendas/local/generar-ruta/lejanas";
 
-export type PendienteDeCorregir = {
+type PendienteDeCorregir = {
   pedidoId: string;
   direccion: string;
   /** Qué tiene: «A 3,2 km del resto · agrega 4,1 km», «Sin ubicar». */

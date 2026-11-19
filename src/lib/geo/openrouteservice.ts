@@ -16,12 +16,12 @@ import type { Coordenada, Trazado } from "./coordenada";
 const ORS_BASE = process.env.ORS_BASE ?? "https://api.openrouteservice.org";
 
 /** Perfiles de ORS. Los nombres son los suyos y viajan tal cual en la URL. */
-export type PerfilRuta = "driving-car" | "driving-hgv" | "cycling-regular" | "foot-walking";
+type PerfilRuta = "driving-car" | "driving-hgv" | "cycling-regular" | "foot-walking";
 
 /** Lo que se puede pedir evitar, en castellano, traducido abajo al vocabulario
  *  de ORS. Se traduce acá y no en quien llama para que nadie tenga que saber
  *  que "peajes" se dice "tollways". */
-export type Evitable = "autopistas" | "peajes" | "ferries";
+type Evitable = "autopistas" | "peajes" | "ferries";
 
 const EVITABLES: Record<Evitable, string> = {
   autopistas: "highways",
@@ -48,14 +48,14 @@ export class ErrorClaveORS extends Error {
 }
 
 /** Una maniobra, ya en castellano (ORS las redacta con language=es). */
-export type PasoRuta = {
+type PasoRuta = {
   texto: string;
   distanciaM: number;
   duracionS: number;
   punto: Coordenada;
 };
 
-export type RutaAbierta = {
+type RutaAbierta = {
   /** [lng, lat] por punto — formato GeoJSON, IDÉNTICO a RutaCalles.trazado en
    *  lib/geo/ors/direcciones.ts. Es a propósito: así entra sin traducir a ajustarATrazado(),
    *  recortarTrazado() y metrosRestantes(). Invertir el par no da error, pone
@@ -69,7 +69,7 @@ export type RutaAbierta = {
   pasos: PasoRuta[] | null;
 };
 
-export type OpcionesRuta = {
+type OpcionesRuta = {
   perfil?: PerfilRuta;
   /** Deja que ORS reordene las paradas del medio. Por defecto NO: el orden de
    *  este proyecto lo decide ordenarParadas(), que además pondera los bloques

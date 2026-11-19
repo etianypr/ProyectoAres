@@ -88,7 +88,7 @@ romper lo que ya se aprendió en terreno. Las reglas vienen de `AGENTS.md` y de 
 | Código de barras → `{ of, bulto }` | `lib/encomiendas/lectura/codigo-barras.ts` |
 | OF y paquete: `ofValida`, `ofDistinta`, `formatoOf`, `buscarPorOf`, `nombreVisible`, `textoReferencia` | `lib/encomiendas/paquete.ts` |
 | Texto de la guía: `leerGuia`, `armarGuia`, `limpiarDestino`, `guiaDesdeIA`, `faltanEnLaPrimera` | `lectura/guia.ts` |
-| Texto de la etiqueta: `leerEtiqueta`, `pagoDe`, `etiquetaCompleta` | `lectura/etiqueta.ts` |
+| Texto de la etiqueta: `leerEtiqueta`, `pagoDe` | `lectura/etiqueta.ts` |
 | Contrato y salida de la IA: `LADO_MAXIMO`, `MAX_FOTOS_GUIA`, `BYTES_MAXIMOS_FOTO` · `GuiaIA`, `EtiquetaIA` (zod) | `lectura/contrato.ts`, `lectura/esquemas.ts` |
 | Claude (`server-only`): modelos, instrucciones, `leerFotos` | `lectura/servidor.ts` → `app/api/lectura/route.ts` |
 | Cloud Vision (`server-only`) | `lectura/vision.ts` → `app/api/texto/route.ts` |

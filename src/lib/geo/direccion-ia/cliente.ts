@@ -25,7 +25,7 @@ import {
 const CANDIDATOS_POR_BUSQUEDA = 8;
 
 /** Lo que se puede reemplazar en las pruebas. */
-export type DependenciasIA = {
+type DependenciasIA = {
   /** Una ida al servidor. */
   pedir: (mensajes: MensajeIA[]) => Promise<RespuestaPaso>;
   buscar: (consulta: string, senal?: AbortSignal) => Promise<SugerenciaDireccion[]>;

@@ -26,7 +26,7 @@ import { pesosDeManejar } from "./pesos";
 /** Dos lugares sin camino entre sí: lejos, pero finito (como en geo/matriz.ts). */
 const METROS_SIN_CAMINO = 20_000;
 
-export type RedDelDia = {
+type RedDelDia = {
   conRumbo: MatrizConRumbo;
   /** De lugar a lugar, lo mejor de sus sentidos: lo que mediría una matriz de ORS.
    *  La usan las cuentas que no saben de rumbo (horarios, paradas lejanas). Con los

@@ -16,7 +16,6 @@ const almacen = await import("@/lib/encomiendas/local/almacen");
 const {
   guardarPedido,
   leerPedidos,
-  pedidosPendientes,
   guardarRuta,
   leerRuta,
   leerCola,
@@ -27,11 +26,13 @@ const {
   reiniciarDisponibilidad,
 } = almacen;
 
+/** Los pedidos del día que siguen pendientes. */
+const pendientes = async (fecha) => (await leerPedidos(fecha)).filter((p) => p.resultado === "pendiente");
+
 const config = await import("@/lib/encomiendas/config");
 const {
   BLOQUES_HORARIOS,
   bloquePorId,
-  minutosDesde,
   payloadBoton,
   leerPayloadBoton,
 } = config;
@@ -133,10 +134,8 @@ test("los ids de bloque son únicos: son la clave con la que vuelve la respuesta
   assert.equal(new Set(ids).size, ids.length);
 });
 
-test("un bloque que ya no existe no revienta el ordenamiento, devuelve null", () => {
-  assert.equal(minutosDesde("16-18"), 16 * 60);
-  assert.equal(minutosDesde("03-05"), null, "un bloque retirado no puede dar un número");
-  assert.equal(minutosDesde(null), null);
+test("un bloque que ya no existe devuelve null", () => {
+  assert.equal(bloquePorId("03-05"), null, "un bloque retirado");
   assert.equal(bloquePorId("no-existe"), null);
 });
 
@@ -424,7 +423,7 @@ test("no entregado cierra el pedido del día y encola una omisión sin motivo", 
 
   assert.equal((await pedido(id)).resultado, "no_entregado");
   assert.deepEqual(
-    (await pedidosPendientes(HOY)).map((p) => p.id),
+    (await pendientes(HOY)).map((p) => p.id),
     [otro],
     "el pedido tachado sigue en juego",
   );
@@ -479,7 +478,7 @@ test("'Mañana' cierra el pedido como no entregado y lo cuenta, sin necesitar un
   const p = await pedido(id);
   assert.equal(p.disponibilidad, "manana", "lo que dijo el receptor sigue separado del resultado");
   assert.equal(p.resultado, "no_entregado");
-  assert.deepEqual(await pedidosPendientes(HOY), []);
+  assert.deepEqual(await pendientes(HOY), []);
 
   const [ev] = await leerCola();
   assert.equal(ev.tipo, "omision");
@@ -504,7 +503,7 @@ test("'Sí' y un horario no cierran nada ni encolan", async () => {
   await registrarDisponibilidad(a, { tipo: "confirmado" }, "wamid.RA", CONDUCTOR);
   await registrarDisponibilidad(b, { tipo: "horario_indicado", bloqueHorarioId: "16-18" }, "wamid.RB", CONDUCTOR);
 
-  assert.deepEqual((await pedidosPendientes(HOY)).map((p) => p.id).sort(), [a, b].sort());
+  assert.deepEqual((await pendientes(HOY)).map((p) => p.id).sort(), [a, b].sort());
   assert.equal((await leerCola()).length, 0);
 });
 
@@ -552,7 +551,7 @@ test("corregir un teléfono mal escrito descarta la respuesta del anterior", asy
   const p = await pedido(id);
   assert.equal(p.telefono, "+56999999999");
   assert.equal(p.disponibilidad, "pendiente_respuesta");
-  assert.deepEqual((await pedidosPendientes(HOY)).map((x) => x.id), [id]);
+  assert.deepEqual((await pendientes(HOY)).map((x) => x.id), [id]);
 });
 
 test("corregir el teléfono NO reabre un 'Mañana' ya registrado", async () => {

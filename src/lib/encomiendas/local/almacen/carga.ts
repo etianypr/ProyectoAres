@@ -133,7 +133,7 @@ export function deshacerCarga(ids: string[], fecha: string): Promise<{ borrados:
 
 /** Lo que se sabe de una etiqueta escaneada. Solo `of` es obligatorio: sin IA
  *  y sin texto pegado, el código de barras ya alcanza para saber la parada. */
-export type LecturaParaAplicar = {
+type LecturaParaAplicar = {
   of: string;
   bulto: number | null;
   /** Es un escaneo nuevo (el código leído o la OF escrita) y no un volver a

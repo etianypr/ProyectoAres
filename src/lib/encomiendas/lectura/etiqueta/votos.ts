@@ -18,7 +18,7 @@ import type { CodigoEtiqueta } from "../codigo-barras";
 import type { LecturaEtiqueta } from "./index";
 
 /** Cuántos cuadros tienen que coincidir para que un dato quede firme. */
-export const IGUALES_PARA_FIRME = 2;
+const IGUALES_PARA_FIRME = 2;
 
 const CAMPOS = ["destinatario", "telefono", "direccion", "porPagar", "montoPorPagar", "bultosTotal", "ofImpresa"] as const;
 type Campo = (typeof CAMPOS)[number];

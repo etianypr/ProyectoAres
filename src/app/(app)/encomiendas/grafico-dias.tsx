@@ -34,7 +34,7 @@ import {
 } from "@/lib/encomiendas/periodos";
 import { PeriodosFacturacion } from "./periodos-facturacion";
 
-export type ColumnaSerie = {
+type ColumnaSerie = {
   clave: string;
   etiqueta: string;
   /** El corte al que pertenece la columna, o -1 si no cae en ninguno. */

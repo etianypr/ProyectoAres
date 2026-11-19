@@ -9,7 +9,7 @@
 import { jugadas } from "./descarga";
 import { mejoresEstados, type RutaConRumbo, type Tablero } from "./con-rumbo";
 
-export type DescargaConRumbo = {
+type DescargaConRumbo = {
   /** Bultos de cada lugar, por índice de lugar (la partida no cuenta). */
   bultos: number[];
   /** Metros de estado a estado, [a · n + b]. */

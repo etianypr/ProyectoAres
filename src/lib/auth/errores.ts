@@ -7,7 +7,7 @@
 
 /** Lo mínimo que se mira de un error de Auth (AuthError de supabase-js, o un
  *  TypeError del fetch). Nunca se mira el correo ni nada que escribió la persona. */
-export type ErrorAuth =
+type ErrorAuth =
   | {
       name?: string;
       status?: number;
@@ -17,7 +17,7 @@ export type ErrorAuth =
   | null
   | undefined;
 
-export type TipoErrorAuth = "credenciales" | "red" | "limite" | "sesion" | "otro";
+type TipoErrorAuth = "credenciales" | "red" | "limite" | "sesion" | "otro";
 
 const SIN_SENAL = "Sin conexión. Vuelve a intentarlo.";
 

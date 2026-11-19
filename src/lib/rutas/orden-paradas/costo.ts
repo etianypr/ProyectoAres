@@ -22,7 +22,7 @@ export function conFinal(tramo: Costo, vuelta?: (a: number) => number): Costo {
  *  no da Infinity como `matriz[a]?.[b] ?? Infinity`: da el número de otra fila, o
  *  undefined con `a` = FIN. Se cumple porque los órdenes que llegan son
  *  permutaciones de 0..n − 1 (el arranque de sentido.ts es la identidad). */
-export type CostoEnTabla = Costo & { tabla: Float64Array; ancho: number };
+type CostoEnTabla = Costo & { tabla: Float64Array; ancho: number };
 
 /** El mismo costo, leído de una tabla plana de n × (n + 1) (spec 038, tiempos): la
  *  búsqueda a fondo lo lee millones de veces, y cada lectura pasaba por conFinal,
@@ -67,7 +67,7 @@ export type Penalizacion = ((anterior: number, parada: number, siguiente: number
 };
 
 /** La penalización de la parada en la posición k del orden. */
-export function penalizacionEn(orden: number[], k: number, pen: Penalizacion): number {
+function penalizacionEn(orden: number[], k: number, pen: Penalizacion): number {
   return pen(orden[k - 1], orden[k], k + 1 < orden.length ? orden[k + 1] : FIN);
 }
 

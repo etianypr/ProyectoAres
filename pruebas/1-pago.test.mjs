@@ -12,7 +12,6 @@ import assert from "node:assert/strict";
 import {
   agruparPorDia,
   calcularPagoDia,
-  contarActividad,
   ingresoEstimado,
   tarifaDelDia,
   valorPedido,
@@ -246,7 +245,7 @@ test("las omisiones nunca cambian el pago", () => {
   assert.deepEqual(a, b);
 });
 
-// --------------------------------------------------------- contarActividad
+// --------------------------------------------------------- llamadas
 test("las llamadas no suman ni restan al conteo", () => {
   const eventos = [
     EV({ tipo: "entrega" }),
@@ -255,7 +254,7 @@ test("las llamadas no suman ni restan al conteo", () => {
     EV({ tipo: "llamada" }),
     EV({ tipo: "llamada" }),
   ];
-  assert.deepEqual(contarActividad(eventos), { entregados: 2, omitidos: 1 });
+  assert.deepEqual(agruparPorDia(eventos)[0].conteo, { entregados: 2, omitidos: 1 });
 });
 
 // ----------------------------------------------------------- agruparPorDia

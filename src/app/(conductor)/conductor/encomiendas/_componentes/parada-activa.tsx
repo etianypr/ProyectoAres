@@ -27,7 +27,7 @@ export const BOTON_PRINCIPAL =
 // de al lado, pisando el hueco. Con el mínimo en cero los dos miden exactamente
 // lo mismo, y sin `whitespace-nowrap` una etiqueta larga parte en dos renglones
 // en vez de desbordar la píldora.
-export const BOTON_RESULTADO =
+const BOTON_RESULTADO =
   "flex h-12 min-w-0 items-center justify-center gap-1.5 rounded-full px-2.5 text-center text-sm font-semibold leading-tight transition-transform active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50";
 
 /** El renglón de estado del receptor, debajo de la dirección. */

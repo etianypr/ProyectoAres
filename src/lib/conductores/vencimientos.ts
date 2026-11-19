@@ -7,7 +7,7 @@ import { hoyChile } from "@/lib/comun/fechas";
 // Este no la administra. Si algún día las camionetas de reparto pasan a ser de
 // la empresa, este archivo es donde se agregan.
 
-export type VencEstado = "vencido" | "por_vencer" | "ok";
+type VencEstado = "vencido" | "por_vencer" | "ok";
 
 const DIAS_AVISO = 30;
 

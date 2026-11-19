@@ -48,7 +48,7 @@ const RESISTENCIA = 0.7;
 export type EjeGesto = "sin-decidir" | "horizontal" | "vertical";
 
 /** Qué hacer al levantar el dedo. */
-export type FinDeslizamiento = "cerrar" | "abrir" | "eliminar";
+type FinDeslizamiento = "cerrar" | "abrir" | "eliminar";
 
 export function decidirEje(dx: number, dy: number): EjeGesto {
   const horizontal = Math.abs(dx);

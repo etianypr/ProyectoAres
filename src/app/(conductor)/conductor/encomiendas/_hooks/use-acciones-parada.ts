@@ -15,7 +15,7 @@ import { useReordenar } from "./use-reordenar";
 
 /** Lo cerrado que se puede deshacer. Varias paradas cerradas dentro de la misma
  *  ventana (un doble toque, «Los 2») se deshacen juntas (spec 033). */
-export type PorDeshacer = {
+type PorDeshacer = {
   eventos: { pedidoId: string; eventoId: string }[];
   texto: string;
   /** Cuándo vence (ms), para la cuenta de «Cerrar el día» (spec 033). */

@@ -20,7 +20,7 @@ export type LineaDelDia = {
 };
 
 /** El pedazo de la línea del día que llega a una parada. */
-export type TramoHacia = { linea: Trazado; metros: number; segundos: number };
+type TramoHacia = { linea: Trazado; metros: number; segundos: number };
 
 /** El tramo que llega a `pedidoId`, o null si la ruta no lo tiene (o sus índices
  *  no calzan con el trazado, que es lo mismo que no tenerlo). */
@@ -33,7 +33,7 @@ export function tramoHacia(ruta: LineaDelDia | null, pedidoId: string): TramoHac
   return { linea: trazado.slice(desde, hasta + 1), metros: tramo.metros, segundos: tramo.segundos };
 }
 
-export type HaciaParada = {
+type HaciaParada = {
   metros: number;
   /** Proporcional a lo que falta del tramo; null fuera de él. */
   segundos: number | null;

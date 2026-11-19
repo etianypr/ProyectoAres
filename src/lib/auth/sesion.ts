@@ -18,7 +18,7 @@ import { inicioSegunRol, leerRol, ROLES_PANEL } from "./roles";
 // cache() de React memoiza el resultado durante UN render: el layout y la
 // página pueden pedir la sesión sin que se consulte dos veces.
 
-export type Sesion = {
+type Sesion = {
   userId: string;
   email: string;
   rol: RolUsuario | null;
@@ -43,7 +43,7 @@ export async function puedeOperarPanel(): Promise<boolean> {
 }
 
 /** Hay sesión, sin importar el rol. Si no, al login. */
-export async function exigirSesion(): Promise<Sesion> {
+async function exigirSesion(): Promise<Sesion> {
   const sesion = await sesionActual();
   if (!sesion) redirect("/login");
   return sesion;

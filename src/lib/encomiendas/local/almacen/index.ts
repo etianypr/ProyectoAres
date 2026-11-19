@@ -40,7 +40,6 @@ export {
   fijarTelefono,
   guardarPedido,
   guardarPropuestaIA,
-  pedidosPendientes,
   restaurarPedido,
   type DatosPedido,
   type PedidoEliminado,
@@ -59,13 +58,11 @@ export {
   sumarResumenes,
   tramosConPedidos,
   volverACargar,
-  type EntradaRuta,
 } from "./ruta";
 export {
   borrarDatosDestinatarios,
   borrarSueltos,
   cerrarYBorrarDia,
-  DIAS_DE_RESUMEN,
   diasPorBorrar,
   resumenesQueSobran,
   noEntregadosDelDia,
@@ -73,10 +70,7 @@ export {
 export {
   deshacerResultado,
   marcarResultado,
-  marcarLlamada,
   registrarLlamada,
-  moverAlFinal,
-  type MarcaPedido,
 } from "./terreno";
 export {
   anotarHorario,
@@ -101,7 +95,6 @@ export {
   quitarBulto,
   sePuedeQuitarBulto,
   sinEtiquetaEscaneada,
-  type LecturaParaAplicar,
   type LineaParaCrear,
   type ResultadoEscaneo,
 } from "./carga";
@@ -124,4 +117,3 @@ export {
 
 // Para distinguir "el teléfono no puede guardar" (accionable: instalar la app,
 // salir del modo privado) de cualquier otro error.
-export { ErrorAlmacenLocal } from "../idb";
