@@ -115,7 +115,7 @@ export function DialogoAgregarDia({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="animate-scale-in flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-[18px] bg-white shadow-card"
+        className="animate-scale-in flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-card shadow-card"
       >
         <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5 sm:px-6">
           <h2 className="text-lg font-semibold">Agregar día trabajado</h2>
@@ -232,36 +232,36 @@ export function DialogoAgregarDia({
                 la regla actual sí mueva un día que ya estaba calculado con
                 otra. */}
             {modoEfectivo === "editada" ? (
-              <p className="rounded-lg border border-info/25 bg-info-bg px-3 py-2 text-xs text-info sm:col-span-2">
+              <p className="rounded-xl bg-info-bg px-3 py-2 text-xs text-info sm:col-span-2">
                 Esta tarifa vale <strong>solo para este día</strong>: la regla de pago no se toca y
                 los demás días siguen como están.
               </p>
             ) : modoEfectivo === "dia" && yaHay?.tarifa ? (
-              <p className="rounded-lg border border-info/25 bg-info-bg px-3 py-2 text-xs text-info sm:col-span-2">
+              <p className="rounded-xl bg-info-bg px-3 py-2 text-xs text-info sm:col-span-2">
                 El día se mantiene calculado a {formatCLP(yaHay.tarifa.valor_pedido)} por entrega,
                 que es con lo que ya estaba.
               </p>
             ) : yaHay?.tarifa ? (
-              <p className="rounded-lg border border-warn/25 bg-warn-bg px-3 py-2 text-xs text-warn sm:col-span-2">
+              <p className="rounded-xl bg-warn-bg px-3 py-2 text-xs text-warn sm:col-span-2">
                 Este día estaba calculado a {formatCLP(yaHay.tarifa.valor_pedido)} por entrega: al
                 guardar se recalcula <strong>entero</strong> con la regla actual.
               </p>
             ) : fecha < hoy ? (
-              <p className="rounded-lg border border-border bg-background px-3 py-2 text-xs text-muted sm:col-span-2">
+              <p className="rounded-xl border border-border bg-background px-3 py-2 text-xs text-muted sm:col-span-2">
                 Es un día pasado y todavía no está registrado: se va a calcular con la regla de
                 pago que rige ahora. Si ese día se pagaba distinto, elige “Otra tarifa”.
               </p>
             ) : null}
 
             {nEntregados + nOmitidos === 0 ? (
-              <p className="rounded-lg border border-border bg-background px-3 py-2 text-xs text-muted sm:col-span-2">
+              <p className="rounded-xl border border-border bg-background px-3 py-2 text-xs text-muted sm:col-span-2">
                 Sin entregas ni omisiones, el día se registra como “salió a repartir”: cuenta como
                 día trabajado y paga el fijo diario, sin sumar nada por pedido.
               </p>
             ) : null}
 
             {delTelefono > 0 ? (
-              <p className="rounded-lg border border-warn/25 bg-warn-bg px-3 py-2 text-xs text-warn sm:col-span-2">
+              <p className="rounded-xl bg-warn-bg px-3 py-2 text-xs text-warn sm:col-span-2">
                 Este día ya tiene {formatNumber(delTelefono)} registro
                 {delTelefono === 1 ? "" : "s"} enviados desde el teléfono (
                 {formatNumber(yaHay?.entregados ?? 0)} entregado
@@ -270,7 +270,7 @@ export function DialogoAgregarDia({
             ) : null}
 
             {yaHay && yaHay.manuales > 0 ? (
-              <p className="rounded-lg border border-info/25 bg-info-bg px-3 py-2 text-xs text-info sm:col-span-2">
+              <p className="rounded-xl bg-info-bg px-3 py-2 text-xs text-info sm:col-span-2">
                 Ya hay una carga manual de {formatNumber(yaHay.manuales)} registro
                 {yaHay.manuales === 1 ? "" : "s"} para este día: al guardar se reemplaza por lo que
                 pongas ahora.
@@ -278,7 +278,7 @@ export function DialogoAgregarDia({
             ) : null}
 
             {error ? (
-              <p className="rounded-lg border border-danger/20 bg-danger-bg px-3 py-2 text-sm text-danger sm:col-span-2">
+              <p className="rounded-xl bg-danger-bg px-3 py-2 text-sm text-danger sm:col-span-2">
                 {error}
               </p>
             ) : null}

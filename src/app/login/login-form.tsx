@@ -52,7 +52,7 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
       </Field>
 
       {state.error ? (
-        <p className="rounded-lg bg-danger-bg border border-danger/20 px-3 py-2 text-sm text-danger">
+        <p className="rounded-xl bg-danger-bg border border-danger/20 px-3 py-2 text-sm text-danger">
           {state.error}
         </p>
       ) : null}
@@ -114,8 +114,8 @@ function OlvidoClave({ onVolver }: { onVolver: () => void }) {
         <p
           className={
             respuesta.ok
-              ? "rounded-lg border border-divider bg-background px-3 py-2 text-sm"
-              : "rounded-lg border border-danger/20 bg-danger-bg px-3 py-2 text-sm text-danger"
+              ? "rounded-xl border border-divider bg-background px-3 py-2 text-sm"
+              : "rounded-xl bg-danger-bg px-3 py-2 text-sm text-danger"
           }
         >
           {respuesta.texto}

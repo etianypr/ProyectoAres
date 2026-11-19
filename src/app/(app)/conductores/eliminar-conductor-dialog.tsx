@@ -64,7 +64,7 @@ export function EliminarConductorDialog({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="animate-scale-in w-full max-w-md rounded-[18px] bg-white p-5 shadow-card"
+        className="animate-scale-in w-full max-w-md rounded-2xl bg-card p-5 shadow-card"
       >
         <p className="text-base font-semibold">¿Qué quieres hacer con {conductor.nombre}?</p>
         {historial ? (
@@ -79,7 +79,7 @@ export function EliminarConductorDialog({
             <button
               type="submit"
               disabled={desactivarPending}
-              className="w-full rounded-xl border border-border bg-white px-4 py-3 text-left text-sm font-medium hover:bg-background disabled:opacity-50"
+              className="w-full rounded-xl border border-border bg-card px-4 py-3 text-left text-sm font-medium hover:bg-background disabled:opacity-50"
             >
               Ya no trabaja aquí
               <span className="block text-xs font-normal text-muted">
@@ -92,7 +92,7 @@ export function EliminarConductorDialog({
             <button
               type="button"
               onClick={() => setConfirmarBorrado(true)}
-              className="w-full rounded-xl border border-danger/20 bg-white px-4 py-3 text-left text-sm font-medium text-danger hover:bg-danger-bg"
+              className="w-full rounded-xl border border-danger/20 bg-card px-4 py-3 text-left text-sm font-medium text-danger hover:bg-danger-bg"
             >
               Eliminar todo el registro
               <span className="block text-xs font-normal text-danger/80">

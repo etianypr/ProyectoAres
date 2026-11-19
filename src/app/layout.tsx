@@ -1,16 +1,14 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { IBM_Plex_Mono, Manrope } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+// Las letras de ARES, para el panel y la app del conductor (spec 042): Manrope para
+// leer; IBM Plex Mono para lo que se compara de un vistazo (OF, km, horas, montos en
+// tabla). Antes se cargaba Geist y nadie la usaba: el panel salía en la letra del
+// sistema y `font-mono` no se veía. Las variables quedan en <html>, así que también
+// las heredan las ventanas que se abren con portales.
+const texto = Manrope({ subsets: ["latin"], display: "swap", variable: "--font-texto" });
+const cifras = IBM_Plex_Mono({ subsets: ["latin"], weight: ["500", "600"], display: "swap", variable: "--font-cifras" });
 
 // "Ares" es el nombre de trabajo del proyecto. El nombre de la empresa que se ve
 // en el panel NO se escribe acá: sale de la tabla empresa (Configuración), así
@@ -28,7 +26,7 @@ export default function RootLayout({
   return (
     <html
       lang="es"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${texto.variable} ${cifras.variable} h-full antialiased`}
     >
       <body className="min-h-full">{children}</body>
     </html>

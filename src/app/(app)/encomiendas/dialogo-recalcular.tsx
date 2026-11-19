@@ -91,7 +91,7 @@ export function DialogoRecalcular({
 
         {modo === "editada" ? <CamposTarifa valores={valores} onChange={setValores} /> : null}
 
-        <dl className="rounded-xl bg-white px-4 py-3 text-sm sm:col-span-2">
+        <dl className="rounded-xl bg-card px-4 py-3 text-sm sm:col-span-2">
           <div className="flex items-center justify-between">
             <dt className="text-muted">Ingresos estimados</dt>
             <dd className="font-semibold tabular-nums text-ok">{formatCLP(ingresos)}</dd>
@@ -113,7 +113,7 @@ export function DialogoRecalcular({
         </p>
 
         {error ? (
-          <p className="rounded-lg border border-danger/20 bg-danger-bg px-3 py-2 text-sm text-danger sm:col-span-2">
+          <p className="rounded-xl bg-danger-bg px-3 py-2 text-sm text-danger sm:col-span-2">
             {error}
           </p>
         ) : null}

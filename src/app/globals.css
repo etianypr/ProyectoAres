@@ -61,6 +61,10 @@
   /* 5.11:1 sobre --background. */
   --muted: #5c667a;
 
+  /* Los títulos van en la misma letra del texto (Manrope, cargada en layout.tsx
+     como --font-texto y --font-cifras), con más peso. */
+  --font-titulo: var(--font-texto);
+
   /* Superficies y bordes de los controles (botón secundario, chip gris, hover
      del borde, etiqueta de un campo). Estaban escritos a mano en cada primitiva
      de components/ui con grises fríos, y la app del conductor no podía
@@ -102,6 +106,10 @@
   /* El azul de la v3, ahora en su único lugar honesto. 8.20:1 sobre --info-bg */
   --info: #0c3f9b;
   --info-bg: #e8eefa;
+  /* Lo cargado a mano desde la oficina (carga manual, spec 042: antes en hex
+     sueltos). 7.9:1 sobre --violet-bg. */
+  --violet: #5b3aa8;
+  --violet-bg: #ece8f8;
 }
 
 @theme inline {
@@ -136,6 +144,8 @@
   --color-danger-bg: var(--danger-bg);
   --color-info: var(--info);
   --color-info-bg: var(--info-bg);
+  --color-violet: var(--violet);
+  --color-violet-bg: var(--violet-bg);
 
   /* Las tres familias del sistema: título, texto y cifras. Se declaran acá y
      se resuelven en layout.tsx; mientras no estén cargadas, cada regla que
@@ -251,11 +261,10 @@
   }
 }
 
-/* Títulos: ancho ligeramente expandido y apretados de tracking, para que un
-   encabezado corto ocupe con presencia sin subir el tamaño. */
+/* Títulos: apretados de tracking y con peso, para que un encabezado corto ocupe
+   con presencia sin subir el tamaño. */
 .tipo-titulo {
   font-family: var(--font-titulo), ui-sans-serif, system-ui, sans-serif;
-  font-variation-settings: "wdth" 112;
   letter-spacing: -0.015em;
   font-weight: 700;
 }
@@ -264,7 +273,6 @@
    columna. Va suelta de tracking porque en mayúsculas todo se apelmaza. */
 .rotulo {
   font-family: var(--font-titulo), ui-sans-serif, system-ui, sans-serif;
-  font-variation-settings: "wdth" 105;
   text-transform: uppercase;
   letter-spacing: 0.09em;
   font-weight: 600;
@@ -328,11 +336,10 @@ body {
 h1,
 h2 {
   font-family: var(--font-titulo), ui-sans-serif, system-ui, sans-serif;
-  font-variation-settings: "wdth" 112;
   letter-spacing: -0.015em;
 }
 
-/* Detalles de marca: el cursor de texto y la selección usan el azul.
+/* Detalles de marca: el cursor de texto y la selección usan el naranja de la marca.
    Pequeño, pero se nota que "todo es de la misma app". */
 input,
 textarea,

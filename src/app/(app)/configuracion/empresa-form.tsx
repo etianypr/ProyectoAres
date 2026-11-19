@@ -111,7 +111,7 @@ export function EmpresaForm({ empresa }: { empresa?: Empresa }) {
           <div>
             <p className="mb-1.5 block text-sm font-medium">Logo</p>
             <div className="flex items-center gap-4">
-              <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-lg border border-border bg-background">
+              <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-xl border border-border bg-background">
                 {logoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={logoUrl} alt="Logo" className="h-full w-full object-contain" />
@@ -150,12 +150,12 @@ export function EmpresaForm({ empresa }: { empresa?: Empresa }) {
       </Card>
 
       {state.error ? (
-        <p className="rounded-lg bg-danger-bg border border-danger/20 px-3 py-2 text-sm text-danger">
+        <p className="rounded-xl bg-danger-bg border border-danger/20 px-3 py-2 text-sm text-danger">
           {state.error}
         </p>
       ) : null}
       {state.ok ? (
-        <p className="flex items-center gap-2 rounded-lg bg-ok-bg border border-ok/20 px-3 py-2 text-sm text-ok">
+        <p className="flex items-center gap-2 rounded-xl bg-ok-bg border border-ok/20 px-3 py-2 text-sm text-ok">
           <CheckCircle2 className="h-4 w-4" />
           Cambios guardados.
         </p>

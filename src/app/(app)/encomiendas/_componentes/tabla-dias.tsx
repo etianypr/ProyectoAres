@@ -174,7 +174,7 @@ export function TablaDias({
                         href={`/encomiendas/dia?fecha=${d.fecha}`}
                         title={`Editar el ${formatDate(d.fecha)}`}
                         aria-label={`Editar el día ${formatDate(d.fecha)}`}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-separator bg-white text-muted transition-colors hover:border-brand/40 hover:bg-brand-soft hover:text-brand"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-separator bg-card text-muted transition-colors hover:border-brand/40 hover:bg-brand-soft hover:text-brand"
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </Link>

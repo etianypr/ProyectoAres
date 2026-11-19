@@ -95,7 +95,7 @@ export function GraficoDias({
               donde uno mira para saber "qué estoy viendo", y ahora eso incluye
               con qué criterio están pintados los días. */}
           <div
-            className="inline-flex items-center gap-0.5 rounded-full border border-border bg-white p-1"
+            className="inline-flex items-center gap-0.5 rounded-full border border-border bg-card p-1"
             role="group"
             aria-label="Cómo agrupar los días"
           >
@@ -125,7 +125,7 @@ export function GraficoDias({
             ninguno definido" sobre datos que no se pudieron leer, y alguien
             podría cargar de nuevo un corte que ya existía. */}
         {errorPeriodos ? (
-          <p className="mb-3 rounded-lg border border-warn/25 bg-warn-bg px-3 py-2 text-xs text-warn">
+          <p className="mb-3 rounded-xl bg-warn-bg px-3 py-2 text-xs text-warn">
             No se pudieron leer los periodos de facturación: {errorPeriodos}
           </p>
         ) : null}
@@ -196,7 +196,7 @@ export function GraficoDias({
                       aria-hidden
                     />
                   </div>
-                  <span className="text-[9px] leading-none text-muted sm:text-[10px]">
+                  <span className="text-xs leading-none text-muted sm:text-xs">
                     {s.etiqueta}
                   </span>
                 </div>
@@ -235,7 +235,7 @@ export function GraficoDias({
                       <span className="block text-sm font-semibold tabular-nums text-ok">
                         {formatCLP(p.real ?? p.ingresos)}
                       </span>
-                      <span className="block text-[11px] tabular-nums text-muted">
+                      <span className="block text-xs tabular-nums text-muted">
                         {p.real != null
                           ? `real · estimado ${formatCLP(p.ingresos)}`
                           : `estimado · ${formatNumber(p.entregados)} entregas`}

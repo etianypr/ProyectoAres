@@ -139,7 +139,7 @@ function Comparacion({ ingresos }: { ingresos: IngresosDelPeriodo }) {
   if (ingresos.periodos.length === 0) {
     return (
       <>
-        <p className="rounded-lg border border-info/25 bg-info-bg px-3 py-2 text-sm text-info">
+        <p className="rounded-xl bg-info-bg px-3 py-2 text-sm text-info">
           Todavía no hay ningún periodo de facturación definido, y lo que entra se imputa a un
           periodo. Define el primero con <strong>“Definir periodos”</strong>, en el gráfico de
           pedidos por día, y vuelve acá.
@@ -152,13 +152,13 @@ function Comparacion({ ingresos }: { ingresos: IngresosDelPeriodo }) {
   return (
     <>
       {ingresos.error ? (
-        <p className="mb-4 rounded-lg border border-warn/25 bg-warn-bg px-3 py-2 text-xs text-warn">
+        <p className="mb-4 rounded-xl bg-warn-bg px-3 py-2 text-xs text-warn">
           Todavía no se puede guardar: falta correr la migración{" "}
           <code className="font-mono">0035</code> en Supabase. ({ingresos.error})
         </p>
       ) : null}
 
-      <dl className="mb-4 grid gap-2 rounded-xl bg-white px-4 py-3 text-sm shadow-soft sm:grid-cols-3">
+      <dl className="mb-4 grid gap-2 rounded-xl bg-card px-4 py-3 text-sm shadow-soft sm:grid-cols-3">
         <div>
           <dt className="text-xs text-muted">Estimado</dt>
           <dd className="font-semibold tabular-nums">{formatCLP(estimado)}</dd>
@@ -184,7 +184,7 @@ function Comparacion({ ingresos }: { ingresos: IngresosDelPeriodo }) {
       </dl>
 
       {valorQueCuadraria != null ? (
-        <p className="mb-4 rounded-lg border border-info/25 bg-info-bg px-3 py-2 text-xs text-info">
+        <p className="mb-4 rounded-xl bg-info-bg px-3 py-2 text-xs text-info">
           Con {formatNumber(entregas)} entrega{entregas === 1 ? "" : "s"} en el periodo, lo que
           entró da <strong>{formatCLP(valorQueCuadraria)} por entrega</strong>. Si la estimación te
           queda lejos seguido, ese es el número a poner en la regla de pago.
@@ -194,7 +194,7 @@ function Comparacion({ ingresos }: { ingresos: IngresosDelPeriodo }) {
       {/* Un periodo sin días de reparto no tiene con qué comparar: el estimado
           es cero porque no hubo entregas, no porque la estimación falle. */}
       {periodo != null && periodo.dias === 0 ? (
-        <p className="mb-4 rounded-lg border border-warn/25 bg-warn-bg px-3 py-2 text-xs text-warn">
+        <p className="mb-4 rounded-xl bg-warn-bg px-3 py-2 text-xs text-warn">
           Este periodo no tiene ningún día con reparto registrado, así que el estimado es cero y no
           hay nada contra qué contrastar. Revisa las fechas del corte.
         </p>
@@ -260,12 +260,12 @@ function Comparacion({ ingresos }: { ingresos: IngresosDelPeriodo }) {
             Los avisos se van al otro extremo con mr-auto para no correrlo. */}
         <div className="flex flex-wrap items-center justify-end gap-2 sm:col-span-2">
           {state.error ? (
-            <p className="mr-auto rounded-lg border border-danger/20 bg-danger-bg px-3 py-2 text-sm text-danger">
+            <p className="mr-auto rounded-xl bg-danger-bg px-3 py-2 text-sm text-danger">
               {state.error}
             </p>
           ) : null}
           {errorBorrar ? (
-            <p className="mr-auto rounded-lg border border-danger/20 bg-danger-bg px-3 py-2 text-sm text-danger">
+            <p className="mr-auto rounded-xl bg-danger-bg px-3 py-2 text-sm text-danger">
               {errorBorrar}
             </p>
           ) : null}

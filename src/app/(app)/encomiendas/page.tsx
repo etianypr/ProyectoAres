@@ -269,7 +269,7 @@ export default async function EncomiendasPage() {
           ninguno y todo el panel queda en cero, con los días igual apareciendo
           en la tabla. Eso se lee como "no se trabajó" si no se dice. */}
       {regla == null ? (
-        <div className="mb-4 rounded-[14px] border border-danger/25 bg-danger-bg px-4 py-3 text-sm text-danger">
+        <div className="mb-4 rounded-xl border border-danger/25 bg-danger-bg px-4 py-3 text-sm text-danger">
           <p className="font-medium">Falta configurar la regla de pago.</p>
           <p className="mt-0.5 text-xs">
             Hasta que la guardes no se puede calcular el ingreso de ningún día ni lo que hay que

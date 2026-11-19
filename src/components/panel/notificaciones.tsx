@@ -32,7 +32,7 @@ export function Notificaciones({ alertas }: { alertas: Alerta[] }) {
         <Bell className="h-4.5 w-4.5" />
         {alertas.length > 0 ? (
           <span
-            className={`absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white ${
+            className={`absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-xs font-bold text-white ${
               hayVencidos ? "bg-danger" : "bg-warn"
             }`}
           >
@@ -45,7 +45,7 @@ export function Notificaciones({ alertas }: { alertas: Alerta[] }) {
         <>
           {/* Cierre al hacer clic fuera */}
           <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
-          <div className="animate-scale-in absolute right-0 top-full z-30 mt-2 w-80 origin-top-right overflow-hidden rounded-[18px] border border-border bg-card shadow-card">
+          <div className="animate-scale-in absolute right-0 top-full z-30 mt-2 w-80 origin-top-right overflow-hidden rounded-2xl border border-border bg-card shadow-card">
             <p className="border-b border-border px-4 py-3 text-sm font-semibold">
               Alertas de documentos
             </p>

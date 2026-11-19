@@ -112,7 +112,7 @@ export function ActividadDia({
         </div>
 
         {manuales.length > 0 ? (
-          <div className="rounded-xl border border-[#ece8f8] bg-[#faf9fe] px-4 py-3">
+          <div className="rounded-xl border border-violet-bg bg-violet-bg/40 px-4 py-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <Badge tone="violet">Carga manual</Badge>
               <span className="text-xs text-muted">
@@ -165,7 +165,7 @@ export function ActividadDia({
               </div>
             ) : null}
             {errorBorrar ? (
-              <p className="mt-2 rounded-lg border border-danger/20 bg-danger-bg px-3 py-2 text-sm text-danger">
+              <p className="mt-2 rounded-xl bg-danger-bg px-3 py-2 text-sm text-danger">
                 {errorBorrar}
               </p>
             ) : null}

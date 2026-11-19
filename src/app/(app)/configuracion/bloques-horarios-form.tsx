@@ -60,7 +60,7 @@ export function BloquesHorariosForm({
         {BLOQUES_HORARIOS.map((bloque) => (
           <label
             key={bloque.id}
-            className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-2.5 transition-colors hover:bg-background"
+            className="flex cursor-pointer items-center gap-2.5 rounded-xl px-2 py-2.5 transition-colors hover:bg-background"
           >
             <Checkbox
               name="bloques"
@@ -80,12 +80,12 @@ export function BloquesHorariosForm({
       </p>
 
       {estado.error ? (
-        <p className="mt-3 rounded-lg border border-danger/20 bg-danger-bg px-3 py-2 text-sm text-danger">
+        <p className="mt-3 rounded-xl bg-danger-bg px-3 py-2 text-sm text-danger">
           {estado.error}
         </p>
       ) : null}
       {estado.ok ? (
-        <p className="mt-3 rounded-lg bg-ok-bg px-3 py-2 text-sm text-ok">
+        <p className="mt-3 rounded-xl bg-ok-bg px-3 py-2 text-sm text-ok">
           Horarios guardados.
         </p>
       ) : null}

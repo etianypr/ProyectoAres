@@ -11,7 +11,7 @@ const tones = {
   green: { wrap: "bg-ok-bg text-ok", dot: "var(--ok)" },
   amber: { wrap: "bg-warn-bg text-warn", dot: "var(--warn)" },
   red: { wrap: "bg-danger-bg text-danger", dot: "var(--danger)" },
-  violet: { wrap: "bg-[#ece8f8] text-[#5b3aa8]", dot: "#5b3aa8" },
+  violet: { wrap: "bg-violet-bg text-violet", dot: "var(--violet)" },
 } as const;
 
 type Tone = keyof typeof tones;
@@ -29,7 +29,7 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold whitespace-nowrap",
+        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap",
         t.wrap,
         className,
       )}
