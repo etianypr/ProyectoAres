@@ -9,6 +9,7 @@ import { ArrowLeft, ChevronRight, X } from "lucide-react";
 import type { Pedido } from "@/lib/encomiendas/local/almacen";
 import { PedidoFormLocal, type CambiosForm } from "./pedido-form-local";
 import { ProblemasPedido } from "./problemas-pedido";
+import { BOTON_ICONO } from "./botones";
 
 /** El formulario de un pedido, DENTRO de la hoja deslizable (ver BottomSheet,
  *  prop "vista"): sobre el contenido y debajo de la misma cabecera.
@@ -74,7 +75,7 @@ export function VistaPedido({
           type="button"
           onClick={onCerrar}
           aria-label="Volver"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted active:bg-background"
+          className={BOTON_ICONO}
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
@@ -95,7 +96,7 @@ export function VistaPedido({
           type="button"
           onClick={onCerrar}
           aria-label="Cerrar"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted active:bg-background"
+          className={BOTON_ICONO}
         >
           <X className="h-5 w-5" />
         </button>

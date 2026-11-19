@@ -24,6 +24,7 @@ import { ProbarEscanerVivo } from "./_componentes/probar-escaner-vivo";
 import { ProbarEtiqueta } from "./_componentes/probar-etiqueta";
 import { Tiempos } from "./_componentes/tiempos";
 import { CintaModoPrueba } from "../encomiendas/_componentes/cinta-modo-prueba";
+import { BOTON_PRINCIPAL } from "../encomiendas/_componentes/botones";
 
 type Estado = "si" | "no" | "pendiente";
 
@@ -170,9 +171,7 @@ export default function DiagnosticoPage() {
         type="button"
         disabled={escaneando || !info?.app}
         onClick={() => void probarEscaner()}
-        className={cn(
-          "flex h-12 w-full items-center justify-center gap-2 rounded-full bg-brand text-sm font-semibold text-brand-foreground transition-transform active:scale-[0.97] disabled:opacity-50",
-        )}
+        className={BOTON_PRINCIPAL}
       >
         <ScanLine className="h-4 w-4" />
         {/* Fuera de la APK se dice por qué no anda (spec 033, diag-apagados). */}

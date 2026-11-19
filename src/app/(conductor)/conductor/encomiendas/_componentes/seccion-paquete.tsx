@@ -15,6 +15,7 @@ import { notaPaquete, referenciaOVacia, textoReferencia } from "@/lib/encomienda
 import { borrarFoto, guardarFoto, type DatosPedido, type Pedido } from "@/lib/encomiendas/local/almacen";
 import { CamposPaquete, paqueteDe, type EstadoPaquete } from "./campos-paquete";
 import { cobroDelFormulario, montoEscrito } from "../_hooks/por-pagar";
+import { BOTON_ICONO } from "./botones";
 
 type Cobro = { porPagar: boolean | null; monto: string };
 
@@ -113,7 +114,7 @@ export function SeccionPaquete({ form, fotoGuardadaId, deshabilitado }: { form: 
               placeholder="12.345"
               value={cobro.monto}
               onChange={(e) => setCobro({ ...cobro, monto: e.target.value })}
-              className="font-mono tabular-nums"
+              className="tabular-nums"
             />
           ) : null}
           <div className="flex items-center gap-2">
@@ -123,16 +124,16 @@ export function SeccionPaquete({ form, fotoGuardadaId, deshabilitado }: { form: 
               aria-label="Un bulto menos"
               disabled={(bultos ?? 1) <= 1}
               onClick={() => setBultos(Math.max(1, (bultos ?? 1) - 1))}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-separator disabled:opacity-40"
+              className={cn(BOTON_ICONO, "border border-separator text-foreground")}
             >
               <Minus className="h-4 w-4" />
             </button>
-            <span className="w-8 text-center font-mono text-base font-semibold tabular-nums">{bultos ?? 1}</span>
+            <span className="w-8 text-center text-base font-bold tabular-nums">{bultos ?? 1}</span>
             <button
               type="button"
               aria-label="Un bulto más"
               onClick={() => setBultos((bultos ?? 1) + 1)}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-separator"
+              className={cn(BOTON_ICONO, "border border-separator text-foreground")}
             >
               <Plus className="h-4 w-4" />
             </button>

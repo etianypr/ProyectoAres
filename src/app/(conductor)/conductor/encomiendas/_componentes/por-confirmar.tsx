@@ -57,7 +57,7 @@ export function PorConfirmar({ pedidos, onResuelto }: { pedidos: Pedido[]; onRes
 
   return (
     <div className="space-y-3">
-      {error ? <p className="rounded-lg bg-danger-bg px-3 py-2 text-xs text-danger">{error}</p> : null}
+      {error ? <p className="rounded-xl bg-danger-bg px-3 py-2 text-xs text-danger">{error}</p> : null}
       {pedidos.map((p) => {
         const duda = lugarEnDuda(p);
         const of = p.of ? <p className="text-xs text-muted">OF {formatoOf(p.of)}</p> : null;

@@ -36,6 +36,7 @@ import { formatCLP, formatDateLong } from "@/lib/comun/format";
 import type { ResumenDia } from "@/lib/encomiendas/local/almacen";
 import { lineaDelDia } from "@/lib/encomiendas/local/dias-del-menu";
 import { ConfirmarSalida, useCerrarSesion } from "../../../cerrar-sesion";
+import { BOTON_REDONDO, BOTON_ICONO } from "./botones";
 
 /** El botón que lo abre. Vive acá, junto al panel, para que no haya dos lugares
  *  que decidir cómo se ve el menú. */
@@ -45,9 +46,9 @@ export function BotonMenu({ onAbrir }: { onAbrir: () => void }) {
       type="button"
       onClick={onAbrir}
       aria-label="Abrir menú"
-      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-card shadow-md active:bg-background"
+      className={cn(BOTON_REDONDO, "active:bg-background")}
     >
-      <Menu className="h-4 w-4" />
+      <Menu className="h-5 w-5" />
     </button>
   );
 }
@@ -117,7 +118,7 @@ export function MenuLateral({
     // transform, y un "fixed inset-0" ahí adentro se confina a esa caja en vez
     // de cubrir la pantalla.
     <div
-      className="animate-fade-in fixed inset-0 z-50 bg-black/40"
+      className="animate-fade-in fixed inset-0 z-pantalla bg-black/40"
       onClick={onCerrar}
       role="dialog"
       aria-modal="true"
@@ -139,7 +140,7 @@ export function MenuLateral({
             type="button"
             onClick={onCerrar}
             aria-label="Cerrar menú"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted active:bg-card"
+            className={BOTON_ICONO}
           >
             <X className="h-5 w-5" />
           </button>

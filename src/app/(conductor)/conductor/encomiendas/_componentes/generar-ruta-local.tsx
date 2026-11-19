@@ -14,14 +14,13 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useAtrasPropio } from "../_hooks/use-atras-propio";
 import { usePantallaEncendida } from "../_hooks/use-pantalla-encendida";
 import { AlertTriangle, RefreshCw, ChevronDown } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { DireccionInput } from "@/components/direccion/direccion-input";
 import { cn } from "@/lib/comun/utils";
 import { cronometrar, desde } from "@/lib/comun/cronometro";
 import { fuenteUbicacion } from "@/lib/encomiendas/local/gps-simulado";
 import { cargarRed, redApagada } from "@/lib/geo/red/grafo";
 import { BuscandoRuta, esperarDibujo } from "./buscando-ruta";
-import { BOTON_PRINCIPAL } from "./parada-activa";
+import { BOTON_PRINCIPAL } from "./botones";
 import {
   calcularRutaLocal,
   type PropuestaRuta,
@@ -222,7 +221,7 @@ export function GenerarRutaLocal({
   return (
     <div className="space-y-2">
       {armando ? <BuscandoRuta onCancelar={cancelar} /> : null}
-      <Button onClick={onClick} disabled={ocupado} className="w-full justify-center">
+      <button type="button" onClick={onClick} disabled={ocupado} className={BOTON_PRINCIPAL}>
         <RefreshCw className={cn("h-4 w-4", ocupado && "animate-spin")} />
         {obteniendoUbicacion
           ? "Obteniendo ubicación…"
@@ -231,7 +230,7 @@ export function GenerarRutaLocal({
             : regenerar
               ? "Recalcular ruta"
               : "Optimizar ruta"}
-      </Button>
+      </button>
       {/* El interruptor de Diagnóstico, a la vista donde gasta (spec 033, interruptores). */}
       {conOrs ? (
         <p className="text-center text-xs font-medium text-warn">Usar OpenRouteService (consume cuota)</p>
@@ -253,7 +252,7 @@ export function GenerarRutaLocal({
         <div className="animate-expand space-y-2">
           {/* Control segmentado en vez de una lista de radios: los toques son
               más grandes y se lee de un vistazo cuál está elegido. */}
-          <div className="flex gap-1 rounded-full bg-[#ececef] p-1">
+          <div className="flex gap-1 rounded-full bg-surface p-1">
             {OPCIONES.map((o) => (
               <button
                 key={o.valor}
@@ -261,7 +260,7 @@ export function GenerarRutaLocal({
                 className={cn(
                   "flex-1 rounded-full px-2 py-1.5 text-xs font-medium transition-colors",
                   opcion === o.valor
-                    ? "bg-card text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
+                    ? "bg-card font-semibold text-foreground shadow-[0_1px_2px_rgb(var(--shadow-ink)/0.12)]"
                     : "text-muted",
                 )}
               >
@@ -284,7 +283,7 @@ export function GenerarRutaLocal({
       ) : null}
 
       {error ? (
-        <p className="rounded-lg bg-danger-bg px-3 py-2 text-xs text-danger">{error}</p>
+        <p className="rounded-xl bg-danger-bg px-3 py-2 text-xs text-danger">{error}</p>
       ) : null}
     </div>
   );

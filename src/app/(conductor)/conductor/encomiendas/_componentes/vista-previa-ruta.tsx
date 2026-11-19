@@ -30,7 +30,6 @@ import {
   CloudOff,
   PackageCheck,
   Phone,
-  Route,
   Trash2,
   X,
 } from "lucide-react";
@@ -45,11 +44,9 @@ import { useSegundoToque } from "../_hooks/use-segundo-toque";
 import { CifrasRuta } from "./cifras-ruta";
 import { ListaPropuesta } from "./lista-propuesta";
 import { FranjaPendientes, pendientesDeCorregir } from "./franja-pendientes";
-
-// Mismas medidas que los botones de la tarjeta de la parada activa (ver
-// parada-activa.tsx): 48 px de alto, para el pulgar y sin mirar mucho.
-const BOTON_PRINCIPAL =
-  "flex h-12 items-center justify-center gap-2 rounded-full bg-brand text-[15px] font-semibold text-brand-foreground shadow-[0_1px_2px_var(--brand-shadow)] transition-transform active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50";
+import { BOTON_PRINCIPAL } from "./botones";
+import { CabeceraPropuesta } from "./cabecera-propuesta";
+import { HOJA } from "./superficies";
 
 function Advertencia({ icono, children }: { icono: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -97,13 +94,14 @@ export function VistaPreviaRuta({
   onRecalcular: () => Promise<void>;
 }) {
   const [guardando, setGuardando] = useState(false);
-  // La lista a pantalla completa (spec 033, nuevo-propuesta-lista-chica).
-  const [entera, setEntera] = useState(false);
+  // Deslizada hacia abajo: la cabecera, la ✕ y «Usar esta ruta», y el mapa con la ruta a
+  // la vista (spec 041). Para eso pantalla.tsx deja la hoja del día invisible (no
+  // desmontada) mientras haya propuesta.
+  const [plegada, setPlegada] = useState(false);
   // La ✕ pide un segundo toque (spec 033, descartar-propuesta): rearmarla cuesta
-  // 16 s con 86 paradas. Atrás no la descarta (pantalla.tsx): achica la lista o
-  // desarma la ✕.
+  // 16 s con 86 paradas. Atrás no la descarta (pantalla.tsx): desarma la ✕.
   const descarte = useSegundoToque();
-  useAtrasPropio(entera || descarte.armado, () => (entera ? setEntera(false) : descarte.desarmar()));
+  useAtrasPropio(descarte.armado, () => descarte.desarmar());
   const [cambiando, setCambiando] = useState<EstrategiaRuta | null>(null);
   const [error, setError] = useState<string | null>(null);
   // «Recalcular ruta» tarda lo que el armado (spec 037): mientras, no se toca nada.
@@ -188,174 +186,170 @@ export function VistaPreviaRuta({
     <div
       data-propuesta-ruta
       className={cn(
-        "sube-y-frena flex flex-col bg-card px-4 pb-5 pt-4 shadow-[0_-8px_30px_rgba(34,26,21,0.16)]",
-        entera ? "h-dvh" : "max-h-[52vh] rounded-t-[26px]",
+        "sube-y-frena flex max-h-[52vh] flex-col px-4 pb-5 pt-2.5",
+        HOJA,
       )}
     >
-      <div className="flex shrink-0 items-center gap-2">
-        <Route className="h-4 w-4 shrink-0 text-brand" />
-        <p className="flex-1 text-sm font-semibold">Ruta propuesta</p>
-        <span className="text-xs font-medium tabular-nums text-muted">
-          {paradas.length === 1 ? "1 parada" : `${paradas.length} paradas`}
-        </span>
-      </div>
+      <CabeceraPropuesta paradas={paradas.length} plegada={plegada} onPlegada={setPlegada} />
 
-      <CifrasRuta
-        distanciaM={distanciaM}
-        duracionS={duracionS}
-        invertida={propuesta.deAres != null}
-        invirtiendo={invirtiendo}
-        bloqueado={guardando}
-        distanciaDeAresM={propuesta.deAres?.distanciaM ?? null}
-        onInvertir={onInvertir}
-      />
+      {/* Plegada se oculta y no se desmonta: al abrirla, la lista sigue donde estaba. */}
+      <div className={cn("min-h-0 flex-1 flex-col", plegada ? "hidden" : "flex")}>
+        <CifrasRuta
+          distanciaM={distanciaM}
+          duracionS={duracionS}
+          invertida={propuesta.deAres != null}
+          invirtiendo={invirtiendo}
+          bloqueado={guardando}
+          distanciaDeAresM={propuesta.deAres?.distanciaM ?? null}
+          onInvertir={onInvertir}
+        />
 
-      {/* La comparación. Cada botón dice lo que el conductor necesita para decidir:
-          cuánto se maneja, cuántos clientes ya confirmaron y a cuántos se les
-          llegaría fuera de su horario. */}
-      {hayQueComparar ? (
-        <div className="mt-2.5 shrink-0">
-          <div className="grid gap-1.5">
-            {alternativas.map((a) => {
-              const puesta = a.estrategia === elegida;
-              return (
-                <button
-                  key={a.estrategia}
-                  type="button"
-                  onClick={() => void elegir(a.estrategia)}
-                  disabled={ocupada || cambiando != null}
-                  aria-pressed={puesta}
-                  className={[
-                    "flex items-start gap-2 rounded-xl border px-3 py-2 text-left transition-colors disabled:opacity-60",
-                    puesta
-                      ? "border-brand bg-brand-soft"
-                      : "border-separator bg-card active:bg-background",
-                  ].join(" ")}
-                >
-                  {/* El estado "puesta" no se distingue solo por el color: lleva
-                      su tilde. Es lo que pide la constitución para cualquier
-                      estado, y acá además se mira a pleno sol. */}
-                  <span
+        {/* La comparación. Cada botón dice lo que el conductor necesita para decidir:
+            cuánto se maneja, cuántos clientes ya confirmaron y a cuántos se les
+            llegaría fuera de su horario. */}
+        {hayQueComparar ? (
+          <div className="mt-2.5 shrink-0">
+            <div className="grid gap-1.5">
+              {alternativas.map((a) => {
+                const puesta = a.estrategia === elegida;
+                return (
+                  <button
+                    key={a.estrategia}
+                    type="button"
+                    onClick={() => void elegir(a.estrategia)}
+                    disabled={ocupada || cambiando != null}
+                    aria-pressed={puesta}
                     className={[
-                      "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border",
-                      puesta ? "border-brand bg-brand" : "border-separator",
+                      "flex items-start gap-2 rounded-xl border px-3 py-2 text-left transition-colors disabled:opacity-60",
+                      puesta
+                        ? "border-brand bg-brand-soft"
+                        : "border-separator bg-card active:bg-background",
                     ].join(" ")}
                   >
-                    {puesta ? <Check className="h-3 w-3 text-brand-foreground" /> : null}
-                  </span>
+                    {/* El estado "puesta" no se distingue solo por el color: lleva
+                        su tilde. Es lo que pide la constitución para cualquier
+                        estado, y acá además se mira a pleno sol. */}
+                    <span
+                      className={[
+                        "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border",
+                        puesta ? "border-brand bg-brand" : "border-separator",
+                      ].join(" ")}
+                    >
+                      {puesta ? <Check className="h-3 w-3 text-brand-foreground" /> : null}
+                    </span>
 
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-baseline gap-1.5">
-                      <span className="truncate text-sm font-semibold leading-tight">
-                        {a.titulo}
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-baseline gap-1.5">
+                        <span className="truncate text-sm font-semibold leading-tight">
+                          {a.titulo}
+                        </span>
+                        <span className="shrink-0 text-xs font-medium tabular-nums text-muted">
+                          {formatDistancia(a.metrosEstimados)}
+                        </span>
+                        {cambiando === a.estrategia ? (
+                          <span className="shrink-0 text-xs text-muted">calculando…</span>
+                        ) : null}
                       </span>
-                      <span className="shrink-0 text-xs font-medium tabular-nums text-muted">
-                        {formatDistancia(a.metrosEstimados)}
+                      <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted">
+                        <span>{a.paradas.length === 1 ? "1 parada" : `${a.paradas.length} paradas`}</span>
+                        {a.confirmados > 0 ? (
+                          <span className="flex items-center gap-0.5 text-ok">
+                            <Check className="h-3 w-3" />
+                            {a.confirmados} confirmado{a.confirmados === 1 ? "" : "s"}
+                          </span>
+                        ) : null}
+                        {a.pendientesDeContacto > 0 ? (
+                          <span className="flex items-center gap-0.5">
+                            <Phone className="h-3 w-3" />
+                            {a.pendientesDeContacto} por llamar
+                          </span>
+                        ) : null}
+                        {a.bloquesIncumplidos > 0 ? (
+                          <span className="flex items-center gap-0.5 font-semibold text-warn">
+                            <Clock className="h-3 w-3" />
+                            {a.bloquesIncumplidos} fuera de horario
+                          </span>
+                        ) : a.bloquesCumplidos > 0 ? (
+                          <span className="flex items-center gap-0.5 text-ok">
+                            <Clock className="h-3 w-3" />
+                            {a.bloquesCumplidos} en horario
+                          </span>
+                        ) : null}
                       </span>
-                      {cambiando === a.estrategia ? (
-                        <span className="shrink-0 text-xs text-muted">calculando…</span>
-                      ) : null}
                     </span>
-                    <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted">
-                      <span>{a.paradas.length === 1 ? "1 parada" : `${a.paradas.length} paradas`}</span>
-                      {a.confirmados > 0 ? (
-                        <span className="flex items-center gap-0.5 text-ok">
-                          <Check className="h-3 w-3" />
-                          {a.confirmados} confirmado{a.confirmados === 1 ? "" : "s"}
-                        </span>
-                      ) : null}
-                      {a.pendientesDeContacto > 0 ? (
-                        <span className="flex items-center gap-0.5">
-                          <Phone className="h-3 w-3" />
-                          {a.pendientesDeContacto} por llamar
-                        </span>
-                      ) : null}
-                      {a.bloquesIncumplidos > 0 ? (
-                        <span className="flex items-center gap-0.5 font-semibold text-warn">
-                          <Clock className="h-3 w-3" />
-                          {a.bloquesIncumplidos} fuera de horario
-                        </span>
-                      ) : a.bloquesCumplidos > 0 ? (
-                        <span className="flex items-center gap-0.5 text-ok">
-                          <Clock className="h-3 w-3" />
-                          {a.bloquesCumplidos} en horario
-                        </span>
-                      ) : null}
-                    </span>
-                  </span>
-                </button>
-              );
-            })}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-1 px-1 text-xs text-muted">{actual.motivo}</p>
           </div>
-          <p className="mt-1 px-1 text-[11px] text-muted">{actual.motivo}</p>
-        </div>
-      ) : null}
+        ) : null}
 
-      {quitado ? (
-        <p className="mt-2 flex shrink-0 items-center gap-2 rounded-xl bg-background px-3 py-1.5 text-xs">
-          <Trash2 className="h-3.5 w-3.5 shrink-0 text-muted" />
-          <span className="min-w-0 flex-1 truncate">Eliminado: {nombreVisible(quitado.parada)}</span>
-          <button
-            type="button"
-            onClick={() => void onDeshacerQuitar()}
-            disabled={invirtiendo}
-            className="shrink-0 rounded-full px-2 py-1 font-semibold text-brand active:bg-card"
-          >
-            Deshacer
-          </button>
-        </p>
-      ) : null}
+        {quitado ? (
+          <p className="mt-2 flex shrink-0 items-center gap-2 rounded-xl bg-background px-3 py-1.5 text-xs">
+            <Trash2 className="h-3.5 w-3.5 shrink-0 text-muted" />
+            <span className="min-w-0 flex-1 truncate">Eliminado: {nombreVisible(quitado.parada)}</span>
+            <button
+              type="button"
+              onClick={() => void onDeshacerQuitar()}
+              disabled={invirtiendo}
+              className="shrink-0 rounded-full px-2 py-1 font-semibold text-brand active:bg-card"
+            >
+              Deshacer
+            </button>
+          </p>
+        ) : null}
 
-      <ListaPropuesta
-        paradas={paradas}
-        numero={numero}
-        entera={entera}
-        onEntera={setEntera}
-        onVer={onVer}
-        onQuitar={(id) => void onQuitar(id)}
-        ocupada={ocupada}
-      />
+        <ListaPropuesta
+          paradas={paradas}
+          numero={numero}
+          onVer={onVer}
+          onQuitar={(id) => void onQuitar(id)}
+          ocupada={ocupada}
+        />
 
-      {cerradas > 0 ? (
-        <p className="mt-2 flex shrink-0 items-start gap-2 rounded-xl bg-background px-3 py-2 text-xs text-muted">
-          <PackageCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ok" />
-          <span className="min-w-0 flex-1">
-            {cerradas === 1
-              ? "La parada ya cerrada hoy se conserva."
-              : `Las ${cerradas} paradas ya cerradas hoy se conservan.`}
-          </span>
-        </p>
-      ) : null}
+        {cerradas > 0 ? (
+          <p className="mt-2 flex shrink-0 items-start gap-2 rounded-xl bg-background px-3 py-2 text-xs text-muted">
+            <PackageCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ok" />
+            <span className="min-w-0 flex-1">
+              {cerradas === 1
+                ? "La parada ya cerrada hoy se conserva."
+                : `Las ${cerradas} paradas ya cerradas hoy se conservan.`}
+            </span>
+          </p>
+        ) : null}
 
-      {/* Lo que falta corregir (spec 037), con la dirección a la vista, pegado a los
-          botones: una parada lejos de todas (terreno 2026-10-28, con lo que suma) o
-          un pedido que quedó fuera por no estar ubicado. */}
-      <FranjaPendientes
-        pendientes={pendientes}
-        conCambios={propuesta.conCambios === true}
-        ocupada={ocupada}
-        recalculando={recalculando}
-        onEditar={(id) => {
-          const pedido = [...paradas, ...sinUbicar].find((p) => p.id === id);
-          if (pedido) onEditar(pedido);
-        }}
-        onMantener={onMantener}
-        onRecalcular={() => void recalcular()}
-      />
+        {/* Lo que falta corregir (spec 037), con la dirección a la vista, pegado a los
+            botones: una parada lejos de todas (terreno 2026-10-28, con lo que suma) o
+            un pedido que quedó fuera por no estar ubicado. */}
+        <FranjaPendientes
+          pendientes={pendientes}
+          conCambios={propuesta.conCambios === true}
+          ocupada={ocupada}
+          recalculando={recalculando}
+          onEditar={(id) => {
+            const pedido = [...paradas, ...sinUbicar].find((p) => p.id === id);
+            if (pedido) onEditar(pedido);
+          }}
+          onMantener={onMantener}
+          onRecalcular={() => void recalcular()}
+        />
 
-      {actual.bloquesIncumplidos > 0 ? (
-        <Advertencia icono={<AlertTriangle className="h-3.5 w-3.5" />}>
-          {actual.fueraDeHorario.length === 1
-            ? `Con este orden se llegaría fuera del horario solicitado por ${actual.fueraDeHorario[0]}.`
-            : `Con este orden se llegaría fuera de horario a ${actual.fueraDeHorario.length} clientes: ${actual.fueraDeHorario.join(", ")}.`}{" "}
-          Se recomienda llamarlos.
-        </Advertencia>
-      ) : null}
+        {actual.bloquesIncumplidos > 0 ? (
+          <Advertencia icono={<AlertTriangle className="h-3.5 w-3.5" />}>
+            {actual.fueraDeHorario.length === 1
+              ? `Con este orden se llegaría fuera del horario solicitado por ${actual.fueraDeHorario[0]}.`
+              : `Con este orden se llegaría fuera de horario a ${actual.fueraDeHorario.length} clientes: ${actual.fueraDeHorario.join(", ")}.`}{" "}
+            Se recomienda llamarlos.
+          </Advertencia>
+        ) : null}
 
-      {sinTrazado ? (
-        <Advertencia icono={<CloudOff className="h-3.5 w-3.5" />}>{avisoSinTrazado(motivoSinTrazado)}</Advertencia>
-      ) : null}
+        {sinTrazado ? (
+          <Advertencia icono={<CloudOff className="h-3.5 w-3.5" />}>{avisoSinTrazado(motivoSinTrazado)}</Advertencia>
+        ) : null}
+      </div>
 
+      {/* Fuera de lo que se pliega: con el panel abajo, decidir sigue a un toque. */}
       {error ? (
         <p className="mt-2 shrink-0 rounded-xl bg-danger-bg px-3 py-2 text-xs text-danger">{error}</p>
       ) : null}

@@ -10,7 +10,7 @@
 
 import { AlertTriangle, Camera, Check, ChevronRight, Plus } from "lucide-react";
 import type { Paso } from "../_hooks/paso-del-dia";
-import { BOTON_PRINCIPAL } from "./parada-activa";
+import { BOTON_PRINCIPAL } from "./botones";
 
 /** "Viernes 6 de noviembre", de "YYYY-MM-DD" (a mediodía: sin correrse de día). */
 function diaEscrito(fecha: string): string {

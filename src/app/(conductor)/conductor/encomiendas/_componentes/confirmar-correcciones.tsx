@@ -138,7 +138,7 @@ export function ConfirmarCorrecciones({
                       }))
                     }
                     aria-label={`Cambiar dirección: ${p.direccion}`}
-                    className="min-w-0 flex-1 rounded-lg text-left text-base font-semibold leading-tight underline decoration-separator decoration-dotted underline-offset-4 active:bg-background disabled:opacity-50"
+                    className="min-w-0 flex-1 rounded-xl text-left text-base font-semibold leading-tight underline decoration-separator decoration-dotted underline-offset-4 active:bg-background disabled:opacity-50"
                   >
                     {p.direccion}
                   </button>

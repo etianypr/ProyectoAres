@@ -79,14 +79,14 @@ export function PilaNotificaciones({
   return (
     <div
       ref={ref}
-      className="absolute inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] z-30 flex flex-col gap-2"
+      className="absolute inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] z-sobre-hoja flex flex-col gap-2"
     >
       {notificaciones.map((aviso) => (
         <div
           key={aviso.id}
           role="status"
           className={cn(
-            "animate-slide-down flex items-center gap-3 rounded-2xl px-4 py-3 text-white shadow-lg",
+            "animate-slide-down flex items-center gap-3 rounded-2xl px-4 py-3 text-white shadow-float",
             aviso.tono === "error" ? "bg-danger" : "bg-foreground",
             !aviso.accion && !aviso.cerrar && "pointer-events-none",
           )}

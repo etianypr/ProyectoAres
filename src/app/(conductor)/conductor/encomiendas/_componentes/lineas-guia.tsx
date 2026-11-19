@@ -108,7 +108,7 @@ export function LineasGuia({
                         largos (dueño, 2026-11-06; antes, terreno 2026-10-28). */}
                     <span className="font-mono text-sm font-semibold tabular-nums">{of ? formatoOf(of) : l.of}</span>
                     {telefono.ok ? (
-                      <span className="flex shrink-0 items-center gap-1 font-mono text-xs text-muted">
+                      <span className="flex shrink-0 items-center gap-1 text-xs tabular-nums text-muted">
                         <Phone className="h-3 w-3" />
                         {telefono.telefono.legible}
                       </span>

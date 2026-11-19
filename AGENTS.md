@@ -205,6 +205,11 @@ enlaces: en un clon nuevo, `node scripts/enlazar-skills.mjs` los crea.
   - Tipografía: Manrope, más IBM Plex Mono solo para OF, km y horas.
   - Ningún estado depende solo del color.
   - Nada de degradados, neón, Inter/Roboto ni tarjetas con franja lateral.
+  - Botones de `_componentes/botones.ts` (48 px; los redondos del mapa y los de ícono, 44 px),
+    pantalla completa, hoja y tirador de `_componentes/superficies.ts`, capas con nombre
+    (`z-mapa` … `z-bloqueo`) y radios de la escala (`full`, `2xl`, `xl`, `rounded-t-hoja`,
+    `rounded-campo`), en `globals.css`. Grises y sombras con los tokens (`surface`,
+    `border-strong`, `shadow-*`), sin hex sueltos, y letra de 12 px como mínimo (spec 041).
 - Lenguaje de pantalla del conductor (dueño, 2026-11-15: «más profesional, como una aplicación
   corporativa de transportes»; referencia: Spoke y Google Maps):
   - Botones: infinitivo + objeto, sin artículo («Optimizar ruta», «Cargar guía», «Encender linterna»).

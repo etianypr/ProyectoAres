@@ -9,9 +9,7 @@ import { useState } from "react";
 import { ClipboardPaste, Loader2 } from "lucide-react";
 import type { FinGuia } from "./fin-guia";
 import { FranjaConfirmar } from "./franja-confirmar";
-
-const BOTON_GUIA =
-  "flex h-12 w-full items-center justify-center gap-2 rounded-full bg-brand text-[15px] font-semibold text-brand-foreground transition-transform active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50";
+import { BOTON_PRINCIPAL } from "./botones";
 
 export const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`;
 
@@ -113,7 +111,7 @@ export function PieGuia({
     if (!hayRuta) return <>{armar()}</>;
     if (fueraDeRuta === 0) {
       return (
-        <button type="button" onClick={onEscanear} className={BOTON_GUIA}>
+        <button type="button" onClick={onEscanear} className={BOTON_PRINCIPAL}>
           Escanear paquete
         </button>
       );
@@ -126,7 +124,7 @@ export function PieGuia({
           setSumando(true);
           void onSumar().finally(() => setSumando(false));
         }}
-        className={BOTON_GUIA}
+        className={BOTON_PRINCIPAL}
       >
         {sumando ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
         Sumar {fueraDeRuta} a la ruta
@@ -138,7 +136,7 @@ export function PieGuia({
   if (paso === "fotos") return <>{pieFotos}</>;
   if (paso === "pegar") {
     return (
-      <button type="button" disabled={!hayTexto || leyendo} onClick={onLeer} className={BOTON_GUIA}>
+      <button type="button" disabled={!hayTexto || leyendo} onClick={onLeer} className={BOTON_PRINCIPAL}>
         <ClipboardPaste className="h-4 w-4" />
         Leer guía
       </button>
@@ -146,7 +144,7 @@ export function PieGuia({
   }
   if (fotos > 0) {
     return (
-      <button type="button" disabled={leyendo} onClick={onLeerFotos} className={BOTON_GUIA}>
+      <button type="button" disabled={leyendo} onClick={onLeerFotos} className={BOTON_PRINCIPAL}>
         {leyendo ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
         Leer {plural(fotos, "foto", "fotos")}
       </button>
@@ -157,7 +155,7 @@ export function PieGuia({
       type="button"
       disabled={lineas === 0 || malas > 0 || porConfirmar > 0 || leyendo}
       onClick={onCrear}
-      className={BOTON_GUIA}
+      className={BOTON_PRINCIPAL}
     >
       {lineas === 0
           ? "Sin pedidos leídos"

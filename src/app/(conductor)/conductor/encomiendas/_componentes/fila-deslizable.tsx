@@ -220,7 +220,7 @@ export function FilaDeslizable({
             e.stopPropagation();
             eliminar();
           }}
-          className="flex flex-col items-center justify-center gap-0.5 bg-danger px-3 text-[11px] font-semibold text-white"
+          className="flex flex-col items-center justify-center gap-0.5 bg-danger px-3 text-xs font-semibold text-white"
           style={{ width: ANCHO_ACCION }}
           aria-label={`Eliminar ${etiqueta}`}
         >

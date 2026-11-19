@@ -39,7 +39,7 @@ export function ResolverDireccion({
                     type="button"
                     disabled={guardando}
                     onClick={() => onElegir(s)}
-                    className="flex w-full items-center gap-2.5 rounded-lg bg-card px-2.5 py-2 text-left transition-colors active:bg-background disabled:opacity-60"
+                    className="flex w-full items-center gap-2.5 rounded-xl bg-card px-2.5 py-2 text-left transition-colors active:bg-background disabled:opacity-60"
                   >
                     {/* La estampilla de cada opción. Es lo que hace elegible
                         una lista donde dos renglones dicen exactamente lo
@@ -73,7 +73,7 @@ export function ResolverDireccion({
                       </span>
                     </span>
                     {s.soloCalle ? (
-                      <span className="mt-0.5 shrink-0 rounded-full bg-warn-bg px-1.5 py-0.5 text-[10px] font-semibold text-warn">
+                      <span className="mt-0.5 shrink-0 rounded-full bg-warn-bg px-1.5 py-0.5 text-xs font-semibold text-warn">
                         sin número
                       </span>
                     ) : null}
@@ -92,7 +92,7 @@ export function ResolverDireccion({
             type="button"
             disabled={guardando}
             onClick={onGuardarSinUbicar}
-            className="mt-2 w-full rounded-lg px-3 py-2 text-sm font-medium text-warn underline decoration-warn/40 underline-offset-2 disabled:opacity-60"
+            className="mt-2 w-full rounded-xl px-3 py-2 text-sm font-medium text-warn underline decoration-warn/40 underline-offset-2 disabled:opacity-60"
           >
             Guardar sin ubicación y corregir después
           </button>

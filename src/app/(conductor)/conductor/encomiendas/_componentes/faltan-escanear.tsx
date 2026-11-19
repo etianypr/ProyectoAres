@@ -25,7 +25,7 @@ export function FaltanEscanear({ faltan, onAbrir }: { faltan: FaltaEscanear[]; o
               onClick={() => onAbrir(pedido)}
               className="flex w-full items-center gap-3 px-3.5 py-2.5 text-left active:bg-background"
             >
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-[1.5px] border-separator text-[11px] font-semibold tabular-nums">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-[1.5px] border-separator text-xs font-semibold tabular-nums">
               {secuencia ?? "–"}
             </span>
             <div className="min-w-0 flex-1">
@@ -36,7 +36,7 @@ export function FaltanEscanear({ faltan, onAbrir }: { faltan: FaltaEscanear[]; o
             </div>
             {/* Un envío de varios bultos al que le falta alguno (spec 022). */}
             {bultos ? (
-              <span className="shrink-0 rounded-full bg-warn-bg px-2 py-0.5 text-[11px] font-semibold tabular-nums text-warn">
+              <span className="shrink-0 rounded-full bg-warn-bg px-2 py-0.5 text-xs font-semibold tabular-nums text-warn">
                 Bultos {bultos.escaneados} de {bultos.total}
               </span>
             ) : null}

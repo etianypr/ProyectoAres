@@ -230,10 +230,10 @@ export function PieFotos({
         <div className="absolute inset-x-0 bottom-full mb-5 flex items-stretch gap-2 rounded-2xl bg-card p-2 shadow-soft">
           <ul aria-label="Fotos tomadas" className="flex min-w-0 flex-1 gap-2 overflow-x-auto">
             {fotos.map((f, i) => (
-              <li key={f.id} className="relative aspect-[3/4] w-14 shrink-0 overflow-hidden rounded-lg bg-background">
+              <li key={f.id} className="relative aspect-[3/4] w-14 shrink-0 overflow-hidden rounded-xl bg-background">
                 {/* eslint-disable-next-line @next/next/no-img-element -- foto local del teléfono */}
                 <img src={f.url} alt={`Foto ${i + 1} de la guía`} className="h-full w-full object-cover" />
-                <span className="absolute bottom-0.5 left-0.5 rounded bg-foreground/80 px-1 font-mono text-[11px] font-semibold text-background">
+                <span className="absolute bottom-0.5 left-0.5 rounded-full bg-foreground/80 px-1 text-xs font-bold tabular-nums text-background">
                   {i + 1}
                 </span>
                 <button
@@ -249,14 +249,14 @@ export function PieFotos({
             ))}
           </ul>
           {lleno ? (
-            <span className="flex shrink-0 items-center px-1 font-mono text-xs text-muted">
+            <span className="flex shrink-0 items-center px-1 text-xs tabular-nums text-muted">
               {fotos.length} de {MAX_FOTOS_GUIA}
             </span>
           ) : (
             // Del alto de las miniaturas: llena la tarjeta (dueño, 2026-11-15).
             <button type="button" disabled={leyendo} onClick={onGaleria} aria-label="Agregar desde la galería" className={cn(LADO, "h-auto shrink-0 gap-1")}>
               <Images className="h-5 w-5" />
-              <span className="text-[10px] font-semibold leading-none">Galería</span>
+              <span className="text-xs font-semibold leading-none">Galería</span>
             </button>
           )}
         </div>
@@ -297,14 +297,14 @@ export function PieFotos({
           >
             {/* eslint-disable-next-line @next/next/no-img-element -- foto local del teléfono */}
             <img src={ultima.url} alt="" className="absolute inset-0 h-full w-full object-cover" />
-            <span className="absolute bottom-0.5 right-0.5 rounded bg-foreground/80 px-1 font-mono text-[11px] font-semibold text-background">
+            <span className="absolute bottom-0.5 right-0.5 rounded-full bg-foreground/80 px-1 text-xs font-bold tabular-nums text-background">
               {fotos.length}
             </span>
           </button>
         ) : (
           <button type="button" disabled={leyendo} onClick={onGaleria} aria-label="Galería" className={cn(LADO, "justify-self-start")}>
             <Images className="h-5 w-5" />
-            <span className="text-[10px] font-semibold leading-none">Galería</span>
+            <span className="text-xs font-semibold leading-none">Galería</span>
           </button>
         )}
         <button
@@ -319,7 +319,7 @@ export function PieFotos({
         {barriendo ? (
           <button type="button" onClick={onDescartar} aria-label="Descartar lo escaneado" className={cn(LADO, "w-auto justify-self-end px-2")}>
             <X className="h-5 w-5" />
-            <span className="text-[10px] font-semibold leading-none">Descartar</span>
+            <span className="text-xs font-semibold leading-none">Descartar</span>
           </button>
         ) : ultima ? (
           <button
@@ -335,13 +335,13 @@ export function PieFotos({
             {/* Nombre del dueño (2026-11-14): lee las fotos y saca OF y direcciones. */}
             <span className="min-w-0 flex-1 leading-none">
               <span className="block text-[15px] font-bold">Leer</span>
-              <span className="mt-1 block text-[11px] font-medium opacity-90">direcciones</span>
+              <span className="mt-1 block text-xs font-medium opacity-90">direcciones</span>
             </span>
           </button>
         ) : (
           <button type="button" disabled={leyendo} onClick={onPegar} aria-label="Pegar texto" className={cn(LADO, "justify-self-end")}>
             <ClipboardPaste className="h-5 w-5" />
-            <span className="text-[10px] font-semibold leading-none">Pegar</span>
+            <span className="text-xs font-semibold leading-none">Pegar</span>
           </button>
         )}
       </div>

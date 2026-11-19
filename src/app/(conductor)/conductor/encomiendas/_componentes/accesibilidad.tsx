@@ -9,6 +9,8 @@ import { createPortal } from "react-dom";
 import { Volume2, X } from "lucide-react";
 import { cn } from "@/lib/comun/utils";
 import { altavozAlLlamar, elegirAltavozAlLlamar } from "@/lib/nativo/telefono";
+import { PANTALLA } from "./superficies";
+import { BOTON_ICONO } from "./botones";
 
 /** Un interruptor con su nombre. El estado va escrito («Activado» /
  *  «Desactivado»): no depende solo del color. */
@@ -43,7 +45,7 @@ function Interruptor({
           activado ? "border-brand bg-brand" : "border-separator bg-background",
         )}
       >
-        <span className={cn("h-6 w-6 rounded-full bg-white shadow-md transition-transform duration-150", activado && "translate-x-[22px]")} />
+        <span className={cn("h-6 w-6 rounded-full bg-card shadow-float transition-transform duration-150", activado && "translate-x-[22px]")} />
       </span>
     </button>
   );
@@ -55,14 +57,14 @@ export function Accesibilidad({ onCerrar }: { onCerrar: () => void }) {
   if (typeof document === "undefined") return null;
   return createPortal(
     <div
-      className="animate-fade-in fixed inset-0 z-[60] flex flex-col bg-background pt-[max(0.75rem,env(safe-area-inset-top))]"
+      className={`${PANTALLA} z-ventana`}
       role="dialog"
       aria-modal="true"
       aria-label="Accesibilidad"
     >
       <div className="flex items-center gap-2 px-4 pb-3">
         <h2 className="min-w-0 flex-1 text-lg font-semibold">Accesibilidad</h2>
-        <button type="button" onClick={onCerrar} aria-label="Cerrar" className="flex h-10 w-10 items-center justify-center rounded-full text-muted active:bg-card">
+        <button type="button" onClick={onCerrar} aria-label="Cerrar" className={BOTON_ICONO}>
           <X className="h-5 w-5" />
         </button>
       </div>

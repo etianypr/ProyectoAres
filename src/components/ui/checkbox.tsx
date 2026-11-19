@@ -23,10 +23,10 @@ export const Checkbox = React.forwardRef<
       ref={ref}
       type="checkbox"
       className={cn(
-        "peer h-[18px] w-[18px] cursor-pointer appearance-none rounded-[6px] border border-separator bg-white",
+        "peer h-[18px] w-[18px] cursor-pointer appearance-none rounded-[6px] border border-separator bg-card",
         "shadow-[inset_0_1px_2px_rgba(0,0,0,0.025)] outline-none",
         "transition-[background-color,border-color,box-shadow] duration-150",
-        "hover:border-[#b6b6bd]",
+        "hover:border-border-strong",
         // Marcada: se rellena con el color de marca y el borde acompaña.
         "checked:border-brand checked:bg-brand checked:hover:border-brand",
         // Mismo halo de foco que los campos de texto (ver inputClass).

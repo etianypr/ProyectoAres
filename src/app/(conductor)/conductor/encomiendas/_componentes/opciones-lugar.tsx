@@ -59,12 +59,12 @@ export function OpcionesDeLugar({
                   <p className="truncate text-xs text-muted">Cruza con: {o.cruces.join(" · ")}</p>
                 ) : null}
                 {o.calza ? (
-                  <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-ok-bg px-2 py-0.5 text-[11px] font-semibold text-ok">
+                  <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-ok-bg px-2 py-0.5 text-xs font-semibold text-ok">
                     <Check className="h-3 w-3" />
                     Coincide con la guía
                   </span>
                 ) : i === 0 ? (
-                  <span className="mt-1 inline-block text-[11px] font-semibold text-brand">Sugerida</span>
+                  <span className="mt-1 inline-block text-xs font-semibold text-brand">Sugerida</span>
                 ) : null}
               </div>
               <button

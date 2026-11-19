@@ -27,18 +27,18 @@ export default function CargandoConductor() {
 
         {/* El carril de arriba: el botón del menú y el cartel. */}
         <div className="absolute inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] flex items-center gap-2">
-          <div className="h-10 w-10 shrink-0 animate-pulse rounded-full bg-card shadow-md" />
+          <div className="h-11 w-11 shrink-0 animate-pulse rounded-full bg-card shadow-float" />
           <div className="h-12 flex-1 animate-pulse rounded-2xl bg-card shadow-card" />
         </div>
 
         {/* La hoja cerrada, con el alto que tiene la cabecera de una parada. */}
-        <div className="rounded-t-[22px] bg-card px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3 shadow-card">
+        <div className="rounded-t-hoja bg-card px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3 shadow-card">
           <div className="mx-auto h-1.5 w-10 rounded-full bg-separator" />
           <div className="mt-4 flex items-center gap-3">
             <div className="h-9 w-9 shrink-0 animate-pulse rounded-full bg-background" />
             <div className="min-w-0 flex-1 space-y-2">
-              <div className="h-4 w-2/5 animate-pulse rounded bg-background" />
-              <div className="h-3 w-3/5 animate-pulse rounded bg-background" />
+              <div className="h-4 w-2/5 animate-pulse rounded-full bg-background" />
+              <div className="h-3 w-3/5 animate-pulse rounded-full bg-background" />
             </div>
           </div>
           <div className="mt-3.5 h-12 animate-pulse rounded-full bg-background" />

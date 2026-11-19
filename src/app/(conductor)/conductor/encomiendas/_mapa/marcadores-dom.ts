@@ -160,46 +160,27 @@ export function elementoUbicacion(): HTMLElement {
   el.style.cssText = `position:absolute;width:${TAMANO_MARCADOR}px;height:${TAMANO_MARCADOR}px;pointer-events:none;will-change:transform`;
   el.innerHTML = `
 <svg width="${TAMANO_MARCADOR}" height="${TAMANO_MARCADOR}" viewBox="0 0 128 128" style="display:block;transform-origin:center">
-  <defs>
-    <!-- El haz se desvanece hacia adelante en vez de cortarse: un borde duro
-         parecía el alcance de un sensor y no "por acá voy". -->
-    <radialGradient id="dashund-cono" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#2f56c9" stop-opacity=".45"/>
-      <stop offset="55%" stop-color="#2f56c9" stop-opacity=".15"/>
-      <stop offset="100%" stop-color="#2f56c9" stop-opacity="0"/>
-    </radialGradient>
-    <!-- El disco se aclara hacia adelante. Acostado sobre la calle, ese
-         degradado es lo que le da volumen: sin él es una mancha plana. -->
-    <linearGradient id="dashund-disco" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#4a76e8"/>
-      <stop offset="55%" stop-color="#2547ad"/>
-      <stop offset="100%" stop-color="#16307a"/>
-    </linearGradient>
-    <!-- Sombra de contacto: sin ella la flecha flota sobre la calle. -->
-    <radialGradient id="dashund-sombra" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#0b1020" stop-opacity=".35"/>
-      <stop offset="60%" stop-color="#0b1020" stop-opacity=".14"/>
-      <stop offset="100%" stop-color="#0b1020" stop-opacity="0"/>
-    </radialGradient>
-  </defs>
+  <!-- Todo plano, sin degradados («Plano», dueño 2026-11-19, spec 041): azul
+       como el punto de Google Maps y Spoke, para no confundirse con las paradas
+       naranjas. -->
 
   <!-- Haz de 60° saliendo del punto, como el de Mapas. Solo con el mapa suelto,
        que es casi siempre con el mapa alejado: ahí el marcador está en su
        tamaño mínimo y este radio de 62 queda en unos 28 px, que es lo que hace
        falta para que se vea de qué lado mira el punto. -->
   <g data-cono style="opacity:0;transition:opacity .35s ease-out">
-    <path d="M64 64 L33 10.3 A62 62 0 0 1 95 10.3 Z" fill="url(#dashund-cono)"/>
+    <path d="M64 64 L33 10.3 A62 62 0 0 1 95 10.3 Z" fill="#2f56c9" fill-opacity=".18"/>
   </g>
 
   <!-- Va siempre: es lo que apoya la figura en el pavimento. -->
-  <ellipse cx="64" cy="70" rx="24" ry="20" fill="url(#dashund-sombra)"/>
+  <ellipse cx="64" cy="70" rx="22" ry="18" fill="#0b1020" fill-opacity=".14"/>
 
   <!-- El disco, centrado en la coordenada. También acostado: al inclinar el
        mapa se convierte en una elipse, que es exactamente lo que hace un
        círculo pintado en el suelo. El borde oscuro apenas se nota, pero es lo
        que lo despega de un pavimento claro. -->
   <circle cx="64" cy="64" r="20" fill="#fff" stroke="#0b1020" stroke-opacity=".12"/>
-  <circle cx="64" cy="64" r="16" fill="url(#dashund-disco)"/>
+  <circle cx="64" cy="64" r="16" fill="#2f56c9"/>
 
   <!-- La flecha del sentido del auto, adentro del disco. Alargada a propósito:
        a 55° la perspectiva se come el 43% del alto, y una flecha de

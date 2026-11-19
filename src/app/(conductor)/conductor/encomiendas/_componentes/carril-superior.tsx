@@ -7,9 +7,10 @@
 import { Check, ScanLine, X } from "lucide-react";
 import { cn } from "@/lib/comun/utils";
 import { BotonMenu } from "./menu-lateral";
+import { BOTON_REDONDO } from "./botones";
 
 /** La caja del carril de arriba del mapa. */
-const CAJA_CARRIL = "flex items-center gap-2.5 rounded-2xl bg-card px-3.5 py-2 shadow-card";
+const CAJA_CARRIL = "flex items-center gap-2.5 rounded-2xl bg-card px-3.5 py-2 shadow-float";
 
 // Cómo va el día, para el carril de arriba del mapa: entregadas sobre el
 // total, y las que no se pudieron entregar solo si hay alguna. Lo que falta no
@@ -65,7 +66,7 @@ export function CarrilSuperior({
   // ellos.
   return (
     <div
-      className="absolute inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] z-10 flex flex-col gap-2 transition-[margin-top] duration-200"
+      className="absolute inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] z-mapa flex flex-col gap-2 transition-[margin-top] duration-200"
       style={{ marginTop: altoNotificaciones }}
     >
       <div className="flex items-center gap-2">
@@ -80,20 +81,20 @@ export function CarrilSuperior({
             type="button"
             onClick={onEscanear}
             aria-label="Escanear etiqueta"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-card text-brand shadow-md active:bg-background"
+            className={cn(BOTON_REDONDO, "text-brand active:bg-background")}
           >
-            <ScanLine className="h-4 w-4" />
+            <ScanLine className="h-5 w-5" />
           </button>
         ) : null}
         {resumen ? <div className={cn(CAJA_CARRIL, "ml-auto")}>{resumen}</div> : null}
       </div>
-    
+
       {errorUbicacion ? (
-        <p className="rounded-xl bg-warn-bg px-3 py-2 text-xs text-warn shadow-md">
+        <p className="rounded-xl bg-warn-bg px-3 py-2 text-xs text-warn shadow-float">
           {errorUbicacion}
         </p>
       ) : señalDebil ? (
-        <p className="self-start rounded-full bg-warn-bg px-3 py-1.5 text-xs text-warn shadow-md">
+        <p className="self-start rounded-full bg-warn-bg px-3 py-1.5 text-xs text-warn shadow-float">
           GPS débil
         </p>
       ) : null}

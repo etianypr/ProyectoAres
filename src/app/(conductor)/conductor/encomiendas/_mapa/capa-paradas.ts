@@ -171,7 +171,12 @@ function lienzoDelPin(estado: Estado, cifra: string, escala: number): HTMLCanvas
 
   const medidor = document.createElement("canvas").getContext("2d")!;
   medidor.font = letra;
-  const ancho = Math.max(alto, Math.ceil(medidor.measureText(cifra).width) + 14);
+  const anchoCifra = Math.ceil(medidor.measureText(cifra).width);
+  // La hecha lleva un ✓ antes de la cifra: verde contra gris no bastaba, y un
+  // estado no depende solo del color («Plano», spec 041).
+  const conTilde = estado === "hecha";
+  const TILDE = 10;
+  const ancho = Math.max(alto, anchoCifra + 14 + (conTilde ? TILDE : 0));
 
   const anillo = 2;
   const punta = 7;
@@ -219,7 +224,21 @@ function lienzoDelPin(estado: Estado, cifra: string, escala: number): HTMLCanvas
   if (estado !== "central" && "letterSpacing" in ctx) {
     (ctx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing = "-0.02em";
   }
-  ctx.fillText(cifra, x + ancho / 2, y + alto / 2 + 0.5);
+  const centroCifra = x + ancho / 2 + (conTilde ? TILDE / 2 : 0);
+  ctx.fillText(cifra, centroCifra, y + alto / 2 + 0.5);
+  if (conTilde) {
+    const cx = centroCifra - anchoCifra / 2 - TILDE / 2 - 1;
+    const cy = y + alto / 2;
+    ctx.beginPath();
+    ctx.moveTo(cx - 3.5, cy);
+    ctx.lineTo(cx - 1, cy + 2.5);
+    ctx.lineTo(cx + 3.5, cy - 2.5);
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 1.8;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.stroke();
+  }
 
   return lienzo;
 }

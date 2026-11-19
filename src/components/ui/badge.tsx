@@ -6,7 +6,7 @@ import { cn } from "@/lib/comun/utils";
 // conoce reglas del negocio.
 
 const tones = {
-  gray: { wrap: "bg-[#ececef] text-[#6e6e73]", dot: "#86868b" },
+  gray: { wrap: "bg-surface text-surface-ink", dot: "currentColor" },
   blue: { wrap: "bg-info-bg text-info", dot: "var(--info)" },
   green: { wrap: "bg-ok-bg text-ok", dot: "var(--ok)" },
   amber: { wrap: "bg-warn-bg text-warn", dot: "var(--warn)" },

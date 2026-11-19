@@ -11,7 +11,7 @@
 import { useEffect, useState } from "react";
 import { Check, PackageCheck, Plus, X } from "lucide-react";
 import { cn } from "@/lib/comun/utils";
-import { BOTON_PRINCIPAL } from "./parada-activa";
+import { BOTON_PRINCIPAL } from "./botones";
 
 export function CabeceraCierre({
   entregadas,
@@ -41,13 +41,13 @@ export function CabeceraCierre({
         <p className="flex gap-4 text-sm font-semibold">
           <span className="flex items-center gap-1">
             <Check className="h-4 w-4 text-ok" />
-            <span className="font-mono tabular-nums">{entregadas}</span>
+            <span className="tabular-nums">{entregadas}</span>
             {entregadas === 1 ? "entregado" : "entregados"}
           </span>
           {noEntregadas > 0 ? (
             <span className="flex items-center gap-1">
               <X className="h-4 w-4 text-danger" />
-              <span className="font-mono tabular-nums">{noEntregadas}</span>
+              <span className="tabular-nums">{noEntregadas}</span>
               {noEntregadas === 1 ? "no entregado" : "no entregados"}
             </span>
           ) : null}

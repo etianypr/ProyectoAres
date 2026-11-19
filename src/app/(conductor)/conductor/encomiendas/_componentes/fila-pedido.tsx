@@ -62,7 +62,7 @@ export function FilaPedido({
           {etiquetasDelPedido(pedido).map((p) => {
             const Icono = p.tipo === "sin_ubicar" ? MapPinOff : AlertTriangle;
             return (
-              <p key={p.tipo} className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-warn">
+              <p key={p.tipo} className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-warn">
                 <Icono className="h-3 w-3 shrink-0" />
                 {p.texto}
               </p>
@@ -70,7 +70,7 @@ export function FilaPedido({
           })}
         </div>
         {problemas.length > 0 ? (
-          <span className="shrink-0 rounded-full bg-brand-soft px-2.5 py-1 text-[11px] font-semibold text-brand">
+          <span className="shrink-0 rounded-full bg-brand-soft px-2.5 py-1 text-xs font-semibold text-brand">
             {ACCION[problemas[0].tipo]}
           </span>
         ) : null}

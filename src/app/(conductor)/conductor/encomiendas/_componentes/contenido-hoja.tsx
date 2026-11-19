@@ -93,7 +93,7 @@ export function ContenidoHoja({
           className="flex w-full items-center justify-center gap-2 rounded-2xl bg-warn-bg py-3.5 text-sm font-semibold text-warn"
         >
           <AlertTriangle className="h-4 w-4" />
-          {conProblema === 1 ? "Resolver el ⚠" : `Resolver los ${conProblema} ⚠`}
+          {conProblema === 1 ? "Resolver advertencia" : `Resolver ${conProblema} advertencias`}
         </button>
       </Seccion>
     ) : null;

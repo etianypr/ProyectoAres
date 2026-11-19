@@ -23,6 +23,7 @@ import { usarDireccionDeEtiqueta } from "@/lib/encomiendas/local/direccion-etiqu
 import { esApp } from "@/lib/nativo/entorno";
 import { comprimirFoto } from "@/lib/encomiendas/local/foto";
 import { CamposPaquete, paqueteDe, type EstadoPaquete } from "./campos-paquete";
+import { BOTON_PRINCIPAL } from "./botones";
 
 /** Lo que se leyó y lo que falta completar del pedido escaneado. */
 export function Resultado({
@@ -168,7 +169,7 @@ export function Resultado({
 
   return (
     <div className="space-y-3">
-      <div className="rounded-3xl bg-brand px-5 py-4 text-brand-foreground">
+      <div className="rounded-2xl bg-brand px-5 py-4 text-brand-foreground">
         <p className="text-sm font-medium opacity-80">{r.parada ? "PARADA" : "SIN RUTA ASIGNADA"}</p>
         {r.parada ? (
           <p className="text-6xl font-bold leading-none tabular-nums">
@@ -179,7 +180,7 @@ export function Resultado({
           <p className="text-base">Optimiza la ruta para conocer su parada.</p>
         )}
         <p className="mt-2 text-2xl font-bold leading-tight">{referencia ?? "Sin descripción"}</p>
-        <p className="mt-1 text-sm font-semibold tabular-nums opacity-90">OF {formatoOf(p.of ?? "")}</p>
+        <p className="mt-1 font-mono text-sm font-semibold tabular-nums opacity-90">OF {formatoOf(p.of ?? "")}</p>
       </div>
 
       {p.bultos != null && p.bultos > 1 ? (
@@ -240,7 +241,7 @@ export function Resultado({
           type="button"
           disabled={leyendo}
           onClick={() => entradaFoto.current?.click()}
-          className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-brand text-[15px] font-semibold text-brand-foreground disabled:opacity-60"
+          className={BOTON_PRINCIPAL}
         >
           {leyendo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
           {leyendo ? "Leyendo etiqueta…" : "Foto de la etiqueta"}

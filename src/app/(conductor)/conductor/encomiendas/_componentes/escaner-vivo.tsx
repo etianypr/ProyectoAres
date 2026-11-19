@@ -19,17 +19,17 @@ import { sePuedeQuitarBulto } from "@/lib/encomiendas/local/almacen";
 import { useAtrasPropio } from "../_hooks/use-atras-propio";
 import { useEscanerVivo } from "../_hooks/use-escaner-vivo";
 import { AvisoOtraParada, tituloEsperado, type PaqueteEsperado } from "./aviso-otra-parada";
+import { BOTON_PRINCIPAL, BOTON_SECUNDARIO, BOTON_ICONO } from "./botones";
 
-const BOTON =
-  "flex h-12 w-full items-center justify-center gap-2 rounded-full bg-brand text-[15px] font-semibold text-brand-foreground transition-transform active:scale-[0.97]";
-const BOTON_SUAVE = "flex h-11 w-full items-center justify-center gap-2 rounded-full border border-separator bg-card text-sm font-semibold text-brand";
+// «Seguir» y «Buscar» sobre la cámara: el secundario, con la letra de marca.
+const BOTON_SUAVE = cn(BOTON_SECUNDARIO, "text-brand");
 
 function Dato({ valor, firme, vacio }: { valor: string | null; firme: boolean; vacio: string }) {
   return (
     <p className="flex items-center gap-2 text-[15px]">
       <span className={cn("min-w-0 flex-1 truncate", !valor && "text-muted")}>{valor ?? vacio}</span>
       {valor && firme ? <Check className="h-4 w-4 shrink-0 text-ok" aria-label="Leído" /> : null}
-      {valor && !firme ? <span className="shrink-0 text-xs font-semibold text-warn">⚠ revisar</span> : null}
+      {valor && !firme ? <span className="flex shrink-0 items-center gap-1 text-xs font-semibold text-warn"><AlertTriangle aria-hidden className="h-3.5 w-3.5" />revisar</span> : null}
     </p>
   );
 }
@@ -103,7 +103,7 @@ export function EscanerVivo({
   if (typeof document === "undefined") return null;
 
   return createPortal(
-    <div className={cn("capa-camara fixed inset-0 z-50 flex flex-col", escribiendo && "bg-black")} role="dialog" aria-modal="true" aria-label="Cargar vehículo">
+    <div className={cn("capa-camara fixed inset-0 z-pantalla flex flex-col", escribiendo && "bg-black")} role="dialog" aria-modal="true" aria-label="Cargar vehículo">
       <div className="flex items-center gap-2 bg-black/60 px-4 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))] text-white">
         <h2 className="min-w-0 flex-1 truncate text-lg font-semibold">{esperado ? tituloEsperado(esperado) : "Cargar vehículo"}</h2>
         {avance.total > 0 && !esperado ? (
@@ -131,7 +131,7 @@ export function EscanerVivo({
         <div className="aspect-[4/3] w-full max-w-sm rounded-2xl border-2 border-white/70" />
       </div>
 
-      <div className="space-y-2 rounded-t-3xl bg-card px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4">
+      <div className="space-y-2 rounded-t-hoja bg-card px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4">
         {estado.tipo === "prendiendo" ? (
           <p className="flex items-center gap-2 py-3 text-muted">
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -145,7 +145,7 @@ export function EscanerVivo({
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
               {estado.motivo}
             </p>
-            <button type="button" onClick={onClasico} className={BOTON}>
+            <button type="button" onClick={onClasico} className={BOTON_PRINCIPAL}>
               Usar escáner de Google
             </button>
           </div>
@@ -229,8 +229,8 @@ export function EscanerVivo({
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
               Este paquete no está en los pedidos de hoy.
             </p>
-            <p className="font-mono text-lg font-bold tabular-nums">OF {formatoOf(estado.of)}</p>
-            <button type="button" onClick={() => onAgregarPedido(estado.of)} className={BOTON}>
+            <p className="font-mono text-lg font-semibold tabular-nums">OF {formatoOf(estado.of)}</p>
+            <button type="button" onClick={() => onAgregarPedido(estado.of)} className={BOTON_PRINCIPAL}>
               <PackagePlus className="h-4 w-4" />
               Agregar como pedido
             </button>
@@ -246,7 +246,7 @@ export function EscanerVivo({
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
               La etiqueta dice &ldquo;{estado.direccion}&rdquo;, distinto de la guía.
             </p>
-            <button type="button" onClick={() => void usarDireccion()} className={BOTON}>
+            <button type="button" onClick={() => void usarDireccion()} className={BOTON_PRINCIPAL}>
               Usar dirección de la etiqueta
             </button>
             <button type="button" onClick={seguir} className={BOTON_SUAVE}>
@@ -262,7 +262,7 @@ export function EscanerVivo({
               <Campo
                 ref={campoOf}
                 fin={
-                  <button type="button" onClick={dejarDeEscribir} aria-label="Volver a la cámara" className="-mr-1 flex h-10 w-10 items-center justify-center rounded-full text-muted active:bg-background">
+                  <button type="button" onClick={dejarDeEscribir} aria-label="Volver a la cámara" className={cn("-mr-1", BOTON_ICONO)}>
                     <X className="h-5 w-5" />
                   </button>
                 }

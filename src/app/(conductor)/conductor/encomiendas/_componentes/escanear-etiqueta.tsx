@@ -19,6 +19,8 @@ import { esApp } from "@/lib/nativo/entorno";
 import { escanearConMotivo, type LecturaEscaner } from "@/lib/nativo/escaner";
 import { Resultado } from "./resultado-escaneo";
 import { AvisoOtraParada, tituloEsperado, type PaqueteEsperado } from "./aviso-otra-parada";
+import { BOTON_PRINCIPAL, BOTON_ICONO } from "./botones";
+import { PANTALLA } from "./superficies";
 
 /** Por qué se cayó a escribir la OF (spec 033, clasico-silencio). Si lo cerró
  *  él, no hay nada que decir. */
@@ -35,9 +37,6 @@ type Fase =
   | { tipo: "escribir"; error: string | null }
   | { tipo: "resultado"; r: ResultadoEscaneo; codigo: CodigoEtiqueta }
   | { tipo: "noEsta"; of: string };
-
-const BOTON =
-  "flex h-12 w-full items-center justify-center gap-2 rounded-full bg-brand text-[15px] font-semibold text-brand-foreground transition-transform active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50";
 
 export function EscanearEtiqueta({
   fecha,
@@ -111,7 +110,7 @@ export function EscanearEtiqueta({
 
   return createPortal(
     <div
-      className="animate-fade-in fixed inset-0 z-50 flex flex-col bg-background pt-[max(0.75rem,env(safe-area-inset-top))]"
+      className={`${PANTALLA} z-pantalla`}
       role="dialog"
       aria-modal="true"
       aria-label="Escanear etiqueta"
@@ -127,7 +126,7 @@ export function EscanearEtiqueta({
           type="button"
           onClick={onCerrar}
           aria-label="Cerrar"
-          className="flex h-10 w-10 items-center justify-center rounded-full text-muted active:bg-card"
+          className={BOTON_ICONO}
         >
           <X className="h-5 w-5" />
         </button>
@@ -174,7 +173,7 @@ export function EscanearEtiqueta({
 
         {fase.tipo === "noEsta" ? (
           <div className="space-y-3 py-6 text-center">
-            <p className="text-xl font-bold tabular-nums">OF {formatoOf(fase.of)}</p>
+            <p className="font-mono text-xl font-semibold tabular-nums">OF {formatoOf(fase.of)}</p>
             <p className="text-sm text-muted">Este paquete no está en los pedidos de hoy.</p>
             <button
               type="button"
@@ -214,7 +213,7 @@ export function EscanearEtiqueta({
       </div>
 
       <div className="border-t border-divider px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
-        <button type="button" onClick={() => void escanear()} disabled={fase.tipo === "escaneando"} className={BOTON}>
+        <button type="button" onClick={() => void escanear()} disabled={fase.tipo === "escaneando"} className={BOTON_PRINCIPAL}>
           <ScanLine className="h-4 w-4" />
           {fase.tipo === "resultado" || fase.tipo === "noEsta"
             ? avance.total > 0 && avance.escaneados >= avance.total

@@ -6,6 +6,8 @@
 
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import { PANTALLA } from "./superficies";
+import { BOTON_ICONO } from "./botones";
 
 const SECCIONES: { titulo: string; pasos: string[] }[] = [
   {
@@ -24,7 +26,7 @@ const SECCIONES: { titulo: string; pasos: string[] }[] = [
     pasos: [
       "«N por resolver» abre el primero; al guardarlo, pasa al siguiente. También se puede tocar el pedido en la lista.",
       "«Corregir dirección con IA»: las propuestas quedan guardadas aunque se cierre la app; confirma cada una revisando el mapa; si no corresponde, toca la dirección, elige otra de la lista y «Confirmar». El botón del teléfono abre el campo del teléfono y, con un número válido, «Llamar» (también en las líneas con ⚠ de la guía).",
-      "Si no se resuelve: «Optimizar ruta» → «Optimizar ahora». Después, «Resolver los ⚠» sigue disponible dentro de la hoja.",
+      "Si no se resuelve: «Optimizar ruta» → «Optimizar ahora». Después, «Resolver advertencias» sigue disponible dentro de la hoja.",
       "Arriba del pedido va «⚠ N por resolver»: tocarlo abre sus ⚠. Una calle en varios lugares se elige entre sus opciones; «Mantener en ruta» (lejana, horario) y «Confirmar» (no figura en la guía) lo dan por revisado.",
       "Una calle en varios lugares («Pasaje 1»): si la guía nombra la población o una calle que la cruza, se ubica sola; si no, cada opción muestra su mapa, población, sector y las calles que la cruzan, solo las de la zona de la ruta (la que coincide con la guía va primero): «Elegir». Dos paradas antes, «Cambiar lugar» abre las opciones.",
       "Resolviendo: «Siguiente» pasa al próximo ⚠ sin guardar; con un teléfono ingresado, «Llamar». Del pedido solo la dirección (*) es obligatoria; el destinatario y el teléfono son opcionales.",
@@ -35,7 +37,7 @@ const SECCIONES: { titulo: string; pasos: string[] }[] = [
     titulo: "Optimizar ruta",
     pasos: [
       "«Optimizar ruta» → elige una alternativa → «Usar esta ruta». Durante el cálculo, «Cancelar» (o atrás) vuelve sin ruta.",
-      "En la propuesta, «Ver las N» muestra toda la lista; toca una fila para verla en el mapa. Para descartarla, ✕ dos veces.",
+      "En la propuesta, toca una fila para verla en el mapa; deslízala hacia abajo para ver el mapa entero. Para descartarla, ✕ dos veces.",
       "En un condominio la ruta llega a su entrada, y «Navegar» lleva a ella. El número de la parada queda en el edificio.",
       "Para excluir un pedido: 🗑 en la lista de la ruta propuesta («Deshacer» lo restituye).",
       "Una dirección lejos de las demás, o sin ubicar, aparece en la franja amarilla sobre «Usar esta ruta»: «Editar» abre el pedido y «Mantener» la deja en la ruta. Con direcciones corregidas, «Recalcular ruta» vuelve a optimizar.",
@@ -99,7 +101,7 @@ export function Ayuda({ onCerrar }: { onCerrar: () => void }) {
   if (typeof document === "undefined") return null;
   return createPortal(
     <div
-      className="capa-camara animate-fade-in fixed inset-0 z-[60] flex flex-col bg-background pt-[max(0.75rem,env(safe-area-inset-top))]"
+      className={`capa-camara ${PANTALLA} z-ventana`}
       role="dialog"
       aria-modal="true"
       aria-label="Ayuda"
@@ -110,7 +112,7 @@ export function Ayuda({ onCerrar }: { onCerrar: () => void }) {
           type="button"
           onClick={onCerrar}
           aria-label="Cerrar"
-          className="flex h-10 w-10 items-center justify-center rounded-full text-muted active:bg-card"
+          className={BOTON_ICONO}
         >
           <X className="h-5 w-5" />
         </button>

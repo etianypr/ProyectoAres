@@ -8,6 +8,7 @@
 
 import { Check, CircleHelp, X } from "lucide-react";
 import { cn } from "@/lib/comun/utils";
+import { BOTON_ICONO } from "./botones";
 
 const PASOS = ["Fotos", "Revisar", "Listo"] as const;
 
@@ -30,7 +31,7 @@ function PasosGuia({
         const tocable = n !== 3 && n !== actual && onIr != null && Boolean(puede?.[n]);
         const contenido = (
           <>
-            {hecho ? <Check aria-label="hecho" className="h-3.5 w-3.5" /> : <span className="font-mono font-semibold">{n}</span>}
+            {hecho ? <Check aria-label="hecho" className="h-3.5 w-3.5" /> : <span className="font-bold tabular-nums">{n}</span>}
             {nombre}
           </>
         );
@@ -84,7 +85,7 @@ export function CabeceraGuia({
           type="button"
           onClick={onAyuda}
           aria-label="Ayuda"
-          className="flex h-10 w-10 items-center justify-center rounded-full text-muted active:bg-card"
+          className={BOTON_ICONO}
         >
           <CircleHelp className="h-5 w-5" />
         </button>
@@ -93,7 +94,7 @@ export function CabeceraGuia({
           onClick={onCerrar}
           disabled={ocupado}
           aria-label="Cerrar"
-          className="flex h-10 w-10 items-center justify-center rounded-full text-muted active:bg-card disabled:opacity-40"
+          className={BOTON_ICONO}
         >
           <X className="h-5 w-5" />
         </button>

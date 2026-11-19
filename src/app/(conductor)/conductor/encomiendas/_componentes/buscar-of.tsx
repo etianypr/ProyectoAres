@@ -9,6 +9,8 @@ import { createPortal } from "react-dom";
 import { Search, X } from "lucide-react";
 import { buscarPorOf, formatoOf, MIN_DIGITOS_BUSQUEDA, nombreVisible, textoReferencia } from "@/lib/encomiendas/paquete";
 import type { Pedido } from "@/lib/encomiendas/local/almacen";
+import { PANTALLA } from "./superficies";
+import { BOTON_ICONO } from "./botones";
 
 export function BuscarOf({
   pedidos,
@@ -31,7 +33,7 @@ export function BuscarOf({
 
   return createPortal(
     <div
-      className="animate-fade-in fixed inset-0 z-50 flex flex-col bg-background pt-[max(0.75rem,env(safe-area-inset-top))]"
+      className={`${PANTALLA} z-pantalla`}
       role="dialog"
       aria-modal="true"
       aria-label="Buscar por OF"
@@ -45,14 +47,14 @@ export function BuscarOf({
             value={texto}
             onChange={(e) => setTexto(e.target.value)}
             placeholder="Últimos dígitos de la OF"
-            className="h-11 w-full rounded-full border border-separator bg-card pl-9 pr-3 font-mono text-base tabular-nums outline-none transition-[border-color,box-shadow] duration-150 placeholder:font-sans placeholder:text-muted/60 focus:border-brand focus:shadow-[0_0_0_3.5px_var(--brand-ring)]"
+            className="h-11 w-full rounded-campo border border-separator bg-card pl-9 pr-3 font-mono text-base tabular-nums outline-none transition-[border-color,box-shadow] duration-150 placeholder:font-sans placeholder:text-muted/60 focus:border-brand focus:shadow-[0_0_0_3.5px_var(--brand-ring)]"
           />
         </div>
         <button
           type="button"
           onClick={onCerrar}
           aria-label="Cerrar búsqueda"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted active:bg-card"
+          className={BOTON_ICONO}
         >
           <X className="h-5 w-5" />
         </button>
@@ -83,7 +85,7 @@ export function BuscarOf({
                     {secuencia ?? "—"}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="font-bold tabular-nums tracking-wide">OF {formatoOf(p.of ?? "")}</p>
+                    <p className="font-mono font-semibold tabular-nums">OF {formatoOf(p.of ?? "")}</p>
                     {referencia ? <p className="text-sm font-semibold text-brand">{referencia}</p> : null}
                     <p className="truncate text-sm">{nombreVisible(p)}</p>
                     <p className="truncate text-xs text-muted">

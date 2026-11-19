@@ -61,6 +61,19 @@
   /* 5.11:1 sobre --background. */
   --muted: #5c667a;
 
+  /* Superficies y bordes de los controles (botón secundario, chip gris, hover
+     del borde, etiqueta de un campo). Estaban escritos a mano en cada primitiva
+     de components/ui con grises fríos, y la app del conductor no podía
+     calentarlos: su tema los redefine (spec 041). Estos son los valores de
+     siempre del panel. */
+  --surface: #ececef;
+  --surface-hover: #e2e2e6;
+  --surface-ink: #6e6e73;
+  --border-strong: #b6b6bd;
+  --label: #48484d;
+  /* Tinta de las sombras, en canales para usarla con alfa. */
+  --shadow-ink: 15 22 38;
+
   /* ------------------------------------------------------------------------
      ESTADO — y por qué "warn" tuvo que moverse
 
@@ -99,6 +112,11 @@
   --color-separator: var(--separator);
   --color-divider: var(--divider);
   --color-muted: var(--muted);
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
+  --color-surface-ink: var(--surface-ink);
+  --color-border-strong: var(--border-strong);
+  --color-label: var(--label);
 
   --color-brand: var(--brand);
   --color-brand-dark: var(--brand-dark);
@@ -128,8 +146,18 @@
   /* Sombras del sistema. La "soft" no es una sombra sino un contorno de 1px:
      en fondos claros pesa menos que un difuminado y mantiene el borde nítido. */
   --shadow-soft: 0 0 0 1px var(--border);
-  --shadow-card: 0 1px 2px rgba(15, 22, 38, 0.06),
-    0 10px 30px rgba(15, 22, 38, 0.1);
+  --shadow-card: 0 1px 2px rgb(var(--shadow-ink) / 0.06),
+    0 10px 30px rgb(var(--shadow-ink) / 0.1);
+  /* Lo que flota sobre el mapa (controles redondos, pastillas, hojas): más
+     corta que la de tarjeta, para que se lea el borde sobre las calles. */
+  --shadow-float: 0 2px 6px rgb(var(--shadow-ink) / 0.14),
+    0 6px 18px rgb(var(--shadow-ink) / 0.1);
+
+  /* Radios con nombre (spec 041): la hoja que sube desde abajo y la caja de un
+     campo. El resto de la escala es la de Tailwind: botones y chips `full`,
+     tarjetas `2xl`, cajas internas `xl`. */
+  --radius-hoja: 26px;
+  --radius-campo: 14px;
 
   /* Animaciones del sistema: rápidas y con curva suave (nada "rebotón").
      La curva 0.16,1,0.3,1 desacelera al final — se siente de producto. */
@@ -179,6 +207,24 @@
   from { transform: translateX(-100%); }
   to { transform: none; }
 }
+
+/* Las capas de la app del conductor, de abajo hacia arriba (spec 041). Antes eran
+   números sueltos (z-10…z-[70]) y había que leer cada archivo para saber qué
+   tapaba a qué. */
+/* Botones y avisos sobre el mapa. */
+@utility z-mapa { z-index: 10; }
+/* La hoja del día. */
+@utility z-hoja { z-index: 20; }
+/* Encima de la hoja: los avisos de arriba y la ruta propuesta. */
+@utility z-sobre-hoja { z-index: 30; }
+/* Pantallas completas: escáner, cargar guía, buscar OF, cerrar el día, menú. */
+@utility z-pantalla { z-index: 50; }
+/* La cinta del modo prueba: sobre las pantallas, debajo de las ventanas. */
+@utility z-cinta { z-index: 55; }
+/* Lo que se abre desde una pantalla: Ayuda, Accesibilidad, la cámara de Diagnóstico. */
+@utility z-ventana { z-index: 60; }
+/* «Buscando la ruta»: tapa todo mientras calcula. */
+@utility z-bloqueo { z-index: 70; }
 
 /* Entrada de los hijos de una rejilla (KPIs, listas cortas). Todos a la vez y
    muy corta: escalonarla competía con la transición de página. */
