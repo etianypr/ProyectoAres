@@ -84,7 +84,9 @@ export function ParadaActiva({
   /** Falta el permiso de la burbuja: «Sin burbuja · Dar permiso» (spec 033). */
   onDarPermiso?: () => void;
 }) {
-  const estado = estadoDeParada(activa, whatsapp);
+  // Sin «Contestó» (dueño, 2026-11-20, spec 046): del receptor queda solo el horario que pidió.
+  const receptor = estadoDeParada(activa, whatsapp);
+  const estado = receptor?.icono === "reloj" ? receptor : null;
   const filas = botonesDeParada(activa, fase, extra);
   const EstadoIcono = estado ? { reloj: Clock, check: Check, telefono: Phone }[estado.icono] : null;
 
@@ -209,9 +211,13 @@ function Fila({ fila, guardando, onBoton }: { fila: BotonParada[]; guardando: bo
             key={boton.id}
             onClick={() => onBoton(boton.id)}
             aria-label={boton.texto}
-            className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-separator bg-card text-muted transition-transform active:scale-[0.97]"
+            className={cn(
+              "flex h-12 w-12 items-center justify-center rounded-full transition-transform active:scale-[0.97]",
+              // Llamar, en naranja claro con el borde del trazo de su ícono (spec 046).
+              boton.id === "llamar" ? "border-[1.5px] border-brand bg-brand-soft text-brand" : "border-2 border-separator bg-card text-muted",
+            )}
           >
-            {Icono ? <Icono className="h-5 w-5" /> : null}
+            {Icono ? <Icono className="h-5 w-5" strokeWidth={boton.id === "llamar" ? 1.8 : 2} /> : null}
           </button>
         ) : (
           <button

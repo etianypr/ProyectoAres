@@ -14,6 +14,7 @@ import { olvidarConsultasNominatim } from "@/lib/geo/geocoding/nominatim";
 import { olvidarMatriz } from "@/lib/geo/matriz";
 import { olvidarUltimaPropuesta } from "./generar-ruta";
 import { olvidarAccesos } from "./generar-ruta/ubicar-pedidos";
+import { olvidarMiniaturas } from "./miniatura-foto";
 
 export function olvidarMemoriasDelDia(): void {
   // Las respuestas de los buscadores: direcciones de destinatarios.
@@ -25,4 +26,6 @@ export function olvidarMemoriasDelDia(): void {
   olvidarAccesos();
   // La última ruta propuesta: trae los pedidos con nombre y dirección.
   olvidarUltimaPropuesta();
+  // Las fotos de los paquetes en miniatura, para la burbuja (spec 046): son la etiqueta.
+  olvidarMiniaturas();
 }

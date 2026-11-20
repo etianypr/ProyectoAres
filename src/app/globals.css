@@ -97,6 +97,13 @@
   /* 5.62:1 sobre --ok-bg */
   --ok: #0f6b45;
   --ok-bg: #e3f1ea;
+  /* El borde de la ficha «PAGADO» de la parada (spec 046). */
+  --ok-borde: #a9d2b9;
+  /* La ficha del POR PAGAR de la parada (spec 046; dueño, 2026-11-20: «un color
+     amarillo»). 7.4:1 sobre --cobro-bg. */
+  --cobro: #5f4100;
+  --cobro-bg: #fbe38e;
+  --cobro-borde: #d9b443;
   /* 6.26:1 sobre --warn-bg */
   --warn: #7a5200;
   --warn-bg: #fdf3d9;
@@ -138,6 +145,10 @@
 
   --color-ok: var(--ok);
   --color-ok-bg: var(--ok-bg);
+  --color-ok-borde: var(--ok-borde);
+  --color-cobro: var(--cobro);
+  --color-cobro-bg: var(--cobro-bg);
+  --color-cobro-borde: var(--cobro-borde);
   --color-warn: var(--warn);
   --color-warn-bg: var(--warn-bg);
   --color-danger: var(--danger);
@@ -168,6 +179,8 @@
      tarjetas `2xl`, cajas internas `xl`. */
   --radius-hoja: 26px;
   --radius-campo: 14px;
+  /* Las fichas de la parada (OF y pago, spec 046): 96 × 36 con esquinas de 8. */
+  --radius-ficha: 8px;
 
   /* Animaciones del sistema: rápidas y con curva suave (nada "rebotón").
      La curva 0.16,1,0.3,1 desacelera al final — se siente de producto. */
