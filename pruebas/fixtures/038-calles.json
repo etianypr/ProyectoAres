@@ -3,7 +3,9 @@
     "Spec 038: salidas del código de ANTES de la 038 (copia congelada), como hash. Lo comprueba",
     "pruebas/038-calles-dorado.test.mjs con el mismo corpus (pruebas/038-corpus-calles.mjs): todas las",
     "palabras y nombres del catálogo de calles (OSM, público) y variantes con tipeo. Sin datos de nadie.",
-    "Generado el 2026-11-18."
+    "Generado el 2026-11-18.",
+    "Spec 044 (2026-11-19): `parecidas` se regeneró a propósito. Una letra cambiada en una palabra de 4 se acepta",
+    "con otras dos palabras exactas: 5 de 7531 escritos pasan de ninguna calle a la correcta («Jsoé Díaz Gana»)."
   ],
   "palabras": 1599,
   "distancias": {
@@ -12,7 +14,7 @@
   },
   "parecidas": {
     "escritos": 7531,
-    "hash": "33430a71cff5666807f944cc5847821b5458923c4dd3b63e100189645d6ebbc8"
+    "hash": "a229fd8807ae04f4ad1c4947941f905edfe090835f9dea2ceaac273e3f034688"
   },
   "coincidencias": {
     "pares": 817878,

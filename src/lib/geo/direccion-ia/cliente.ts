@@ -239,7 +239,7 @@ export async function corregirEnLote(
 }
 
 /** La calle de una dirección, para buscar parecidas en el catálogo («Calle 2» de «POB X CALLE 2 901»). */
-const calleDe = (direccion: string) => calleYNumero(consultaOsmDe(direccion) ?? direccion).calle;
+const calleDe = async (direccion: string) => calleYNumero((await consultaOsmDe(direccion)) ?? direccion).calle;
 
 /** De las direcciones escritas a la entrada del lote: los candidatos de ubicarDireccion (la caché del
  *  día; una calle repetida trae cada lugar con su población y sector) y las calles parecidas. */
@@ -253,7 +253,7 @@ export async function entradasDelLote(
     direcciones.map(async (escrita) => {
       const [r, parecidas] = await Promise.all([
         ubicar(escrita, senal).catch(() => null),
-        calles(calleDe(escrita)).catch(() => []),
+        calleDe(escrita).then(calles).catch(() => []),
       ]);
       return { escrita, candidatos: r?.candidatos ?? [], calles: parecidas };
     }),

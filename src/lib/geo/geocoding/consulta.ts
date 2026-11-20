@@ -4,6 +4,8 @@
 //
 // Todo es puro y sin red: se prueba con texto y nada más (spec 016).
 
+import { corregirLectura } from "./errores-lectura";
+
 // ----------------------------------------------------------------------------
 // Normalizar la dirección ANTES de buscarla
 // ----------------------------------------------------------------------------
@@ -39,6 +41,8 @@ const ABREVIATURAS: [RegExp, string][] = [
   [/\bvill\b\.?/gi, "villa"],
   [/\bcond\b\.?/gi, "condominio"],
   [/\bcje\b\.?/gi, "callejón"],
+  // «CUATRO OTE 916» (la nómina; spec 044). «Pte» no: también es «presidente».
+  [/\bote\b\.?/gi, "oriente"],
   // "N°", "Nº", "No." antes de un número: es "acá viene el número".
   [/\bn[°ºo]\.?\s*(?=\d)/gi, ""],
   // El "#" va aparte y SIN `\b`: "#" no es un carácter de palabra, así que entre
@@ -54,13 +58,17 @@ const NUMERO_MARCADO = /(#|\bn[°º]\.?)\s*(\d+)\b.*$/i;
  *  puerta en el mapa. Se corta tras un número ("500 depto 42") o cuando la
  *  palabra va seguida de su número o letra ("… Figueroa edificio 01"); no en
  *  "Pasaje Casa Blanca", que es el nombre de la calle. */
-const UNIDAD = String.raw`(?:depto|dpto|depart(?:amento)?|depa|of(?:icina)?|blk|block|torre|casa|piso|local|km|edif(?:icio)?)`;
-const UNIDAD_TRAS_NUMERO = new RegExp(String.raw`(\d)\s*[,-]?\s*\b${UNIDAD}\b.*$`, "i");
+const UNIDAD = String.raw`(?:depto|dpto|dpt|dto|dp|depart(?:amento)?|depa|of(?:icina)?|blk|block|bl|torre|casa|piso|local|km|edif(?:icio)?)`;
+/** «913 SEGUNDO PISO»: el ordinal va antes de la unidad (spec 044). */
+const ORDINAL = String.raw`(?:primer|segundo|tercer|cuarto|quinto|sexto|\d+(?:er|ro|do|to))`;
+const UNIDAD_TRAS_NUMERO = new RegExp(String.raw`(\d)\s*[,-]?\s*(?:${ORDINAL}\s+)?\b${UNIDAD}\b.*$`, "i");
 const UNIDAD_CON_CODIGO = new RegExp(String.raw`\s*[,-]?\s*\b${UNIDAD}\b\.?\s*(?:\d|[a-z]{1,2}\b).*$`, "i");
 
 /** ", Arica", "1085 Arica, Chile": la ciudad sobra (la búsqueda ya está acotada
- *  a Arica) y tapa el número del final. "Pasaje Arica" se queda. */
-const CIUDAD_TRAS_NUMERO = /(\d)\s*,?\s*\barica\b(?:\s*,?\s*chile)?\s*$/i;
+ *  a Arica) y tapa el número del final. "Pasaje Arica" se queda. Lo que sigue a la
+ *  ciudad tras el número también sobra: «914 ARICA Des», «915 ARICA ARICA Y
+ *  PARINACOTA» (la nómina; spec 044). */
+const CIUDAD_TRAS_NUMERO = /(\d)\s*,?\s*\barica\b.*$/i;
 const CIUDAD_TRAS_COMA = /\s*,\s*arica\b(?:\s*,?\s*chile)?\s*$/i;
 
 /** Un lugar descrito DESPUÉS del número: "1124 cerro La Cruz", "500 villa X". */
@@ -83,6 +91,12 @@ export function sinNumeroRepetido(texto: string): string {
   return texto.replace(NUMERO_REPETIDO, "$1");
 }
 
+/** «Nueva Caledonia 910 15»: dos números al final son la casa y el depto, que la nómina
+ *  escribe sin «depto» (spec 044). Se queda el primero, salvo que sea parte del nombre
+ *  («Pasaje 5 919», «Calle 2 977»). */
+const DEPTO_SIN_PALABRA = /^(.*?(\p{L}+)\s+\d{1,6})\s+\d{1,4}$/u;
+const NOMBRE_CON_NUMERO = /^(?:pasaje|pje|psje|pj|calle|nueva|block|blk|bloque|torre|sector|villa|poblaci[oó]n)$/i;
+
 /** "0428" → "428". Un cero solo se queda. */
 const CEROS_A_LA_IZQUIERDA = /\b0+(?=\d)/g;
 
@@ -93,7 +107,7 @@ const SIN_NUMERO = /\s*\bs\s*\/?\s*n\.?\s*$/i;
 /** Prepara el texto para consultarlo. NO es lo que se guarda en el pedido: el
  *  pedido conserva lo que se escribió, con el depto y todo. */
 export function normalizarConsulta(texto: string): string {
-  let t = sinNumeroRepetido(texto.trim().replace(/\s+/g, " "));
+  let t = sinNumeroRepetido(corregirLectura(texto));
   t = t.replace(NUMERO_MARCADO, "$1 $2");
   for (const [de, a] of ABREVIATURAS) t = t.replace(de, a);
   t = t.replace(CIUDAD_TRAS_NUMERO, "$1").replace(CIUDAD_TRAS_COMA, "");
@@ -103,6 +117,7 @@ export function normalizarConsulta(texto: string): string {
   t = t.replace(LUGAR_TRAS_NUMERO, "$1");
   t = t.replace(COMA_TRAS_NUMERO, "$1");
   t = t.replace(LETRA_O_SUBNUMERO, "$1");
+  t = t.replace(DEPTO_SIN_PALABRA, (todo, casa: string, palabra: string) => (NOMBRE_CON_NUMERO.test(palabra) ? todo : casa));
   t = t.replace(SIN_NUMERO, "");
   return t.replace(/\s+/g, " ").replace(/^[,\s]+|[,\s]+$/g, "").trim();
 }
@@ -207,15 +222,26 @@ export function coincidenciaCalle(escrito: string, nombreCalle: string): Coincid
 
 /** coincidenciaCalle con lo escrito y el nombre ya partidos en palabras (palabrasDe):
  *  el catálogo los parte una vez (spec 038). Mismo resultado. */
-export function coincidenciaPartida({ buscadas, titulos }: EscritoPartido, enLaCalle: string[]): Coincidencia | null {
-  if (buscadas.length === 0) return null;
+export function coincidenciaPartida(escrito: EscritoPartido, enLaCalle: string[]): Coincidencia | null {
+  if (escrito.buscadas.length === 0) return null;
+  const estricta = coincidir(escrito, enLaCalle, 0);
+  if (estricta) return estricta;
+  // Una letra mal leída en una palabra de cuatro («DLAZ» por «Díaz», «RAUY» por «Raúl»; spec
+  // 044) se acepta solo si otras dos palabras calzan tal cual: «Jose … Gana», «… Pey Casado».
+  // Sola («Lebo»), una palabra corta sigue exacta.
+  const exactas = escrito.buscadas.filter((p) => enLaCalle.includes(p)).length;
+  return exactas >= 2 ? coincidir(escrito, enLaCalle, 1) : null;
+}
+
+/** `holgura`: letras que se aceptan corregir en una palabra de cuatro. */
+function coincidir({ buscadas, titulos }: EscritoPartido, enLaCalle: string[], holgura: number): Coincidencia | null {
   const usadas = new Set<number>();
   const buscar = (p: string): number | null => {
     let mejor = -1;
     let costo = Infinity;
     enLaCalle.forEach((q, i) => {
       if (usadas.has(i)) return;
-      const d = parecido(p, q);
+      const d = parecido(p, q, holgura);
       if (d !== null && d < costo) [mejor, costo] = [i, d];
     });
     if (mejor < 0) return null;
@@ -248,11 +274,11 @@ export function compararCoincidencias(a: Coincidencia, b: Coincidencia): number 
 }
 
 /** null si no son la misma palabra; si no, cuántas letras hubo que corregir. */
-function parecido(a: string, b: string): number | null {
+function parecido(a: string, b: string, holgura = 0): number | null {
   if (a === b) return 0;
   if (/\d/.test(a) || /\d/.test(b)) return null;
   const corta = Math.min(a.length, b.length);
-  const tope = corta >= 9 ? 2 : corta >= 5 ? 1 : 0;
+  const tope = corta >= 9 ? 2 : corta >= 5 ? 1 : corta === 4 ? holgura : 0;
   if (tope === 0 || Math.abs(a.length - b.length) > tope) return null;
   const d = distanciaEdicion(a, b);
   return d <= tope ? d : null;

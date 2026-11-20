@@ -34,7 +34,8 @@ con ese archivo, vale `AGENTS.md`, y hay que avisar la diferencia.
   sobre cualquier calle parecida («Diego Portales 2000» → Palza Corvacho, lo hacía Mapbox). Decide
   `esLaCalleEscrita` en `aSugerenciaGoogle`, junto con que el número sea el pedido.
 - **Tipeo acotado** (`coincidenciaCalle`): cada palabra que distingue tiene que estar; palabra de
-  < 5 letras y números, exactos; 1 letra de corrección (2 desde 9 letras). «Poniente», «oriente»,
+  < 5 letras y números, exactos; 1 letra de corrección (2 desde 9 letras). Una palabra de 4 acepta 1
+  letra solo si otras dos calzan tal cual («Jose Dlaz Gana», spec 044). «Poniente», «oriente»,
   «norte», «sur», «San» y «Santa» distinguen calles: no van a `PALABRAS_GENERICAS`.
 - **La confianza sale del tipo de resultado**: Google ROOFTOP = exacta, RANGE_INTERPOLATED =
   aproximada, el centro de la calle no entra. (Mapbox recalibró su `confidence` a «low» en 23 de
@@ -88,6 +89,7 @@ con ese archivo, vale `AGENTS.md`, y hay que avisar la diferencia.
 |---|---|
 | La cadena: `ubicarDireccion`, `geocodificarDireccion` (solo la central: toma la mejor sin preguntar) | `src/lib/geo/geocoding/ubicar.ts` |
 | Limpiar la consulta, partir calle/número, comparar nombres | `geocoding/consulta.ts` |
+| Errores de lectura de la cámara («SANTIAG0», «1SLA», «N917DEPTO»; spec 044) · con el catálogo: palabra partida por el renglón, código de depto antes del número (`corregirConCatalogo`) | `geocoding/errores-lectura.ts` · `geocoding/calles.ts` |
 | Catálogo: `callesParecidas`, `largoDeCalle` · datos generados | `geocoding/calles.ts` · `calles-arica.ts` |
 | Número en la calle oficial: `completarNumeroEnCalles`, `aplicarPuertas`, `combinarSugerencias` | `geocoding/completar-numero.ts` |
 | Buscadores: `conGoogle`/`preguntarAGoogle`/`googleDirecto` · `conNominatim`/`sugerirEnOsm` · al escribir `sugerirDirecciones` (Plus Code y Google) | `geocoding/google.ts` · `nominatim.ts` · `sugerir.ts` |

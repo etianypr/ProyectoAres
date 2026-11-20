@@ -6,6 +6,7 @@
 // la etiqueta de cada paquete.
 
 import { sinNumeroRepetido } from "@/lib/geo/geocoding/consulta";
+import { corregirLectura } from "@/lib/geo/geocoding/errores-lectura";
 import { LARGO_OF, ofValida } from "../paquete";
 import type { GuiaIA } from "./esquemas";
 
@@ -50,6 +51,9 @@ export function limpiarDestino(texto: string): string {
     .replace(/,?\s*XV\s+REGI[OÓ]N\s+DE\s+ARICA(\s+Y(\s+PARINACOTA)?)?\s*$/i, "")
     .replace(/\s+/g, " ")
     .trim();
+  // Lo que la cámara lee mal en la nómina («SANTIAG0», «1SLA», «N917DEPTO»; spec 044): el
+  // conductor ve la dirección como está en el papel.
+  t = corregirLectura(t);
   // "PASAJE LOS PINOS 56 NO. 56": el número repetido sobra.
   t = t.replace(/\s+N[OºÚ°]\.?\s*(\d+)\b/gi, (todo, n: string) =>
     new RegExp(`\\b${n}\\b`).test(t.replace(todo, "")) ? "" : todo,

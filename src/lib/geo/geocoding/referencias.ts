@@ -28,6 +28,8 @@ const TIPO_DE_CALLE = /^(?:avenida|avda|av|calle|pasaje|psje|pje|pj|camino|calle
 const ABRE_REFERENCIA =
   /^(?:con|esq|esquina|entre|frente|al|detras|detrás|cerca|pob|pobl|poblacion|población|villa|sector|condominio|conj|conjunto)\.?,?$/i;
 const esNumero = (p: string) => /^\d+[a-z]?,?$/i.test(p);
+/** Antes del número, la palabra que une dos calles: «X con Y 925». */
+const CONECTOR_ANTES = /^(?:con|esq|esquina)\.?$/i;
 
 /** Dónde está el número de casa en las palabras de una calle: el primer número que no es parte
  *  del nombre («Pasaje 1 1450»: el 1 es del nombre). -1 si no hay. */
@@ -57,7 +59,16 @@ export function separarReferencias(texto: string): Referencias {
     const numeroAntes = palabras.slice(0, i).some(esNumero);
     if (i > 0 && !numeroAntes && TIPO_DE_CALLE.test(p) && numeroDeCasa(palabras.slice(i)) > 0) inicio = i;
   });
-  const calle = palabras.slice(inicio);
+  let calle = palabras.slice(inicio);
+  // «CANCHA RAYADA CON BUENA ESPERANZA 925»: antes del número, «X con Y» nombra la esquina y
+  // la casa está en la calle que lleva el número (spec 044; AGENTS.md, «Referencias»).
+  let cruceAntes = "";
+  const nAntes = numeroDeCasa(calle);
+  const k = nAntes > 0 ? calle.findIndex((p, i) => i > 0 && i + 1 < nAntes && CONECTOR_ANTES.test(p)) : -1;
+  if (k > 0) {
+    cruceAntes = `${calle[k]} ${calle.slice(0, k).join(" ")}`;
+    calle = calle.slice(k + 1);
+  }
   // Después del número, desde la palabra que abre una referencia hasta el final.
   let fin = calle.length;
   const n = numeroDeCasa(calle);
@@ -65,7 +76,7 @@ export function separarReferencias(texto: string): Referencias {
   const antes = palabras.slice(0, inicio).join(" ").replace(/[,\s-]+$/, "");
   const despues = calle.slice(fin).join(" ");
   const consulta = calle.slice(0, fin).join(" ").replace(/,$/, "");
-  const cruces: string[] = [];
+  const cruces: string[] = cruceAntes ? [cruceAntes.split(" ").slice(1).join(" ")] : [];
   const cruce = /\b(?:con|esq(?:uina)?\.?|entre)\s+(.+)$/i.exec(despues);
   if (cruce) {
     for (const parte of cruce[1].split(/\s+y\s+/i)) {
@@ -76,7 +87,7 @@ export function separarReferencias(texto: string): Referencias {
       if (limpia) cruces.push(limpia);
     }
   }
-  return { consulta: consulta || t, referencia: [antes, despues].filter(Boolean).join(" · "), cruces };
+  return { consulta: consulta || t, referencia: [antes, cruceAntes, despues].filter(Boolean).join(" · "), cruces };
 }
 
 /** Pedidos del día ya ubicados: con menos que esto todavía no hay ruta que mire. */

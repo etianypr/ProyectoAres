@@ -1,7 +1,7 @@
 // Una dirección ya escrita → dónde queda, sin elegir sola cuando hay dudas.
 
 import { distanciaMetros, type Coordenada } from "@/lib/geo/coordenada";
-import { largoDeCalle } from "./calles";
+import { corregirConCatalogo, largoDeCalle } from "./calles";
 import { comoPlusCode } from "./codigo";
 import { ubicarEnLugares } from "./calle-repetida";
 import { aplicarPuertas, combinarSugerencias, completarNumeroEnCalles } from "./completar-numero";
@@ -83,7 +83,7 @@ export async function ubicarDireccion(direccion: string, senal?: AbortSignal): P
     };
   }
 
-  const { ref, q } = consultaDe(direccion);
+  const { ref, q } = await consultaDe(direccion);
   if (!q) {
     return { tipo: "no_encontrada", candidatos: [], elegida: null, advertencia: "La dirección está vacía." };
   }
@@ -121,17 +121,18 @@ export async function ubicarDireccion(direccion: string, senal?: AbortSignal): P
 }
 
 /** La calle de la casa es la que va junto al número; la población de antes y la referencia de
- *  después («con calle 5», «frente a…») no se buscan: confunden al buscador (spec 035, 025). */
-function consultaDe(direccion: string): { ref: Referencias; q: string } {
+ *  después («con calle 5», «frente a…») no se buscan: confunden al buscador (spec 035, 025). Lo
+ *  que la cámara leyó mal se corrige antes de preguntar (spec 044). */
+async function consultaDe(direccion: string): Promise<{ ref: Referencias; q: string }> {
   const ref = separarReferencias(direccion);
-  return { ref, q: normalizarConsulta(ref.consulta) };
+  return { ref, q: await corregirConCatalogo(normalizarConsulta(ref.consulta)) };
 }
 
 /** Lo que ubicarDireccion le preguntará a OpenStreetMap por esta dirección, o null si no le
  *  pregunta nada (un Plus Code, o vacía). Spec 038: el adelanto pregunta exactamente esto. */
-export function consultaOsmDe(direccion: string): string | null {
+export async function consultaOsmDe(direccion: string): Promise<string | null> {
   if (comoPlusCode(direccion)) return null;
-  return consultaDe(direccion).q || null;
+  return (await consultaDe(direccion)).q || null;
 }
 
 /** Adelanta la consulta a OpenStreetMap de una dirección mientras el conductor revisa las
@@ -139,8 +140,8 @@ export function consultaOsmDe(direccion: string): string | null {
  *  la respuesta queda en la caché del día y ubicarDireccion la encuentra sin esperar la fila.
  *  Nunca lanza; la señal la corta al cerrar, deshacer o tocar «Crear N pedidos». */
 export async function adelantarNominatim(direccion: string, senal?: AbortSignal): Promise<void> {
-  const q = consultaOsmDe(direccion);
-  if (q) await preguntarANominatim(q, senal, "baja");
+  const q = await consultaOsmDe(direccion);
+  if (q && !senal?.aborted) await preguntarANominatim(q, senal, "baja");
 }
 
 /** «Pasaje 1», «Calle Dos», «1 Norte», «Nueva 2»: el nombre no dice dónde está. */
