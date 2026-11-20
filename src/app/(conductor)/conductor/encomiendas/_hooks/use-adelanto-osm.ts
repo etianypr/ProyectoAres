@@ -30,24 +30,33 @@ export function useAdelantoOsm(destinos: string[] | null): () => void {
       return;
     }
     const actuales = enCurso.current;
-    const consultas = new Map<string, string>();
-    for (const destino of JSON.parse(clave) as string[]) {
-      const q = consultaOsmDe(destino);
-      if (q && !consultas.has(q)) consultas.set(q, destino);
-    }
-    for (const [q, control] of actuales) {
-      if (consultas.has(q)) continue;
-      control.abort();
-      actuales.delete(q);
-    }
-    for (const [q, destino] of consultas) {
-      if (actuales.has(q)) continue;
-      const control = new AbortController();
-      actuales.set(q, control);
-      void adelantarNominatim(destino, control.signal).finally(() => {
-        if (actuales.get(q) === control) actuales.delete(q);
-      });
-    }
+    // La consulta pasa por el catálogo de calles (spec 044), que se carga la primera vez: una
+    // revisión que cambió mientras tanto no lanza nada.
+    let vigente = true;
+    void (async () => {
+      const consultas = new Map<string, string>();
+      for (const destino of JSON.parse(clave) as string[]) {
+        const q = await consultaOsmDe(destino);
+        if (q && !consultas.has(q)) consultas.set(q, destino);
+      }
+      if (!vigente) return;
+      for (const [q, control] of actuales) {
+        if (consultas.has(q)) continue;
+        control.abort();
+        actuales.delete(q);
+      }
+      for (const [q, destino] of consultas) {
+        if (actuales.has(q)) continue;
+        const control = new AbortController();
+        actuales.set(q, control);
+        void adelantarNominatim(destino, control.signal).finally(() => {
+          if (actuales.get(q) === control) actuales.delete(q);
+        });
+      }
+    })();
+    return () => {
+      vigente = false;
+    };
   }, [clave, parar]);
 
   // Cerrar la ventana a la fuerza (otra pantalla) también corta.

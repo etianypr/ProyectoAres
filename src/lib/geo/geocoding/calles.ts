@@ -73,6 +73,51 @@ export async function callesParecidas(escrito: string, maximo = 3): Promise<Call
     .slice(0, maximo);
 }
 
+/** Las palabras de todos los nombres del catálogo, sin tildes. */
+let vocabulario: Promise<Set<string>> | null = null;
+
+function palabrasDelCatalogo(): Promise<Set<string>> {
+  vocabulario ??= cargar().then((calles) => {
+    const palabras = new Set(calles.flatMap((c) => c.palabras.flat()));
+    // Sin señal el catálogo no bajó: se vuelve a intentar la próxima vez (como cargar).
+    if (palabras.size === 0) vocabulario = null;
+    return palabras;
+  });
+  return vocabulario;
+}
+
+const soloLetras = (p: string) => /^\p{L}+$/u.test(p);
+
+/** Lo que la cámara rompió y solo el catálogo sabe arreglar (spec 044), sobre la consulta ya
+ *  limpia (normalizarConsulta):
+ *   · la palabra partida por el salto de renglón de la nómina: «SIMON MOL INARES» → «SIMON
+ *     MOLINARES», «Nac imiento» → «Nacimiento». Se unen dos pedazos cuando juntos son una
+ *     palabra del catálogo y alguno de los dos no lo es (dos palabras de verdad no se tocan);
+ *   · un código corto que no es palabra de ninguna calle, antes del número del final: el depto
+ *     mal leído («PORTAL EL ALWA ODK 97» → «PORTAL EL ALWA»). Solo si queda una palabra que
+ *     distingue la calle: «CALLE ARO 12» se queda.
+ *  Sin catálogo (sin señal la primera vez), la consulta va tal cual. */
+export async function corregirConCatalogo(consulta: string): Promise<string> {
+  const vocab = await palabrasDelCatalogo();
+  if (vocab.size === 0 || !consulta) return consulta;
+  const palabras = consulta.split(" ");
+  for (let i = 0; i + 1 < palabras.length; i++) {
+    const a = normalizar(palabras[i]);
+    const b = normalizar(palabras[i + 1]);
+    if (!soloLetras(a) || !soloLetras(b) || !vocab.has(a + b) || (vocab.has(a) && vocab.has(b))) continue;
+    palabras.splice(i, 2, palabras[i] + palabras[i + 1]);
+    i--;
+  }
+  const n = palabras.length;
+  if (n >= 3 && /^\d{1,6}$/.test(palabras[n - 1])) {
+    const codigo = normalizar(palabras[n - 2]);
+    const resto = palabras.slice(0, n - 2);
+    const esCodigo = /^[\p{L}\d]{2,3}$/u.test(codigo) && /\p{L}/u.test(codigo) && !vocab.has(codigo);
+    if (esCodigo && partirEscrito(resto.join(" ")).buscadas.length > 0) return resto.join(" ");
+  }
+  return palabras.join(" ");
+}
+
 /** Cuánto mide la calle con ese nombre (todos sus tramos), o null si no está en
  *  el catálogo. */
 export async function largoDeCalle(nombre: string): Promise<number | null> {

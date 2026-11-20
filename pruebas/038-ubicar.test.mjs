@@ -195,10 +195,10 @@ test("adelanto: consultaOsmDe es lo que ubicarDireccion le pregunta a OSM, y lo 
   for (const d of direcciones) {
     vistas = [];
     await ubicarDireccion(d);
-    assert.equal(deOsm()[0]?.q, consultaOsmDe(d), d);
+    assert.equal(deOsm()[0]?.q, await consultaOsmDe(d), d);
   }
-  assert.equal(consultaOsmDe("GMCP+MX"), null, "un Plus Code no le pregunta a nadie");
-  assert.equal(consultaOsmDe("   "), null);
+  assert.equal(await consultaOsmDe("GMCP+MX"), null, "un Plus Code no le pregunta a nadie");
+  assert.equal(await consultaOsmDe("   "), null);
 
   olvidarConsultasNominatim();
   await Promise.all(direcciones.slice(0, 2).map((d) => adelantarNominatim(d)));

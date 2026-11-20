@@ -11,15 +11,15 @@
   },
   "deLectura": {
    "lecturas": 366,
-   "huella": "c451d6c0ecdee9bd"
+   "huella": "88c58c11acf7ce74"
   },
   "lista": [
    ["278605464","CAPITAN AVALOS 2323","firme",null,true,17,5,[2,true,false]],
    ["278605495","AV SANTA MARIA 3698","firme",null,true,30,9,[2,true,false]],
-   ["278609022","GENERAL VELASQUEZ 3884","firme",null,true,9,6,[2,true,false]],
+   ["278609022","GENERAL VELASQUEZ 3884","firme",null,true,11,7,[2,true,false]],
    ["278609035","BOLOGNESI 160","firme",null,true,34,12,[1,true,true]],
    ["278609037","BOLOGNESI 1576","firme",null,true,27,6,[1,true,true]],
-   ["278609073","GENERAL VELASQUEZ 1182","porConfirmar",null,false,45,9,[2,true,false]],
+   ["278609073","GENERAL VELASQUEZ 1182","porConfirmar",null,false,43,8,[2,true,false]],
    ["278609107","BAQUEDANO 2897","firme",null,true,22,6,[2,true,false]],
    ["278609131","AV TUCAPEL 3129","firme",null,true,18,7,[2,false,false]],
    ["278612620","CAPITAN AVALOS 1776","firme",null,true,21,8,[2,false,false]],
@@ -66,10 +66,10 @@
   "lineas": [
    ["278605464","CAPITAN AVALOS 2323",17,true,true,5],
    ["278605495","AV SANTA MARIA 3698",30,true,true,9],
-   ["278609022","GENERAL VELASQUEZ 3884",9,true,true,6],
+   ["278609022","GENERAL VELASQUEZ 3884",11,true,true,7],
    ["278609035","BOLOGNESI 160",34,true,true,12],
    ["278609037","BOLOGNESI 1576",27,true,true,6],
-   ["278609073","GENERAL VELASQUEZ 1182",45,false,true,9],
+   ["278609073","GENERAL VELASQUEZ 1182",43,false,true,8],
    ["278609107","BAQUEDANO 2897",22,true,true,6],
    ["278609131","AV TUCAPEL 3129",18,true,true,7],
    ["278612620","CAPITAN AVALOS 1776",21,true,true,8],
@@ -124,15 +124,15 @@
   },
   "deLectura": {
    "lecturas": 771,
-   "huella": "aea96766f74154e6"
+   "huella": "03069675f8bf4c75"
   },
   "lista": [
    ["278605464","CAPITAN AVALOS 2323","firme",null,true,17,5,[2,true,false]],
    ["278605495","AV SANTA MARIA 3698","firme",null,true,30,9,[2,true,false]],
-   ["278609022","GENERAL VELASQUEZ 3884","firme",null,true,9,6,[2,true,false]],
+   ["278609022","GENERAL VELASQUEZ 3884","firme",null,true,11,7,[2,true,false]],
    ["278609035","BOLOGNESI 160","firme",null,true,34,12,[1,true,true]],
    ["278609037","BOLOGNESI 1576","firme",null,true,27,6,[1,true,true]],
-   ["278609073","GENERAL VELASQUEZ 1182","porConfirmar",null,false,45,9,[2,true,false]],
+   ["278609073","GENERAL VELASQUEZ 1182","porConfirmar",null,false,43,8,[2,true,false]],
    ["278609107","BAQUEDANO 2897","firme",null,true,22,6,[2,true,false]],
    ["278609131","AV TUCAPEL 3129","firme",null,true,18,7,[2,false,false]],
    ["278612620","CAPITAN AVALOS 1776","firme",null,true,21,8,[2,false,false]],
@@ -229,10 +229,10 @@
   "lineas": [
    ["278605464","CAPITAN AVALOS 2323",17,true,true,5],
    ["278605495","AV SANTA MARIA 3698",30,true,true,9],
-   ["278609022","GENERAL VELASQUEZ 3884",9,true,true,6],
+   ["278609022","GENERAL VELASQUEZ 3884",11,true,true,7],
    ["278609035","BOLOGNESI 160",34,true,true,12],
    ["278609037","BOLOGNESI 1576",27,true,true,6],
-   ["278609073","GENERAL VELASQUEZ 1182",45,false,true,9],
+   ["278609073","GENERAL VELASQUEZ 1182",43,false,true,8],
    ["278609107","BAQUEDANO 2897",22,true,true,6],
    ["278609131","AV TUCAPEL 3129",18,true,true,7],
    ["278612620","CAPITAN AVALOS 1776",21,true,true,8],
@@ -337,15 +337,15 @@
   },
   "deLectura": {
    "lecturas": 771,
-   "huella": "aea96766f74154e6"
+   "huella": "03069675f8bf4c75"
   },
   "lista": [
    ["278605464","CAPITAN AVALOS 2323","firme",null,true,17,5,[2,true,false]],
    ["278605495","AV SANTA MARIA 3698","firme",null,true,30,9,[2,true,false]],
-   ["278609022","GENERAL VELASQUEZ 3884","firme",null,true,9,6,[2,true,false]],
+   ["278609022","GENERAL VELASQUEZ 3884","firme",null,true,11,7,[2,true,false]],
    ["278609035","BOLOGNESI 160","firme",null,true,34,12,[1,true,true]],
    ["278609037","BOLOGNESI 1576","firme",null,true,27,6,[1,true,true]],
-   ["278609073","GENERAL VELASQUEZ 1182","porConfirmar",null,false,45,9,[2,true,false]],
+   ["278609073","GENERAL VELASQUEZ 1182","porConfirmar",null,false,43,8,[2,true,false]],
    ["278609107","BAQUEDANO 2897","firme",null,true,22,6,[2,true,false]],
    ["278609131","AV TUCAPEL 3129","firme",null,true,18,7,[2,false,false]],
    ["278612620","CAPITAN AVALOS 1776","firme",null,true,21,8,[2,false,false]],
@@ -442,10 +442,10 @@
   "lineas": [
    ["278605464","CAPITAN AVALOS 2323",17,true,true,5],
    ["278605495","AV SANTA MARIA 3698",30,true,true,9],
-   ["278609022","GENERAL VELASQUEZ 3884",9,true,true,6],
+   ["278609022","GENERAL VELASQUEZ 3884",11,true,true,7],
    ["278609035","BOLOGNESI 160",34,true,true,12],
    ["278609037","BOLOGNESI 1576",27,true,true,6],
-   ["278609073","GENERAL VELASQUEZ 1182",45,false,true,9],
+   ["278609073","GENERAL VELASQUEZ 1182",43,false,true,8],
    ["278609107","BAQUEDANO 2897",22,true,true,6],
    ["278609131","AV TUCAPEL 3129",18,true,true,7],
    ["278612620","CAPITAN AVALOS 1776",21,true,true,8],
