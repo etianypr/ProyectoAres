@@ -19,6 +19,7 @@
 
 import { elegirTexto, distancia, parecidos } from "./etiqueta/votos";
 import { leerGuia } from "./guia";
+import { bloquesListaFlete } from "./lista-flete";
 import { piezasNomina, totalDeBultos } from "./nomina";
 import { alRango, rangoDelEscaneo } from "./rango-nomina";
 import {
@@ -96,13 +97,16 @@ export function sumarCuadroNomina(
 ): VotosNomina {
   const cuadro = v.cuadros;
   const guia = leerGuia(texto);
-  const nomina = piezasNomina(texto.split(/\r?\n/));
+  const renglones = texto.split(/\r?\n/);
+  const nomina = piezasNomina(renglones);
+  // La lista de la app de Starken en el teléfono (spec 045): un tercer lector, con su propia forma.
+  const lista = bloquesListaFlete(renglones);
   const conteo = { ...(v.conteo ?? { enteros: 0, sueltas: 0, abiertas: 0 }) };
   // Una OF tiene de 7 a 9 dígitos: el «1» de un encabezado que el lector de la
   // guía tomó por OF no lo es (primer barrido: 19 «OF» sin destino).
   const esOf = (of: string) => /^\d{7,9}$/.test(of);
   const delCuadro = new Map<string, { destino: string; abierta: string | null; bultos: number | null }>();
-  for (const linea of [...nomina.bloques, ...guia.lineas]) {
+  for (const linea of [...nomina.bloques, ...lista, ...guia.lineas]) {
     if (!esOf(linea.of) || delCuadro.has(linea.of)) continue;
     delCuadro.set(linea.of, { destino: linea.destino, abierta: null, bultos: "bultos" in linea && linea.bultos != null ? linea.bultos : null });
     conteo.enteros += 1;
