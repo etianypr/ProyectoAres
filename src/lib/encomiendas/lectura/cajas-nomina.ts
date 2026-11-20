@@ -2,6 +2,7 @@
 // para marcarlos sobre la cámara y la confianza de cada dígito (spec 029). Puro. Aparte de
 // barrido-nomina.ts, que lo reexporta, para no pasar de 400 líneas (A7).
 
+import { bloquesListaFlete } from "./lista-flete";
 import { piezasNomina } from "./nomina";
 import { LARGO_OF } from "../paquete";
 
@@ -32,9 +33,12 @@ export function cajasDelCuadro(renglones: RenglonCaja[], filas = filasDe(renglon
     return { of, x, y, ancho, alto, altoFila, entero };
   };
   // Las mismas piezas que votan (nomina.ts): un número del encabezado de la nómina no se marca.
-  const { bloques, piezas } = piezasNomina(filas.map((f) => f.texto));
+  const textos = filas.map((f) => f.texto);
+  const { bloques, piezas } = piezasNomina(textos);
   return [
     ...bloques.map((b) => caja(b.filaOf, b.hasta, b.of, true)),
+    // Las tarjetas de la lista de Starken en el teléfono (spec 045).
+    ...bloquesListaFlete(textos).map((b) => caja(b.filaOf, b.hasta, b.of, true)),
     ...piezas.map((p) => caja(p.filaOf, p.filaOf, p.of, false)),
   ];
 }

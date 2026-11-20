@@ -63,6 +63,11 @@ romper lo que ya se aprendió en terreno. Las reglas vienen de `AGENTS.md` y de 
   lecturas que difieren solo en 0/8 se midió y se descartó (juntaba encargos vecinos). Lo ya leído no vuelve
   atrás (`revisarParecidas`): el mismo número es un encargo, una firme no vuelve a «por confirmar» por algo
   parecido leído después, y la misma calle con otro número de casa son dos encargos.
+- **Tres lectores por cuadro** (`sumarCuadroNomina`): la boleta (`nomina.ts`), la guía «OF: … DESTINO: …» y
+  la lista de la app de Starken en el teléfono (`lista-flete.ts`, spec 045: OF de 9 dígitos sola, nombre que
+  se salta, dirección que termina en «ARICA»; el número del conductor se ignora). Un formato nuevo va en su
+  propio lector con la misma salida, y la dorada de la boleta (`nomina-rapida.test.mjs`) queda idéntica.
+  La 044 limpia los errores de lectura del destino (`limpiarDestino` → `corregirLectura`).
 - **Funciona sin señal**: el escáner de Google y el lector de texto (ML Kit) vienen dentro de la APK, y
   los datos van a IndexedDB. No hay lecturas pendientes con reintento (T009 y T023 se descartaron): si
   no sale texto, se pega o se escribe.
