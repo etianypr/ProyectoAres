@@ -23,5 +23,7 @@ export async function sugerirDirecciones(texto: string, senal?: AbortSignal): Pr
   // abreviatura sola.
   if (texto.trim().length < MIN_CARACTERES) return [];
   const q = normalizarConsulta(texto);
-  return q ? conGoogle(q, senal) : [];
+  // Solo las puertas: la calle sola que también da Google (spec 044, para completar el número)
+  // aquí repetiría la de OSM.
+  return q ? (await conGoogle(q, senal)).filter((s) => !s.soloCalle) : [];
 }

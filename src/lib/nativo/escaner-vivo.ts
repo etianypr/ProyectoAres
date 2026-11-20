@@ -17,6 +17,9 @@ type RenglonVivo = {
   ancho: number;
   alto: number;
   numeros?: { texto: string; confianzas: number[] }[];
+  /** Los íconos «PxP» y «COD» de la lista de Starken con su color, como desvío del gris (du, dv;
+   *  el verde tiene los dos negativos). Desde la APK 1.11.0 (spec 045); antes no viene. */
+  iconos?: { texto: string; du: number; dv: number }[];
 };
 
 /** Lo que dio un cuadro de la cámara. */

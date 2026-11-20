@@ -35,12 +35,15 @@
 //   sugerir.ts            sugerencias mientras se escribe
 //   completar-numero.ts   unir listas y buscar el número en la calle escrita
 //   ubicar.ts             ubicarDireccion y geocodificarDireccion
+//   errores-lectura.ts    lo que la cámara lee mal (spec 044)
+//   aprendidas.ts         calles aprendidas: escrita → oficial (spec 044)
 
 export { normalizarConsulta } from "./consulta";
+export { aprenderCalle, claveDeCalle, fijarAprendizaje, fijarCallesAprendidas, type FuenteAprendida } from "./aprendidas";
 export { NOMBRE_FUENTE, type Confianza, type Fuente, type SugerenciaDireccion, type TipoUbicacion } from "./tipos";
 export { esPlusCode } from "./codigo";
 export { sugerirDirecciones } from "./sugerir";
 export { sugerirEnOsm } from "./nominatim";
 export { aplicarPuertas, combinarSugerencias, completarNumeroEnCalles, type PuertasEnCalles } from "./completar-numero";
-export { adelantarNominatim, consultaOsmDe, geocodificarDireccion, ubicarDireccion, type ResultadoUbicacion } from "./ubicar";
+export { adelantarNominatim, calleEscritaDe, consultaOsmDe, geocodificarDireccion, ubicarDireccion, type ResultadoUbicacion } from "./ubicar";
 export { elegirConLaRuta, separarReferencias, type Referencias } from "./referencias";

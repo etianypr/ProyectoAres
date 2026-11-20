@@ -2,7 +2,7 @@
 // para marcarlos sobre la cámara y la confianza de cada dígito (spec 029). Puro. Aparte de
 // barrido-nomina.ts, que lo reexporta, para no pasar de 400 líneas (A7).
 
-import { bloquesListaFlete } from "./lista-flete";
+import { bloquesListaFlete, esIconoVerde } from "./lista-flete";
 import { piezasNomina } from "./nomina";
 import { LARGO_OF } from "../paquete";
 
@@ -10,8 +10,29 @@ import { LARGO_OF } from "../paquete";
  *  los recuadros de la nómina; antes no viene). */
 type NumeroLeido = { texto: string; confianzas: number[] };
 
-/** Un renglón con su caja, como lo da el escáner en vivo (`RenglonVivo`). */
-export type RenglonCaja = { texto: string; x: number; y: number; ancho: number; alto: number; numeros?: NumeroLeido[] };
+/** Un renglón con su caja, como lo da el escáner en vivo (`RenglonVivo`). `iconos`: «PxP» y
+ *  «COD» con su color (APK 1.11.0, spec 045). */
+export type RenglonCaja = {
+  texto: string;
+  x: number;
+  y: number;
+  ancho: number;
+  alto: number;
+  numeros?: NumeroLeido[];
+  iconos?: { texto: string; du: number; dv: number }[];
+};
+
+/** Las OF de la lista de Starken cuya tarjeta trae un ícono en verde en este cuadro: por pagar
+ *  (spec 045). Vacío sin íconos medidos (una APK anterior, o la boleta de papel). */
+export function porPagarDelCuadro(renglones: RenglonCaja[], filas = filasDe(renglones)): Set<string> {
+  const verdes = new Set<string>();
+  if (!renglones.some((r) => r.iconos?.length)) return verdes;
+  for (const b of bloquesListaFlete(filas.map((f) => f.texto))) {
+    const deLaTarjeta = filas.slice(b.filaOf, b.hasta + 1).flatMap((f) => f.indices.map((i) => renglones[i]));
+    if (deLaTarjeta.some((r) => r.iconos?.some(esIconoVerde))) verdes.add(b.of);
+  }
+  return verdes;
+}
 
 /** Un encargo en el cuadro: su caja (la de todos sus renglones juntos) y la OF que se
  *  leyó en este cuadro. `entero`: se vio de la fila de la OF hasta la dirección; si no,

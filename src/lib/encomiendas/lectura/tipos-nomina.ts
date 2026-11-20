@@ -14,6 +14,8 @@ type VotosOf = {
   visto?: number;
   /** La columna BULTOS de su fila → cuántas veces se leyó así (spec 036). */
   bultos?: Record<string, number>;
+  /** En cuántos cuadros su tarjeta de la lista de Starken traía un ícono verde (spec 045). */
+  porPagar?: number;
   /** Solo al medir otras reglas en Diagnóstico (spec 036): por dígito, la suma del peso de
    *  su confianza (`pesoDeConfianza`) y cuántas veces salió con CONFIANZA_ALTA o más. */
   pesos?: number[];
@@ -77,6 +79,8 @@ export type LineaNomina = {
   /** La columna BULTOS, si se leyó igual las veces que pide VOTOS_BULTOS; null si no se
    *  sabe (spec 036). */
   bultos: number | null;
+  /** Su ícono de la lista de Starken salió verde VOTOS_POR_PAGAR veces o más (spec 045). */
+  porPagar: boolean;
 };
 
 /** Una OF del barrido para la lista y para «Cargar la guía» (spec 034). `aMedias`: se vio
@@ -91,6 +95,7 @@ export type LineaListada = {
   /** El número quedó firme (la dirección puede seguir dudosa): no hay que volver a pasar. */
   ofFirme: boolean;
   bultos: number | null;
+  porPagar: boolean;
   /** Cifras para Diagnóstico, sin datos: en cuántos cuadros salió, cuántas lecturas
    *  distintas se juntaron y cómo es el encargo de número más parecido (un duplicado se
    *  ve como pocos dígitos de diferencia, nunca en el mismo cuadro; solo se calcula con

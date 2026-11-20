@@ -93,7 +93,13 @@ export function sumarCuadroNomina(
   v: VotosNomina,
   texto: string,
   confianzas?: Map<string, number[]>,
-  { piezas: conPiezas = false, vertical, reloj, reglas = false }: { piezas?: boolean; vertical?: string[]; reloj?: number; reglas?: boolean } = {},
+  {
+    piezas: conPiezas = false,
+    vertical,
+    reloj,
+    reglas = false,
+    porPagar,
+  }: { piezas?: boolean; vertical?: string[]; reloj?: number; reglas?: boolean; porPagar?: Set<string> } = {},
 ): VotosNomina {
   const cuadro = v.cuadros;
   const guia = leerGuia(texto);
@@ -158,6 +164,8 @@ export function sumarCuadroNomina(
       abiertos,
       ...(visto != null ? { visto } : {}),
       ...(conBultos ? { bultos: conBultos } : {}),
+      // Su ícono salió verde en este cuadro: un voto de «por pagar» (spec 045).
+      ...(porPagar?.has(of) || antes.porPagar ? { porPagar: (antes.porPagar ?? 0) + (porPagar?.has(of) ? 1 : 0) } : {}),
       ...medir,
     };
   }
@@ -240,6 +248,7 @@ export function resultadoNomina(
     abiertos: o.abiertos ?? {},
     destino: destinoDe(o.destinos),
     bultos: o.bultos ?? {},
+    porPagar: o.porPagar ?? 0,
     visto: o.visto,
     pesos: o.pesos,
     altos: o.altos,
@@ -313,7 +322,7 @@ export function resultadoNomina(
   // dirección ya no se pierde (spec 034).
   const lista = enLaHoja.map((i): LineaListada => {
       const d = decididos[i];
-      const medida = { bultos: d.bultos, cuadros: d.cuadros, lecturas: d.lecturas, cerca: conCerca ? masCercano(i) : null };
+      const medida = { bultos: d.bultos, porPagar: d.porPagar, cuadros: d.cuadros, lecturas: d.lecturas, cerca: conCerca ? masCercano(i) : null };
       if (d.cuadros < 2) return { of: d.of, destino: d.destino, estado: "aMedias", motivo: "unaVez", ofFirme: false, ...medida };
       if (!d.destino) return { of: d.of, destino: null, estado: "aMedias", motivo: "sinDireccion", ofFirme: d.firme, ...medida };
       const firme = d.firme && d.destinoFirme && !dobles.has(d);
@@ -322,7 +331,7 @@ export function resultadoNomina(
   return {
     cuadros: v.cuadros,
     lista,
-    lineas: vistas.map(({ of, destino, cuadros, firme, destinoFirme, lecturas: n, bultos }) => ({
+    lineas: vistas.map(({ of, destino, cuadros, firme, destinoFirme, lecturas: n, bultos, porPagar }) => ({
       of,
       destino,
       cuadros,
@@ -330,6 +339,7 @@ export function resultadoNomina(
       destinoFirme,
       lecturas: n,
       bultos,
+      porPagar,
     })),
     // Sin dirección no está leída aunque el número esté firme: va «a medias» (spec 034).
     firmes: leidas.length,

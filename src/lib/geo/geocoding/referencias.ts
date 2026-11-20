@@ -30,6 +30,14 @@ const ABRE_REFERENCIA =
 const esNumero = (p: string) => /^\d+[a-z]?,?$/i.test(p);
 /** Antes del número, la palabra que une dos calles: «X con Y 925». */
 const CONECTOR_ANTES = /^(?:con|esq|esquina)\.?$/i;
+/** Lo que va tras el número y es del timbre, no un lugar: la consulta lo saca (consulta.ts) y el
+ *  pedido lo guarda. También la ciudad. */
+const UNIDAD_O_CIUDAD =
+  /^(?:depto|dpto|dpt|dto|dp|depart(?:amento)?|depa|of(?:icina)?|blk|block|bl|torre|casa|piso|local|km|edif(?:icio)?|bis|primer|segundo|tercer|cuarto|quinto|sexto|arica|chile)\.?,?$/i;
+
+/** Palabras que nombran un lugar (un sector, una población): solo letras, y la primera no es una
+ *  unidad ni la ciudad. */
+const esLugar = (ps: string[]) => ps[0].replace(/\W/g, "").length >= 3 && !UNIDAD_O_CIUDAD.test(ps[0]) && ps.every((p) => /^[\p{L}.,'-]+$/u.test(p));
 
 /** Dónde está el número de casa en las palabras de una calle: el primer número que no es parte
  *  del nombre («Pasaje 1 1450»: el 1 es del nombre). -1 si no hay. */
@@ -73,6 +81,11 @@ export function separarReferencias(texto: string): Referencias {
   let fin = calle.length;
   const n = numeroDeCasa(calle);
   if (n > 0 && n + 1 < calle.length && ABRE_REFERENCIA.test(calle[n + 1])) fin = n + 1;
+  // «DAVID GIRVAN 937 CHINCHORRO ALTO»: tras el número de casa, el sector o la población sin la
+  // palabra que la anuncia (dueño, 2026-11-20). Sin esto la consulta no terminaba en número, no se
+  // le preguntaba a Google y la dirección iba a la IA, que proponía la misma. No las unidades
+  // («DEPTO 3», «CASA», «SEGUNDO PISO») ni el número de un nombre («Pasaje 1 Norte»).
+  else if (n > 0 && n + 1 < calle.length && /^\d{3,}$/.test(calle[n].replace(/,$/, "")) && esLugar(calle.slice(n + 1))) fin = n + 1;
   const antes = palabras.slice(0, inicio).join(" ").replace(/[,\s-]+$/, "");
   const despues = calle.slice(fin).join(" ");
   const consulta = calle.slice(0, fin).join(" ").replace(/,$/, "");

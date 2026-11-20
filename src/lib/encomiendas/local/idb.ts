@@ -21,7 +21,7 @@
 
 import { hoyChile } from "@/lib/comun/fechas";
 import { migrarV2, type AvisoV2, type PedidoV2, type RutaV2 } from "./almacen/migrar";
-import type { ActividadPorEnviar, BorradorGuia, Foto, Pedido, PropuestaGuardada, ResumenDia, Ruta } from "./almacen/tipos";
+import type { ActividadPorEnviar, BorradorGuia, CalleAprendida, Foto, Pedido, PropuestaGuardada, ResumenDia, Ruta } from "./almacen/tipos";
 
 const NOMBRE_BASE = "dashund-encomiendas";
 /** El nombre que tuvo hasta 2026-10-30, cuando la empresa pasó a llamarse Dashund.
@@ -45,7 +45,9 @@ const NOMBRE_ANTERIOR = "pucarani-encomiendas";
 //     obligue a armarla otra vez (dueño, 2026-11-09).
 // v7: store "borradoresGuia": «Cargar la guía» leída y sin crear los pedidos, para
 //     que cerrar la app no obligue a leer (y pagar) las fotos otra vez (dueño, 2026-11-13).
-const VERSION = 7;
+// v8: store "callesAprendidas" (spec 044): calle escrita → oficial, sin datos de nadie; no se
+//     borra con el día ni al cerrar sesión (dueño, 2026-11-20).
+const VERSION = 8;
 
 export const STORES = {
   /** Pedidos cargados por el conductor. Clave: id (UUIDv7 del teléfono). Los ya
@@ -67,6 +69,9 @@ export const STORES = {
   /** «Cargar la guía» a medio hacer (almacen/borrador-guia.ts). Clave: fecha. Uno
    *  por día; se borra al crear los pedidos o al descartar lo leído. */
   borradoresGuia: "borradoresGuia",
+  /** Calles aprendidas (almacen/calles-aprendidas.ts, spec 044). Clave: la calle escrita. Sin
+   *  número de casa ni nada de una persona: NO va en STORES_DEL_DIA. */
+  callesAprendidas: "callesAprendidas",
 } as const satisfies { [S in Store]: S };
 
 /** Índice de `fotos` por día: las claves de un día sin cargar las imágenes. */
@@ -87,6 +92,7 @@ type FilaDe = {
   fotos: Foto;
   propuestas: PropuestaGuardada;
   borradoresGuia: BorradorGuia;
+  callesAprendidas: CalleAprendida;
 };
 
 type Store = keyof FilaDe;
@@ -148,6 +154,9 @@ function abrir(): Promise<IDBDatabase> {
       }
       if (!base.objectStoreNames.contains(STORES.borradoresGuia)) {
         base.createObjectStore(STORES.borradoresGuia, { keyPath: "fecha" });
+      }
+      if (!base.objectStoreNames.contains(STORES.callesAprendidas)) {
+        base.createObjectStore(STORES.callesAprendidas, { keyPath: "escrita" });
       }
 
       // La transacción de versión es atómica: si la migración falla, la base

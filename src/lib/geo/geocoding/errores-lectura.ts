@@ -42,10 +42,37 @@ function letrasEnPalabra(palabra: string): string {
   });
 }
 
+/** Las palabras que se repiten a propósito en una calle de Arica («Colo Colo», «Llay Llay», «Luis
+ *  Urzúa Urzúa», «Río Calle Calle»): esas no se juntan. Sacadas del catálogo (calles-arica.ts); una
+ *  prueba avisa si el catálogo trae otra. */
+export const REPETIDAS_EN_CALLES = new Set(["colo", "llay", "urzua", "calle"]);
+
+const comparable = (p: string) => p.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+/** «CALLE CABRERO CABRERO 942», «SANTIAGO ARATA SANTIAGO ARATA 943»: la misma palabra (o las mismas
+ *  dos o tres) dos veces seguidas es una sola (dueño, 2026-11-20). Solo palabras de letras: el
+ *  número repetido lo junta sinNumeroRepetido (consulta.ts). */
+function sinPalabrasRepetidas(texto: string): string {
+  const palabras = texto.split(" ");
+  for (let largo = 3; largo >= 1; largo--) {
+    for (let i = 0; i + 2 * largo <= palabras.length; i++) {
+      const iguales = palabras
+        .slice(i, i + largo)
+        .every((p, k) => /^\p{L}{2,}$/u.test(p) && comparable(p) === comparable(palabras[i + largo + k]));
+      const deUnaCalle = largo === 1 && REPETIDAS_EN_CALLES.has(comparable(palabras[i]));
+      if (iguales && !deUnaCalle && (largo > 1 || palabras[i].length >= 3)) {
+        palabras.splice(i + largo, largo);
+        i--;
+      }
+    }
+  }
+  return palabras.join(" ");
+}
+
 /** La dirección como se quiso escribir: sin los errores de lectura de la cámara. Se aplica al
  *  destino leído (lo que ve el conductor) y a la consulta (lectura/guia.ts y consulta.ts). */
 export function corregirLectura(texto: string): string {
-  return texto
+  const limpio = texto
     .replace(SIGNOS_SUELTOS, " ")
     .replace(N_PEGADA, "")
     .split(/(\s+)/)
@@ -54,4 +81,5 @@ export function corregirLectura(texto: string): string {
     .replace(NUMERO_PEGADO, "$1 $2")
     .replace(/\s+/g, " ")
     .trim();
+  return sinPalabrasRepetidas(limpio);
 }

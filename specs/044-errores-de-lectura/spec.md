@@ -36,6 +36,33 @@ errores de lectura de la cámara**, no de la dirección. Rama `044-errores-de-le
 Con las 72 del ensayo (sin red): las 18 que corrigió la IA salen con la consulta correcta y su calle
 en el catálogo. Queda sin arreglo una dirección que la nómina leyó cortada (sin número).
 
+## Lo que siguió en el teléfono (2026-11-20)
+- Palabra repetida seguida («CALLE CABRERO CABRERO») queda una; no en las calles que la repiten
+  (Colo Colo, Llay Llay, Luis Urzúa Urzúa, Río Calle Calle: `REPETIDAS_EN_CALLES`, cruzada con el catálogo).
+- El sector tras el número de casa («… 1450 CHINCHORRO ALTO») es referencia: la consulta termina en
+  el número y se le pregunta a Google.
+- **Coincidencia holgada** (`coincidenciaHolgada`, `callesSimilares`): si nada calza estricto, un
+  cuarto de las letras por palabra, 3 en total, la mitad de las palabras estrictas y nunca
+  norte/sur/oriente/poniente; Google confirma la puerta con ese número. Medido real: «ORIZOMBO BARBOZA
+  …» exacta con 1 consulta.
+- **La calle sola de Google trae su nombre** («alvarez» → «Francisco Alvares Romero»): con él y el
+  número da la puerta. Medido real: exacta con 3 consultas.
+
+## Calles aprendidas (dueño, 2026-11-20: «que cada corrección quede guardada»; Supabase compartido)
+```
+confirmar corrección (IA o a mano) ─┐                      ┌─ ubicarDireccion: la calle aprendida
+Google confirma la puerta ──────────┴─ aprenderCalle ──────┤   se busca con su nombre oficial
+                                        │ (no: ambigua, genérica,   └─ (sin IA, menos consultas)
+                                        │  otra calle, con número)
+                          IndexedDB `callesAprendidas` v8 ⇄ Supabase `encomienda_calles_aprendidas` (0009)
+                          (no se borra con el día)        (lee todos; aprende por función; el jefe borra)
+```
+- Solo «calle escrita → oficial», sin número de casa, OF, nombre ni fecha: no identifica a nadie.
+- En modo prueba se aprende y se usa en el teléfono, sin subir; sube cuando se apague.
+- La 0009 corrió en producción el 2026-11-20 (MCP de Supabase, con el visto bueno del dueño): verificación
+  todo `true` y `npm run test:esquema` OK. Pendiente: una vista en el panel para revisar y borrar lo mal
+  aprendido.
+
 ## Armar la ruta
 Ya usa las coordenadas de la carga: «Optimizar ruta» solo reintenta los pedidos **sin punto** (hasta 5,
 con la memoria del día de Google y OSM; `generar-ruta/ubicar-pedidos.ts`). Menos «Sin ubicar» es menos

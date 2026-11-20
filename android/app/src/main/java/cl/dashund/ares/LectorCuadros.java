@@ -181,7 +181,9 @@ final class LectorCuadros {
         Tasks.whenAllComplete(conCodigos, conTexto).addOnCompleteListener(fueraDePantalla, listo -> {
             try {
                 long msLector = SystemClock.elapsedRealtime() - inicio;
-                if (!cerrado) salida.cuadro(evento(n, inicio, msLector, conCodigos, conTexto, anchoDerecho, altoDerecho));
+                // La imagen sigue abierta hasta soltar el cuadro: con ella se mide el color de
+                // los íconos de la lista de Starken (ColorIconos, spec 045).
+                if (!cerrado) salida.cuadro(evento(n, inicio, msLector, conCodigos, conTexto, anchoDerecho, altoDerecho, imagen, giro));
             } finally {
                 cuadro.close();
             }
@@ -238,14 +240,15 @@ final class LectorCuadros {
         conTexto.addOnCompleteListener(suHilo, listo -> {
             try {
                 long msLector = SystemClock.elapsedRealtime() - inicio;
-                if (!cerrado) salida.cuadro(evento(n, inicio, msLector, null, conTexto, anchoDerecho, altoDerecho));
+                // El búfer copiado no trae el color (el plano Y solo): sin íconos.
+                if (!cerrado) salida.cuadro(evento(n, inicio, msLector, null, conTexto, anchoDerecho, altoDerecho, null, giro));
             } finally {
                 libres.offer(r);
             }
         });
     }
 
-    private JSObject evento(int n, long inicio, long msLector, Task<List<Barcode>> conCodigos, Task<Text> conTexto, int anchoDerecho, int altoDerecho) {
+    private JSObject evento(int n, long inicio, long msLector, Task<List<Barcode>> conCodigos, Task<Text> conTexto, int anchoDerecho, int altoDerecho, Image imagen, int giro) {
         long armar = SystemClock.elapsedRealtime();
         JSArray valores = new JSArray();
         if (conCodigos != null && conCodigos.isSuccessful()) {
@@ -266,6 +269,8 @@ final class LectorCuadros {
                     renglon.put("alto", caja != null ? caja.height() : 0);
                     JSArray numeros = numerosLargos(linea);
                     if (numeros.length() > 0) renglon.put("numeros", numeros);
+                    JSArray iconos = ColorIconos.delRenglon(linea, imagen, giro);
+                    if (iconos != null) renglon.put("iconos", iconos);
                     renglones.put(renglon);
                 }
             }

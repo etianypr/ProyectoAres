@@ -110,6 +110,7 @@ Las tablas conservan sus nombres hasta la spec 002 (US2); en el código ya tiene
 | `encomienda_reglas_pago` | `ReglaDePago` |
 | `encomienda_whatsapp_correlaciones` | `Aviso` (copia temporal del aviso) |
 | `encomienda_periodos_facturacion` · `encomienda_ingresos_reales` | `PeriodoFacturacion` · `IngresoReal` |
+| `encomienda_calles_aprendidas` (0009, spec 044) | `CalleAprendidaFila`: calle escrita → oficial, sin número de casa ni nada de una persona; el conductor la lee y aprende por `encomienda_aprender_calle()`, el jefe además borra. Sin `empresa_id` (una sola empresa) |
 
 Campos completos: `src/types/db.ts` (tipo `Database`, el que usan los clientes de Supabase);
 vista esencial: `docs/CLASES.md` §1. Todas llevan `empresa_id` (trigger
@@ -128,7 +129,7 @@ vista esencial: `docs/CLASES.md` §1. Todas llevan `empresa_id` (trigger
 Migraciones: 0001 base (empresa, perfiles y roles, conductores, storage) · 0002 encomiendas y
 cálculo del pago · 0003 bloques horarios y correlaciones de WhatsApp (y el `motivo` heredado) ·
 0004 botón "Mañana" · 0005 recalcular o valorar un día solo con rol de jefe · 0006 "chofer" →
-"conductor" · 0007 indicadores. Se corren en orden (SQL Editor o MCP de Supabase), son
+"conductor" · 0007 indicadores · 0009 calles aprendidas (spec 044; la 0008 la reserva la rama 004). Se corren en orden (SQL Editor o MCP de Supabase), son
 re-ejecutables, terminan en un `select` de verificación (todo `true`) y requieren `pg_cron` y
 `btree_gist`.
 
@@ -142,7 +143,7 @@ es solo para `admin`/`operador` y la app solo para `conductor`; RLS repite la re
 | Conteos de entregadas y no entregadas | los suyos | de todos |
 | Reglas de pago, bonos y bloques horarios | los lee | los configura |
 
-### Teléfono (IndexedDB `dashund-encomiendas` v7)
+### Teléfono (IndexedDB `dashund-encomiendas` v8)
 
 | Store | Clave | Contenido | Relación |
 |---|---|---|---|
@@ -152,6 +153,7 @@ es solo para `admin`/`operador` y la app solo para `conductor`; RLS repite la re
 | `fotos` | `id` (índice `por_fecha`) | `Foto` del paquete, JPEG ≤ 1280 px (spec 003) | `Pedido.fotoId`; se borra al cerrarse el pedido y con el día |
 | `propuestas` | `fecha` | `PropuestaGuardada`: la ruta propuesta a la vista y sin aceptar (v6, dueño 2026-11-09), con las paradas como id y punto, el trazado y los avisos; vuelve sola al abrir si los pendientes no cambiaron (`generar-ruta/propuesta-guardada.ts`) | paradas → pedidos; se borra al usarla o descartarla y con el día |
 | `borradoresGuia` | `fecha` | `BorradorGuia`: «Cargar la guía» leída y sin «Crear pedidos» (v7, dueño 2026-11-13): paso, líneas (OF, destino, teléfono anotado y, de la nómina, sus bultos; spec 036), folio, total, texto pegado, quién leyó y, si se estaba barriendo la nómina, `barrido` (sus votos: OF, direcciones, bultos, el reloj del barrido y qué fila de OF salió debajo de cuál, sin nombres, para seguir la misma lectura; specs 034 y 036). Al abrir la app con uno, se vuelve a esa ventana en su paso (`_hooks/use-borrador-guia.ts`); las fotos sin leer no se guardan | se borra al crear los pedidos o descartar lo leído y con el día |
+| `callesAprendidas` | `escrita` | `CalleAprendida` (v8, spec 044, dueño 2026-11-20): calle escrita → oficial, con su fuente (conductor, IA confirmada o Google), confirmaciones y `porEnviar`. Sin datos de nadie: **no** está en `STORES_DEL_DIA` (sobrevive al día y al cierre de sesión). `local/calles-aprendidas.ts` la sube y la trae de Supabase (en modo prueba no sube) y la pone en la memoria de `ubicarDireccion` (`geocoding/aprendidas.ts`) | ↔ `encomienda_calles_aprendidas` |
 | `dias` | `fecha` | `ResumenDia`: solo cifras de un día ya borrado (spec 007): entregas, cobros sumados y pedidos por origen de carga (005), sin datos de destinatarios. Quedan los últimos 60 días (`DIAS_DE_RESUMEN`), salvo uno con eventos en la `cola` | inicio y cierre → `encomienda_jornadas` si la ruta ya no está |
 
 Formas en `local/almacen/tipos.ts`; `idb.ts` (`FilaDe`) tipa cada store y solo `almacen/` lo usa.

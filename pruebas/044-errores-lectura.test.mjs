@@ -31,6 +31,30 @@ test("signos sueltos y números pegados se separan", () => {
   );
 });
 
+test("la palabra repetida seguida queda una vez, salvo en las calles que la repiten (2026-11-20)", () => {
+  assert.equal(corregirLectura("CALLE CABRERO CABRERO 942"), "CALLE CABRERO 942");
+  assert.equal(corregirLectura("Calle Cabrero cabrero 942"), "Calle Cabrero 942");
+  assert.equal(corregirLectura("SANTIAGO ARATA SANTIAGO ARATA 943"), "SANTIAGO ARATA 943");
+  for (const t of ["PASAJE COLO COLO 944", "LLAY LLAY 945", "LUIS URZUA URZUA 946", "RIO CALLE CALLE 947", "LA LA 948"]) {
+    assert.equal(corregirLectura(t), t, t);
+  }
+});
+
+test("las calles del catálogo con una palabra repetida están todas en REPETIDAS_EN_CALLES", async () => {
+  const { CALLES_ARICA } = await import("@/lib/geo/geocoding/calles-arica");
+  const { REPETIDAS_EN_CALLES } = await import("@/lib/geo/geocoding/errores-lectura");
+  const comparable = (p) => p.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  const repetidas = new Set();
+  for (const fila of CALLES_ARICA.split("\n").filter(Boolean)) {
+    const [nombre, , otros] = fila.split("|");
+    for (const n of [nombre, ...(otros ? otros.split(";") : [])]) {
+      const ps = n.split(/\s+/).map(comparable);
+      ps.forEach((p, i) => p.length >= 3 && p === ps[i + 1] && repetidas.add(p));
+    }
+  }
+  for (const p of repetidas) assert.ok(REPETIDAS_EN_CALLES.has(p), `«${p}» se repite en una calle: agrégala`);
+});
+
 test("lo que de verdad es un número no se toca", () => {
   for (const t of ["EL CANELO 0941", "PASAJE 1 NORTE 908", "21 DE MAYO 500", "CALLE 2 977 A", "1ER PISO", "PASAJE1 909", "SAN MARCOS 100B"]) {
     assert.equal(corregirLectura(t), t, t);
@@ -64,6 +88,27 @@ test("una letra mal leída en una palabra de cuatro se acepta solo con otras dos
   assert.equal(coincidenciaCalle("Pasaje Lima", "Pasaje Lira"), null);
 });
 
+test("holgada: muchas palabras iguales y una con dos letras cambiadas calzan; las calles distintas no (2026-11-20)", async () => {
+  const { coincidenciaHolgada, esLaCalleParecida } = await import("@/lib/geo/geocoding/consulta");
+  assert.equal(coincidenciaCalle("ORIZOMBO BARBOZA", "Orozimbo Barbosa"), null, "con la estricta no calza");
+  assert.ok(coincidenciaHolgada("ORIZOMBO BARBOZA", "Orozimbo Barbosa"));
+  assert.ok(esLaCalleParecida("ORIZOMBO BARBOZA", "Orozimbo Barbosa"));
+  // No se cuelan calles distintas.
+  assert.equal(coincidenciaHolgada("LINDEROS PONIENTE", "Avenida Linderos Oriente"), null, "oriente y poniente no se corrigen");
+  assert.equal(coincidenciaHolgada("SAN MARCOS", "San Martín"), null);
+  assert.equal(coincidenciaHolgada("JOSE MIGUEL CARRERA", "José Manuel Carrera"), null);
+  assert.equal(coincidenciaHolgada("ORIZOMBO", "Orozimbo Barbosa"), null, "una palabra sola va con la estricta");
+  assert.equal(coincidenciaHolgada("ORIZOMBO BARTOLO", "Orozimbo Barbosa"), null, "la mitad tiene que calzar estricta");
+  assert.equal(esLaCalleParecida("Avenida Diego Portales", "Avenida Senador Humberto Palza Corvacho"), false);
+});
+
+test("el catálogo da la calle con la holgada solo si ninguna calza estricta", async () => {
+  const { callesSimilares } = await import("@/lib/geo/geocoding/calles");
+  assert.deepEqual((await callesSimilares("ORIZOMBO BARBOZA")).map((c) => c.nombre), ["Orozimbo Barbosa"]);
+  assert.deepEqual((await callesSimilares("BRAULIO MUNIZ")).map((c) => c.nombre), ["Braulio Muñoz"], "la estricta, como siempre");
+  assert.deepEqual(await callesSimilares("PASAJE QWERTY ZXCVB"), []);
+});
+
 test("el catálogo da el nombre oficial de lo mal leído", async () => {
   assert.equal((await callesParecidas("JOSE DLAZ GANA"))[0]?.nombre, "José Díaz Gana");
   assert.equal((await callesParecidas("RAUY PEY CASADO"))[0]?.nombre, "Avenida Ingeniero Raúl Pey Casado");
@@ -90,6 +135,18 @@ test("«X con Y número»: la casa está en la calle del número y la otra es la
     referencia: "CON CANCHA RAYADA",
     cruces: ["CANCHA RAYADA"],
   });
+});
+
+test("el sector tras el número de casa es referencia: se busca la calle con su número (2026-11-20)", () => {
+  assert.deepEqual(separarReferencias("DAVID GIRVAN 937 CHINCHORRO ALTO"), {
+    consulta: "DAVID GIRVAN 937",
+    referencia: "CHINCHORRO ALTO",
+    cruces: [],
+  });
+  // Lo que es del timbre, la ciudad y el número de un nombre se quedan como estaban.
+  for (const texto of ["CHACABUCO 500 DEPTO 3", "SANTIAGO ARATA 938 SEGUNDO PISO", "LA PAZ 939 CASA", "PASAJE 1 NORTE", "CALLE 2 977 A", "LA PAZ 940 ARICA", "SAN MARCOS 100 B"]) {
+    assert.equal(separarReferencias(texto).consulta, texto, texto);
+  }
 });
 
 test("el destino leído de la nómina se ve sin los errores, con el depto", () => {
@@ -164,6 +221,48 @@ test("«DAVID GIRVAN 931 ARICA |Des» le pregunta a Google y se ubica de una", a
   const r = await ubicarDireccion("DAVID GIRVAN 931 ARICA |Des");
   assert.equal(r.tipo, "exacta");
   assert.equal(r.elegida?.direccion, "David Girban 931");
+});
+
+test("«DAVID GIRVAN 941 CHINCHORRO ALTO» le pregunta a Google por la calle con su número y se ubica de una", async () => {
+  google = (q) => (q === "DAVID GIRVAN 941" ? puerta("David Girban", "941", -18.45, -70.29) : sinResultados);
+  const r = await ubicarDireccion("DAVID GIRVAN 941 CHINCHORRO ALTO");
+  assert.equal(r.tipo, "exacta");
+  assert.equal(r.elegida?.direccion, "David Girban 941");
+});
+
+test("«ORIZOMBO BARBOZA 942»: Google confirma la puerta en «Orozimbo Barbosa» y se ubica de una", async () => {
+  // Google contesta la puerta con el nombre oficial, pregunte como pregunte.
+  google = (q) => (/9(42)$/.test(q) && /barbo[sz]a/i.test(q) ? puerta("Orozimbo Barbosa", "942", -18.46, -70.3) : sinResultados);
+  const r = await ubicarDireccion("ORIZOMBO BARBOZA 942");
+  assert.equal(r.tipo, "exacta");
+  assert.equal(r.elegida?.direccion, "Orozimbo Barbosa 942");
+  // Con otro número en la puerta de Google, no: el número tiene que ser el escrito.
+  olvidarConsultasGoogle();
+  google = () => puerta("Orozimbo Barbosa", "999", -18.46, -70.3);
+  assert.notEqual((await ubicarDireccion("ORIZOMBO BARBOZA 943")).tipo, "exacta");
+});
+
+test("la calle sola de Google trae su nombre: con él y el número se encuentra la puerta (2026-11-20)", async () => {
+  const soloRuta = (calle) => ({
+    status: "OK",
+    results: [
+      {
+        place_id: `g-${calle}`,
+        address_components: [{ long_name: calle, short_name: calle, types: ["route"] }],
+        geometry: { location: { lat: -18.45, lng: -70.29 }, location_type: "GEOMETRIC_CENTER" },
+      },
+    ],
+  });
+  // Google conoce la calle como «Alvares»: con «alvarez» da solo la calle; con su nombre, la puerta.
+  google = (q) => (q === "Francisco Alvares Romero 944" ? puerta("Francisco Alvares Romero", "944", -18.45, -70.29) : /alvarez/i.test(q) ? soloRuta("Francisco Alvares Romero") : sinResultados);
+  const r = await ubicarDireccion("chile, pasaje francisco alvarez romero no 944");
+  assert.equal(r.tipo, "exacta");
+  assert.equal(r.elegida?.direccion, "Francisco Alvares Romero 944");
+  // Al escribir, las sugerencias de Google siguen siendo solo puertas.
+  const { sugerirDirecciones } = await import("@/lib/geo/geocoding/sugerir");
+  olvidarConsultasGoogle();
+  google = () => soloRuta("Francisco Alvares Romero");
+  assert.deepEqual(await sugerirDirecciones("pasaje francisco alvarez romero 945"), []);
 });
 
 test("«Calle Jose Dlaz Gana 932»: la puerta de Google con el nombre bien escrito se acepta", async () => {

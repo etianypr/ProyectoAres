@@ -233,15 +233,42 @@ export function coincidenciaPartida(escrito: EscritoPartido, enLaCalle: string[]
   return exactas >= 2 ? coincidir(escrito, enLaCalle, 1) : null;
 }
 
-/** `holgura`: letras que se aceptan corregir en una palabra de cuatro. */
-function coincidir({ buscadas, titulos }: EscritoPartido, enLaCalle: string[], holgura: number): Coincidencia | null {
+/** Lo más que puede corregir, sumando todas las palabras, la coincidencia holgada. */
+const MAX_EDICIONES_HOLGADA = 3;
+
+/** La coincidencia holgada (dueño, 2026-11-20: «muchas palabras son iguales excepto…»): solo
+ *  cuando la estricta no calza. Cada palabra puede traer hasta un cuarto de sus letras cambiadas
+ *  («ORIZOMBO» por «Orozimbo»: dos de ocho), con MAX_EDICIONES_HOLGADA en total, y la mitad o más
+ *  de las palabras (dos como mínimo) tiene que calzar con la estricta. Norte, sur, oriente y
+ *  poniente van siempre con la estricta: separan calles. Quien la usa le pide a Google la puerta
+ *  con ese número en esa calle: no decide sola. */
+export function coincidenciaHolgada(escrito: string, nombreCalle: string): Coincidencia | null {
+  return coincidenciaHolgadaPartida(partirEscrito(escrito), palabrasDe(nombreCalle));
+}
+
+export function coincidenciaHolgadaPartida(escrito: EscritoPartido, enLaCalle: string[]): Coincidencia | null {
+  const { buscadas } = escrito;
+  if (buscadas.length < 2) return null;
+  const firmes = buscadas.filter((p) => enLaCalle.some((q) => parecido(p, q, 1) !== null)).length;
+  if (2 * firmes < buscadas.length) return null;
+  const c = coincidir(escrito, enLaCalle, 1, true);
+  return c && c.ediciones <= MAX_EDICIONES_HOLGADA ? c : null;
+}
+
+/** La estricta o, si no, la holgada. */
+export function esLaCalleParecida(escrito: string, nombreCalle: string): boolean {
+  return esLaCalleEscrita(escrito, nombreCalle) || coincidenciaHolgada(escrito, nombreCalle) !== null;
+}
+
+/** `holgura`: letras que se aceptan corregir en una palabra de cuatro; `ancho`: la holgada. */
+function coincidir({ buscadas, titulos }: EscritoPartido, enLaCalle: string[], holgura: number, ancho = false): Coincidencia | null {
   const usadas = new Set<number>();
   const buscar = (p: string): number | null => {
     let mejor = -1;
     let costo = Infinity;
     enLaCalle.forEach((q, i) => {
       if (usadas.has(i)) return;
-      const d = parecido(p, q, holgura);
+      const d = parecido(p, q, holgura, ancho);
       if (d !== null && d < costo) [mejor, costo] = [i, d];
     });
     if (mejor < 0) return null;
@@ -273,12 +300,17 @@ export function compararCoincidencias(a: Coincidencia, b: Coincidencia): number 
   return a.ediciones - b.ediciones || a.faltantes - b.faltantes || a.sobrantes - b.sobrantes;
 }
 
-/** null si no son la misma palabra; si no, cuántas letras hubo que corregir. */
-function parecido(a: string, b: string, holgura = 0): number | null {
+/** Separan calles que se llaman igual: nunca se corrigen con la holgada. */
+const CARDINALES = new Set(["norte", "sur", "oriente", "poniente", "este", "oeste"]);
+
+/** null si no son la misma palabra; si no, cuántas letras hubo que corregir. `ancho`: hasta un
+ *  cuarto de sus letras (la coincidencia holgada). */
+function parecido(a: string, b: string, holgura = 0, ancho = false): number | null {
   if (a === b) return 0;
   if (/\d/.test(a) || /\d/.test(b)) return null;
   const corta = Math.min(a.length, b.length);
-  const tope = corta >= 9 ? 2 : corta >= 5 ? 1 : corta === 4 ? holgura : 0;
+  const estricto = corta >= 9 ? 2 : corta >= 5 ? 1 : corta === 4 ? holgura : 0;
+  const tope = ancho && !CARDINALES.has(a) && !CARDINALES.has(b) ? Math.max(estricto, Math.floor(corta / 4)) : estricto;
   if (tope === 0 || Math.abs(a.length - b.length) > tope) return null;
   const d = distanciaEdicion(a, b);
   return d <= tope ? d : null;

@@ -28,8 +28,9 @@ export function lineasDelBarrido(
   r: ResultadoNomina,
   entregadas: Record<string, boolean> = {},
 ): {
-  /** `bultos`: la columna BULTOS de la nómina, si se leyó (spec 036; va al pedido). */
-  lineas: { of: string; destino: string; bultos?: number }[];
+  /** `bultos`: la columna BULTOS de la nómina, si se leyó (spec 036; va al pedido).
+   *  `porPagar`: su ícono de la lista de Starken salió verde (spec 045; va al pedido). */
+  lineas: { of: string; destino: string; bultos?: number; porPagar?: boolean }[];
   porConfirmar: Set<string>;
   total: number | null;
   entregadas: Record<string, boolean>;
@@ -46,7 +47,12 @@ export function lineasDelBarrido(
   const ahora = Object.fromEntries(Object.entries(entregadas).filter(([of]) => !sobran.includes(of)));
   for (const l of r.lista) ahora[l.of] = ahora[l.of] === true || l.estado === "firme";
   return {
-    lineas: nuevas.map((l) => ({ of: l.of, destino: l.destino ?? "", ...(l.bultos != null ? { bultos: l.bultos } : {}) })),
+    lineas: nuevas.map((l) => ({
+      of: l.of,
+      destino: l.destino ?? "",
+      ...(l.bultos != null ? { bultos: l.bultos } : {}),
+      ...(l.porPagar ? { porPagar: true } : {}),
+    })),
     porConfirmar: new Set(nuevas.filter((l) => l.estado !== "firme").map((l) => l.of)),
     total: r.total,
     entregadas: ahora,

@@ -169,6 +169,7 @@ las tablas llevan `empresa_id` y RLS. Tipos de servidor: `src/types/db.ts`; del 
 | Cifras de un día ya borrado | Teléfono · `dias` (sobrevive) | `ResumenDia` |
 | Foto del paquete | Teléfono · `fotos` (se borra al cerrarse el pedido y con el día) | `Foto` |
 | Ruta propuesta sin aceptar | Teléfono · `propuestas` (una por día; se borra al usarla o descartarla y con el día) | `PropuestaGuardada` |
+| Calle aprendida (spec 044): escrita → oficial, sin número de casa | Teléfono · `callesAprendidas` (v8, no se borra con el día) ↔ Supabase `encomienda_calles_aprendidas` (0009) | `CalleAprendida` (`local/almacen/tipos.ts`) · `CalleAprendidaFila` (`types/db.ts`); `geocoding/aprendidas.ts` (memoria, `conCalleAprendida`, `aprenderCalle`) y `local/calles-aprendidas.ts` (sincronizar, `aprenderDeCorreccion`) |
 | Guía leída sin crear los pedidos | Teléfono · `borradoresGuia` (una por día; se borra al crear, al descartar y con el día) | `BorradorGuia` (con `barrido?: BarridoGuardado`, los votos del barrido de la nómina en curso, spec 034; desde la 036 traen también el reloj del barrido, los bultos y qué fila de OF salió debajo de cuál, y las líneas sus `bultos`) |
 | Corrección de la IA sin confirmar | Teléfono · `pedidos` (campo opcional; se quita al confirmar o cambiar la dirección) | `Pedido.propuestaIA` |
 | Hecho de entregar u omitir | Teléfono · `cola` → Postgres (mismo id) | `ActividadPorEnviar` → `Actividad` |

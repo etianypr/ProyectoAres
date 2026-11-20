@@ -23,7 +23,12 @@ export function useBarridoDeGuia({
   /** La parte libre del recuadro, para las flechas (spec 036; visor-guia.tsx). */
   zona?: () => ZonaViva | null;
   /** Las líneas nuevas del barrido, para sumarlas a la guía (con sus bultos, si se leyeron). */
-  alSumar: (lineas: { of: string; destino: string; bultos?: number }[], total: number | null, porConfirmar: Set<string>, orden: string[]) => void;
+  alSumar: (
+    lineas: { of: string; destino: string; bultos?: number; porPagar?: boolean }[],
+    total: number | null,
+    porConfirmar: Set<string>,
+    orden: string[],
+  ) => void;
   /** OF entregadas por confirmar que resultaron ser una mala lectura de otra. */
   alSobrar: (ofs: string[]) => void;
   /** Se terminó sin leer ninguna OF. */

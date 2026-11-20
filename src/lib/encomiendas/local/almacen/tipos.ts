@@ -309,3 +309,19 @@ export type BorradorGuia = {
    *  direcciones, sin nombres. Opcional: un borrador anterior no lo trae. */
   barrido?: BarridoGuardado;
 };
+
+/** Una calle aprendida (store `callesAprendidas`, v8; spec 044, dueño 2026-11-20): cómo viene
+ *  escrita → cómo se llama. Sin número de casa ni nada de una persona: no se borra con el día y se
+ *  comparte en Supabase (`encomienda_calles_aprendidas`, 0009). */
+export type CalleAprendida = {
+  /** La calle escrita como la busca la app, sin el número (`claveDeCalle`). La clave del store. */
+  escrita: string;
+  oficial: string;
+  /** Quién la confirmó: el conductor (a mano), la IA (con «Confirmar») o Google (la puerta). */
+  fuente: "conductor" | "ia" | "google";
+  confirmaciones: number;
+  /** ISO, la última vez que se confirmó. */
+  actualizada: string;
+  /** Falta subirla a Supabase (sin conexión, o en modo prueba). */
+  porEnviar: boolean;
+};

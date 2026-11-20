@@ -3,6 +3,7 @@
 // barrido-nomina.ts, que lo usa, para no pasar de 400 líneas (A7).
 
 import { elegirTexto, distancia, parecidos } from "./etiqueta/votos";
+import { VOTOS_POR_PAGAR } from "./lista-flete";
 import { DIGITOS_DEL_PREFIJO, sinOchos } from "./rango-nomina";
 import type { LineaNomina, ReglaFirme } from "./tipos-nomina";
 
@@ -51,6 +52,7 @@ export type Lectura = {
   destino: string | null;
   /** La columna BULTOS → cuántas veces se leyó así. */
   bultos: Record<string, number>;
+  porPagar: number; // cuadros con su ícono de la lista de Starken en verde (spec 045)
   /** Solo al medir otras reglas (Diagnóstico): por dígito, el peso de su confianza y las
    *  veces que salió con CONFIANZA_ALTA. */
   pesos?: number[];
@@ -222,6 +224,7 @@ export function decidir({ lecturas }: Bloque, regla: ReglaFirme = "dosDeTres"): 
     destinoFirme: destino.firme,
     lecturas: lecturas.length,
     bultos,
+    porPagar: lecturas.reduce((s, l) => s + l.porPagar, 0) >= VOTOS_POR_PAGAR,
     orden: Math.min(...lecturas.map((l) => l.orden)),
     corregidas: total - (lecturas.find((l) => l.of === of)?.votos ?? 0),
     firmeSinPrefijo,

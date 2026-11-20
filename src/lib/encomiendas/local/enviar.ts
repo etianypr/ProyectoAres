@@ -30,6 +30,7 @@ import {
   quitarDeCola,
   type ActividadPorEnviar,
 } from "./almacen";
+import { prepararCallesAprendidas, sincronizarCallesAprendidas } from "./calles-aprendidas";
 import { enModoPrueba } from "./modo-prueba";
 
 // Un tope por consulta para no armar un cuerpo enorme con una conexión mala:
@@ -244,6 +245,8 @@ export function useEnvioActividad(
         // Si quedó algo, el reintento del minuto siguiente vuelve a pasar por acá
         // y cierra entonces.
         if (quedaron === 0) await sincronizarDiaTrabajo(conductorId, fecha);
+        // Las calles aprendidas (spec 044): suben y bajan aparte, sin trabar lo de arriba.
+        void sincronizarCallesAprendidas();
       } catch (e) {
         setError(e instanceof Error ? e.message : "No se pudo enviar la actividad.");
         // El contador tiene que seguir a la vista aunque el envío falle: es la
@@ -263,6 +266,11 @@ export function useEnvioActividad(
       }
     })();
   }, [conductorId, fecha]);
+
+  // Lo aprendido a la memoria de ubicar antes de la primera dirección (spec 044).
+  useEffect(() => {
+    void prepararCallesAprendidas();
+  }, []);
 
   useEffect(() => {
     if (!activo) return;

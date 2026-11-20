@@ -28,6 +28,9 @@ export type LineaGuia = {
   /** Los bultos de la OF, leídos en la nómina (columna BULTOS; spec 036). Pasan al
    *  pedido. La guía de despacho no los trae: sin ellos la línea cuenta 1. */
   bultos?: number;
+  /** El ícono PxP o COD de la lista de Starken salió verde: por pagar (spec 045). El monto no
+   *  viene en la lista: lo da la etiqueta, y nunca se supone $0. */
+  porPagar?: boolean;
 };
 
 export type GuiaLeida = {
@@ -112,7 +115,7 @@ export function faltanEnLaPrimera(primera: GuiaLeida, segunda: GuiaLeida): boole
 
 /** Líneas crudas → GuiaLeida, con las OF repetidas juntas y los avisos. */
 export function armarGuia(
-  crudas: { of: string; destino: string; bultos?: number }[],
+  crudas: { of: string; destino: string; bultos?: number; porPagar?: boolean }[],
   folio: string | null,
   totalDeclarado: number | null,
 ): GuiaLeida {
@@ -128,7 +131,13 @@ export function armarGuia(
     const valida = conLetras ? null : ofValida(digitos);
     const of = valida ?? (conLetras ? cruda.of.replace(/\s+/g, "").toUpperCase() : digitos);
     const destino = limpiarDestino(cruda.destino);
-    const linea: LineaGuia = { of, destino, dudosa: valida === null || destino === "", ...(cruda.bultos != null ? { bultos: cruda.bultos } : {}) };
+    const linea: LineaGuia = {
+      of,
+      destino,
+      dudosa: valida === null || destino === "",
+      ...(cruda.bultos != null ? { bultos: cruda.bultos } : {}),
+      ...(cruda.porPagar ? { porPagar: true } : {}),
+    };
     const antes = porOf.get(of);
     if (antes) {
       repetidas++;
@@ -138,7 +147,9 @@ export function armarGuia(
       // Los bultos de la nómina no se pierden con la otra lectura; manda la más nueva (spec 036).
       const queda = mejor ? linea : antes;
       const bultos = linea.bultos ?? antes.bultos;
-      porOf.set(of, bultos != null ? { ...queda, bultos } : queda);
+      // Por pagar visto en una de las dos lecturas (la lista de Starken) tampoco se pierde.
+      const porPagar = linea.porPagar || antes.porPagar;
+      porOf.set(of, { ...queda, ...(bultos != null ? { bultos } : {}), ...(porPagar ? { porPagar: true } : {}) });
       continue;
     }
     porOf.set(of, linea);
