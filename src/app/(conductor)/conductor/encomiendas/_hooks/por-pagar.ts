@@ -11,6 +11,17 @@ export function porPagarPorRevisar(p: Pick<Pedido, "porPagar" | "origenCarga">):
   return p.porPagar === null && p.origenCarga !== "manual";
 }
 
+/** La ficha del pago de la parada (spec 046; dueño, 2026-11-20): se cobra (con su monto o por
+ *  revisar), está pagado, o falta leerlo. Nunca «pagado» sin haberlo leído (spec 005). null =
+ *  un pedido manual sin dato: no se muestra ficha. */
+export type PagoDelPedido = { tipo: "cobro"; monto: number | null } | { tipo: "pagado" } | { tipo: "sin_leer" };
+
+export function pagoDelPedido(p: Pick<Pedido, "porPagar" | "montoPorPagar" | "origenCarga">): PagoDelPedido | null {
+  if (p.porPagar) return { tipo: "cobro", monto: p.montoPorPagar };
+  if (p.porPagar === false) return { tipo: "pagado" };
+  return porPagarPorRevisar(p) ? { tipo: "sin_leer" } : null;
+}
+
 /** Los entregados del día con el cobro por revisar: el cierre los cuenta aparte. */
 export function entregadosPorRevisar(pedidos: Pedido[]): number {
   return pedidos.filter((p) => p.resultado === "entregado" && porPagarPorRevisar(p)).length;

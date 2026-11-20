@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Parada: burbuja y pestaña</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;700;800&family=IBM+Plex+Mono:wght@600&display=swap" rel="stylesheet">
+<style>
+  /* Los colores y medidas de BurbujaVista.java (Plano): 1 px aquí = 1 dp en el teléfono. */
+  :root {
+    --tinta: #221a15; --gris: #6b5f57; --papel: #fdfbf9; --fondo: #f4f0ec; --borde: #d9cfc6;
+    --marca: #c4491a; --marca-suave: #fff4ef; --naranja-mapa: #d4531a; --ok: #0f6b45;
+    --peligro: #b3261e; --peligro-suave: #fbe7e4; --aviso: #7a5200; --aviso-suave: #fdf3d9;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #e9e4de; color: var(--tinta); font: 15px/1.4 Manrope, system-ui, sans-serif; }
+  main { max-width: 1600px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--gris); margin: 0 0 8px; max-width: 900px; }
+  .marcar { display: inline-flex; gap: 6px; align-items: center; margin: 0 0 20px; font-size: 14px; color: var(--gris); cursor: pointer; }
+  .variantes { display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start; }
+  .variante { width: 400px; }
+  .variante h2 { font-size: 16px; margin: 0 0 4px; }
+  .variante p { margin: 0 0 10px; color: var(--gris); font-size: 13px; min-height: 54px; }
+
+  /* El teléfono del conductor (V2430: 720 × 1600 px a 300 dpi = 384 × 853 dp; más el marco de 8),
+     Google Maps navegando detrás. */
+  .telefono { position: relative; width: 400px; height: 869px; border-radius: 28px; overflow: hidden; border: 8px solid #1d1b1a; background: #e8eaed; box-shadow: 0 8px 24px rgba(0,0,0,.18); }
+  .mapa { position: absolute; inset: 0; background:
+      linear-gradient(90deg, transparent 47%, #fff 47%, #fff 53%, transparent 53%) 0 0 / 120px 120px,
+      linear-gradient(0deg, transparent 47%, #fff 47%, #fff 53%, transparent 53%) 0 0 / 120px 120px,
+      #e8eaed; }
+  .mapa::after { content: ""; position: absolute; left: 172px; top: 120px; width: 10px; height: 520px; background: #4c8bf5; border-radius: 6px; }
+  .indicacion { position: absolute; left: 8px; right: 8px; top: 8px; background: #0b8043; color: #fff; border-radius: 12px; padding: 12px 14px; font: 700 20px/1.2 system-ui, sans-serif; }
+  .indicacion small { display: block; font-size: 14px; font-weight: 400; opacity: .9; }
+  /* BurbujaServicio: heightPixels / 3. Sin la barra de navegación (~48 dp), 268 dp: el peor caso. */
+  .tercio { position: absolute; left: 0; right: 0; bottom: 0; height: 268px; border-top: 2px dashed rgba(179,38,30,.55); pointer-events: none; }
+  .tercio span { position: absolute; right: 6px; top: -20px; font-size: 11px; color: var(--peligro); background: rgba(255,255,255,.85); padding: 1px 6px; border-radius: 6px; }
+
+  /* La tarjeta (BurbujaVista.tarjeta). */
+  .tarjeta { position: absolute; left: 6px; right: 6px; bottom: 6px; background: var(--papel); border: 1px solid var(--borde); border-radius: 20px; padding: 8px 10px 12px 14px; box-shadow: 0 2px 10px rgba(0,0,0,.18); }
+  .cabeza { display: flex; align-items: center; }
+  .secuencia { width: 32px; height: 32px; border-radius: 999px; background: var(--marca); color: #fff; font-weight: 700; font-size: 13px; display: grid; place-items: center; margin-right: 10px; flex: none; }
+  .titulo { flex: 1; min-width: 0; font: 600 18px/1.2 "IBM Plex Mono", monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .titulo.direccion { font: 800 18px/1.2 Manrope, sans-serif; }
+  .cuerpo { display: flex; gap: 10px; margin-top: 4px; }
+  .foto { border-radius: 12px; flex: none; overflow: hidden; border: 1px solid var(--borde); background: #cdb89c; }
+  .foto svg { width: 100%; height: 100%; display: block; }
+  /* Medidas fijas (dueño, 2026-11-20: «menos complicaciones de código»; «mucha más prioridad a la
+     imagen»): la foto 240 × 76 dp a la izquierda (lo que deja el V2430) y, a la derecha con el mismo margen que los
+     botones, dos fichas iguales de 96 × 36 dp con esquinas de 8: OF arriba y POR PAGAR abajo, cada una en dos
+     renglones. El ancho es el de lo más largo: la OF (79 dp en Plex Mono 12) y «$100.000», el mayor
+     POR PAGAR posible (67 dp en Manrope 800 a 14). */
+  .cuerpo.ancho { align-items: stretch; justify-content: space-between; }
+  .cuerpo.ancho .foto { width: 240px; height: 76px; }
+  .lado { display: flex; flex-direction: column; gap: 4px; flex: none; width: 96px; }
+  .ficha { height: 36px; border-radius: 8px; display: flex; flex-direction: column; justify-content: center; align-items: center; line-height: 1.15; }
+  .ficha .etiqueta { font: 800 12px Manrope, sans-serif; }
+  /* El pago (dueño, 2026-11-20): POR PAGAR en amarillo y, si no se cobra, PAGADO en verde. Sin
+     leer no es «pagado»: nunca se supone $0 (AGENTS.md, «Foto de la etiqueta»). */
+  .ficha.cobro { background: #fbe38e; color: #5f4100; border: 1px solid #d9b443; }
+  .ficha.cobro .valor { font: 800 14px Manrope, sans-serif; }
+  .ficha.cobro .valor.chica { font: 700 12px Manrope, sans-serif; }
+  .ficha.pagado { background: #e3f1e8; color: var(--ok); border: 1px solid #a9d2b9; flex-direction: row; gap: 4px; }
+  .ficha.pagado .etiqueta { font: 800 14px Manrope, sans-serif; }
+  .ficha.pagado svg { width: 16px; height: 16px; stroke-width: 3; }
+  .ficha.sin-leer { background: var(--papel); color: var(--gris); border: 1px dashed #b9ab9f; }
+  .ficha.sin-leer .valor { font: 700 12px Manrope, sans-serif; }
+  .muestras { display: flex; gap: 20px; flex-wrap: wrap; margin: 0 0 24px; }
+  .muestra { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; font-size: 12px; color: var(--gris); }
+  .muestra .ficha { width: 96px; }
+  .ficha.numero { background: var(--fondo); color: var(--tinta); border: 1px solid var(--borde); }
+  .ficha.numero .etiqueta { color: var(--gris); }
+  .ficha.numero .valor { font: 600 12px "IBM Plex Mono", monospace; }
+  /* Una dirección larga: se corta la calle con «…» y el número queda siempre a la vista. */
+  .dir { display: flex; min-width: 0; max-width: 100%; }
+  .dir .calle { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .dir .num { white-space: nowrap; flex: none; }
+  .icono { width: 44px; height: 44px; margin-left: 4px; border-radius: 999px; display: grid; place-items: center; flex: none; }
+  .icono svg { width: 18px; height: 18px; }
+  .navegar { background: var(--marca-suave); color: var(--marca); }
+  .ares { background: var(--papel); border: 1px solid var(--borde); color: var(--tinta); }
+  .achicar { color: var(--gris); } .achicar svg, .cerrar-lista svg { width: 24px; height: 24px; }
+  /* Volver a la parada: la flecha atrás a la izquierda, como en Android (dueño, 2026-11-20). */
+  .atras { margin: 0 6px 0 -6px; color: var(--tinta); } .atras svg { width: 24px; height: 24px; }
+
+  /* Hoy (para comparar). */
+  .renglon { display: flex; align-items: center; margin-top: 2px; }
+  .paquete { flex: 1; color: var(--marca); font-weight: 700; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cobro-hoy { color: var(--peligro); font-weight: 800; font-size: 13px; background: var(--peligro-suave); border-radius: 8px; padding: 2px 8px; margin-left: 8px; white-space: nowrap; }
+  .detalle { color: var(--gris); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .estado { font-size: 12px; font-weight: 700; padding-top: 2px; }
+
+  .fila { display: flex; align-items: center; margin-top: 8px; }
+  .fila > * + * { margin-left: 8px; }
+  .pildora { flex: 1; min-height: 48px; border-radius: 24px; padding: 4px 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+  .pildora .principal { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 14px; line-height: 1.2; }
+  .pildora .principal svg { width: 18px; height: 18px; flex: none; }
+  .t-ok { background: var(--ok); color: #fff; } .t-peligro { background: var(--peligro); color: #fff; }
+  .t-neutro { background: var(--papel); border: 1px solid var(--borde); color: var(--tinta); }
+  .redondo { width: 48px; height: 48px; flex: none; border-radius: 999px; display: grid; place-items: center; }
+  .redondo svg { width: 20px; height: 20px; }
+  /* El círculo de llamar con el mismo trazo que su ícono (dueño, 2026-11-20), más suave: naranja
+     sobre naranja claro, 1,5 dp (el ícono de 20 dp con trazo 1,8 de 24 también da 1,5 dp). */
+  .redondo.llamar { background: var(--marca-suave); color: var(--marca); border: 1.5px solid currentColor; }
+  .redondo.llamar svg { stroke-width: 1.8; }
+  .redondo.chico { width: 44px; height: 44px; }
+
+  /* «Siguientes paradas», cerrada: una barra en el lugar de los 3 botones. */
+  .barra { display: flex; align-items: center; gap: 8px; min-height: 48px; margin-top: 8px; border-radius: 24px; padding: 0 8px 0 14px; font-weight: 700; font-size: 14px; white-space: nowrap; }
+  .barra > svg { width: 18px; height: 18px; flex: none; color: var(--marca); }
+  .barra .txt { flex: 1; min-width: 0; }
+  .barra .nums { display: flex; gap: 3px; }
+  /* Los números de parada, naranjas como el de la parada en curso (dueño, 2026-11-20). */
+  .barra .nums b { width: 26px; height: 26px; border-radius: 999px; background: var(--marca); color: #fff; display: grid; place-items: center; font-size: 12px; font-weight: 800; }
+  .barra .flecha { display: grid; place-items: center; width: 28px; height: 28px; }
+  .barra .flecha svg { width: 22px; height: 22px; }
+  /* Abierta: la lista toma el lugar de la tarjeta de la parada, una fila por pedido. */
+  .lista { margin-top: 4px; }
+  .siguiente { display: flex; align-items: center; gap: 10px; min-height: 52px; border-top: 1px solid var(--borde); }
+  .siguiente:first-child { border-top: 0; }
+  .siguiente .n { width: 28px; height: 28px; border-radius: 999px; background: var(--marca); color: #fff; display: grid; place-items: center; font: 800 12px Manrope, sans-serif; flex: none; }
+  .siguiente .texto { flex: 1; min-width: 0; }
+  .siguiente .dir { font: 800 15px/1.25 Manrope, sans-serif; }
+  /* El nombre bajo la dirección, para saber a quién se llama (dueño, 2026-11-20). */
+  .titulos { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+  .nombre { font-size: 13px; line-height: 1.25; color: var(--gris); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* Sin teléfono: se corta el nombre, nunca el aviso. */
+  .nombre.con-aviso { display: flex; }
+  .nombre .quien { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .nombre .aviso { flex: none; font-weight: 700; color: var(--aviso); }
+  .escanear { flex: none; min-height: 44px; border-radius: 22px; padding: 0 16px; display: grid; place-items: center; font-weight: 700; font-size: 14px; }
+
+  /* La marca de lo nuevo no cambia la forma: cada pieza guarda su radio (la foto 12, las fichas 8). */
+  body.marcar .nuevo { outline: 2px dashed var(--marca); outline-offset: 3px; }
+  .mide { margin-top: 8px; font-size: 12px; color: var(--gris); }
+  .mide b { color: var(--tinta); }
+  .notas { margin: 28px 0 0; padding-left: 18px; color: var(--gris); max-width: 900px; font-size: 14px; }
+
+  /* La pestaña de la parada en ARES: la hoja sobre el mapa de la app (tarjeta-parada.tsx). */
+  .seccion { font-size: 20px; margin: 40px 0 4px; }
+  .mapa.app::after { background: var(--naranja-mapa); }
+  .hoja { position: absolute; left: 0; right: 0; bottom: 0; background: var(--papel); border-radius: 24px 24px 0 0; padding: 8px 16px 18px; box-shadow: 0 -2px 12px rgba(0,0,0,.14); }
+  .tirador { width: 36px; height: 4px; border-radius: 2px; background: var(--borde); margin: 0 auto 10px; }
+  .hoja .cabeza { align-items: flex-start; }
+  .hoja .secuencia { margin-top: 2px; }
+  .titulo.completa { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .km { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; margin-left: 8px; flex: none; }
+  .km .chip { display: flex; align-items: center; gap: 4px; background: var(--marca-suave); color: var(--marca); border-radius: 999px; padding: 4px 10px; font: 700 12px "IBM Plex Mono", monospace; }
+  .km .chip svg { width: 12px; height: 12px; }
+  .km small { font: 600 12px "IBM Plex Mono", monospace; color: var(--gris); }
+  .extra { font-size: 13px; line-height: 1.3; margin-top: 6px; }
+  .extra.ref { color: var(--marca); font-weight: 700; }
+  .extra.problema { color: var(--aviso); font-weight: 700; }
+  .extra.bultos { color: var(--gris); font-weight: 600; font-size: 12px; }
+
+  /* La tabla de referencia para implementar. */
+  .ref { border-collapse: collapse; margin-top: 12px; max-width: 1200px; font-size: 13px; background: var(--papel); }
+  .ref th, .ref td { border: 1px solid var(--borde); padding: 6px 10px; text-align: left; vertical-align: top; }
+  .ref th { background: var(--fondo); }
+  .ref td.no { color: var(--gris); }
+  .ref code { font: 600 12px "IBM Plex Mono", monospace; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Parada: burbuja y pestaña de ARES (spec 046)</h1>
+  <p class="sub">Maqueta con las medidas, colores, letras e íconos de la burbuja real (BurbujaVista.java): 1 px = 1 dp, sobre el teléfono del conductor (V2430, 384 × 853 dp). La línea roja marca el tercio de pantalla que la burbuja no debe pasar (si pasa, los botones se desplazan). Datos inventados.</p>
+  <label class="marcar"><input type="checkbox" id="marcar"> Marcar lo nuevo con borde punteado</label>
+  <div class="muestras" id="muestras"></div>
+  <div class="variantes" id="variantes"></div>
+
+  <h2 class="seccion">Pestaña de la parada en ARES</h2>
+  <p class="sub">El mismo diseño en la hoja de la app (la cabecera que se ve recorriendo). <b>Sin «Siguientes paradas»: es solo de la burbuja</b> (dueño, 2026-11-20). La pestaña tiene más espacio: la dirección completa en dos renglones y lo que la burbuja no muestra (Navegar con los km, referencia, ⚠ y bultos).</p>
+  <div class="variantes" id="pestana"></div>
+
+  <h2 class="seccion">Qué va en cada una (para implementar)</h2>
+  <table class="ref">
+    <tr><th>Elemento</th><th>Burbuja (APK 1.11.0)</th><th>Pestaña en ARES</th><th>Medidas y colores</th></tr>
+    <tr><td>Número de parada</td><td>Círculo naranja como hoy</td><td>Igual que hoy</td><td>32 dp en la burbuja (36 en la pestaña), <code>#c4491a</code>, número blanco</td></tr>
+    <tr><td>Dirección</td><td>Solo calle y número, Av./Pje.; letra 18 → 14; si no cabe se corta la calle, nunca el número</td><td>Completa (con depto), hasta 2 renglones</td><td>Manrope 800, 18 dp</td></tr>
+    <tr><td>Nombre</td><td>Bajo la dirección</td><td>Bajo la dirección</td><td>13 dp, gris; se corta con «…»</td></tr>
+    <tr><td>Navegar</td><td class="no">No va (ARES abre Maps al cerrar cada parada)</td><td>El chip de los km, que abre Google Maps</td><td>Naranja claro, cifras en Plex Mono</td></tr>
+    <tr><td>Foto del paquete</td><td>A la izquierda, fija</td><td>A la izquierda, fija; un toque la amplía</td><td>240 × 76 dp en el V2430, radio 12; viaja chica a la burbuja y no sale del teléfono</td></tr>
+    <tr><td>OF</td><td>Ficha arriba</td><td>Ficha arriba</td><td>96 × 36 dp, radio 8, borde 1 dp; «OF» y el número en Plex Mono 12</td></tr>
+    <tr><td>Pago</td><td>Ficha abajo</td><td>Ficha abajo</td><td>96 × 36 dp, radio 8, borde 1 dp. POR PAGAR amarillo <code>#fbe38e</code>/<code>#5f4100</code> (monto o «Por revisar»), «✓ PAGADO» verde <code>#e3f1e8</code>/<code>#0f6b45</code>, «PAGO · Sin leer» punteado si <code>porPagar</code> es null</td></tr>
+    <tr><td>Botones</td><td>Pedido entregado · llamar · No se entrega</td><td>Los mismos (<code>botones-parada.ts</code>)</td><td>48 dp; llamar en naranja claro con borde e ícono de 1,5 dp</td></tr>
+    <tr><td>Siguientes paradas</td><td>Barra cerrada (48 dp, 13 · 14 · 15) y lista abierta con flecha atrás; sin teléfono, «Escanear»</td><td class="no">No va</td><td>Números en círculo naranja de 26–28 dp; fila con dirección y nombre</td></tr>
+    <tr><td>Referencia, ⚠, bultos</td><td class="no">No van (el ⚠ sigue avisando dos paradas antes)</td><td>Debajo de la foto</td><td>Referencia naranja, ⚠ en amarillo oscuro, bultos en gris</td></tr>
+    <tr><td>«Contestó» y descripción</td><td class="no">Se quitan</td><td class="no">Se quitan</td><td>La foto reemplaza a la descripción</td></tr>
+  </table>
+  <ul class="notas">
+    <li><b>Todo con la APK 1.11.0</b> (la misma del «por pagar»), de una vez: la dirección arriba (corta la calle, nunca el número), la foto, OF y POR PAGAR, sin «Contestó», descripción ni «Navegar», y «Siguientes paradas». La foto viaja chica a la burbuja y no sale del teléfono.</li>
+    <li><b>Siguientes paradas</b>: un toque abre la lista de las 3 que siguen y otro llama. La flecha atrás vuelve a la parada, y al cortar una llamada vuelve Google Maps con la burbuja en la parada, con la lista cerrada. La llamada queda anotada en ese pedido.</li>
+    <li>Abrir y cerrar la lista es un botón más de los que manda ARES: la burbuja solo dibuja lo que recibe.</li>
+  </ul>
+</main>
+<script>
+const ICONOS = {
+  navegar: '<path d="M3 11L22 2L13 21L11 13Z"/>',
+  ares: '<path d="M8 3 4 7l4 4 M4 7h16 M16 21l4-4-4-4 M20 17H4"/>',
+  achicar: '<path d="m6 9 6 6 6-6"/>',
+  arriba: '<path d="m18 15-6-6-6 6"/>',
+  telefono: '<path d="M13.832 16.568a1 1 0 0 0 1.213-0.303l0.355-0.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-0.8 1.6l-0.468 0.351a1 1 0 0 0-0.292 1.233 14 14 0 0 0 6.392 6.384"/>',
+  paquete: '<path d="M12 22V12 M16 17l2 2 4-4 M21 11.127V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.729l7 4a2 2 0 0 0 2 0.001l1.32-0.753 M3.29 7 12 12l8.71-5 M7.5 4.27l8.997 5.148"/>',
+  cerrar: '<path d="M18 6 6 18 M6 6l12 12"/>',
+  atras: '<path d="m12 19-7-7 7-7 M19 12H5"/>',
+};
+const svg = (n) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONOS[n]}</svg>`;
+const pildora = (texto, tono, icono) =>
+  `<div class="pildora t-${tono}"><div class="principal">${svg(icono)}<span>${texto}</span></div></div>`;
+const filaPrincipal = (nueva) =>
+  `<div class="fila">${pildora("Pedido entregado", "ok", "paquete")}<div class="redondo t-neutro${nueva ? " llamar nuevo" : ""}">${svg("telefono")}</div>${pildora("No se entrega", "peligro", "cerrar")}</div>`;
+
+// La foto del paquete (de ejemplo): la que se saca al escanear la etiqueta.
+const FOTO = `<div class="foto nuevo" title="Foto del paquete"><svg viewBox="0 0 64 64" preserveAspectRatio="xMidYMid slice"><rect width="64" height="64" fill="#b9a183"/><polygon points="8,22 34,12 58,22 32,32" fill="#d9c09c"/><polygon points="8,22 32,32 32,58 8,47" fill="#c4a67f"/><polygon points="32,32 58,22 58,47 32,58" fill="#a98c68"/><rect x="38" y="33" width="14" height="10" rx="1" fill="#fff" transform="skewY(-21) translate(0,15)"/></svg></div>`;
+// La dirección de la burbuja: solo la calle con su número (sin depto, referencia ni «Arica»), con
+// Avenida → Av. y Pasaje → Pje. Si no cabe, se corta la calle y el número queda.
+const abreviar = (calle) => calle.replace(/^Avenida\s/i, "Av. ").replace(/^Pasaje\s/i, "Pje. ");
+const dir = ([calle, numero]) => `<span class="calle">${abreviar(calle)}</span><span class="num">&nbsp;${numero}</span>`;
+
+const iconosCabeza = `<div class="icono navegar" title="Navegar">${svg("navegar")}</div><div class="icono ares" title="Volver a ARES">${svg("ares")}</div><div class="icono achicar" title="Achicar">${svg("achicar")}</div>`;
+// Sin «Navegar» (dueño, 2026-11-20: «en la burbuja no necesito este punto»): ARES ya manda Google
+// Maps a la siguiente al cerrar una parada.
+const iconosSinNavegar = `<div class="icono ares" title="Volver a ARES">${svg("ares")}</div><div class="icono achicar" title="Achicar">${svg("achicar")}</div>`;
+
+const CORTAS = [[13, "Marcoleta", "920", "A. Inventada"], [14, "Marcoleta", "931", "C. Inventado"], [15, "Lido", "512", "R. Inventada"]];
+const LARGAS = [[13, "Avenida Capitán Ávalos", "2318", "A. Inventada Ejemplo", true], [14, "Orozimbo Barbosa", "3071", "C. Inventado"], [15, "Pasaje Francisco Alvares Romero", "1450", "R. Inventada"]];
+
+// Cerrada: una barra del alto de un botón, con los números de las 3 que siguen.
+const barra = (sig) => `<div class="barra t-neutro nuevo">${svg("telefono")}<span class="txt">Siguientes paradas</span><span class="nums">${sig.map(([n]) => `<b>${n}</b>`).join("")}</span><span class="flecha">${svg("arriba")}</span></div>`;
+// Abierta: una fila por pedido, con la calle completa; sin teléfono, «Escanear» en vez de llamar.
+const filaSiguiente = ([n, calle, numero, nombre, sinTelefono]) => `<div class="siguiente">
+    <div class="n">${n}</div>
+    <div class="texto"><div class="dir">${dir([calle, numero])}</div>${sinTelefono ? `<div class="nombre con-aviso"><span class="quien">${nombre}</span><span class="aviso">&nbsp;· ⚠ Sin teléfono</span></div>` : `<div class="nombre">${nombre}</div>`}</div>
+    ${sinTelefono ? '<div class="escanear t-neutro">Escanear</div>' : `<div class="redondo llamar chico t-neutro">${svg("telefono")}</div>`}
+  </div>`;
+
+const VARIANTES = [
+  { titulo: "Hoy", nota: "La OF arriba, el «Contestó» y solo se puede llamar a la parada en curso.", hoy: true },
+  {
+    titulo: "Nueva · siguientes cerradas",
+    nota: "OF arriba del POR PAGAR y el círculo de llamar con el trazo de su ícono. «Siguientes paradas» va en el lugar de los 3 botones: un toque la abre.",
+    siguientes: CORTAS,
+  },
+  {
+    titulo: "Nueva · siguientes abiertas",
+    nota: "La lista toma el lugar de la parada mientras está abierta: la calle entera y un toque llama. La flecha atrás vuelve a la parada.",
+    abierta: true,
+    siguientes: CORTAS,
+  },
+  {
+    titulo: "Nueva · dirección larga",
+    nota: "Arriba la letra baja de 18 a 14 para que quepa; si aun así no cabe, se corta la calle y el número queda.",
+    direccion: ["Pasaje Francisco Alvares Romero", "1204"],
+    pago: "pagado",
+    siguientes: LARGAS,
+  },
+  {
+    titulo: "Nueva · abiertas, largas y sin teléfono",
+    nota: "En la lista caben calles largas enteras. A la 13 le falta el teléfono: «Escanear» vuelve a ARES para escanear su etiqueta.",
+    abierta: true,
+    siguientes: LARGAS,
+  },
+];
+
+// La ficha del pago según Pedido.porPagar y su monto.
+const FICHAS_PAGO = {
+  monto: ["POR PAGAR con monto", '<div class="ficha cobro nuevo"><span class="etiqueta">POR PAGAR</span><span class="valor">$12.990</span></div>'],
+  sinMonto: ["POR PAGAR sin monto (lista de Starken)", '<div class="ficha cobro nuevo"><span class="etiqueta">POR PAGAR</span><span class="valor chica">Por revisar</span></div>'],
+  pagado: ["No se cobra", '<div class="ficha pagado nuevo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="etiqueta">PAGADO</span></div>'],
+  sinLeer: ["Sin leer (no se supone pagado)", '<div class="ficha sin-leer nuevo"><span class="etiqueta">PAGO</span><span class="valor">Sin leer</span></div>'],
+};
+const fichaPago = (clave) => FICHAS_PAGO[clave][1];
+document.getElementById("muestras").innerHTML = Object.values(FICHAS_PAGO)
+  .map(([texto, ficha]) => `<div class="muestra">${ficha}<span>${texto}</span></div>`).join("");
+
+const tarjeta = (v, i) => {
+  if (v.hoy) return `<div class="tarjeta" id="t${i}">
+      <div class="cabeza"><div class="secuencia">12</div><div class="titulo">OF 282 000 512</div>${iconosCabeza}</div>
+      <div class="renglon"><div class="paquete">Caja mediana · café</div><div class="cobro-hoy">POR PAGAR $12.990</div></div>
+      <div class="detalle">N. Inventado · David Girvan 931</div>
+      <div class="estado" style="color: var(--ok)">Contestó · 10:42</div>
+      ${filaPrincipal(false)}
+    </div>`;
+  if (v.abierta) return `<div class="tarjeta" id="t${i}">
+      <div class="cabeza"><div class="icono atras nuevo" title="Volver a la parada">${svg("atras")}</div><div class="titulo direccion nuevo">Siguientes paradas</div><div class="icono ares" title="Volver a ARES">${svg("ares")}</div></div>
+      <div class="lista nuevo">${v.siguientes.map(filaSiguiente).join("")}</div>
+    </div>`;
+  return `<div class="tarjeta" id="t${i}">
+      <div class="cabeza"><div class="secuencia">12</div><div class="titulos nuevo"><div class="titulo dir direccion">${dir(v.direccion ?? ["David Girvan", "931"])}</div><div class="nombre">N. Inventado</div></div>${iconosSinNavegar}</div>
+      <div class="cuerpo ancho">${FOTO}<div class="lado">
+        <div class="ficha numero nuevo"><span class="etiqueta">OF</span><span class="valor">282 000 512</span></div>
+        ${fichaPago(v.pago ?? "monto")}
+      </div></div>
+      ${filaPrincipal(true)}
+      ${barra(v.siguientes)}
+    </div>`;
+};
+
+document.getElementById("variantes").innerHTML = VARIANTES.map((v, i) => `
+  <section class="variante">
+    <h2>${v.titulo}</h2>
+    <p>${v.nota}</p>
+    <div class="telefono">
+      <div class="mapa"></div>
+      <div class="indicacion">↱ 150 m<small>Gira a la derecha en Marcoleta</small></div>
+      <div class="tercio"><span>un tercio de la pantalla</span></div>
+      ${tarjeta(v, i)}
+    </div>
+    <div class="mide" id="m${i}"></div>
+  </section>`).join("");
+
+// La pestaña en ARES: la misma tarjeta, con lo que solo cabe ahí y sin «Siguientes paradas».
+const NAVEGAR_KM = `<div class="km"><span class="chip">${svg("navegar")}1,2 km</span><small>4 min · 10:52</small></div>`;
+const PESTANAS = [
+  { titulo: "ARES · parada en curso", nota: "La dirección completa, el nombre, Navegar con los km, la foto, OF, pago y los botones de la burbuja.", direccion: "David Girvan 931, depto 12" },
+  {
+    titulo: "ARES · con referencia, ⚠ y bultos",
+    nota: "Lo que la burbuja no muestra va debajo de la foto. El pago sin leer nunca dice «PAGADO».",
+    direccion: "Pasaje Francisco Alvares Romero 1204",
+    pago: "sinLeer",
+    extras: '<div class="extra ref">Ref.: frente a la sede</div><div class="extra problema">⚠ Calle en dos lugares</div><div class="extra bultos">2 bultos · escaneados 1</div>',
+  },
+];
+document.getElementById("pestana").innerHTML = PESTANAS.map((v) => `
+  <section class="variante">
+    <h2>${v.titulo}</h2>
+    <p>${v.nota}</p>
+    <div class="telefono">
+      <div class="mapa app"></div>
+      <div class="hoja">
+        <div class="tirador"></div>
+        <div class="cabeza"><div class="secuencia">12</div><div class="titulos"><div class="titulo direccion completa">${v.direccion}</div><div class="nombre">N. Inventado</div></div>${NAVEGAR_KM}</div>
+        <div class="cuerpo ancho">${FOTO}<div class="lado">
+          <div class="ficha numero"><span class="etiqueta">OF</span><span class="valor">282 000 512</span></div>
+          ${fichaPago(v.pago ?? "monto")}
+        </div></div>
+        ${v.extras ?? ""}
+        ${filaPrincipal(true)}
+      </div>
+    </div>
+  </section>`).join("");
+
+const marcar = document.getElementById("marcar");
+marcar.addEventListener("change", () => document.body.classList.toggle("marcar", marcar.checked));
+
+document.fonts.ready.then(() => {
+  // La dirección de arriba se achica de 18 a 14 hasta que la calle cabe entera (en Android, el
+  // autoajuste del TextView); más allá, la calle se corta con «…».
+  document.querySelectorAll(".titulo.dir").forEach((t) => {
+    const calle = t.querySelector(".calle");
+    for (let tam = 18; tam >= 14; tam--) {
+      t.style.fontSize = `${tam}px`;
+      if (calle.scrollWidth <= calle.clientWidth) break;
+    }
+  });
+  // Cuánto ocupa cada tarjeta del alto del teléfono (853 dp) y si pasa del tercio (268 dp).
+  VARIANTES.forEach((_, i) => {
+    const alto = document.getElementById(`t${i}`).getBoundingClientRect().height;
+    const pct = Math.round((alto / 853) * 100);
+    document.getElementById(`m${i}`).innerHTML = `Ocupa <b>${Math.round(alto)} dp</b>, el <b>${pct} %</b> de la pantalla${alto > 268 ? " · pasa del tercio (268 dp): los botones se desplazan" : ", bajo el tercio (268 dp)"}.`;
+  });
+});
+</script>
+</body>
+</html>

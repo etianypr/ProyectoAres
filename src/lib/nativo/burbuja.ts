@@ -42,6 +42,29 @@ export type VistaBurbuja = {
   /** Cambió la parada desde la vista anterior. La burbuja va achicada al
    *  navegar; se abre sola solo con un "Deshacer" nuevo (BurbujaServicio). */
   nueva: boolean;
+  // Desde la APK 1.11.0 (spec 046). Las anteriores dibujan con lo de arriba.
+  /** La dirección en corto: si no cabe, se corta la calle y nunca el número. */
+  calle: string;
+  numero: string | null;
+  nombre: string | null;
+  /** La OF con sus espacios («282 000 512»); null sin OF (la ficha dice «OF» sola). */
+  of: string | null;
+  /** La ficha del pago; null = sin ficha (pedido manual sin dato). */
+  pago: { tipo: "cobro" | "pagado" | "sin_leer"; monto: string | null } | null;
+  /** La foto del paquete en miniatura (JPEG en base64): del teléfono a la burbuja, no sale de él. */
+  foto: string | null;
+  /** Las pendientes que siguen, para llamarlas desde la burbuja («Siguientes paradas»). */
+  siguientes: SiguienteBurbuja[];
+};
+
+/** Una parada que sigue: el toque vuelve como `llamar:<id>` o `escanear:<id>`. */
+export type SiguienteBurbuja = {
+  id: string;
+  secuencia: number;
+  calle: string;
+  numero: string | null;
+  nombre: string | null;
+  conTelefono: boolean;
 };
 
 type EstadoPermiso = { estado: "dado" | "falta" };

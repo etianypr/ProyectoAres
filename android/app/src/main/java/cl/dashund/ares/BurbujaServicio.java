@@ -78,6 +78,9 @@ public class BurbujaServicio extends Service {
     private boolean abierta = false;
     /** Se abrió sola por un "Deshacer": se achica sola cuando el aviso se va. */
     private boolean abiertaPorAviso = false;
+    /** «Siguientes paradas» abierta en vez de la parada (spec 046). Se cierra con una parada
+     *  nueva, al achicar y al llamar o escanear una de la lista. */
+    private boolean listaAbierta = false;
     /** El texto del último "Deshacer", para abrir solo con uno nuevo. */
     private String ultimoDeshacer;
     private String ultimoToque;
@@ -243,6 +246,7 @@ public class BurbujaServicio extends Service {
             abierta = false;
         }
         ultimoDeshacer = deshacer;
+        if (vista.optBoolean("nueva")) listaAbierta = false;
         if (llegada != null) llegada.destino(vista.optInt("secuencia", 0), vista.optJSONObject("destino"));
         int secuencia = vista.optInt("secuencia", 0);
         if (secuencia != secuenciaAviso) {
@@ -262,7 +266,7 @@ public class BurbujaServicio extends Service {
         View contenido;
         if (abierta) {
             int tercio = getResources().getDisplayMetrics().heightPixels / 3;
-            contenido = BurbujaVista.tarjeta(this, vista, new BurbujaVista.Toques() {
+            BurbujaVista.Toques toques = new BurbujaVista.Toques() {
                 @Override
                 public void tocar(String id, boolean abreAres) {
                     BurbujaServicio.this.tocar(id, abreAres);
@@ -272,9 +276,20 @@ public class BurbujaServicio extends Service {
                 public void achicar() {
                     abierta = false;
                     abiertaPorAviso = false;
+                    listaAbierta = false;
                     dibujar();
                 }
-            }, tercio);
+
+                @Override
+                public void lista(boolean abierta) {
+                    listaAbierta = abierta;
+                    dibujar();
+                }
+            };
+            org.json.JSONArray siguientes = vista.optJSONArray("siguientes");
+            contenido = listaAbierta && siguientes != null && siguientes.length() > 0
+                ? BurbujaSiguientes.lista(this, siguientes, toques, tercio)
+                : BurbujaVista.tarjeta(this, vista, toques, tercio);
         } else {
             contenido = BurbujaVista.circulo(this, vista.optInt("secuencia", 0));
             contenido.setOnClickListener(v -> {
@@ -319,12 +334,12 @@ public class BurbujaServicio extends Service {
             PixelFormat.TRANSLUCENT);
         if (abierta) {
             p.gravity = Gravity.BOTTOM;
-            int margen = BurbujaVista.dp(this, 8);
+            int margen = BurbujaPiezas.dp(this, 8);
             raiz.setPadding(margen, 0, margen, margen);
         } else {
             p.gravity = Gravity.BOTTOM | Gravity.START;
-            p.x = BurbujaVista.dp(this, CIRCULO_DESDE_IZQUIERDA_DP);
-            p.y = BurbujaVista.dp(this, CIRCULO_DESDE_ABAJO_DP);
+            p.x = BurbujaPiezas.dp(this, CIRCULO_DESDE_IZQUIERDA_DP);
+            p.y = BurbujaPiezas.dp(this, CIRCULO_DESDE_ABAJO_DP);
             raiz.setPadding(0, 0, 0, 0);
         }
         return p;
@@ -335,6 +350,12 @@ public class BurbujaServicio extends Service {
         if (id.equals(ultimoToque) && ahora - ultimoToqueMs < MS_DOBLE_TOQUE) return;
         ultimoToque = id;
         ultimoToqueMs = ahora;
+        // Llamar o escanear una de las siguientes (spec 046): la lista se cierra; al cortar
+        // vuelve Google Maps con la burbuja en la parada.
+        if (listaAbierta && (id.startsWith("llamar:") || id.startsWith("escanear:"))) {
+            listaAbierta = false;
+            dibujar();
+        }
 
         JSONObject destino = vista != null ? vista.optJSONObject("destino") : null;
         if (id.equals("navegar") && destino != null) {
@@ -349,7 +370,7 @@ public class BurbujaServicio extends Service {
             return;
         }
         avisar(id);
-        if (id.equals("llamar")) GoogleMaps.alFrenteTrasLlamar(this);
+        if (id.equals("llamar") || id.startsWith("llamar:")) GoogleMaps.alFrenteTrasLlamar(this);
     }
 
     private static void entregarEnEspera() {

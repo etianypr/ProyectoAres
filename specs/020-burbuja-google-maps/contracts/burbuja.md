@@ -42,6 +42,13 @@ fuera de la APK cae al comportamiento de hoy.
   ARES y Achicar en la cabecera; debajo, `paquete` con `porPagar` y `detalle` en un renglón
   cada uno. Manrope, IBM Plex Mono para la OF e íconos de lucide (`res/font/`,
   `res/drawable/ic_burbuja_*`; licencias en `assets/licencias/`).
+- **Desde la APK 1.11.0 (spec 046):** si la vista trae `calle`, la cabecera es la dirección
+  (`calle` + `numero`, la calle se corta y el número no) con `nombre` debajo, sin Navegar; debajo,
+  la `foto` (miniatura JPEG en base64) con las fichas `of` y `pago`; y, bajo los botones, la barra
+  «Siguientes paradas» con `siguientes`. Abierta, la lista reemplaza la tarjeta (estado del
+  servicio, se cierra con `nueva`, al achicar y al llamar). Sus toques: `llamar:<id>` y
+  `escanear:<id>` (este abre ARES antes de avisar). Sin `calle` (una web anterior), dibuja `titulo`
+  y `detalle`.
 - **Abre ARES antes de avisar**: `ares`, `escanear`, `telefono`, y `navegar` si la parada no tiene
   punto. `navegar` con punto abre Google Maps desde lo nativo y además avisa (la web no hace nada).
 - Dos toques en menos de 600 ms al mismo botón: uno solo.

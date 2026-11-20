@@ -31,6 +31,7 @@ import { cargarRed } from "@/lib/geo/red/grafo";
 import { useRedDeCalles } from "./use-red-de-calles";
 import { aDondeNavegar, vistaDeBurbuja, type AvisoBurbuja } from "./vista-burbuja";
 import { useEvento } from "./use-evento";
+import { hacerMiniatura, miniaturaHecha } from "@/lib/encomiendas/local/miniatura-foto";
 
 /** El permiso se pide una vez por día: si el conductor no lo da, los km abren
  *  Google Maps sin burbuja y no se le vuelve a insistir (research R10). */
@@ -64,6 +65,9 @@ export function useBurbuja({
   adelante = null,
   extra,
   onBoton,
+  paradas = [],
+  onLlamarA,
+  onEscanearA,
 }: {
   fecha: string;
   activa: Parada | null;
@@ -89,6 +93,11 @@ export function useBurbuja({
   /** Atiende un toque con la guarda del doble toque (use-guarda-toque.ts); sin
    *  esto, atenderBoton directo. */
   onBoton?: (id: IdBoton) => void;
+  /** Las paradas del día: la burbuja llama a las que siguen (spec 046). */
+  paradas?: readonly Parada[];
+  /** Llamar a OTRA parada, o escanear su etiqueta si no tiene teléfono (spec 046). */
+  onLlamarA?: (parada: Parada) => void;
+  onEscanearA?: (parada: Parada) => void;
 }) {
   const [enCurso, setEnCurso] = useState(false);
   // Si falta el permiso de mostrarse sobre otras apps (spec 033, burbuja-permiso):
@@ -127,6 +136,14 @@ export function useBurbuja({
   const navegada = useRef<string | null>(null);
   /** El pedido de la última vista: si cambia, la burbuja se abre. */
   const mostrada = useRef<string | null>(null);
+  // La foto del paquete en miniatura (spec 046): se hace una vez y la vista se redibuja con ella.
+  const fotoId = activa?.pedido.fotoId ?? null;
+  const [, setFotoLista] = useState<string | null>(null);
+  useEffect(() => {
+    if (!fotoId || miniaturaHecha(fotoId)) return;
+    void hacerMiniatura(fotoId).then(() => setFotoLista(fotoId)).catch(() => {});
+  }, [fotoId]);
+  const foto = fotoId ? miniaturaHecha(fotoId) : null;
 
   /** Los km de la parada: Google Maps navegando y, con permiso, la burbuja. */
   const navegar = useCallback(async () => {
@@ -149,11 +166,11 @@ export function useBurbuja({
       // La primera vista va ANTES de abrir Google Maps: con ella arranca el servicio
       // de la burbuja, y Android 15 solo lo deja arrancar con ARES adelante.
       mostrada.current = activa.pedido.id;
-      await mostrarBurbuja(vistaDeBurbuja(activa, fase, { whatsapp, aviso, nueva: true, extra, adelante: adelanteEnEstado }));
+      await mostrarBurbuja(vistaDeBurbuja(activa, fase, { whatsapp, aviso, nueva: true, extra, adelante: adelanteEnEstado, paradas, foto }));
     }
     setPermiso(permiso);
     await navegarA(destino);
-  }, [activa, fecha, fase, whatsapp, aviso, extra, adelanteEnEstado]);
+  }, [activa, fecha, fase, whatsapp, aviso, extra, adelanteEnEstado, paradas, foto]);
 
   // La vista de la burbuja, cada vez que cambia algo de la parada. El texto
   // resume la vista: se redibuja solo si cambió, no con cada lectura del GPS.
@@ -164,7 +181,7 @@ export function useBurbuja({
   useRedDeCalles(enCurso);
   const vistaJson =
     enCurso && activa
-      ? JSON.stringify(vistaDeBurbuja(activa, fase, { whatsapp, aviso, nueva: false, extra, adelante: adelanteEnEstado }))
+      ? JSON.stringify(vistaDeBurbuja(activa, fase, { whatsapp, aviso, nueva: false, extra, adelante: adelanteEnEstado, paradas, foto }))
       : null;
   useEffect(() => {
     if (!vistaJson) return;
@@ -204,6 +221,14 @@ export function useBurbuja({
   // abrió lo nativo; sin punto, ARES vino adelante y se abre la parada para
   // ubicarla. "Volver a ARES" no necesita nada más.
   const alToque = useEvento((id: string) => {
+    // «Siguientes paradas» (spec 046): llamar a otra parada, o escanear su etiqueta (la
+    // burbuja ya trajo ARES adelante). Si ya no está en el día, el toque no hace nada.
+    const [que, pedidoId] = id.split(":");
+    if ((que === "llamar" || que === "escanear") && pedidoId) {
+      const parada = paradas.find((p) => p.pedido.id === pedidoId);
+      if (parada) (que === "llamar" ? onLlamarA : onEscanearA)?.(parada);
+      return;
+    }
     if (id === "navegar") {
       if (activa && (activa.pedido.lat == null || activa.pedido.lng == null)) acciones.editar();
       return;

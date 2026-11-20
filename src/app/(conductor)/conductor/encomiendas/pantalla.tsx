@@ -166,7 +166,7 @@ export function PantallaEncomiendas({
   // Un pedido con ⚠ a una o dos paradas (spec 022): en la cabecera y en la burbuja.
   const adelante = avisoAdelante(paradas, activa?.pedido.id ?? null);
   const burbuja = useBurbuja({ fecha, activa, fase, whatsapp, deshacer, confirmacion, enAres, acciones, adelante: adelante && lineaAvisoAdelante(adelante),
-    extra: enCurso.extra, onBoton: enCurso.onBoton });
+    extra: enCurso.extra, onBoton: enCurso.onBoton, paradas, onLlamarA: onLlamar, onEscanearA: ventanas.escanearParada });
 
   const ayer = useResumenAyer(fecha);
 

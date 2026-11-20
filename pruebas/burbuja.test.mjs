@@ -154,8 +154,10 @@ test("paridad: en cada caso la burbuja muestra los botones de la tarjeta y cada 
     const vista = vistaDeBurbuja(p, fase, { whatsapp: true, aviso: null, nueva: false });
     // Lo que dibuja la burbuja es lo mismo que la tarjeta: ids, textos, tonos y si abre ARES.
     assert.deepEqual(vista.filas, tarjeta, `${nombre}: la burbuja no muestra lo mismo que la tarjeta`);
+    // Del receptor va solo el horario pedido: sin «Contestó» (spec 046; dueño, 2026-11-20).
     const estado = estadoDeParada(p, true);
-    assert.deepEqual(vista.estado, estado ? { texto: estado.texto, tono: estado.tono } : null, `${nombre}: el estado del receptor difiere`);
+    const horario = estado?.icono === "reloj" ? estado : null;
+    assert.deepEqual(vista.estado, horario ? { texto: horario.texto, tono: horario.tono } : null, `${nombre}: el estado del receptor difiere`);
     // Cada botón de la parada termina en una acción de la tarjeta (ninguno queda sin cablear).
     for (const boton of tarjeta.flat()) {
       let llamadas = 0;
