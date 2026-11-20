@@ -5,7 +5,7 @@
 
 import type { VotosBarrido } from "./barrido-a-guia";
 import { resultadoNomina, sumarCuadroNomina, type ResultadoNomina, type VotosNomina } from "./barrido-nomina";
-import { cajasDelCuadro, confianzasDelCuadro, filasDe, type CajaEncargo, type RenglonCaja } from "./cajas-nomina";
+import { cajasDelCuadro, confianzasDelCuadro, filasDe, porPagarDelCuadro, type CajaEncargo, type RenglonCaja } from "./cajas-nomina";
 import { sinFantasmas, sumarVecinos } from "./rumbo-nomina";
 
 /** Lo más que suma un cuadro al reloj del barrido. Con el celular bloqueado o la cámara
@@ -37,11 +37,14 @@ export function sumarCuadroAlBarrido(
   }: { filas?: ReturnType<typeof filasDe>; cajas?: CajaEncargo[]; reloj?: number; reglas?: boolean } = {},
 ): VotosBarrido {
   const confianzas = confianzasDelCuadro(renglones);
-  const porFilas = sumarCuadroNomina(votos.porFilas, filas.map((f) => f.texto).join("\n"), confianzas, { reloj, reglas });
+  // Las tarjetas de la lista de Starken con un ícono verde (spec 045): votan «por pagar».
+  const porPagar = porPagarDelCuadro(renglones, filas);
+  const porFilas = sumarCuadroNomina(votos.porFilas, filas.map((f) => f.texto).join("\n"), confianzas, { reloj, reglas, porPagar });
   const comoLlegan = sumarCuadroNomina(votos.comoLlegan, renglones.map((r) => r.texto).join("\n"), confianzas, {
     vertical: porFilas.delUltimo,
     reloj,
     reglas,
+    porPagar,
   });
   return { porFilas: sumarVecinos(porFilas, cajas), comoLlegan: sumarVecinos(comoLlegan, cajas) };
 }

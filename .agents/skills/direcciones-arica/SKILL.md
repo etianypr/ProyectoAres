@@ -35,7 +35,13 @@ con ese archivo, vale `AGENTS.md`, y hay que avisar la diferencia.
   `esLaCalleEscrita` en `aSugerenciaGoogle`, junto con que el número sea el pedido.
 - **Tipeo acotado** (`coincidenciaCalle`): cada palabra que distingue tiene que estar; palabra de
   < 5 letras y números, exactos; 1 letra de corrección (2 desde 9 letras). Una palabra de 4 acepta 1
-  letra solo si otras dos calzan tal cual («Jose Dlaz Gana», spec 044). «Poniente», «oriente»,
+  letra solo si otras dos calzan tal cual («Jose Dlaz Gana», spec 044). Si nada calza estricto, la
+  **holgada** (`coincidenciaHolgada`, `callesSimilares`, dueño 2026-11-20): un cuarto de las letras
+  por palabra, 3 en total, la mitad de las palabras estrictas, nunca norte/sur/oriente/poniente;
+  solo para pedirle a Google la puerta con ese número («ORIZOMBO BARBOZA» → «Orozimbo Barbosa»).
+- **La calle sola de Google trae su nombre** (spec 044): `aSugerenciaGoogle` la devuelve como
+  `soloCalle` si se parece a la escrita, y `completarNumeroEnCalles` pregunta con ese nombre y el número
+  («alvarez» → «Francisco Alvares Romero 1204», ROOFTOP). `sugerirDirecciones` sigue dando solo puertas. «Poniente», «oriente»,
   «norte», «sur», «San» y «Santa» distinguen calles: no van a `PALABRAS_GENERICAS`.
 - **La confianza sale del tipo de resultado**: Google ROOFTOP = exacta, RANGE_INTERPOLATED =
   aproximada, el centro de la calle no entra. (Mapbox recalibró su `confidence` a «low» en 23 de
@@ -79,7 +85,11 @@ con ese archivo, vale `AGENTS.md`, y hay que avisar la diferencia.
   «Aproximada» pero no es un ⚠: no entra a «Por resolver».
 - **El catálogo de calles viaja en el código** (`calles-arica.ts`, 1.563 calles, generado): corrige
   sin red y no gasta turnos de Nominatim. No se edita a mano; A7 lo exime por `// GENERADO`.
-- **Nada se recuerda de un día para otro** (016, fuera de alcance; borrado diario de la 007).
+- **De un día para otro solo se recuerda la calle** (spec 044, dueño 2026-11-20): «escrita → oficial»,
+  sin número de casa (`geocoding/aprendidas.ts`, store `callesAprendidas` v8, Supabase
+  `encomienda_calles_aprendidas` 0009). Se aprende al confirmar una corrección (IA o a mano) y cuando
+  Google confirma la puerta; no lo ambiguo (dos calles del catálogo, «Pasaje 1»), ni una calle que no se
+  parece a la escrita. Las direcciones y los puntos se borran con el día como siempre (007).
 - **Ya se midió y se descartó**: Photon (0 puertas nuevas en 26) e IDE Chile (sin API)
   (`mcp/README.md`). Mapbox salió entero (019) y no se vuelve a proponer: la prueba de
   arquitectura falla si vuelve su API, su token o `mapbox-gl`.

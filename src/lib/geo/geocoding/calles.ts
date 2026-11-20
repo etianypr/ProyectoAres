@@ -10,6 +10,7 @@
 // recién la primera vez que hace falta (son ~30 KB que la pantalla no necesita
 // para arrancar).
 import {
+  coincidenciaHolgadaPartida,
   coincidenciaPartida,
   compararCoincidencias,
   normalizar,
@@ -68,6 +69,31 @@ export async function callesParecidas(escrito: string, maximo = 3): Promise<Call
   if (parecidas.length === 0) return [];
   const minimas = Math.min(...parecidas.map((p) => p.ediciones));
   return parecidas
+    .filter((p) => p.ediciones === minimas)
+    .sort((a, b) => compararCoincidencias(a, b) || a.nombre.length - b.nombre.length)
+    .slice(0, maximo);
+}
+
+/** Las calles del catálogo para buscar el número escrito: las de callesParecidas y, si ninguna
+ *  calza, las que calzan con la coincidencia holgada («ORIZOMBO BARBOZA» → «Orozimbo Barbosa»;
+ *  dueño, 2026-11-20), solo el grupo con menos letras corregidas. completarNumeroEnCalles le
+ *  pregunta a Google por la puerta con ese número en cada una: no se elige sola. */
+export async function callesSimilares(escrito: string, maximo = 3): Promise<CalleParecida[]> {
+  const estrictas = await callesParecidas(escrito, maximo);
+  if (estrictas.length > 0) return estrictas;
+  const partido = partirEscrito(escrito);
+  const holgadas: CalleParecida[] = [];
+  for (const calle of await cargar()) {
+    let mejor: Coincidencia | null = null;
+    for (const palabras of calle.palabras) {
+      const c = coincidenciaHolgadaPartida(partido, palabras);
+      if (c && (!mejor || compararCoincidencias(c, mejor) < 0)) mejor = c;
+    }
+    if (mejor) holgadas.push({ ...mejor, nombre: calle.nombre, largo: calle.largo });
+  }
+  if (holgadas.length === 0) return [];
+  const minimas = Math.min(...holgadas.map((p) => p.ediciones));
+  return holgadas
     .filter((p) => p.ediciones === minimas)
     .sort((a, b) => compararCoincidencias(a, b) || a.nombre.length - b.nombre.length)
     .slice(0, maximo);

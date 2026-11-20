@@ -45,8 +45,8 @@ comparten layout: el panel del jefe (escritorio) y la app del conductor (APK And
   antes de escribir código. El middleware se llama Proxy (`src/proxy.ts`).
 - TypeScript estricto, React 19, Tailwind 4 (`cn()` de `lib/comun/utils`), íconos `lucide-react`.
 - Supabase: Postgres + RLS + `pg_cron`, un solo proyecto (gratis; se pausa si queda inactivo).
-  Migraciones `supabase/migrations/0001–0007`; la siguiente es la 0008.
-- Teléfono: IndexedDB `dashund-encomiendas` v7 (la siguiente versión libre es la v8). Mapa:
+  Migraciones `supabase/migrations/0001–0007` y 0009 (la 0008 la reserva la rama 004); la siguiente es la 0010.
+- Teléfono: IndexedDB `dashund-encomiendas` v8 (la siguiente versión libre es la v9). Mapa:
   MapLibre + OpenFreeMap.
 - APK: Capacitor 8, paquete `cl.dashund.ares`. Abre `https://proyecto-ares-five.vercel.app/conductor`,
   así que cada deploy le llega solo. Lo nativo está en `android/` (plugins `Telefono`, `Burbuja` y

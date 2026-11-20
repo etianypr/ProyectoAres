@@ -320,6 +320,16 @@ export interface PeriodoFacturacion {
  *  mapeado es la misma forma, aceptada como Record. */
 type Fila<T> = { [K in keyof T]: T[K] };
 
+/** Calle aprendida (0009, spec 044): escrita → oficial, sin número de casa ni nada de una persona. */
+export interface CalleAprendidaFila {
+  escrita: string;
+  oficial: string;
+  fuente: "conductor" | "ia" | "google";
+  confirmaciones: number;
+  creada_en: string;
+  actualizada_en: string;
+}
+
 /** Clave foránea hacia conductores(id). El nombre es el que Postgres pone solo. */
 type HaciaConductor<T extends string> = {
   foreignKeyName: `${T}_conductor_id_fkey`;
@@ -352,9 +362,15 @@ export type Database = {
       encomienda_reglas_pago: Tabla<ReglaDePago>;
       encomienda_ingresos_reales: Tabla<IngresoReal>;
       encomienda_periodos_facturacion: Tabla<PeriodoFacturacion>;
+      encomienda_calles_aprendidas: Tabla<CalleAprendidaFila>;
     };
     Views: { [_ in never]: never };
     Functions: {
+      /** Aprender una calle (0009, spec 044): suma una confirmación o la reemplaza. */
+      encomienda_aprender_calle: {
+        Args: { p_escrita: string; p_oficial: string; p_fuente: CalleAprendidaFila["fuente"] };
+        Returns: undefined;
+      };
       /** Meta de entregas del bono, legible por el conductor (0007, spec 006). */
       encomienda_meta_entregas_dia: {
         Args: Record<string, never>;

@@ -19,7 +19,7 @@
 import { hastaAbortar } from "@/lib/comun/hasta-abortar";
 import { tope } from "@/lib/comun/tope";
 import { RECUADRO_ARICA } from "@/lib/geo/coordenada";
-import { esLaCalleEscrita, partirCalleYNumero } from "./consulta";
+import { esLaCalleParecida, partirCalleYNumero } from "./consulta";
 import type { SugerenciaDireccion } from "./tipos";
 
 const GOOGLE_GEOCODE = "https://maps.googleapis.com/maps/api/geocode/json";
@@ -44,11 +44,31 @@ export function aSugerenciaGoogle(r: ResultadoGoogle, consulta: string): Sugeren
   const calle = comp("route")?.long_name;
   const numero = comp("street_number")?.long_name?.replace(/\D/g, "");
   const punto = r.geometry?.location;
-  if (!calle || !numero || !punto || !dentroDeArica(punto.lat, punto.lng)) return null;
+  if (!calle || !punto || !dentroDeArica(punto.lat, punto.lng)) return null;
+  if (!numero) {
+    // Solo la calle: no es una puerta, pero trae el nombre como lo conoce Google, que puede no ser
+    // el escrito («pasaje francisco alvarez romero 1204» → «Francisco Alvares Romero», y con ese
+    // nombre da la puerta). completarNumeroEnCalles le vuelve a preguntar con él y el número
+    // (spec 044; dueño, 2026-11-20). Como la calle de OSM: aproximada y sin número.
+    if (!esLaCalleParecida(partido.calle, calle)) return null;
+    return {
+      id: `google:${r.place_id ?? `${punto.lat},${punto.lng}`}`,
+      direccion: calle,
+      detalle: "Arica",
+      lat: punto.lat,
+      lng: punto.lng,
+      soloCalle: true,
+      confianza: "aproximada",
+      coincideNumero: null,
+      fuente: "google",
+    };
+  }
   // El número se compara como número: la guía trae «045», la consulta va sin el cero
   // («45», normalizarConsulta) y Google puede devolver la puerta como «045». Comparados
   // como texto eran puertas distintas y el acierto se botaba (dueño, 2026-11-15).
-  if (Number(numero) !== Number(partido.numero) || !esLaCalleEscrita(partido.calle, calle)) return null;
+  // La calle de Google tiene que ser la escrita; con la coincidencia holgada si no calza estricta
+  // («ORIZOMBO BARBOZA» → «Orozimbo Barbosa», spec 044): el número tiene que ser el mismo igual.
+  if (Number(numero) !== Number(partido.numero) || !esLaCalleParecida(partido.calle, calle)) return null;
 
   const tipo = r.geometry?.location_type;
   // ROOFTOP es la puerta; RANGE_INTERPOLATED, la cuadra. Lo demás (centro de

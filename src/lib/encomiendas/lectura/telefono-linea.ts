@@ -26,9 +26,14 @@ export function conTelefonos(unidas: LineaGuia[], antes: LineaGuia[]): LineaGuia
  *  del pedido: +569 si se pudo normalizar y, si no, tal como se escribió. Las
  *  líneas sin OF válida no llegan acá («Crear» está bloqueado). Los bultos leídos en
  *  la nómina pasan tal cual (spec 036). */
-export function lineasParaCrear(lineas: LineaGuia[]): { of: string; destino: string; telefono?: string; bultos?: number }[] {
+export function lineasParaCrear(lineas: LineaGuia[]): { of: string; destino: string; telefono?: string; bultos?: number; porPagar?: boolean }[] {
   return lineas.map((l) => {
-    const linea = { of: ofValida(l.of) ?? l.of, destino: limpiarDestino(l.destino), ...(l.bultos != null ? { bultos: l.bultos } : {}) };
+    const linea = {
+      of: ofValida(l.of) ?? l.of,
+      destino: limpiarDestino(l.destino),
+      ...(l.bultos != null ? { bultos: l.bultos } : {}),
+      ...(l.porPagar ? { porPagar: true } : {}),
+    };
     return l.telefono?.trim() ? { ...linea, telefono: telefonoParaGuardar(l.telefono) } : linea;
   });
 }

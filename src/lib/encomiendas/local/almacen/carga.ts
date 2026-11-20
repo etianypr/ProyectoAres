@@ -14,8 +14,9 @@ import type { OrigenCarga, Pedido, ReferenciaPaquete } from "./tipos";
 
 /** `telefono`: el que anotó el conductor al revisar la línea (dueño, 2026-11-13),
  *  ya normalizado (lectura/telefono-linea.ts). `bultos`: los de la columna BULTOS de la
- *  nómina (spec 036): «Cargar vehículo» parte sabiendo cuántos trae y la ruta los usa. */
-export type LineaParaCrear = { of: string; destino: string; telefono?: string; bultos?: number };
+ *  nómina (spec 036): «Cargar vehículo» parte sabiendo cuántos trae y la ruta los usa.
+ *  `porPagar`: su ícono de la lista de Starken salió verde (spec 045). */
+export type LineaParaCrear = { of: string; destino: string; telefono?: string; bultos?: number; porPagar?: boolean };
 
 function notaDeReferencia(destino: string): string | null {
   const { referencia } = separarReferencias(destino);
@@ -35,7 +36,7 @@ export function crearDesdeGuia(
     const ahora = new Date().toISOString();
     const creados: Pedido[] = [];
     let yaEstaban = 0;
-    for (const { of, destino, telefono, bultos } of lineas) {
+    for (const { of, destino, telefono, bultos, porPagar } of lineas) {
       if (existentes.has(of)) {
         yaEstaban++;
         continue;
@@ -67,7 +68,9 @@ export function crearDesdeGuia(
         // Una OF de solo documentos (0 bultos) se escanea igual: queda como sin saber.
         bultos: bultos != null && bultos >= 1 ? bultos : null,
         bultosEscaneados: [],
-        porPagar: null,
+        // Por pagar desde la lista de Starken (spec 045): el monto lo trae la etiqueta, y nunca
+        // se supone $0. Sin la lista, se sabe recién con la etiqueta.
+        porPagar: porPagar ? true : null,
         montoPorPagar: null,
         folioGuia: folio,
         origenCarga: origen,

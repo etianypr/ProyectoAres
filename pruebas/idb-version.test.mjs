@@ -98,4 +98,24 @@ test("STORES_DEL_DIA nombra los stores con datos de destinatarios", () => {
   assert.deepEqual([...idb.STORES_DEL_DIA].sort(), ["borradoresGuia", "fotos", "pedidos", "propuestas", "rutas"]);
   assert.equal(idb.STORES_DEL_DIA.includes("cola"), false, "la cola no se borra con el día");
   assert.equal(idb.STORES_DEL_DIA.includes("dias"), false, "el resumen sobrevive al día");
+  assert.equal(idb.STORES_DEL_DIA.includes("callesAprendidas"), false, "lo aprendido (sin datos de nadie) sobrevive al día");
+});
+
+test("v8: `callesAprendidas` aparece vacío; se aprende, se marca subida y lo del servidor no pisa lo por subir (spec 044)", async () => {
+  assert.deepEqual(await almacen.leerCallesAprendidas(), []);
+  await almacen.guardarCalleAprendida("orizombo barboza", "Orozimbo Barbosa", "ia");
+  await almacen.guardarCalleAprendida("orizombo barboza", "Orozimbo Barbosa", "google");
+  let [c] = await almacen.leerCallesAprendidas();
+  assert.deepEqual([c.oficial, c.fuente, c.confirmaciones, c.porEnviar], ["Orozimbo Barbosa", "ia", 2, true]);
+  // Google no reemplaza lo que confirmó una persona.
+  await almacen.guardarCalleAprendida("orizombo barboza", "Otra Calle", "google");
+  assert.equal((await almacen.leerCallesAprendidas())[0].oficial, "Orozimbo Barbosa");
+  // Lo del servidor no pisa lo que este teléfono no subió; después de subirlo, sí.
+  const delServidor = [{ escrita: "orizombo barboza", oficial: "Otra Calle", fuente: "conductor", confirmaciones: 5, actualizada: HOY }];
+  await almacen.fundirCallesDelServidor(delServidor);
+  assert.equal((await almacen.leerCallesAprendidas())[0].oficial, "Orozimbo Barbosa");
+  await almacen.marcarCallesEnviadas([{ escrita: "orizombo barboza", oficial: "Orozimbo Barbosa" }]);
+  await almacen.fundirCallesDelServidor(delServidor);
+  [c] = await almacen.leerCallesAprendidas();
+  assert.deepEqual([c.oficial, c.confirmaciones, c.porEnviar], ["Otra Calle", 5, false]);
 });

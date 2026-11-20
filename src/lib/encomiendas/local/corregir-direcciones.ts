@@ -17,6 +17,7 @@ import { corregirEnLote, entradasDelLote, IANoDisponible, IAOcupada } from "@/li
 import { LOTE_MAXIMO, MAX_DIRECCIONES_POR_TANDA, type ResultadoIA, type ZonaDelDia } from "@/lib/geo/direccion-ia/contrato";
 import { telefonoParaGuardar } from "@/lib/comun/telefono";
 import { cambiarDireccion, fijarTelefono, guardarPropuestaIA, leerPedidos, type Pedido } from "./almacen";
+import { aprenderDeCorreccion } from "./calles-aprendidas";
 import { hastaAbortar, hayRed } from "./ubicar-carga";
 
 /** Una corrección a confirmar. */
@@ -278,6 +279,8 @@ export async function aplicarCorreccion(
       { lat: editada.lat, lng: editada.lng },
       `Dirección corregida manualmente sobre la de la IA; decía «${p.original}»`,
     );
+    // Se aprende la calle (sin el número) para la próxima (spec 044).
+    void aprenderDeCorreccion(p.original, editada.direccion, "conductor");
     return;
   }
   const cuadra = p.soloCalle
@@ -293,4 +296,6 @@ export async function aplicarCorreccion(
     // Spec 040: la cuadra o la calle siguen siendo «Aproximada» en pantalla.
     p.soloCalle || p.enLaCuadra,
   );
+  // La corrección confirmada enseña la calle para la próxima, sin IA (spec 044).
+  void aprenderDeCorreccion(p.original, p.direccion, "ia");
 }

@@ -13,6 +13,7 @@ import { MapPinOff } from "lucide-react";
 import { DireccionInput } from "@/components/direccion/direccion-input";
 import { telefonoParaGuardar } from "@/lib/comun/telefono";
 import { cambiarDireccion, elegirLugar, fijarTelefono, type Pedido } from "@/lib/encomiendas/local/almacen";
+import { aprenderDeCorreccion } from "@/lib/encomiendas/local/calles-aprendidas";
 import { formatoOf } from "@/lib/encomiendas/paquete";
 import type { ProblemaGuardado } from "@/lib/encomiendas/problemas";
 import { BotonTelefono, CampoTelefono } from "./campo-telefono";
@@ -101,9 +102,12 @@ export function PorConfirmar({ pedidos, onResuelto }: { pedidos: Pedido[]; onRes
         }
         return (
           <EscribirDireccion key={p.id} pedido={p} of={of} ocupado={ocupado} onGuardar={(texto, punto) =>
-            void hacer(p.id, () =>
-              cambiarDireccion(p.id, texto, punto, `Dirección corregida manualmente; decía «${p.direccion}»`),
-            )
+            void hacer(p.id, async () => {
+              const decia = p.direccion;
+              await cambiarDireccion(p.id, texto, punto, `Dirección corregida manualmente; decía «${decia}»`);
+              // La calle corregida se aprende para la próxima (spec 044), si se parece a la escrita.
+              void aprenderDeCorreccion(decia, texto, "conductor");
+            })
           } />
         );
       })}

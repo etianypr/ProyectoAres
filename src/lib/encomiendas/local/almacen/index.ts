@@ -22,6 +22,7 @@ export type {
   Aviso,
   ActividadPorEnviar,
   BorradorGuia,
+  CalleAprendida,
   Foto,
   OrigenCarga,
   Pedido,
@@ -84,6 +85,7 @@ export { cambiarResultado, PLAZO_CORREGIR_MS, sePuedeCambiar } from "./correccio
 export { apartarRechazado, leerCola, leerRechazados, MOTIVO_PLAZO, quitarCorreccion, quitarDeCola, retenerEvento } from "./cola";
 export { borrarPropuestaGuardada, guardarPropuesta, leerPropuestaGuardada } from "./propuesta";
 export { borrarBorradorGuia, guardarBorradorGuia, leerBorradorGuia } from "./borrador-guia";
+export { fundirCallesDelServidor, guardarCalleAprendida, leerCallesAprendidas, marcarCallesEnviadas } from "./calles-aprendidas";
 export {
   aplicarLecturaEtiqueta,
   crearDesdeGuia,

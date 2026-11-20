@@ -2,11 +2,12 @@
 // que se quiso decir ("Linderos 3536"; spec 016 con el catálogo de calles).
 
 import { anotarTiempo } from "@/lib/comun/cronometro";
-import { callesParecidas } from "./calles";
+import { callesSimilares } from "./calles";
 import {
   coincidenciaCalle,
+  coincidenciaHolgada,
   compararCoincidencias,
-  esLaCalleEscrita,
+  esLaCalleParecida,
   normalizar,
   normalizarConsulta,
   partirCalleYNumero,
@@ -102,7 +103,7 @@ async function puertaEnCalle(
   // El número tiene que ser EL QUE SE PIDIÓ y la calle, la que se preguntó: un
   // buscador que interpola el número sobre otra calle contesta con cara de
   // resultado bueno (googleDirecto ya filtra; esto lo deja escrito acá).
-  return puertas && puertas.filter((s) => s.coincideNumero === true && esLaCalleEscrita(calle, s.direccion));
+  return puertas && puertas.filter((s) => s.coincideNumero === true && esLaCalleParecida(calle, s.direccion));
 }
 
 /** Las calles donde buscar el número: las que trajeron los proveedores y las
@@ -112,10 +113,11 @@ async function puertaEnCalle(
  *  pregunta por las parecidas. La misma calle traída por dos lados va una vez. */
 async function callesAProbar(calle: string, candidatos: SugerenciaDireccion[]): Promise<string[]> {
   const deProveedores = candidatos.map(nombreDeCalleDe).filter((n): n is string => !!n);
-  const delCatalogo = (await callesParecidas(calle)).map((c) => c.nombre);
+  // Con la holgada si ninguna calza estricta (spec 044; dueño, 2026-11-20): Google confirma la puerta.
+  const delCatalogo = (await callesSimilares(calle)).map((c) => c.nombre);
   const posibles: { nombre: string; c: Coincidencia; orden: number }[] = [];
   [...deProveedores, ...delCatalogo].forEach((nombre, orden) => {
-    const c = coincidenciaCalle(calle, nombre);
+    const c = coincidenciaCalle(calle, nombre) ?? coincidenciaHolgada(calle, nombre);
     if (!c || posibles.some((p) => normalizar(p.nombre) === normalizar(nombre))) return;
     posibles.push({ nombre, c, orden });
   });

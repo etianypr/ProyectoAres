@@ -1,6 +1,7 @@
 // Una dirección ya escrita → dónde queda, sin elegir sola cuando hay dudas.
 
 import { distanciaMetros, type Coordenada } from "@/lib/geo/coordenada";
+import { aprenderCalle, conCalleAprendida } from "./aprendidas";
 import { corregirConCatalogo, largoDeCalle } from "./calles";
 import { comoPlusCode } from "./codigo";
 import { ubicarEnLugares } from "./calle-repetida";
@@ -117,6 +118,12 @@ export async function ubicarDireccion(direccion: string, senal?: AbortSignal): P
     const lugares = await lugaresDeCalle(calle);
     if (lugares.length >= 2) return ubicarEnLugares(q, ref, lugares, candidatos);
   }
+  // Google confirmó la puerta con ese número en una calle que se escribe distinto: se aprende
+  // (dueño, 2026-11-20: «lo de Google igual»), sin esperar a guardarlo.
+  if (r.tipo === "exacta" && r.elegida?.fuente === "google") {
+    const oficial = calleYNumero(r.elegida.direccion).calle;
+    void aprenderCalle(calle, oficial, "google");
+  }
   return r;
 }
 
@@ -125,7 +132,17 @@ export async function ubicarDireccion(direccion: string, senal?: AbortSignal): P
  *  que la cámara leyó mal se corrige antes de preguntar (spec 044). */
 async function consultaDe(direccion: string): Promise<{ ref: Referencias; q: string }> {
   const ref = separarReferencias(direccion);
-  return { ref, q: await corregirConCatalogo(normalizarConsulta(ref.consulta)) };
+  // Una calle ya aprendida se busca directo con su nombre (spec 044, aprendidas.ts).
+  return { ref, q: conCalleAprendida(await corregirConCatalogo(normalizarConsulta(ref.consulta))) };
+}
+
+/** La calle escrita de una dirección, como la busca la app y sin el número: la clave con que se
+ *  aprende (spec 044). null si no hay nada que buscar. */
+export async function calleEscritaDe(direccion: string): Promise<string | null> {
+  if (comoPlusCode(direccion)) return null;
+  const ref = separarReferencias(direccion);
+  const q = await corregirConCatalogo(normalizarConsulta(ref.consulta));
+  return q ? calleYNumero(q).calle : null;
 }
 
 /** Lo que ubicarDireccion le preguntará a OpenStreetMap por esta dirección, o null si no le
