@@ -31,9 +31,23 @@ export type RutaConRumbo = {
   costo: number;
 };
 
-/** Un tramo sin camino cuesta esto: grande, pero finito para que las cuentas no
- *  den NaN y la búsqueda siga prefiriendo lo que sí tiene camino. */
-const SIN_CAMINO = 1e12;
+/** Lo que cuesta un tramo sin camino en ese día: más que una ruta entera hecha con
+ *  el tramo más caro del día (así la búsqueda prefiere siempre lo que tiene
+ *  camino), pero finito para que las cuentas no den NaN, y chico para que las
+ *  sumas no pierdan los decimales. Antes era 1e12 fijo: las jugadas restan sumas
+ *  parciales de la ruta (con-rumbo-jugadas.ts), y a 1e12 un double redondea a
+ *  ~1e-4, cien veces EPSILON. Con una parada sin salida por la red el tramo de 1e12
+ *  no se puede evitar, el ruido parecía mejora y la búsqueda probaba jugadas de ida
+ *  y vuelta para siempre, sin ceder la pantalla (terreno 2026-11-23: 62 paradas
+ *  reales, «Optimizando ruta» detenido en «1 s»). */
+function costoSinCamino(costo: ArrayLike<number>, n: number): number {
+  let mayor = 1;
+  for (let k = 0; k < n * n; k++) {
+    const v = costo[k];
+    if (v > mayor && Number.isFinite(v)) mayor = v;
+  }
+  return mayor * (n + 1) * 10;
+}
 
 /** Lo que la búsqueda necesita del día, ya masticado. */
 export type Tablero = {
@@ -60,12 +74,13 @@ export function tableroDe(dia: DiaConRumbo): Tablero {
       otro[e] = estados[estados.length - 1 - k];
     });
   });
+  const sinCamino = costoSinCamino(costo, n);
   const c = (a: number, b: number) => {
     const v = costo[a * n + b];
-    return v < SIN_CAMINO ? v : SIN_CAMINO;
+    return v < sinCamino ? v : sinCamino;
   };
   const minimo = (estados: number[], costoDe: (e: number) => number) => {
-    let mejor = SIN_CAMINO;
+    let mejor = sinCamino;
     for (const e of estados) mejor = Math.min(mejor, costoDe(e));
     return mejor;
   };

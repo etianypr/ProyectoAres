@@ -112,7 +112,13 @@ export function medirConRumbo(red: RedDelDia, orden: number[]): { metros: number
   const ruta = mejoresEstados(tableroDe(red.dia), orden);
   const fin = red.dia.fin;
   const estados = [estadosDe[0][0], ...ruta.estados, ...(fin >= 0 ? [estadosDe[fin][0]] : [])];
+  const { lugarDe } = red.conRumbo;
   let metros = 0;
-  for (let k = 1; k < estados.length; k++) metros += red.conRumbo.metros[estados[k - 1] * n + estados[k]];
+  for (let k = 1; k < estados.length; k++) {
+    const tramo = red.conRumbo.metros[estados[k - 1] * n + estados[k]];
+    // Un tramo sin camino por la red (una parada sin salida, terreno 2026-11-23) se
+    // cuenta como en la matriz de lugares, finito: si no, la alternativa medía «Infinity».
+    metros += Number.isFinite(tramo) ? tramo : red.metros[lugarDe[estados[k - 1]]][lugarDe[estados[k]]];
+  }
   return { metros, pesos: ruta.costo };
 }
