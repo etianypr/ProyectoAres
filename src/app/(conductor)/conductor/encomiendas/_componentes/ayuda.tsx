@@ -80,7 +80,7 @@ const SECCIONES: { titulo: string; pasos: string[] }[] = [
       "Toca un pedido pendiente para corregir su OF, teléfono o dirección.",
       "Toca una parada ✓ o ✕ de «Ruta del día» para cambiarla a Entregado, No entregado o Pendiente (vuelve a la ruta donde menos la alarga). Disponible durante 11 horas después de cerrarla.",
       "Desliza un pedido a la izquierda y toca «Eliminar».",
-      "Menú → «Accesibilidad» → Llamadas: con «Altavoz» activado, la llamada se realiza en altavoz.",
+      "Menú → Accesibilidad (ícono junto a «Cerrar sesión») → Llamadas: con «Altavoz» activado, la llamada se realiza en altavoz.",
       "Menú → «Buscar paquete por OF» con los últimos dígitos; toca la fila para abrir el pedido (también en «Faltan»).",
     ],
   },
@@ -89,10 +89,10 @@ const SECCIONES: { titulo: string; pasos: string[] }[] = [
     pasos: [
       "Al terminar, revisa los no entregados y confirma: se borran del dispositivo los datos de los clientes. Con no entregados, «Confirmar y borrar datos» pide «Sí, ya están separados». Si se pospuso, «Cerrar día» lo vuelve a abrir (los segundos al lado son los del «Deshacer»).",
       "Si llega un pedido con la ruta completada: «Agregar a la ruta».",
-      "Sin conexión todo queda guardado y se envía automáticamente. Un día anterior con «N sin enviar» en Menú → «Días de trabajo»: «Reintentar».",
+      "Sin conexión todo queda guardado y se envía automáticamente. Un día anterior con «N sin enviar» en Menú → «Días de trabajo»: «Reintentar». Los días anteriores son solo de consulta.",
       "«Cerrar sesión» cierra la sesión y solo entonces borra los pedidos del dispositivo; sin conexión no se cierra ni se borra nada. Cuenta sin vincular o desactivada: la oficina la corrige en la ficha del conductor y después «Reintentar».",
       "«Actualización disponible»: «Descargar» instala la versión nueva; ✕ oculta el aviso hasta volver a abrir la app.",
-      "Para probar sin enviar nada: Menú → Diagnóstico → Modo prueba (con GPS simulado en la central; Google Maps sigue con la ubicación real).",
+      "Para probar sin enviar nada: Menú → Diagnóstico (ícono junto a «Cerrar sesión») → Modo prueba (con GPS simulado en la central; Google Maps sigue con la ubicación real).",
     ],
   },
 ];
