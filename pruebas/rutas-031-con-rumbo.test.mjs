@@ -9,6 +9,7 @@
 // entregan en el sentido en que pasa el auto.
 import test from "node:test";
 import assert from "node:assert/strict";
+import { Worker } from "node:worker_threads";
 import { costoDeLaRuta, exactoConRumbo, mejoresEstados, tableroDe } from "@/lib/rutas/orden-paradas/con-rumbo";
 import { crearMesa } from "@/lib/rutas/orden-paradas/con-rumbo-jugadas";
 import { ordenarConRumbo } from "@/lib/rutas/orden-paradas/con-rumbo-busqueda";
@@ -217,4 +218,55 @@ test("a igual camino, la ruta empieza por donde hay más bultos", () => {
   const ruta = mejoresEstados(t, [1, 2]);
   const con = adelantarBultosConRumbo(t, ruta, { bultos: [0, 1, 5], metros: dia.costo, tolerancia: 0.01, metrosPorParada: 1667 });
   assert.deepEqual(con.orden, [2, 1]);
+});
+
+// Terreno 2026-11-23: con 62 paradas reales «Optimizando ruta» quedó detenido en «1 s».
+// Una parada sin salida por la red (o aislada) mete un tramo sin camino que no se puede
+// evitar; a 1e12 las sumas de las jugadas perdían los decimales y la búsqueda probaba
+// jugadas de ida y vuelta para siempre, sin ceder. Corre en un Worker con tope: si
+// vuelve a trabarse, la prueba falla en vez de colgar `npm test`.
+function ordenarEnWorker(dia, ms) {
+  return new Promise((listo, falla) => {
+    const w = new Worker(
+      `const { parentPort, workerData } = require("node:worker_threads");
+       require("node:module").register(workerData.cargador);
+       import("@/lib/rutas/orden-paradas/con-rumbo-busqueda").then(({ ordenarConRumbo }) =>
+         parentPort.postMessage(ordenarConRumbo(workerData.dia)));`,
+      // El Worker no hereda el resolvedor de «@/» (registrar.mjs): se engancha adentro.
+      { eval: true, workerData: { dia, cargador: new URL("./loader.mjs", import.meta.url).href } },
+    );
+    const tope = setTimeout(() => {
+      void w.terminate();
+      falla(new Error(`la búsqueda no terminó en ${ms} ms: trabada`));
+    }, ms);
+    w.once("message", (r) => {
+      clearTimeout(tope);
+      void w.terminate();
+      listo(r);
+    });
+    w.once("error", (e) => {
+      clearTimeout(tope);
+      falla(e);
+    });
+  });
+}
+
+test("una parada sin salida por la red, o aislada, no traba la búsqueda", async () => {
+  for (const aislada of [false, true]) {
+    const dia = diaAlAzar(62, 77);
+    const { n, costo, estadosDe } = dia;
+    const lugar = 17;
+    for (const e of estadosDe[lugar]) {
+      for (let b = 0; b < n; b++) {
+        if (estadosDe[lugar].includes(b)) continue;
+        costo[e * n + b] = Infinity;
+        if (aislada) costo[b * n + e] = Infinity;
+      }
+    }
+    const r = await ordenarEnWorker(dia, 20_000);
+    const t = tableroDe(dia);
+    assert.deepEqual([...r.orden].sort((a, b) => a - b), t.paradas, "no pasa una vez por cada parada");
+    assert.ok(Number.isFinite(r.costo), "el costo no es finito");
+    assert.ok(Math.abs(costoDeLaRuta(t, r.estados) - r.costo) < 1e-6, "el costo que dice no es el de su ruta");
+  }
 });
