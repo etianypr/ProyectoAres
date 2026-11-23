@@ -119,7 +119,7 @@ export default function SetPasswordPage() {
     <div className="flex min-h-screen items-center justify-center bg-[#f4f0ec] p-4 text-[#221a15]">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center text-center">
-          <LogoDashund className="mb-3 h-20 w-20" titulo="" />
+          <LogoDashund className="mb-4 h-14 w-36" titulo="" />
           <h1 className="text-2xl font-extrabold tracking-tight">ARES</h1>
           <p className="text-sm text-[#6b5f57]">Contraseña nueva</p>
         </div>

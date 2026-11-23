@@ -25,7 +25,7 @@ export default async function LoginPage({
       <BorradoPendiente />
       <div className="w-full max-w-sm">
         <div className="animate-slide-up mb-6 flex flex-col items-center text-center">
-          <LogoDashund className="mb-3 h-20 w-20" titulo="" />
+          <LogoDashund className="mb-4 h-14 w-36" titulo="" />
           <h1 className="text-2xl font-extrabold tracking-tight">ARES</h1>
         </div>
 

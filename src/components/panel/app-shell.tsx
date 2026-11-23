@@ -67,7 +67,7 @@ export function AppShell({
       {/* La marca de ARES, la misma del login (spec 042): antes, un ícono de caja y
           «Gestión interna». El nombre de la empresa sigue saliendo de Configuración. */}
       <div className="flex items-center gap-2.5 px-5 py-5">
-        <LogoDashund className="h-9 w-9 shrink-0" />
+        <LogoDashund className="h-7 w-16 shrink-0" />
         <div className="leading-tight">
           <div className="text-sm font-extrabold tracking-tight">ARES</div>
           <div className="text-xs text-white/60">{empresaNombre}</div>
@@ -146,7 +146,7 @@ export function AppShell({
       {/* Barra superior móvil */}
       <header className="flex items-center justify-between bg-foreground px-4 py-3 text-white lg:hidden">
         <div className="flex items-center gap-2">
-          <LogoDashund className="h-6 w-6" />
+          <LogoDashund className="h-5 w-12" />
           <span className="text-sm font-extrabold tracking-tight">ARES</span>
         </div>
         <button onClick={() => setOpen(true)} aria-label="Abrir menú">

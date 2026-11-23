@@ -9,7 +9,7 @@
 // Es el mapa con la hoja abajo, en gris: la misma silueta que va a aparecer.
 // No dice "Cargando" ni gira nada — lo que tranquiliza no es la palabra, es
 // reconocer de antemano la forma de lo que viene. Al centro, el logo de
-// Dashund con las orejas que se mecen (2026-10-28).
+// Dashund con el lomo que se estira (2026-11-23).
 //
 // Cubre todo el grupo (conductor), así que también tapa el salto entre el
 // reparto y cualquier pantalla nueva que se agregue bajo /conductor.
@@ -23,7 +23,7 @@ export default function CargandoConductor() {
       <div aria-hidden className="animate-fade-in relative flex min-h-dvh flex-col">
         {/* El mapa */}
         <div className="relative flex-1 animate-pulse bg-border/40" />
-        <LogoDashund animado titulo="" className="absolute left-1/2 top-[38%] h-24 w-24 -translate-x-1/2 -translate-y-1/2" />
+        <LogoDashund animado titulo="" className="absolute left-1/2 top-[38%] h-16 w-44 -translate-x-1/2 -translate-y-1/2" />
 
         {/* El carril de arriba: el botón del menú y el cartel. */}
         <div className="absolute inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] flex items-center gap-2">
