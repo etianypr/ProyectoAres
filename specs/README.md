@@ -37,6 +37,11 @@ tirado al conductor (`AGENTS.md`, «Ahora»). Lo que no sirve para eso está en 
        Quitándola (`display: none`, clase `camara-sola`) el barrido pasó de 154–194 a 333–358
        cuadros en 6 s, sin trabas. Además, con la foto en alta abierta los cuadros bajan a
        720×960. Falta probarlo en la 028 (decide el dueño).
+     - **Aplicado en la 028** (rama `arreglo-escaner-etiquetas`, 2026-11-25, tras la prueba del
+       dueño: «la cámara se congelaba a ratos», desde la segunda etiqueta): `camara-sola`, sin
+       redibujar en cada cuadro, el día recargado agrupado y, con la APK 1.13.0, la foto del
+       cuadro (1920×1080) y el texto girado. **Falta medirlo en el V2430** (Diagnóstico «Tiempos»:
+       «Escáner: mayor pausa entre cuadros») con las 20 fotos del dueño antes de pasar a `main`.
      - El escáner de Google tampoco es una salida segura (medido el 2026-11-10): mientras está
        abierto, Android cierra ARES por memoria en 5 de 7 intentos y el código se pierde. La
        cámara del sistema («Sacar foto») no lo cerró en 2 de 2.

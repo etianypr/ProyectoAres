@@ -1,9 +1,13 @@
 package cl.dashund.ares;
 
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.ImageFormat;
 import android.graphics.Matrix;
 import android.graphics.Rect;
 import android.graphics.RectF;
+import android.graphics.YuvImage;
 import android.media.Image;
 import android.os.Debug;
 import android.os.PowerManager;
@@ -27,6 +31,7 @@ import com.google.mlkit.vision.text.latin.TextRecognizerOptions;
 
 import org.json.JSONException;
 
+import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collections;
@@ -37,6 +42,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * La lectura de cada cuadro del escáner en vivo (spec 028): los códigos y los renglones de
@@ -62,6 +68,18 @@ final class LectorCuadros {
         void cuadro(JSObject evento);
     }
 
+    /** Quien espera la foto del paquete sacada del cuadro (fotos del dueño, 2026-11-25). */
+    interface AlFoto {
+        void lista(byte[] jpeg, JSArray codigos, String texto);
+
+        void fallo(String motivo);
+    }
+
+    /** La foto del paquete sacada del cuadro: el lado mayor, como la foto que guarda la web
+     *  (foto.ts), y la calidad del JPEG. */
+    private static final int LADO_FOTO = 1600;
+    private static final int CALIDAD_FOTO = 85;
+
     /** Cada cuántos cuadros van el estado térmico y la memoria: es una consulta al sistema. */
     private static final int CADA_CUANTOS_ESTADO = 30;
 
@@ -84,6 +102,13 @@ final class LectorCuadros {
     private volatile int ancho;
     private volatile int alto;
     private volatile boolean cerrado;
+    /** El giro que se le suma al texto (0, 90, 180 o 270): la etiqueta al revés o de costado. El
+     *  código de barras se lee en cualquier sentido; el texto al revés sale ilegible (6 de las 20
+     *  fotos del dueño, 2026-11-25). Lo pide la web (sesion-viva.ts). Las cajas de los renglones
+     *  quedan en el cuadro girado: la etiqueta no las usa, y la nómina nunca gira. */
+    private volatile int giroTexto;
+    /** La foto del paquete pedida: la entrega el próximo cuadro leído. */
+    private final AtomicReference<AlFoto> fotoPedida = new AtomicReference<>();
 
     LectorCuadros(Context contexto, BarcodeScanner codigos, TextRecognizer lector, ExecutorService hilo, int enVuelo, Salida salida) {
         this.contexto = contexto;
@@ -129,9 +154,26 @@ final class LectorCuadros {
      *  el hilo del análisis son del plugin, que los cierra. */
     void cerrar() {
         cerrado = true;
+        AlFoto pendiente = fotoPedida.getAndSet(null);
+        if (pendiente != null) pendiente.fallo("sin_camara");
         if (lectores != null) {
             lectores[1].close();
             hilos[1].shutdown();
+        }
+    }
+
+    void girarTexto(int grados) {
+        giroTexto = ((Math.round(grados / 90f) * 90) % 360 + 360) % 360;
+    }
+
+    /** La foto del paquete: el próximo cuadro leído la entrega, con sus códigos y su texto. Una
+     *  pedida antes que no alcanzó a salir se suelta (la web ya no la espera). */
+    void pedirFoto(AlFoto alFoto) {
+        AlFoto anterior = fotoPedida.getAndSet(alFoto);
+        if (anterior != null) anterior.fallo("otra_foto");
+        if (cerrado) {
+            AlFoto pendiente = fotoPedida.getAndSet(null);
+            if (pendiente != null) pendiente.fallo("sin_camara");
         }
     }
 
@@ -158,11 +200,14 @@ final class LectorCuadros {
             return;
         }
         InputImage entrada = InputImage.fromMediaImage(imagen, giro);
+        int extra = giroTexto;
+        int giroDelTexto = (giro + extra) % 360;
+        InputImage entradaTexto = extra == 0 ? entrada : InputImage.fromMediaImage(imagen, giroDelTexto);
         Task<List<Barcode>> conCodigos;
         Task<Text> conTexto;
         try {
             conCodigos = codigos != null ? codigos.process(entrada) : Tasks.forResult(Collections.emptyList());
-            conTexto = lector.process(entrada);
+            conTexto = lector.process(entradaTexto);
         } catch (RuntimeException apagado) {
             cuadro.close();
             return;
@@ -183,11 +228,78 @@ final class LectorCuadros {
                 long msLector = SystemClock.elapsedRealtime() - inicio;
                 // La imagen sigue abierta hasta soltar el cuadro: con ella se mide el color de
                 // los íconos de la lista de Starken (ColorIconos, spec 045).
-                if (!cerrado) salida.cuadro(evento(n, inicio, msLector, conCodigos, conTexto, anchoDerecho, altoDerecho, imagen, giro));
+                if (!cerrado) salida.cuadro(evento(n, inicio, msLector, conCodigos, conTexto, anchoDerecho, altoDerecho, imagen, giroDelTexto));
+                AlFoto alFoto = fotoPedida.getAndSet(null);
+                if (alFoto != null) entregarFoto(alFoto, imagen, giro, conCodigos, conTexto);
             } finally {
                 cuadro.close();
             }
         });
+    }
+
+    /** La foto del paquete sacada de este cuadro (todavía abierto): JPEG derecho de a lo más
+     *  LADO_FOTO, con los códigos y el texto que leyó ML Kit en él. Sin la foto en alta, el
+     *  V2430 da cuadros de 1920×1080 en vez de 720×960 y la cámara no se congela al sacarla
+     *  (fotos del dueño, 2026-11-25). Ningún dato de la foto se escribe en el log. */
+    private static void entregarFoto(AlFoto alFoto, Image imagen, int giro, Task<List<Barcode>> conCodigos, Task<Text> conTexto) {
+        Bitmap cuadro = null;
+        Bitmap derecha = null;
+        try {
+            int w = imagen.getWidth();
+            int h = imagen.getHeight();
+            ByteArrayOutputStream comoJpeg = new ByteArrayOutputStream();
+            new YuvImage(nv21(imagen), ImageFormat.NV21, w, h, null).compressToJpeg(new Rect(0, 0, w, h), 90, comoJpeg);
+            byte[] crudo = comoJpeg.toByteArray();
+            cuadro = BitmapFactory.decodeByteArray(crudo, 0, crudo.length);
+            float escala = Math.min(1f, (float) LADO_FOTO / Math.max(w, h));
+            Matrix m = new Matrix();
+            m.postScale(escala, escala);
+            m.postRotate(giro);
+            derecha = Bitmap.createBitmap(cuadro, 0, 0, cuadro.getWidth(), cuadro.getHeight(), m, true);
+            ByteArrayOutputStream salida = new ByteArrayOutputStream();
+            derecha.compress(Bitmap.CompressFormat.JPEG, CALIDAD_FOTO, salida);
+            JSArray valores = new JSArray();
+            if (conCodigos != null && conCodigos.isSuccessful()) {
+                for (Barcode codigo : conCodigos.getResult()) {
+                    if (codigo.getRawValue() != null) valores.put(codigo.getRawValue());
+                }
+            }
+            alFoto.lista(salida.toByteArray(), valores, conTexto.isSuccessful() ? conTexto.getResult().getText() : "");
+        } catch (RuntimeException ilegible) {
+            alFoto.fallo("captura_ilegible");
+        } finally {
+            if (derecha != null && derecha != cuadro) derecha.recycle();
+            if (cuadro != null) cuadro.recycle();
+        }
+    }
+
+    /** YUV_420_888 → NV21 (Y y después V y U intercalados), con los pasos de cada plano. */
+    private static byte[] nv21(Image imagen) {
+        int w = imagen.getWidth();
+        int h = imagen.getHeight();
+        byte[] salida = new byte[w * h * 3 / 2];
+        Image.Plane[] planos = imagen.getPlanes();
+        ByteBuffer y = planos[0].getBuffer();
+        int filaY = planos[0].getRowStride();
+        int pos = 0;
+        for (int fila = 0; fila < h; fila++) {
+            y.position(fila * filaY);
+            y.get(salida, pos, w);
+            pos += w;
+        }
+        ByteBuffer u = planos[1].getBuffer();
+        ByteBuffer v = planos[2].getBuffer();
+        int filaU = planos[1].getRowStride();
+        int pasoU = planos[1].getPixelStride();
+        int filaV = planos[2].getRowStride();
+        int pasoV = planos[2].getPixelStride();
+        for (int fila = 0; fila < h / 2; fila++) {
+            for (int col = 0; col < w / 2; col++) {
+                salida[pos++] = v.get(fila * filaV + col * pasoV);
+                salida[pos++] = u.get(fila * filaU + col * pasoU);
+            }
+        }
+        return salida;
     }
 
     /** Dos cuadros a la vez: se copia el plano Y (el brillo) a un búfer libre y se suelta el

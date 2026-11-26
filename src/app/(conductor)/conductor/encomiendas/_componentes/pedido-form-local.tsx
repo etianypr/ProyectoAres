@@ -25,6 +25,7 @@ import { ubicarDireccion, type SugerenciaDireccion } from "@/lib/geo/geocoding";
 import { normalizarTelefono } from "@/lib/comun/telefono";
 import { guardarPedido, ofRepetida, reiniciarDisponibilidad, type Pedido } from "@/lib/encomiendas/local/almacen";
 import { ofValida } from "@/lib/encomiendas/paquete";
+import { completarPedidoDeEtiqueta, type EtiquetaParaPedido } from "../_hooks/guardar-etiqueta-viva";
 
 const VACIO = { nombre: "", telefono: "", direccion: "", notas: "" };
 
@@ -41,14 +42,15 @@ type DireccionElegida = { texto: string; lat: number; lng: number };
 export function PedidoFormLocal({
   pedido,
   fecha,
-  ofInicial,
+  etiqueta,
   onGuardado,
   onCambios,
 }: {
   /** Pedido a editar. Sin esto es uno nuevo. */
   pedido?: Pedido;
-  /** OF de una etiqueta escaneada que no estaba en la guía (spec 005). */
-  ofInicial?: string;
+  /** Una etiqueta escaneada que no estaba en la guía (spec 005): su OF y lo leído (nombre,
+   *  teléfono, dirección clara, pago, bulto y foto; dueño, 2026-11-25). */
+  etiqueta?: EtiquetaParaPedido;
   /** Día de trabajo al que pertenece un pedido nuevo. */
   fecha: string;
   /** Guardado. Recibe la advertencia que quedó del guardado, o null si no hubo
@@ -72,8 +74,12 @@ export function PedidoFormLocal({
           direccion: pedido.direccion,
           notas: pedido.notas ?? "",
         }
-      : VACIO,
+      : etiqueta
+        ? { nombre: etiqueta.nombre ?? "", telefono: etiqueta.telefono ?? "", direccion: etiqueta.direccion ?? "", notas: "" }
+        : VACIO,
   );
+  // Lo leído de la etiqueta va con el primer pedido que se guarde, no con los de la tanda.
+  const [deEtiqueta, setDeEtiqueta] = useState(etiqueta ?? null);
   const [elegida, setElegida] = useState<DireccionElegida | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -90,7 +96,7 @@ export function PedidoFormLocal({
   // etiqueta al escanearla (spec 005). La descripción, la foto, los bultos y el
   // POR PAGAR salen del escaneo; al corregir un pedido se pueden cambiar en la
   // sección plegada «Paquete» (spec 033).
-  const [ofTexto, setOfTexto] = useState(pedido?.of ?? ofInicial ?? "");
+  const [ofTexto, setOfTexto] = useState(pedido?.of ?? etiqueta?.of ?? "");
   const ofEscrita = ofTexto.trim();
   const of = ofValida(ofEscrita);
   // POR PAGAR, bultos y cómo es el paquete, al corregir uno (spec 033).
@@ -175,13 +181,22 @@ export function PedidoFormLocal({
         lng: coord.lng,
         notas: campos.notas.trim() || null,
         of,
-        ...(editando ? paquete.datos() : {}),
+        ...(editando
+          ? paquete.datos()
+          : deEtiqueta
+            ? { porPagar: deEtiqueta.porPagar, montoPorPagar: deEtiqueta.montoPorPagar, ...(deEtiqueta.bultos ? { bultos: deEtiqueta.bultos } : {}) }
+            : {}),
       },
       fecha,
       pedido?.id,
       // Nuevo desde una etiqueta que no estaba en la guía (spec 022, US4).
-      !pedido && ofInicial ? { origen: "etiqueta", problemas: [{ tipo: "fuera_de_guia" }] } : undefined,
+      !pedido && deEtiqueta ? { origen: "etiqueta", problemas: [{ tipo: "fuera_de_guia" }] } : undefined,
     );
+    // Su bulto queda escaneado y la foto de la etiqueta, guardada (el resto ya va arriba).
+    if (!editando && deEtiqueta) {
+      await completarPedidoDeEtiqueta(fecha, guardado, deEtiqueta).catch(() => undefined);
+      setDeEtiqueta(null);
+    }
     // Una OF repetida en el día es casi siempre el mismo paquete cargado dos
     // veces: se avisa, pero se guarda (puede ser un error de la etiqueta).
     if (await ofRepetida(guardado.fecha, guardado.of, guardado.id)) {

@@ -1,48 +1,45 @@
 "use client";
 
 // El escáner en vivo al cargar el auto (spec 028): la cámara queda abierta y cada
-// etiqueta se lee sola. Aquí vive el estado; la pantalla es escaner-vivo.tsx.
+// etiqueta se lee sola. Aquí viven el estado, el guardado y los sonidos; qué hacer con
+// cada cuadro lo decide sesion-viva.ts (puro y probado) y la pantalla es escaner-vivo.tsx.
 //
-//   · Al ver el código de una etiqueta nueva: la parada de inmediato, y el bulto
-//     queda contado (como el escáner de siempre).
-//   · Los cuadros se juntan (votos.ts). Cuando todo queda firme se saca la
-//     captura en alta (otra lectura y la foto del paquete), se guarda SOLO lo
-//     firme y se avisa con vibración y pitido. No hay apuro: el dueño quiere los
-//     datos bien antes que rápido (2026-11-08). Si la etiqueta sale de la cámara
-//     o aparece otra, se cierra con lo firme que tenga.
-//   · Un cuadro con dos códigos de Starken distintos no cuenta (la caja del
-//     lado). Uno sin código cuenta si el de esta etiqueta se vio hace menos de
-//     CONTINUIDAD_MS (ML Kit no lee el código en todos los cuadros).
-//   · Un ⚠ (no está en el día, otra dirección) pausa la lectura hasta resolverlo.
+//   · Al ver el código de una etiqueta nueva (su OF y su bulto): la parada de inmediato,
+//     y el bulto queda contado (como el escáner de siempre).
+//   · Los cuadros se juntan (votos.ts). Cuando todo queda firme se saca la foto del
+//     paquete, se guarda SOLO lo firme y se avisa con vibración y pitido. No hay apuro: el
+//     dueño quiere los datos bien antes que rápido (2026-11-08). Si la etiqueta sale de la
+//     cámara o aparece otra, se cierra con lo firme que tenga; si su código vuelve, se
+//     sigue leyendo hasta quedar completa.
+//   · La traba (fotos del dueño, 2026-11-25: «la cámara se congelaba a ratos», desde la
+//     segunda etiqueta): con la cámara encendida cada redibujo de ARES espera a la GPU 1 a
+//     5 s en el teléfono del conductor. Por eso la pantalla del día se quita del todo
+//     (`camara-sola`, como el barrido de la nómina: medido el 2026-11-11), se redibuja solo
+//     lo que cambió a la vista, el día se recarga a lo más cada AVISAR_CAMBIO_MS y la foto
+//     sale del cuadro que se está leyendo (APK 1.13.0; con una anterior, la foto en alta).
+//   · Un ⚠ (no está en el día, otra dirección) pausa la lectura hasta resolverlo. La que
+//     no está en el día se sigue leyendo, sin pasar a otra caja, y «Agregar como pedido»
+//     se lleva lo leído y la foto (dueño, 2026-11-25: «debería escanear todo»).
 //   · Suena (sonidos-escaner.ts, «Marimba», elegida por el dueño): un tic que sube
 //     por cada dato que queda firme, el de pedido leído cuando la etiqueta queda
 //     completa, y dos notas que bajan con un ⚠. Cerrada a medias, no suena.
-//   · Ni los cuadros ni la captura salen del teléfono.
+//   · Ni los cuadros ni la foto salen del teléfono. Diagnóstico «Tiempos» anota solo cifras.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { codigoEnLaFoto, leerCodigoEtiqueta, type CodigoEtiqueta } from "@/lib/encomiendas/lectura/codigo-barras";
-import { leerEtiqueta, type LecturaEtiqueta } from "@/lib/encomiendas/lectura/etiqueta";
-import { datosFirmes, resultadoVotos, sumarCuadro, type ResultadoVotos, type Votos } from "@/lib/encomiendas/lectura/etiqueta/votos";
+import { anotarTiempo, desde } from "@/lib/comun/cronometro";
+import { leerCodigoEtiqueta } from "@/lib/encomiendas/lectura/codigo-barras";
+import { GIRO_INICIAL, RELOJ_INICIAL, avanzarReloj, pasoDelCuadro, siguienteGiro, type EstadoGiro, type EtiquetaEnCurso, type RelojCamara } from "@/lib/encomiendas/lectura/etiqueta/sesion-viva";
+import { datosFirmes, resultadoVotos, type ResultadoVotos } from "@/lib/encomiendas/lectura/etiqueta/votos";
 import { prepararSonidos, sonarLeida, sonarPausa, sonarTic } from "@/lib/comun/sonidos-escaner";
-import { aplicarLecturaEtiqueta, guardarFoto, quitarBulto, sePuedeQuitarBulto, type ResultadoEscaneo } from "@/lib/encomiendas/local/almacen";
+import { aplicarLecturaEtiqueta, fijarTelefono, quitarBulto, sePuedeQuitarBulto, type ResultadoEscaneo } from "@/lib/encomiendas/local/almacen";
 import { usarDireccionDeEtiqueta } from "@/lib/encomiendas/local/direccion-etiqueta";
-import { comprimirFoto } from "@/lib/encomiendas/local/foto";
-import {
-  avisarLectura,
-  capturarViva,
-  iniciarEscanerVivo,
-  linternaViva,
-  type CamaraViva,
-  type CuadroVivo,
-} from "@/lib/nativo/escaner-vivo";
+import { avisarLectura, girarTextoVivo, type CamaraViva, type CuadroVivo } from "@/lib/nativo/escaner-vivo";
+import { etiquetaParaPedido, fotoConTope, guardarEtiquetaLeida, type EtiquetaParaPedido, type Foto } from "./guardar-etiqueta-viva";
+import { useCamaraViva } from "./use-camara-viva";
 
-/** Un cuadro sin código sigue contando para la etiqueta si su código se vio
- *  hace menos de esto. También es el plazo para sacar la captura. */
-const CONTINUIDAD_MS = 700;
-/** Sin ver el código de la etiqueta este tiempo, salió de la cámara: se cierra. */
-const SALIDA_MS = 1500;
-/** Después de escribir la OF, la cámara vuelve cuando el teclado ya bajó. */
-const ESPERA_TECLADO_MS = 800;
+/** Recargar el día redibuja toda la pantalla de atrás: a lo más una vez cada esto mientras
+ *  se lee, y al cerrar el escáner. */
+const AVISAR_CAMBIO_MS = 1500;
 
 type EstadoVivo =
   | { tipo: "prendiendo" }
@@ -50,46 +47,34 @@ type EstadoVivo =
   | { tipo: "buscando" }
   // conDato: quedó algún dato firme; escrita: la OF se escribió a mano (spec 033:
   // sin dato firme no dice «Leída»).
-  | { tipo: "etiqueta"; r: ResultadoEscaneo; votos: ResultadoVotos | null; leida: boolean; conDato: boolean; escrita: boolean }
-  | { tipo: "noEsta"; of: string }
+  // telefonoAMano: corregido con ✎; se ve el del pedido, no lo que se va leyendo.
+  | { tipo: "etiqueta"; r: ResultadoEscaneo; votos: ResultadoVotos | null; leida: boolean; conDato: boolean; escrita: boolean; telefonoAMano: boolean }
+  | { tipo: "noEsta"; of: string; votos: ResultadoVotos | null; leida: boolean }
   | { tipo: "otraDireccion"; r: ResultadoEscaneo; direccion: string; votos: ResultadoVotos | null };
 
-type EnCurso = {
-  codigo: CodigoEtiqueta;
-  votos: Votos | null;
+type EnCurso = EtiquetaEnCurso & {
   r: ResultadoEscaneo | null;
   inicio: number;
-  ultimoCodigo: number;
-  leida: boolean;
   /** Cuántos tics ya sonaron (datos firmes). */
   tics: number;
   conDato?: boolean;
   escrita?: boolean;
+  /** La mayor pausa entre dos cuadros con esta etiqueta en cámara; -1 ya anotada. */
+  mayorHueco: number;
+  /** El último guardado: cerrada a medias y después completa, se guardan en orden. */
+  guardado?: Promise<unknown>;
+  /** Su OF no está en el día: se lee igual y lo leído espera a «Agregar como pedido». */
+  fuera?: boolean;
+  foto?: Foto;
+  /** El teléfono se corrigió con ✎: lo que se lea después no lo pisa. */
+  telefonoAMano?: boolean;
 };
 
-/** Al guardar lo leído, el bulto que sumó la etiqueta sigue siendo el de «−1
- *  bulto» (spec 033): la lectura de cierre no suma ninguno. */
-const conSuma = (nuevo: ResultadoEscaneo, de: ResultadoEscaneo): ResultadoEscaneo => ({
-  ...nuevo,
-  bultoAMano: de.bultoAMano,
-  bultoSumado: de.bultoSumado,
-  bultosAntes: de.bultosAntes,
-  // La OF corregida por el código (spec 039) se sigue viendo después de guardar la foto.
-  ofAntes: nuevo.ofAntes ?? de.ofAntes,
-});
-
-/** Solo lo firme va al pedido: lo visto una vez o empatado queda sin leer. */
-function soloFirme(v: ResultadoVotos): LecturaEtiqueta {
-  const l = v.lectura;
-  const firme = (dudoso: string) => !l.dudosos.includes(dudoso);
-  return {
-    ...l,
-    destinatario: firme("destinatario") ? l.destinatario : null,
-    telefono: firme("telefono") ? l.telefono : null,
-    direccion: firme("direccion") ? l.direccion : null,
-    porPagar: firme("pago") ? l.porPagar : null,
-    montoPorPagar: firme("montoPorPagar") ? l.montoPorPagar : null,
-  };
+/** La pausa más larga entre cuadros mientras la etiqueta estuvo en cámara, una vez. */
+function anotarHueco(e: EnCurso | null) {
+  if (!e || e.mayorHueco <= 0) return;
+  anotarTiempo("vivo.hueco", e.mayorHueco);
+  e.mayorHueco = -1;
 }
 
 export function useEscanerVivo({
@@ -103,20 +88,59 @@ export function useEscanerVivo({
   pausada?: boolean;
 }) {
   const [estado, setEstado] = useState<EstadoVivo>({ tipo: "prendiendo" });
-  const [camara, setCamara] = useState<CamaraViva | null>(null);
-  /** La cámara está prendida: el teclado se abre recién cuando se apagó. */
-  const [enVivo, setEnVivo] = useState(false);
-  const [linterna, setLinterna] = useState(false);
   /** Lo que pasó con «Usar la dirección de la etiqueta» (spec 033). */
   const [avisoDireccion, setAvisoDireccion] = useState<string | null>(null);
   const enCurso = useRef<EnCurso | null>(null);
   const pausa = useRef(false);
+  /** Las etiquetas completas: no se vuelven a leer. Las cerradas a medias no van aquí. */
   const leidas = useRef(new Set<string>());
   /** La OF escrita a mano (código dañado): su texto cuenta si trae esa OF impresa. */
   const ofAMano = useRef<string | null>(null);
+  /** Lo que da la cámara: foto (del cuadro o en alta) y texto girado. */
   const captura = useRef(false);
+  const fotoDelCuadro = useRef(false);
+  const puedeGirar = useRef(false);
+  const giro = useRef<EstadoGiro>(GIRO_INICIAL);
+  /** El reloj de la cámara (sesion-viva.ts): el tiempo con cuadros llegando, sin las trabas. */
+  const reloj = useRef<RelojCamara>(RELOJ_INICIAL);
+  /** Lo último que se mostró de la etiqueta: si un cuadro no cambia nada a la vista, no
+   *  se redibuja (cada redibujo con la cámara encendida puede trabar 1 a 5 s). */
+  const ultimoVisto = useRef<{ de: object; clave: string } | null>(null);
+  const onCambioActual = useRef(onCambio);
+  const cambioPendiente = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const clave = (c: CodigoEtiqueta) => `${c.of}-${c.bulto ?? "?"}`;
+  useEffect(() => {
+    onCambioActual.current = onCambio;
+  }, [onCambio]);
+
+  const clave = (c: { of: string; bulto: number | null }) => `${c.of}-${c.bulto ?? "?"}`;
+
+  /** El día cambió (un bulto, un dato): se recarga agrupado, no en cada lectura. */
+  const avisarCambio = useCallback(() => {
+    if (cambioPendiente.current) return;
+    cambioPendiente.current = setTimeout(() => {
+      cambioPendiente.current = null;
+      onCambioActual.current();
+    }, AVISAR_CAMBIO_MS);
+  }, []);
+
+  // Al cerrar el escáner, lo pendiente se recarga al tiro y se anota la última pausa.
+  useEffect(
+    () => () => {
+      anotarHueco(enCurso.current);
+      if (!cambioPendiente.current) return;
+      clearTimeout(cambioPendiente.current);
+      cambioPendiente.current = null;
+      onCambioActual.current();
+    },
+    [],
+  );
+
+  /** Otro estado que no es la etiqueta (un ⚠, buscando): la próxima etiqueta se redibuja. */
+  const ver = useCallback((e: EstadoVivo) => {
+    ultimoVisto.current = null;
+    setEstado(e);
+  }, []);
 
   const mostrar = useCallback((e: EnCurso) => {
     const votos = e.votos ? resultadoVotos(e.votos) : null;
@@ -127,62 +151,65 @@ export function useEscanerVivo({
       for (let i = e.tics; i < firmes; i++) setTimeout(() => sonarTic(i), (i - e.tics) * 90);
       e.tics = Math.max(e.tics, firmes);
     }
-    if (!e.r) return;
-    setEstado({ tipo: "etiqueta", r: e.r, votos, leida: e.leida, conDato: Boolean(e.conDato), escrita: Boolean(e.escrita) });
+    if (!e.r && !e.fuera) return;
+    // Cerrada a medias se ve cerrada («Solo el código» o lo firme), como antes.
+    const cerrada = e.leida || Boolean(e.aMedias);
+    const l = votos?.lectura;
+    const visto = JSON.stringify([cerrada, e.conDato, e.escrita, e.telefonoAMano, l?.destinatario, l?.telefono, l?.direccion, l?.porPagar, l?.montoPorPagar, l?.dudosos]);
+    const de = e.r ?? e;
+    if (ultimoVisto.current?.de === de && ultimoVisto.current.clave === visto) return;
+    ultimoVisto.current = { de, clave: visto };
+    if (!e.r) setEstado({ tipo: "noEsta", of: e.codigo.of, votos, leida: e.leida });
+    else setEstado({ tipo: "etiqueta", r: e.r, votos, leida: cerrada, conDato: Boolean(e.conDato), escrita: Boolean(e.escrita), telefonoAMano: Boolean(e.telefonoAMano) });
   }, []);
 
-  /** La etiqueta queda leída: guarda lo firme. Completa (todo firme), además la
-   *  captura, la foto, la vibración y el sonido de pedido leído. */
+  /** La etiqueta se cierra: guarda lo firme. Completa (todo firme), además la foto, la
+   *  vibración y el sonido de pedido leído; a medias, se sigue leyendo si vuelve. */
   const cerrar = useCallback(
     async (e: EnCurso, completa: boolean) => {
-      if (e.leida || !e.r) return;
-      e.leida = true;
+      // Fuera del día no hay pedido donde guardar a medias.
+      if (e.leida || e.aMedias || !(e.r || (e.fuera && completa))) return;
+      if (completa) e.leida = true;
+      else e.aMedias = true;
+      const fin = completa ? desde("vivo.cierre") : null;
       if (completa) {
+        anotarTiempo("vivo.leer", Date.now() - e.inicio);
         void avisarLectura();
         sonarLeida();
       }
-      let votos = e.votos;
-      const foto = completa && captura.current ? await capturarViva() : null;
-      if (foto && codigoEnLaFoto(foto.codigos)?.of === e.codigo.of) {
-        votos = sumarCuadro(votos, e.codigo, foto.texto.trim() ? leerEtiqueta(foto.texto) : null);
+      const foto = completa && captura.current ? await fotoConTope() : null;
+      if (!e.r) {
+        // Lo leído y la foto esperan a «Agregar como pedido».
+        e.foto = foto;
+        fin?.();
+        if (enCurso.current === e) mostrar(e);
+        return;
       }
-      const resultado = votos ? resultadoVotos(votos) : null;
-      const firmes = resultado ? soloFirme(resultado) : null;
-      e.conDato = Boolean(firmes && (firmes.destinatario || firmes.telefono || firmes.porPagar != null));
-      let r = e.r;
-      try {
-        if (resultado) {
-          const nuevo = await aplicarLecturaEtiqueta(fecha, {
-            ...soloFirme(resultado),
-            of: e.codigo.of,
-            bulto: null,
-            ofConfirmada: resultado.ofConfirmada,
-          });
-          if (nuevo) r = conSuma(nuevo, r);
-        }
-        if (foto && !r.pedido.fotoId) {
-          await guardarFoto(r.pedido.id, await comprimirFoto(foto.imagen));
-          const conFoto = await aplicarLecturaEtiqueta(fecha, { of: e.codigo.of, bulto: null });
-          if (conFoto) r = conSuma(conFoto, r);
-        }
-      } catch {
-        // Si falla el guardado local, la parada ya quedó contada: sigue.
-      }
-      leidas.current.add(clave(e.codigo));
-      onCambio();
+      const anterior = e.guardado;
+      const r0 = e.r;
+      const guardado = (async () => {
+        await anterior;
+        return guardarEtiquetaLeida(fecha, { codigo: e.codigo, votos: e.votos, r: e.r ?? r0 }, foto, fotoDelCuadro.current, e.telefonoAMano);
+      })();
+      e.guardado = guardado;
+      const { r, resultado, conDato } = await guardado;
+      e.conDato = conDato;
+      fin?.();
+      if (completa) leidas.current.add(clave(e.codigo));
+      avisarCambio();
       // Solo si sigue siendo la etiqueta en cámara: si ya pasó a otra, no se tapa.
       if (enCurso.current !== e) return;
       const distinta = r.direccionDistinta;
       if (distinta) {
         pausa.current = true;
         sonarPausa();
-        setEstado({ tipo: "otraDireccion", r, direccion: distinta, votos: resultado });
+        ver({ tipo: "otraDireccion", r, direccion: distinta, votos: resultado });
         return;
       }
       e.r = r;
       mostrar(e);
     },
-    [fecha, onCambio, mostrar],
+    [fecha, avisarCambio, mostrar, ver],
   );
 
   /** Una etiqueta nueva en cámara: se cuenta el bulto y se busca su parada. */
@@ -196,120 +223,105 @@ export function useEscanerVivo({
       }
       if (enCurso.current !== e) return;
       if (!r) {
+        e.fuera = true;
         pausa.current = true;
         sonarPausa();
-        setEstado({ tipo: "noEsta", of: e.codigo.of });
+        mostrar(e);
         return;
       }
-      onCambio();
+      avisarCambio();
       setAvisoDireccion(null);
       e.r = r;
       e.leida = leidas.current.has(clave(e.codigo));
       mostrar(e);
     },
-    [fecha, onCambio, mostrar],
+    [fecha, avisarCambio, mostrar],
   );
 
   const alCuadro = useCallback(
     (c: CuadroVivo) => {
-      if (pausa.current) return;
-      const ahora = Date.now();
-      const texto = c.renglones.map((x) => x.texto).join("\n");
-      // Dos etiquetas de Starken en el cuadro: no se sabe de cuál es el texto.
-      const ofsEnCuadro = new Set(c.codigos.map((x) => codigoEnLaFoto([x])?.of).filter(Boolean));
-      const lectura = texto.trim() && ofsEnCuadro.size <= 1 ? leerEtiqueta(texto) : null;
-      const manual = ofAMano.current && lectura?.ofImpresa === ofAMano.current ? { of: ofAMano.current, bulto: null } : null;
-      const codigo = codigoEnLaFoto(c.codigos) ?? manual;
+      const real = Date.now();
       const actual = enCurso.current;
-
-      if (!codigo) {
-        if (!actual || actual.leida) return;
-        // ML Kit no leyó el código en este cuadro: si se vio recién, es la misma
-        // etiqueta; si hace rato que no se ve, salió de la cámara.
-        if (ahora - actual.ultimoCodigo < CONTINUIDAD_MS) {
-          actual.votos = sumarCuadro(actual.votos, actual.codigo, lectura);
-          mostrar(actual);
-        } else if (ahora - actual.ultimoCodigo > SALIDA_MS) {
-          void cerrar(actual, false);
-        }
+      // Con un ⚠ no se pasa a otra caja; la que no está en el día se sigue leyendo.
+      const soloEsta = pausa.current && Boolean(actual?.fuera);
+      if (pausa.current && !soloEsta) {
+        // La pausa no cuenta en el reloj de la cámara.
+        reloj.current = { ...reloj.current, real: 0 };
         return;
       }
-      if (!actual || actual.codigo.of !== codigo.of) {
+      if (actual && reloj.current.real && actual.mayorHueco >= 0) {
+        actual.mayorHueco = Math.max(actual.mayorHueco, real - reloj.current.real);
+      }
+      reloj.current = avanzarReloj(reloj.current, real);
+      const ahora = reloj.current.camara;
+      const texto = c.renglones.map((x) => x.texto).join("\n");
+      const { paso, conCodigo } = pasoDelCuadro(actual, { codigos: c.codigos, texto }, ahora, ofAMano.current);
+      if (puedeGirar.current) {
+        const siguiente = siguienteGiro(giro.current, conCodigo, texto);
+        if (siguiente.giro !== giro.current.giro) girarTextoVivo(siguiente.giro);
+        giro.current = siguiente;
+      }
+      if (soloEsta && paso.tipo !== "sumar") return;
+      if (paso.tipo === "salio" && actual) {
+        void cerrar(actual, false);
+      } else if (paso.tipo === "nueva") {
         if (actual && !actual.leida) void cerrar(actual, false);
-        const nueva: EnCurso = { codigo, votos: null, r: null, inicio: ahora, ultimoCodigo: ahora, leida: false, tics: 0 };
+        anotarHueco(actual);
+        const nueva: EnCurso = { codigo: paso.codigo, votos: paso.votos, r: null, inicio: real, ultimoCodigo: ahora, leida: false, tics: 0, mayorHueco: 0 };
         enCurso.current = nueva;
-        nueva.votos = sumarCuadro(null, codigo, lectura);
         void abrir(nueva);
-        return;
+      } else if (paso.tipo === "sumar" && actual) {
+        actual.votos = paso.votos;
+        if (paso.conCodigo) {
+          actual.ultimoCodigo = ahora;
+          // Volvió la cerrada a medias: se sigue leyendo hasta quedar completa.
+          actual.aMedias = false;
+        }
+        if (actual.leida) return;
+        mostrar(actual);
+        if ((actual.r || actual.fuera) && paso.listo) void cerrar(actual, true);
       }
-      actual.ultimoCodigo = ahora;
-      actual.votos = sumarCuadro(actual.votos, codigo, lectura);
-      if (actual.leida) return;
-      mostrar(actual);
-      if (actual.r && actual.votos && resultadoVotos(actual.votos).listo) void cerrar(actual, true);
     },
     [abrir, cerrar, mostrar],
   );
 
-  // La cámara se prende UNA vez al abrir: los cuadros llegan a la última versión
-  // de alCuadro por una referencia, así un nuevo dibujo de la pantalla no la
-  // reinicia.
-  const ultimoAlCuadro = useRef(alCuadro);
-  useEffect(() => {
-    ultimoAlCuadro.current = alCuadro;
-  }, [alCuadro]);
-
-  // Prender la cámara al abrir y apagarla al salir. Mientras se escribe la OF queda
-  // apagada: abrir o cerrar el teclado con la cámara viva traba la GPU de la WebView
-  // varios segundos y Android cierra ARES por no responder (ANR medido en el teléfono
-  // del conductor, 2026-11-09; con la cámara sola o el teclado solo, fluido).
-  const yaPrendio = useRef(false);
-  useEffect(() => {
-    if (pausada) return;
-    let vivo = true;
-    let prendida: Promise<(() => Promise<void>) | null> = Promise.resolve(null);
-    const prender = () => {
-      document.documentElement.classList.add("camara-viva");
+  const { camara, enVivo, linterna, alternarLinterna } = useCamaraViva({
+    pausada,
+    alCuadro,
+    alEmpezar: useCallback(() => {
       prepararSonidos();
-      prendida = iniciarEscanerVivo((c) => ultimoAlCuadro.current(c)).then(
-        (r) => {
-          if (vivo) {
-            yaPrendio.current = true;
-            captura.current = r.camara.captura;
-            setCamara(r.camara);
-            setEnVivo(true);
-            // Al volver de escribir la OF se ve su parada: no se tapa.
-            setEstado((e) => (e.tipo === "prendiendo" ? { tipo: "buscando" } : e));
-          }
-          return r.apagar;
-        },
-        (e: unknown) => {
-          if (vivo) {
-            document.documentElement.classList.remove("camara-viva");
-            setEstado({ tipo: "sinCamara", motivo: e instanceof Error && /permiso/.test(e.message) ? "Sin permiso de cámara." : "No se pudo abrir la cámara." });
-          }
-          return null;
-        },
-      );
-    };
-    const espera = yaPrendio.current ? setTimeout(prender, ESPERA_TECLADO_MS) : null;
-    if (!espera) prender();
-    return () => {
-      vivo = false;
-      if (espera) clearTimeout(espera);
-      document.documentElement.classList.remove("camara-viva");
-      setLinterna(false);
-      void prendida.then((apagar) => apagar?.()).finally(() => setEnVivo(false));
-    };
-  }, [pausada]);
+      reloj.current = { ...reloj.current, real: 0 };
+      // Una cámara nueva lee el texto derecho: el giro empieza de nuevo.
+      giro.current = GIRO_INICIAL;
+    }, []),
+    alPrender: useCallback((c: CamaraViva) => {
+      captura.current = c.captura;
+      fotoDelCuadro.current = c.fotoDelCuadro;
+      puedeGirar.current = c.giro;
+      // Al volver de escribir la OF se ve su parada: no se tapa.
+      setEstado((e) => (e.tipo === "prendiendo" ? { tipo: "buscando" } : e));
+    }, []),
+    alFallar: useCallback((motivo: string) => ver({ tipo: "sinCamara", motivo }), [ver]),
+  });
 
   /** Después de un ⚠: la lectura sigue. */
   const seguir = useCallback(() => {
     pausa.current = false;
     const e = enCurso.current;
+    // «Seguir escaneando» sin agregarla: mientras siga en la cámara, no se vuelve a mostrar.
+    if (e?.fuera) e.fuera = false;
     if (e?.r) mostrar(e);
-    else setEstado({ tipo: "buscando" });
-  }, [mostrar]);
+    else ver({ tipo: "buscando" });
+  }, [mostrar, ver]);
+
+  /** «Agregar como pedido»: lo leído de la etiqueta fuera del día y su foto. Sin quedar
+   *  completa, la foto se saca ahora: la etiqueta sigue en la cámara. */
+  const paraPedido = useCallback(async (): Promise<EtiquetaParaPedido | null> => {
+    const e = enCurso.current;
+    if (!e?.fuera) return null;
+    const foto = e.foto ?? (captura.current ? await fotoConTope() : null);
+    return etiquetaParaPedido(e.codigo, e.votos, foto);
+  }, []);
 
   // Lo que pasó con «Usar la dirección de la etiqueta», como en el escáner de
   // siempre (spec 033, vivo-limites): antes se tragaba el resultado.
@@ -325,9 +337,27 @@ export function useEscanerVivo({
             ? "Dirección actualizada, sin ubicar."
             : "No se pudo cambiar la dirección.",
     );
-    onCambio();
+    avisarCambio();
     seguir();
-  }, [estado, onCambio, seguir]);
+  }, [estado, avisarCambio, seguir]);
+
+  /** ✎ del teléfono (dueño, 2026-11-26: ML Kit confunde el 0 con el 9 o el 9 con el 3, como
+   *  al escanear la nómina): el número escrito va al pedido y lo que esta etiqueta lea después
+   *  ya no lo pisa. `telefono`: ya normalizado (+569…). */
+  const corregirTelefono = useCallback(
+    async (telefono: string) => {
+      const e = enCurso.current;
+      if (!e?.r) return false;
+      const pedido = await fijarTelefono(e.r.pedido.id, telefono).catch(() => null);
+      if (!pedido) return false;
+      e.telefonoAMano = true;
+      e.r = { ...e.r, pedido };
+      if (enCurso.current === e) mostrar(e);
+      avisarCambio();
+      return true;
+    },
+    [avisarCambio, mostrar],
+  );
 
   /** «−1 bulto» (spec 033): deshace el bulto que sumó la etiqueta a la vista. */
   const quitarUno = useCallback(async () => {
@@ -336,9 +366,9 @@ export function useEscanerVivo({
     const r = await quitarBulto(fecha, e.r).catch(() => null);
     if (!r || enCurso.current !== e) return;
     e.r = r;
-    onCambio();
+    avisarCambio();
     mostrar(e);
-  }, [fecha, onCambio, mostrar]);
+  }, [fecha, avisarCambio, mostrar]);
 
   /** El código dañado: se escribe la OF (o el código) y sigue como si se leyera. */
   const escribir = useCallback(
@@ -347,7 +377,10 @@ export function useEscanerVivo({
       if (!codigo) return false;
       if (codigo.bulto == null) ofAMano.current = codigo.of;
       pausa.current = false;
-      const nueva: EnCurso = { codigo, votos: null, r: null, inicio: Date.now(), ultimoCodigo: 0, leida: false, tics: 0, escrita: true };
+      anotarHueco(enCurso.current);
+      // Su «código» se vio ahora (reloj de la cámara): antes valía 0 y el primer cuadro sin
+      // la OF impresa la daba por salida.
+      const nueva: EnCurso = { codigo, votos: null, r: null, inicio: Date.now(), ultimoCodigo: reloj.current.camara, leida: false, tics: 0, escrita: true, mayorHueco: 0 };
       enCurso.current = nueva;
       void abrir(nueva);
       return true;
@@ -355,9 +388,5 @@ export function useEscanerVivo({
     [abrir],
   );
 
-  const alternarLinterna = useCallback(async () => {
-    if (await linternaViva(!linterna)) setLinterna(!linterna);
-  }, [linterna]);
-
-  return { estado, camara, enVivo, linterna, alternarLinterna, seguir, usarDireccion, avisoDireccion, quitarUno, escribir };
+  return { estado, camara, enVivo, linterna, alternarLinterna, seguir, usarDireccion, avisoDireccion, quitarUno, escribir, paraPedido, corregirTelefono };
 }

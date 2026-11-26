@@ -24,6 +24,10 @@ const TRAMOS = {
   "api.proveedor": { titulo: "API: proveedor", unidad: "ms" },
   "ubicar.completar": { titulo: "Completar número: consultas", unidad: "n" },
   "hilo.bloqueo": { titulo: "Pantalla trabada", unidad: "ms" },
+  // Cargar el vehículo con el escáner en vivo (fotos del dueño, 2026-11-25: «se congelaba»).
+  "vivo.leer": { titulo: "Escáner: leer una etiqueta", unidad: "ms" },
+  "vivo.hueco": { titulo: "Escáner: mayor pausa entre cuadros", unidad: "ms" },
+  "vivo.cierre": { titulo: "Escáner: guardar la etiqueta y su foto", unidad: "ms" },
 } as const;
 
 export type Tramo = keyof typeof TRAMOS;

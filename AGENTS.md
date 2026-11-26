@@ -291,6 +291,15 @@ y un agente no debe "corregir".
     un tic que sube por cada dato firme, el de pedido leído al quedar completa y dos notas que bajan
     con un ⚠, que pausa la lectura ahí mismo (sonidos «Marimba», elegidos por el dueño). Desde la
     parada sigue la foto.
+    - **Contra la traba** (fotos del dueño, 2026-11-25: «la cámara se congelaba a ratos» desde la
+      segunda etiqueta): la pantalla del día se quita del todo (`camara-sola`), se redibuja solo lo
+      que cambió a la vista y el día se recarga agrupado. Con la APK 1.13.0 la foto del paquete sale
+      del cuadro (`foto: "cuadro"`, sin la foto en alta: cuadros a 1920×1080) y el texto de una
+      etiqueta al revés o de costado se lee girado (`girarTexto`). Cada cuadro lo decide
+      `sesion-viva.ts` (puro): una caja es su OF y su bulto (el bulto 2 se cuenta), y POR PAGAR sin
+      monto impreso queda «Leída» con «monto por revisar». La salida de la cámara se mide con el
+      reloj de los cuadros (una traba no la cierra) y una etiqueta cerrada a medias se sigue
+      leyendo si su código vuelve.
   - **Código de barras.** Con una APK anterior, o sin permiso de cámara, lo lee el escáner de
     Google, que se abre solo al entrar; fuera de la APK se escribe la OF. Es un Code 128 de 26 dígitos que empieza con 92: los dígitos 15 a
     23 son la OF y los 24 a 26, el bulto. Cualquier otro número se toma como una OF escrita a mano.
@@ -304,11 +313,15 @@ y un agente no debe "corregir".
     texto) con su número, ese número reemplaza al provisorio. Más bultos escaneados que los que se
     sabían suben el total del envío (dueño, spec 027).
   - Si la OF no está en el día: «Este paquete no está en los pedidos de hoy» y el botón «Agregar
-    como pedido».
+    como pedido». En el escáner en vivo esa etiqueta se sigue leyendo (sin pasar a otra caja), y
+    el pedido nuevo se abre con lo firme (nombre, teléfono, dirección si se leyó clara, pago);
+    al guardarlo quedan su bulto y la foto, y se vuelve a cargar el vehículo (dueño, 2026-11-25).
   - Al cargar el auto, un contador muestra los escaneados sobre el total. Los de la guía que quedan
     sin escanear son los que faltan, y hay que avisarle a Starken.
   - **Foto de la etiqueta.** Completa el destinatario, el teléfono (+569), el POR PAGAR con su monto
-    (nunca se supone $0; un «$0» impreso sin POR PAGAR sí es «no se cobra», dueño 2026-11-08). La lee ML Kit en el teléfono, sin IA ni red (spec 021), así que el botón
+    (nunca se supone $0; un «$0» impreso sin POR PAGAR sí es «no se cobra», dueño 2026-11-08; la OF
+    impresa bajo «Total Monto O.F.» no es el monto, dueño 2026-11-26). En el escáner en vivo, ✎
+    junto al teléfono lo corrige a mano y lo leído después no lo pisa (ML Kit confunde 0/9, 9/3). La lee ML Kit en el teléfono, sin IA ni red (spec 021), así que el botón
     está solo en la APK; fuera de ella se pega el texto. **Manda la precisión sobre la rapidez**
     (dueño, 2026-11-08): se lee dos veces, a 2400 y 1600 px; lo que no coincide queda por revisar, y
     la dirección se compara con la guía solo si se lee clara («DIRECCIÓN: …» en su renglón). La descripción del paquete se elige con

@@ -42,6 +42,7 @@ import { problemasDelPedido } from "@/lib/encomiendas/problemas";
 import { ControlesMapa } from "./_componentes/controles-mapa";
 import { ParadasCercanas } from "./_componentes/paradas-cercanas";
 import { VistaPedido } from "./_componentes/vista-pedido";
+import type { EtiquetaParaPedido } from "./_hooks/guardar-etiqueta-viva";
 import { VistaPreviaRuta } from "./_componentes/vista-previa-ruta";
 import { useModoPrueba } from "@/lib/encomiendas/local/modo-prueba";
 import { CintaModoPrueba } from "./_componentes/cinta-modo-prueba";
@@ -136,11 +137,8 @@ export function PantallaEncomiendas({
   const { propuesta, setPropuesta, onElegirAlternativa, onUsarPropuesta, quitado, onQuitar, onDeshacerQuitar, onInvertir,
     onPedidoCorregido, onMantenerLejana, onRecalcular } = usePropuesta({ dia, fecha });
   const carga = useCargaAuto({ dia, fecha });
-  const [ofParaNuevo, setOfParaNuevo] = useState<string | undefined>(undefined);
-  const nuevoPedido = (of?: string) => {
-    setOfParaNuevo(of);
-    setFormPedido("nuevo");
-  };
+  const [etiquetaNueva, setEtiquetaNueva] = useState<EtiquetaParaPedido | undefined>(undefined);
+  const nuevoPedido = (e?: EtiquetaParaPedido) => { setEtiquetaNueva(e); setFormPedido("nuevo"); };
   // Cuánto ocupan los avisos de arriba. Lo informa la propia pila: cambia con
   // cuántos hay y con el largo del mensaje de un fallo.
   const [altoNotificaciones, setAltoNotificaciones] = useState(0);
@@ -299,7 +297,6 @@ export function PantallaEncomiendas({
         direccionEmpresa={direccionEmpresa}
         onPropuesta={setPropuesta}
         onResolver={resolver.empezar}
-        onSumar={sumarALaRuta}
         onEditar={editarDeLaLista}
       />
 
@@ -337,7 +334,7 @@ export function PantallaEncomiendas({
                 // Resolviendo los ⚠ se pasa de uno a otro: el formulario empieza de cero.
                 key={formPedido === "nuevo" ? "nuevo" : formPedido.id}
                 pedido={formPedido === "nuevo" ? undefined : formPedido}
-                ofInicial={formPedido === "nuevo" ? ofParaNuevo : undefined}
+                etiqueta={formPedido === "nuevo" ? etiquetaNueva : undefined}
                 fecha={fecha}
                 titulo={formPedido === "nuevo" ? undefined : resolver.titulo}
                 onCerrar={resolver.cerrar}
@@ -353,6 +350,8 @@ export function PantallaEncomiendas({
                   if (!esNuevo && propuesta) void onPedidoCorregido(formPedido.id);
                   else if (!esNuevo) void reordenar.direccionCambiada(formPedido);
                   if (esNuevo && aviso == null) avisar("Pedido agregado");
+                  // Agregado desde el escáner, sin aviso que leer: se sigue cargando el vehículo.
+                  if (esNuevo && etiquetaNueva && aviso == null) { resolver.cerrar(); setEscaneando(true); }
                 }}
               />
             ) : null

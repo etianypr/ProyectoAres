@@ -40,11 +40,7 @@ import { useBorradorGuia } from "../_hooks/use-borrador-guia";
 export function CargarGuia({
   fecha,
   lecturaIA,
-  hayRuta,
-  fueraDeRuta,
   onOcupado,
-  onSumar,
-  onEscanearPaquetes,
   onCerrar,
   onCreados,
   onAyuda,
@@ -54,15 +50,8 @@ export function CargarGuia({
   fecha: string;
   /** La IA está encendida: lee la foto si el teléfono no pudo. */
   lecturaIA: boolean;
-  /** Ya hay ruta armada: al terminar se sigue directo a escanear los paquetes. */
-  hayRuta: boolean;
-  /** Con ruta: los pedidos con punto que no están en ella (spec 033, otra-guia-ruta). */
-  fueraDeRuta: number;
   /** Avisa mientras se ubican las direcciones (no se puede cerrar). */
   onOcupado?: (ocupado: boolean) => void;
-  /** «Sumar N a la ruta» (sumar-a-ruta.ts, sin señal ni cupo). */
-  onSumar: () => Promise<void>;
-  onEscanearPaquetes: () => void;
   onCerrar: () => void;
   /** Se crearon pedidos: la pantalla los vuelve a leer. */
   onCreados: () => void;
@@ -350,8 +339,6 @@ export function CargarGuia({
           fin={fin}
           paso={paso}
           pregunta={pregunta}
-          hayRuta={hayRuta}
-          fueraDeRuta={fueraDeRuta}
           leyendo={leyendo}
           hayTexto={texto.trim() !== ""}
           lineas={lineas.length}
@@ -380,8 +367,6 @@ export function CargarGuia({
           onLeer={leer}
           onLeerFotos={() => void leerFotos()}
           onCrear={() => void crear()}
-          onSumar={onSumar}
-          onEscanear={onEscanearPaquetes}
           armar={armar}
           onDescartar={() => void borrador.descartar().then(onCerrar)}
           onDeshacer={() => void deshacerCarga()}

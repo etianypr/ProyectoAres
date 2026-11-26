@@ -7,7 +7,7 @@
 // No se extrae nada que no haga falta para repartir: ni RUT, ni remitente, ni
 // correo, ni cuenta corriente (FR-017 de la spec 005).
 
-import { bultos, destinatario, direccion, monto, ofImpresa, ofsDelTexto, telefono, totalImpreso } from "./campos";
+import { bultos, destinatario, direccion, monto, montoNoImpreso, ofImpresa, ofsDelTexto, telefono, totalImpreso } from "./campos";
 import { CLAVES, FORMATOS, esCtaCteConNumero, type FormatoEtiqueta } from "./formatos";
 import { comparable, renglones } from "./normalizar";
 import { zonas } from "./zonas";
@@ -31,6 +31,9 @@ export type LecturaEtiqueta = {
   porPagar: boolean | null;
   /** De "Total Monto O.F."; nunca se supone 0 (FR-015). */
   montoPorPagar: number | null;
+  /** POR PAGAR con «Total Monto O.F.» impreso sin ningún monto (la Starken temporal): el
+   *  escáner en vivo deja de esperarlo y queda «monto por revisar». Solo viene si es true. */
+  sinMontoImpreso?: true;
   /** Campos que hay que revisar a mano. */
   dudosos: string[];
 };
@@ -65,15 +68,17 @@ export function leerEtiqueta(texto: string): LecturaEtiqueta {
   if (!nombre || /\d/.test(nombre) || (nombre.match(/\p{L}/gu)?.length ?? 0) < 3) dudosos.add("destinatario");
 
   const of = ofImpresa(lista);
-  const tel = telefono(lista, zonasDe, ofsDelTexto(lista, of));
+  // Las OF impresas (la de «O.F.» y la del número bajo el código): ni teléfono ni monto.
+  const ofs = ofsDelTexto(lista, of);
+  const tel = telefono(lista, zonasDe, ofs);
   if (tel.dudoso) dudosos.add("telefono");
 
   const pago = pagoDe(texto);
   // «$0» impreso sin POR PAGAR es «no se cobra» (el dueño, 2026-11-08: la EXPRES
   // no trae CONTADO). Es un 0 que se lee, no uno que se supone.
-  const ceroImpreso = !CLAVES.porPagar.test(comparable(texto)) && totalImpreso(lista) === 0;
+  const ceroImpreso = !CLAVES.porPagar.test(comparable(texto)) && totalImpreso(lista, ofs) === 0;
   const porPagar = pago === "POR_PAGAR" ? true : pago === "DESCONOCIDO" && !ceroImpreso ? null : false;
-  const montoPorPagar = porPagar ? monto(lista) : null;
+  const montoPorPagar = porPagar ? monto(lista, ofs) : null;
   if (porPagar === null) dudosos.add("pago");
   if (porPagar && montoPorPagar === null) dudosos.add("montoPorPagar");
 
@@ -81,6 +86,7 @@ export function leerEtiqueta(texto: string): LecturaEtiqueta {
   if (!dir) dudosos.add("direccion");
 
   const b = bultos(lista);
+  const sinMonto = porPagar === true && montoPorPagar === null && montoNoImpreso(lista, ofs);
   return {
     ofImpresa: of,
     bulto: b?.[0] ?? null,
@@ -90,6 +96,7 @@ export function leerEtiqueta(texto: string): LecturaEtiqueta {
     direccion: dir,
     porPagar,
     montoPorPagar,
+    ...(sinMonto ? { sinMontoImpreso: true as const } : {}),
     dudosos: [...dudosos],
   };
 }

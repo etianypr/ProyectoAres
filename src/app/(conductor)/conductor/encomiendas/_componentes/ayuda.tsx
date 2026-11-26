@@ -44,6 +44,7 @@ const SECCIONES: { titulo: string; pasos: string[] }[] = [
       "La misma ruta en sentido inverso (la última parada primero): «Invertir orden de ruta». Otro toque la deja como la propuso ARES.",
       "Cargar vehículo: «Escanear paquete» (el ícono de escanear de arriba aparece con la ruta optimizada) y pasa las etiquetas frente a la cámara: un tono por dato leído y otro cuando la etiqueta queda leída. «Iniciar ruta» muestra la primera parada (con paquetes sin escanear, toca de nuevo «Iniciar de todos modos»); lo no escaneado queda en «Sin escanear», con «Reanudar carga» hasta cerrar la primera parada.",
       "Si la cámara no responde: Diagnóstico → «Cargar vehículo con el escáner de Google» (una etiqueta por toque).",
+      "Teléfono mal leído: ✎ junto al número lo corrige; la cámara se apaga mientras escribes y vuelve al tocar «Guardar teléfono».",
       "Código dañado: ingresa la OF (✕ vuelve a la cámara); cada ingreso agrega un bulto, y «−1 bulto» quita el último. La misma etiqueta escaneada dos veces no se duplica.",
       "Pedido que llega tarde: «Agregar a la ruta».",
       "Reordenar lo pendiente desde la ubicación actual: «Recalcular ruta» (al pie de la hoja) → Desde: Mi ubicación → «Recalcular ruta». Termina en la central.",
