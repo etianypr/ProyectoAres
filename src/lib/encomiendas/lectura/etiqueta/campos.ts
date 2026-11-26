@@ -9,7 +9,7 @@
 import { normalizarTelefono } from "@/lib/comun/telefono";
 import { ofValida } from "../../paquete";
 import { CLAVES, CODIGO_IMPRESO, DIRECCION_AL_INICIO, OTRAS } from "./formatos";
-import type { Renglon } from "./normalizar";
+import { comparable as comparableDe, palabra, type Renglon } from "./normalizar";
 import type { Zona } from "./zonas";
 
 /** ¿Es un renglón de la etiqueta y no la continuación de un valor? */
@@ -27,30 +27,59 @@ function despues(r: Renglon, clave: RegExp): string | null {
 const PARTIDO = /\p{L}-$/u;
 
 type Seguir = (r: Renglon, partido: boolean) => boolean;
+/** Junta el valor partido con guion («CAMI-») con lo que sigue abajo. */
+type Unir = (antes: string, despues: string) => string;
+
+const juntar: Unir = (antes, despues) => antes.slice(0, -1) + despues;
 
 /** Un valor que empieza en el renglón j y puede seguir hasta dos renglones más. */
-function conLoQueSigue(lista: Renglon[], j: number, valor: string, seguir: Seguir): string | null {
+function conLoQueSigue(lista: Renglon[], j: number, valor: string, seguir: Seguir, unir: Unir = juntar): string | null {
   for (let extra = 0; extra < 2 && lista[j + 1] && !esClave(lista[j + 1]); extra++) {
     const partido = PARTIDO.test(valor);
     if (!seguir(lista[j + 1], partido)) break;
-    valor = partido ? valor.slice(0, -1) + lista[++j].texto : `${valor} ${lista[++j].texto}`;
+    valor = partido ? unir(valor, lista[++j].texto) : `${valor} ${lista[++j].texto}`;
   }
   const limpio = valor.replace(/\s+/g, " ").replace(/^[\s:.-]+|[\s.,;:-]+$/g, "").trim();
   return limpio || null;
 }
 
 /** El valor de una palabra clave: en su renglón o, si quedó sola, en el de abajo. */
-function valorDe(lista: Renglon[], i: number, clave: RegExp, seguir: Seguir): string | null {
+function valorDe(lista: Renglon[], i: number, clave: RegExp, seguir: Seguir, unir?: Unir): string | null {
   let valor = despues(lista[i], clave) ?? "";
   let j = i;
   if (!valor && lista[i + 1] && !esClave(lista[i + 1])) valor = lista[++j].texto;
-  return conLoQueSigue(lista, j, valor, seguir);
+  return conLoQueSigue(lista, j, valor, seguir, unir);
+}
+
+/** La Lion parte el nombre en el borde con guion, también entre dos palabras
+ *  («JUANA-» / «PEREZ -»; así salía en las fotos del dueño, 2026-11-25). Dos pedazos
+ *  que ya son palabras (≥ 4 y ≥ 5 letras) van con espacio; uno corto es media palabra
+ *  y se junta («MA-» + «RIA», «JUA-» + «NA»). Es solo dónde va el espacio: las
+ *  letras no se tocan. */
+const unirNombre: Unir = (antes, despues) => {
+  const ultima = /(\p{L}+)-$/u.exec(antes)?.[1] ?? "";
+  const primera = /^\p{L}+/u.exec(despues)?.[0] ?? "";
+  return ultima.length >= 4 && primera.length >= 5 ? `${antes.slice(0, -1)} ${despues}` : juntar(antes, despues);
+};
+
+const RUT_CLAVE = palabra("R.U.T", "RUT");
+/** Un celular o un «(+56)» pegado al nombre (la «REFERENCIA»: «JUAN PEREZ . . (+56) 9…»). */
+const TELEFONO_PEGADO = /\(\s*\+?\s*56\s*\)|\+\s?56(?!\d)|(?<!\d)\+?56\s?9[\s.]?\d{4}|(?<!\d)9[\s.]?\d{4}[\s.]?\d{4}(?!\d)|(?<!\d)\d{8,}(?!\d)/;
+
+/** El nombre sin lo que viene a su lado en el mismo renglón: «Tel.», el RUT o un celular. */
+function sinLoDeAlLado(nombre: string): string {
+  const c = comparableDe(nombre);
+  const cortes = [CLAVES.telefono.exec(c)?.index, RUT_CLAVE.exec(c)?.index, TELEFONO_PEGADO.exec(nombre)?.index].filter(
+    (k): k is number => k != null && k > 0,
+  );
+  return cortes.length ? nombre.slice(0, Math.min(...cortes)).replace(/[\s.,;:()-]+$/, "") : nombre;
 }
 
 /** El nombre sigue abajo solo si venía partido con guion. */
 export function destinatario(lista: Renglon[], zonasDe: Zona[]): string | null {
   const i = lista.findIndex((r, k) => zonasDe[k] === "destinatario" && CLAVES.destinatario.test(r.comparable));
-  return i < 0 ? null : valorDe(lista, i, CLAVES.destinatario, (_, partido) => partido);
+  const nombre = i < 0 ? null : valorDe(lista, i, CLAVES.destinatario, (_, partido) => partido, unirNombre);
+  return nombre ? sinLoDeAlLado(nombre) || null : null;
 }
 
 /** La dirección, solo si se lee clara: «DIRECCIÓN: …» al comienzo del renglón y
@@ -148,25 +177,54 @@ const MONTO_CON_SIGNO = new RegExp(String.raw`\$\s*${MONTO}`);
 
 const pesos = (v: string | undefined) => (v ? Number(v.replace(/\D/g, "")) : null);
 
+/** Sin el $ delante, un envío por pagar no llega a esto: es la OF. */
+const MONTO_MAXIMO = 999_999;
+
+/** ¿Es la OF y no plata? «Total Monto O.F.» sin monto deja debajo la OF impresa
+ *  («200.000.789», que con sus puntos parece un monto) y POR PAGAR quedaba cobrando la OF
+ *  completa (dueño, 2026-11-26). Igual a una OF de la etiqueta, o sin $ y de 7 cifras o
+ *  más, no es un monto: queda «monto por revisar», nunca se adivina. */
+function esOf(m: RegExpExecArray | null, ofs: ReadonlySet<string>): boolean {
+  const n = pesos(m?.[1]);
+  return n !== null && (ofs.has(String(n)) || (!m?.[0].includes("$") && n > MONTO_MAXIMO));
+}
+
+/** El monto de un renglón, si es plata y no la OF. */
+const plata = (m: RegExpExecArray | null, ofs: ReadonlySet<string>) => (esOf(m, ofs) ? null : pesos(m?.[1]));
+
 /** El número de «Total Monto O.F.» tal como está impreso, 0 incluido (en su
- *  renglón o en el de abajo), o null si no se ve ninguno. */
-export function totalImpreso(lista: Renglon[]): number | null {
+ *  renglón o en el de abajo), o null si no se ve ninguno. `ofs`: las OF de la
+ *  etiqueta (ofsDelTexto), que no son monto. */
+export function totalImpreso(lista: Renglon[], ofs: ReadonlySet<string> = new Set()): number | null {
   const i = lista.findIndex((r) => CLAVES.totalMonto.test(r.comparable));
   if (i < 0) return null;
   const resto = despues(lista[i], CLAVES.totalMonto) ?? "";
-  if (/\d/.test(resto)) return pesos(MONTO_EN_SU_RENGLON.exec(resto)?.[1]);
-  return pesos(MONTO_SOLO.exec(lista[i + 1]?.texto ?? "")?.[1]);
+  if (/\d/.test(resto)) return plata(MONTO_EN_SU_RENGLON.exec(resto), ofs);
+  return plata(MONTO_SOLO.exec(lista[i + 1]?.texto ?? ""), ofs);
+}
+
+/** «Total Monto O.F.» impreso sin ningún monto en la etiqueta (la Starken temporal,
+ *  fotos del dueño 2026-11-25): no hay de dónde leerlo. Ni un $ con cifra en ningún
+ *  renglón, ni una cifra en el suyo o sola en el de abajo (la OF no cuenta). Con POR
+ *  PAGAR sigue «monto por revisar» (nunca $0); solo deja de esperar un monto que no viene. */
+export function montoNoImpreso(lista: Renglon[], ofs: ReadonlySet<string> = new Set()): boolean {
+  const i = lista.findIndex((r) => CLAVES.totalMonto.test(r.comparable));
+  if (i < 0 || lista.some((r) => /\$\s*\d/.test(r.texto))) return false;
+  const resto = despues(lista[i], CLAVES.totalMonto) ?? "";
+  const enSuRenglon = /\d/.test(resto) && !esOf(MONTO_EN_SU_RENGLON.exec(resto), ofs);
+  const abajo = MONTO_SOLO.exec(lista[i + 1]?.texto ?? "");
+  return !enSuRenglon && !(abajo && !esOf(abajo, ofs));
 }
 
 /** Lo que hay que cobrar: «Total Monto O.F.» y, si no está, el $ del renglón de
- *  POR PAGAR o del siguiente. 0 o nada → null: con POR PAGAR nunca se supone $0. */
-export function monto(lista: Renglon[]): number | null {
-  const total = totalImpreso(lista);
+ *  POR PAGAR o del siguiente. 0, nada o la OF → null: con POR PAGAR nunca se supone $0. */
+export function monto(lista: Renglon[], ofs: ReadonlySet<string> = new Set()): number | null {
+  const total = totalImpreso(lista, ofs);
   if (total !== null) return total > 0 ? total : null;
   const i = lista.findIndex((r) => CLAVES.porPagar.test(r.comparable));
   if (i < 0) return null;
   const resto = despues(lista[i], CLAVES.porPagar) ?? "";
-  const n = pesos(MONTO_CON_SIGNO.exec(resto)?.[1] ?? MONTO_SOLO.exec(lista[i + 1]?.texto ?? "")?.[1]);
+  const n = plata(MONTO_CON_SIGNO.exec(resto) ?? MONTO_SOLO.exec(lista[i + 1]?.texto ?? ""), ofs);
   return n && n > 0 ? n : null;
 }
 
@@ -198,15 +256,23 @@ export function bultos(lista: Renglon[]): [number, number] | null {
  *  si la palabra quedó sola y abajo hay solo un número corto (nunca los 26
  *  dígitos del código: la foto se rechazaría como de otro paquete). Sirve solo
  *  para rechazar la foto de otra etiqueta y para confirmar la lectura. */
+/** Los dígitos de una OF impresa: seguidos, en grupos con espacio o, como la imprime la
+ *  Starken normal, con puntos de miles («282.295.910»; antes el punto la cortaba). */
+const OF_IMPRESA = String.raw`\d{1,3}(?:[.,]\d{3})+(?!\d)|\d[\d ]*\d(?!\d)`;
+const OF_EN_SU_RENGLON = new RegExp(String.raw`^[\s:.]*(${OF_IMPRESA})`);
+const OF_SOLA = new RegExp(String.raw`^(${OF_IMPRESA})$`);
+
 export function ofImpresa(lista: Renglon[]): string | null {
   for (const [i, r] of lista.entries()) {
     const m = CLAVES.of.exec(r.comparable);
-    if (!m) continue;
+    // «Total Monto O.F.» y «Kg Peso O.F.» no son la OF: con los puntos de miles, un monto
+    // de seis cifras abajo («119,680») pasaría por una.
+    if (!m || CLAVES.totalMonto.test(r.comparable) || /PESO|VOL/.test(r.comparable)) continue;
     const resto = r.texto.slice(m.index + m[0].length);
     // «O.F. 200000002» sí; «Total Monto O.F. $ 12.990» no (el $ corta).
-    const aqui = /^[\s:.]*(\d[\d ]*\d)(?!\d)/.exec(resto)?.[1];
-    const abajo = !resto.trim().replace(/[:.]/g, "") ? /^(\d[\d ]*\d)$/.exec(lista[i + 1]?.texto ?? "")?.[1] : undefined;
-    const digitos = (aqui ?? abajo ?? "").replace(/\s/g, "");
+    const aqui = OF_EN_SU_RENGLON.exec(resto)?.[1];
+    const abajo = !resto.trim().replace(/[:.]/g, "") ? OF_SOLA.exec(lista[i + 1]?.texto ?? "")?.[1] : undefined;
+    const digitos = (aqui ?? abajo ?? "").replace(/\D/g, "");
     if (digitos.length >= 6 && digitos.length <= 13) return ofValida(digitos);
   }
   // Sin «O.F.» con número (la Lion la imprime de costado), la de los dígitos

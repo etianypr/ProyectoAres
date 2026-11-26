@@ -20,7 +20,7 @@ import type { LecturaEtiqueta } from "./index";
 /** Cuántos cuadros tienen que coincidir para que un dato quede firme. */
 const IGUALES_PARA_FIRME = 2;
 
-const CAMPOS = ["destinatario", "telefono", "direccion", "porPagar", "montoPorPagar", "bultosTotal", "ofImpresa"] as const;
+const CAMPOS = ["destinatario", "telefono", "direccion", "porPagar", "montoPorPagar", "bultosTotal", "ofImpresa", "sinMontoImpreso"] as const;
 type Campo = (typeof CAMPOS)[number];
 
 export type Votos = {
@@ -41,6 +41,10 @@ export type ResultadoVotos = {
   lectura: LecturaEtiqueta;
   /** Nombre, teléfono y pago (con su monto si se cobra) quedaron firmes. */
   listo: boolean;
+  /** POR PAGAR firme y «Total Monto O.F.» impreso sin monto, firme, y ningún cuadro leyó un
+   *  monto (la Starken temporal, fotos del dueño 2026-11-25): el monto queda por revisar,
+   *  pero la etiqueta no espera un monto que no viene. */
+  sinMontoImpreso: boolean;
 };
 
 function nuevos(codigo: CodigoEtiqueta): Votos {
@@ -63,7 +67,8 @@ export function sumarCuadro(votos: Votos | null, codigo: CodigoEtiqueta | null, 
     // El monto vale solo en un cuadro que leyó POR PAGAR.
     if (campo === "montoPorPagar" && lectura.porPagar !== true) continue;
     const valor = lectura[campo];
-    if (valor === null) continue;
+    // `sinMontoImpreso` solo viene cuando es true.
+    if (valor == null) continue;
     const clave = JSON.stringify(valor);
     v.conteo[campo][clave] = (v.conteo[campo][clave] ?? 0) + 1;
   }
@@ -173,7 +178,7 @@ export function elegirTexto(conteo: Record<string, number>): { valor: unknown; f
  *  con su monto si se cobra) quedaron firmes: un tic por cada uno (spec 028). */
 export function datosFirmes(r: ResultadoVotos): number {
   const d = r.lectura.dudosos;
-  const pago = !d.includes("pago") && !d.includes("montoPorPagar");
+  const pago = !d.includes("pago") && (!d.includes("montoPorPagar") || r.sinMontoImpreso);
   return [!d.includes("destinatario"), !d.includes("telefono"), pago].filter(Boolean).length;
 }
 
@@ -191,6 +196,8 @@ export function resultadoVotos(v: Votos): ResultadoVotos {
   if (!e.direccion.firme) dudosos.add("direccion");
   if (!e.porPagar.firme) dudosos.add("pago");
   if (porPagar === true && !e.montoPorPagar.firme) dudosos.add("montoPorPagar");
+  const sinMontoImpreso =
+    porPagar === true && e.sinMontoImpreso.firme && e.sinMontoImpreso.valor === true && Object.keys(v.conteo.montoPorPagar).length === 0;
 
   const lectura: LecturaEtiqueta = {
     ofImpresa: e.ofImpresa.valor as string | null,
@@ -201,9 +208,11 @@ export function resultadoVotos(v: Votos): ResultadoVotos {
     direccion: e.direccion.valor as string | null,
     porPagar,
     montoPorPagar,
+    ...(sinMontoImpreso ? { sinMontoImpreso: true as const } : {}),
     dudosos: [...dudosos],
   };
-  const imprescindibles = ["destinatario", "telefono", "pago", "montoPorPagar"];
+  // Sin monto impreso, el monto sigue por revisar (nunca $0), pero no se espera.
+  const imprescindibles = ["destinatario", "telefono", "pago", ...(sinMontoImpreso ? [] : ["montoPorPagar"])];
   return {
     of: v.of,
     bulto: v.bulto,
@@ -211,5 +220,6 @@ export function resultadoVotos(v: Votos): ResultadoVotos {
     ofConfirmada: e.ofImpresa.firme && e.ofImpresa.valor === v.of,
     lectura,
     listo: !imprescindibles.some((d) => dudosos.has(d)),
+    sinMontoImpreso,
   };
 }

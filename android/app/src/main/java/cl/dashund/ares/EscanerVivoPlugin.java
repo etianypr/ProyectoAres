@@ -110,6 +110,10 @@ public class EscanerVivoPlugin extends Plugin {
      *  a la vista previa, las marcas de la web quedan encima del texto aunque la vista previa
      *  y el análisis tengan otra forma. */
     private volatile LectorCuadros lectura;
+    /** La foto del paquete sale del cuadro que se está leyendo, sin `ImageCapture` (opción
+     *  `foto: "cuadro"`, fotos del dueño 2026-11-25): con las tres salidas el V2430 bajaba los
+     *  cuadros a 720×960 y sacar la foto en alta congelaba la cámara unos segundos. */
+    private volatile boolean fotoDelCuadro;
 
     @PluginMethod
     public void iniciar(PluginCall call) {
@@ -153,6 +157,16 @@ public class EscanerVivoPlugin extends Plugin {
             camara.getCameraControl().enableTorch(Boolean.TRUE.equals(encendida));
             call.resolve();
         });
+    }
+
+    /** El texto de los cuadros siguientes se lee con este giro extra (0, 90, 180 o 270): la
+     *  etiqueta al revés o de costado. Decide la web (sesion-viva.ts). */
+    @PluginMethod
+    public void girarTexto(PluginCall call) {
+        Integer grados = call.getInt("grados", 0);
+        LectorCuadros lecturaAhora = lectura;
+        if (lecturaAhora != null) lecturaAhora.girarTexto(grados != null ? grados : 0);
+        call.resolve();
     }
 
     /** Vibración corta: la etiqueta quedó leída (spec 028). El sonido lo hace la
@@ -253,6 +267,25 @@ public class EscanerVivoPlugin extends Plugin {
      *  fracciones 0–1, para que la foto sea lo que se veía en él. */
     @PluginMethod
     public void capturar(PluginCall call) {
+        LectorCuadros lecturaAhora = lectura;
+        if (fotoDelCuadro && lecturaAhora != null) {
+            lecturaAhora.pedirFoto(new LectorCuadros.AlFoto() {
+                @Override
+                public void lista(byte[] jpeg, JSArray codigos, String texto) {
+                    JSObject respuesta = new JSObject();
+                    respuesta.put("imagen", Base64.encodeToString(jpeg, Base64.NO_WRAP));
+                    respuesta.put("codigos", codigos);
+                    respuesta.put("texto", texto);
+                    call.resolve(respuesta);
+                }
+
+                @Override
+                public void fallo(String motivo) {
+                    call.reject(motivo);
+                }
+            });
+            return;
+        }
         ImageCapture ahora = captura;
         ExecutorService enHilo = hilo;
         if (ahora == null || enHilo == null) {
@@ -377,7 +410,10 @@ public class EscanerVivoPlugin extends Plugin {
     @OptIn(markerClass = ExperimentalCamera2Interop.class)
     private void arrancar(PluginCall call) {
         apagar();
-        boolean conFoto = !Boolean.FALSE.equals(call.getBoolean("captura", true));
+        // Fotos del dueño (2026-11-25): la foto del paquete, del cuadro; sin la foto en alta, los
+        // cuadros salen 16:9 a 1920×1080, como en la nómina.
+        boolean delCuadro = "cuadro".equals(call.getString("foto", ""));
+        boolean conFoto = !delCuadro && !Boolean.FALSE.equals(call.getBoolean("captura", true));
         // La nómina no trae códigos de barras: al barrerla no se buscan (spec 034).
         boolean leerCodigos = !Boolean.FALSE.equals(call.getBoolean("codigos", true));
         // Spec 036: cuántos cuadros se leen a la vez (1 o 2; Diagnóstico, para medirlo).
@@ -396,6 +432,7 @@ public class EscanerVivoPlugin extends Plugin {
         hilo = Executors.newSingleThreadExecutor();
         LectorCuadros lecturaNueva = new LectorCuadros(getContext(), leerCodigos ? codigos : null, lector, hilo, enVuelo, evento -> notifyListeners("cuadro", evento));
         lectura = lecturaNueva;
+        fotoDelCuadro = delCuadro && !visor;
 
         ResolutionSelector.Builder resolucion = new ResolutionSelector.Builder()
             .setResolutionStrategy(new ResolutionStrategy(RESOLUCION, ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER));
@@ -459,7 +496,11 @@ public class EscanerVivoPlugin extends Plugin {
                 if ("cortaOscura".equals(exposicion)) unPuntoMenos(camara);
                 JSObject respuesta = new JSObject();
                 respuesta.put("linterna", camara.getCameraInfo().hasFlashUnit());
-                respuesta.put("captura", captura != null);
+                respuesta.put("captura", captura != null || fotoDelCuadro);
+                // APK 1.13.0 (fotos del dueño, 2026-11-25): la foto sale del cuadro y el texto se
+                // puede leer girado.
+                respuesta.put("fotoDelCuadro", fotoDelCuadro);
+                respuesta.put("giro", true);
                 // Lo que de verdad quedó puesto, para Diagnóstico: los cuadros por segundo fijos.
                 respuesta.put("cuadrosFijos", cuadros != null ? cuadros.getUpper() : 0);
                 respuesta.put("visor", visor);
@@ -507,6 +548,7 @@ public class EscanerVivoPlugin extends Plugin {
 
     /** En el hilo de la pantalla. Deja la WebView como estaba. */
     private void apagar() {
+        fotoDelCuadro = false;
         if (proveedor != null) proveedor.unbindAll();
         proveedor = null;
         camara = null;

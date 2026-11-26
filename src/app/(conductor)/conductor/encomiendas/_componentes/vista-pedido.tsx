@@ -7,6 +7,7 @@
 import { useCallback, useState } from "react";
 import { ArrowLeft, ChevronRight, X } from "lucide-react";
 import type { Pedido } from "@/lib/encomiendas/local/almacen";
+import type { EtiquetaParaPedido } from "../_hooks/guardar-etiqueta-viva";
 import { PedidoFormLocal, type CambiosForm } from "./pedido-form-local";
 import { ProblemasPedido } from "./problemas-pedido";
 import { BOTON_ICONO } from "./botones";
@@ -37,7 +38,7 @@ import { BOTON_ICONO } from "./botones";
 export function VistaPedido({
   pedido,
   fecha,
-  ofInicial,
+  etiqueta,
   titulo,
   onCerrar,
   onSiguiente,
@@ -45,8 +46,8 @@ export function VistaPedido({
 }: {
   /** Sin esto, es uno nuevo. */
   pedido?: Pedido;
-  /** OF de una etiqueta que no estaba en la guía (spec 005). */
-  ofInicial?: string;
+  /** Lo leído de una etiqueta que no estaba en la guía (spec 005; dueño, 2026-11-25). */
+  etiqueta?: EtiquetaParaPedido;
   /** Día de trabajo de un pedido nuevo. */
   fecha: string;
   /** Resolviendo los ⚠ de a uno (spec 027): "⚠ 1 de 4". */
@@ -122,7 +123,7 @@ export function VistaPedido({
           if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setEscribiendo(false);
         }}
       >
-        <PedidoFormLocal pedido={pedido} fecha={fecha} ofInicial={ofInicial} onGuardado={onGuardado} onCambios={alCambiar} />
+        <PedidoFormLocal pedido={pedido} fecha={fecha} etiqueta={etiqueta} onGuardado={onGuardado} onCambios={alCambiar} />
       </div>
     </>
   );

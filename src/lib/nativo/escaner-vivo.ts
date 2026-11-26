@@ -54,6 +54,11 @@ export type CamaraViva = {
   flechas: boolean;
   /** Cuántos cuadros lee a la vez (1 con una APK anterior). */
   enVuelo: number;
+  /** La foto del paquete sale del cuadro que se está leyendo (APK 1.13.0, pedida con
+   *  `foto: "cuadro"`); false con una anterior, que saca la foto en alta como siempre. */
+  fotoDelCuadro: boolean;
+  /** Esta APK lee el texto girado si se le pide (`girarTextoVivo`; 1.13.0). */
+  giro: boolean;
 };
 
 /** La captura en alta, ya leída por ML Kit en el teléfono. */
@@ -96,6 +101,10 @@ type OpcionesEscanerVivo = {
   /** Cuántos cuadros se leen a la vez (spec 036, solo sin códigos): 2 copia el cuadro y lo
    *  lee otro lector mientras llega el siguiente. Una APK anterior lo ignora. */
   enVuelo?: 1 | 2;
+  /** La foto del paquete sale del cuadro que se está leyendo, sin la foto en alta (fotos del
+   *  dueño, 2026-11-25): con la foto en alta conectada el V2430 baja los cuadros a 720×960 y
+   *  sacarla congela la cámara unos segundos. Una APK anterior a la 1.13.0 lo ignora. */
+  foto?: "cuadro";
 };
 
 /** Una zona de la pantalla en fracciones 0–1: el recuadro por el que se ve la cámara. */
@@ -108,6 +117,7 @@ type PluginEscanerVivo = {
   avisar(): Promise<void>;
   capturar(opciones?: { leer?: boolean; recorte?: ZonaViva }): Promise<{ imagen: string; codigos: string[]; texto: string }>;
   marcar(opciones: { cajas: MarcaViva[]; zona?: ZonaViva; flechas?: FlechaViva[] }): Promise<{ pantalla?: ZonaViva } | undefined>;
+  girarTexto(opciones: { grados: number }): Promise<void>;
   addListener(evento: "cuadro", alCuadro: (cuadro: CuadroVivo) => void): Promise<PluginListenerHandle>;
 };
 
@@ -247,6 +257,8 @@ export async function iniciarEscanerVivo(
       visor: Boolean(camara?.visor),
       flechas: Boolean(camara?.flechas),
       enVuelo: Number(camara?.enVuelo) || 1,
+      fotoDelCuadro: Boolean(camara?.fotoDelCuadro),
+      giro: Boolean(camara?.giro),
     },
     apagar: async () => {
       await escucha.remove();
@@ -308,6 +320,13 @@ export function marcarEscanerVivo(cajas: MarcaViva[], extra?: { zona: ZonaViva |
     });
 }
 
+/** Lee el texto de los cuadros siguientes girado `grados` (0, 90, 180 o 270) además del giro
+ *  de la cámara: la etiqueta al revés o de costado (sesion-viva.ts decide cuándo). El código
+ *  de barras se sigue leyendo en cualquier sentido. Con una APK anterior a la 1.13.0, nada. */
+export function girarTextoVivo(grados: number): void {
+  EscanerVivo.girarTexto({ grados }).catch(() => undefined);
+}
+
 /** Vibración corta: la etiqueta quedó leída (el sonido va en sonidos-escaner.ts). Sin soporte, nada. */
 export async function avisarLectura(): Promise<void> {
   await EscanerVivo.avisar().catch(() => undefined);
@@ -318,7 +337,11 @@ export async function avisarLectura(): Promise<void> {
 export async function capturarViva(opciones?: { leer?: boolean; recorte?: ZonaViva }): Promise<CapturaViva | null> {
   try {
     const { imagen, codigos, texto } = await EscanerVivo.capturar(opciones);
-    const bytes = Uint8Array.from(atob(imagen), (c) => c.charCodeAt(0));
+    // Un ciclo simple: `Uint8Array.from(…, callback)` llama una función por byte y, con la
+    // cámara encendida, cada ms en el hilo de la página se nota (spec 028).
+    const binario = atob(imagen);
+    const bytes = new Uint8Array(binario.length);
+    for (let i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i);
     return { imagen: new Blob([bytes], { type: "image/jpeg" }), codigos, texto };
   } catch {
     return null;

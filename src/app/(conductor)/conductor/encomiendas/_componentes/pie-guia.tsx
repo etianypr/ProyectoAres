@@ -1,11 +1,11 @@
 "use client";
 
 // El botón de abajo de «Cargar la guía», según el paso (sale de cargar-guia.tsx,
-// spec 033): el de las fotos (visor-guia.tsx), leer el texto pegado, crear los pedidos y, al terminar, armar
-// la ruta, sumar a la ruta los nuevos (con ruta ya armada) o escanear. Cuando hay
-// que confirmar algo, la pregunta va en su lugar.
+// spec 033): el de las fotos (visor-guia.tsx), leer el texto pegado, crear los pedidos y, al
+// terminar, «Optimizar ruta». Siempre, aunque el día ya tenga ruta: el flujo es guía → ⚠ →
+// elegir la ruta → escanear (dueño, 2026-11-26; antes, con ruta, saltaba a «Escanear paquete»
+// o «Sumar N a la ruta»). Cuando hay que confirmar algo, la pregunta va en su lugar.
 
-import { useState } from "react";
 import { ClipboardPaste, Loader2 } from "lucide-react";
 import type { FinGuia } from "./fin-guia";
 import { FranjaConfirmar } from "./franja-confirmar";
@@ -20,8 +20,6 @@ export function PieGuia({
   fin,
   paso,
   pregunta,
-  hayRuta,
-  fueraDeRuta,
   leyendo,
   hayTexto,
   lineas,
@@ -33,8 +31,6 @@ export function PieGuia({
   onLeer,
   onLeerFotos,
   onCrear,
-  onSumar,
-  onEscanear,
   armar,
   onDescartar,
   onDeshacer,
@@ -45,8 +41,6 @@ export function PieGuia({
   fin: FinGuia | null;
   paso: PasoGuia;
   pregunta: PreguntaGuia | null;
-  hayRuta: boolean;
-  fueraDeRuta: number;
   leyendo: boolean;
   hayTexto: boolean;
   lineas: number;
@@ -61,8 +55,6 @@ export function PieGuia({
   /** Hay fotos sin leer: «Leer n fotos» antes de crear. */
   onLeerFotos: () => void;
   onCrear: () => void;
-  onSumar: () => Promise<void>;
-  onEscanear: () => void;
   armar: () => React.ReactNode;
   /** Cerrar perdiendo lo leído. */
   onDescartar: () => void;
@@ -74,8 +66,6 @@ export function PieGuia({
   onTerminarBarrido: () => void;
   onSeguir: () => void;
 }) {
-  const [sumando, setSumando] = useState(false);
-
   if (pregunta === "cerrar") {
     const texto =
       !fin && lineas > 0
@@ -106,31 +96,7 @@ export function PieGuia({
     return <FranjaConfirmar texto={texto} si="Borrar" onSi={onDeshacer} onNo={onSeguir} />;
   }
 
-  if (fin) {
-    if (fin.tipo !== "listo") return null;
-    if (!hayRuta) return <>{armar()}</>;
-    if (fueraDeRuta === 0) {
-      return (
-        <button type="button" onClick={onEscanear} className={BOTON_PRINCIPAL}>
-          Escanear paquete
-        </button>
-      );
-    }
-    return (
-      <button
-        type="button"
-        disabled={sumando}
-        onClick={() => {
-          setSumando(true);
-          void onSumar().finally(() => setSumando(false));
-        }}
-        className={BOTON_PRINCIPAL}
-      >
-        {sumando ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-        Sumar {fueraDeRuta} a la ruta
-      </button>
-    );
-  }
+  if (fin) return fin.tipo === "listo" ? <>{armar()}</> : null;
 
   // Paso 1: Galería · disparar · «Leer n» (visor-guia.tsx).
   if (paso === "fotos") return <>{pieFotos}</>;

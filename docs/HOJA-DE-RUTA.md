@@ -118,6 +118,11 @@ Al cargar el auto, la cámara de ARES queda abierta y cada etiqueta se lee sola 
 - Medido en el V2430 con las tres etiquetas reales: alcanza en vivo; el lector por posición queda
   para cuando una etiqueta lo pida.
 - La APK de prueba (`cl.dashund.ares.debug`) entra siempre en modo prueba.
+- 2026-11-25, prueba del dueño con 20 etiquetas fotografiadas («la cámara se congelaba a ratos» y
+  la segunda etiqueta no salía): `camara-sola` y menos redibujos, `sesion-viva.ts` (bulto 2 de la
+  misma OF, POR PAGAR sin monto impreso, texto girado, salida con el reloj de los cuadros y la
+  etiqueta cerrada a medias que se sigue leyendo) y la APK 1.13.0 con la foto del cuadro. El
+  lector suma «REFERENCIA» de terceros, la Starken temporal y la OF con puntos (fixtures transcritos).
 - Pendiente: `APK_VERSION_MINIMA=1.6.0` y `APK_URL` en Vercel (dueño); probar uno por uno linterna,
   ⚠, modo avión y sin permiso de cámara; terreno.
 

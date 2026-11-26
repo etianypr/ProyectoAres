@@ -10,9 +10,9 @@ import { avanceCarga, fechasConDatos, leerBorradorGuia, leerCola, leerDias, type
 import { sinEnviarPorFecha } from "@/lib/encomiendas/local/dias-del-menu";
 import type { PropuestaRuta } from "@/lib/encomiendas/local/generar-ruta";
 import { problemasDelPedido } from "@/lib/encomiendas/problemas";
-import { fueraDeLaRuta } from "@/lib/encomiendas/local/sumar-a-ruta";
 import { usarEscanerVivo } from "@/lib/nativo/escaner-vivo";
 import type { DiaEnCurso, Parada } from "../_hooks/use-dia-trabajo";
+import { soloLaOf, type EtiquetaParaPedido } from "../_hooks/guardar-etiqueta-viva";
 import type { useCierreDia } from "../_hooks/use-cierre-dia";
 import { Accesibilidad } from "./accesibilidad";
 import { Ayuda } from "./ayuda";
@@ -116,7 +116,6 @@ export function VentanasPantalla({
   direccionEmpresa,
   onPropuesta,
   onResolver,
-  onSumar,
   onEditar,
 }: {
   ventanas: Ventanas;
@@ -125,15 +124,13 @@ export function VentanasPantalla({
   nombreConductor: string;
   dia: DiaEnCurso;
   cierreDia: ReturnType<typeof useCierreDia>;
-  /** El escáner leyó una OF que no está en el día: abrir un pedido nuevo con ella. */
-  onNuevoConOf: (of: string) => void;
+  /** El escáner leyó una OF que no está en el día: abrir un pedido nuevo con lo leído. */
+  onNuevoConOf: (e: EtiquetaParaPedido) => void;
   /** Para armar la ruta al terminar de cargar la guía (spec 027). */
   direccionEmpresa: string | null;
   onPropuesta: (propuesta: PropuestaRuta) => void;
   /** Abre de a uno los pedidos con ⚠ (useResolverProblemas). */
   onResolver: (conProblema: Pedido[]) => void;
-  /** Suma a la ruta los pedidos de afuera con punto (spec 033, otra-guia-ruta). */
-  onSumar: () => Promise<void>;
   /** Abre el formulario de un pedido (spec 033: la fila de «Buscar por OF» y
    *  «Corregir» en el resumen de la guía). */
   onEditar: (pedido: Pedido) => void;
@@ -171,14 +168,7 @@ export function VentanasPantalla({
         <CargarGuia
           fecha={fecha}
           lecturaIA={lecturaIA}
-          hayRuta={dia.ruta != null}
-          fueraDeRuta={dia.ruta ? fueraDeLaRuta(dia.pedidos, dia.ruta.orden).length : 0}
-          onSumar={onSumar}
           onOcupado={v.setGuiaOcupada}
-          onEscanearPaquetes={() => {
-            v.setCargandoGuia(false);
-            v.setEscaneando(true);
-          }}
           onCerrar={() => v.setCargandoGuia(false)}
           onCreados={() => void dia.recargar()}
           onAyuda={() => v.setAyudaAbierta(true)}
@@ -218,9 +208,9 @@ export function VentanasPantalla({
           avance={avanceCarga(dia.pedidos)}
           onCerrar={() => v.setEscaneando(false)}
           onCambio={() => void dia.recargar()}
-          onAgregarPedido={(of) => {
+          onAgregarPedido={(e) => {
             v.setEscaneando(false);
-            onNuevoConOf(of);
+            onNuevoConOf(e);
           }}
           onClasico={() => v.setEscanerClasico(true)}
         />
@@ -237,7 +227,7 @@ export function VentanasPantalla({
           onCambio={() => void dia.recargar()}
           onAgregarPedido={(of) => {
             v.setEscaneando(false);
-            onNuevoConOf(of);
+            onNuevoConOf(soloLaOf(of));
           }}
         />
       ) : null}

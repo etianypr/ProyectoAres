@@ -40,6 +40,8 @@ romper lo que ya se aprendió en terreno. Las reglas vienen de `AGENTS.md` y de 
   CONTADO). `totalImpreso` (0 incluido) y `monto` (nunca 0) están separados en `etiqueta/campos.ts`.
   - `porPagar` es `true` solo si dice POR PAGAR. CONTADO y CTA CTE dan `false`, aunque traigan monto.
   - Sin la palabra de pago queda `null` y se marca como dudoso.
+  - Un número igual a una OF de la etiqueta, o sin «$» y de 7 cifras o más, no es monto (`esOf` en
+    `etiqueta/campos.ts`): la OF impresa bajo «Total Monto O.F.» se cobraba entera (dueño, 2026-11-26).
   - El monto sale de «Total Monto O.F.» (también «0.F.», como lo lee ML Kit). Si es 0 o no está, queda
     `null` y la pantalla dice «POR PAGAR · monto por revisar».
 - **Solo lo necesario para repartir** (FR-017, constitución V): destinatario, teléfono, dirección, pago,
@@ -54,8 +56,10 @@ romper lo que ya se aprendió en terreno. Las reglas vienen de `AGENTS.md` y de 
   confirmada. Ojo, esto no cubre el pago (ver «Huecos»).
 - **Escanear dos veces el mismo bulto no lo duplica**: `bultosEscaneados` guarda la lista de números de
   bulto, y la pantalla muestra «Bultos: 1 de 2 · falta 1».
-- **OF que no está en el día**: «Este paquete no está en los pedidos de hoy» → «Agregarlo como pedido»,
-  que abre el formulario con la OF puesta. Antes, si el código de barras difiere de **un solo** pedido
+- **OF que no está en el día**: «Este paquete no está en los pedidos de hoy» → «Agregar como pedido»,
+  que abre el formulario con la OF puesta. En el escáner en vivo la etiqueta se sigue leyendo y el
+  formulario trae además lo firme, el bulto y la foto (`EtiquetaParaPedido`, `guardar-etiqueta-viva.ts`;
+  dueño, 2026-11-25). Antes, si el código de barras difiere de **un solo** pedido
   sin etiquetas escaneadas solo en «0»/«8», es ese pedido y su OF se corrige con la del código (spec 039:
   al escanear la nómina el lector ve «0» donde hay un «8»). Nunca con una OF escrita a mano.
 - **Escanear la nómina** (spec 039): las OF del escaneo caen en un rango (mediana de las firmes ± 1 000 000,
@@ -149,6 +153,12 @@ romper lo que ya se aprendió en terreno. Las reglas vienen de `AGENTS.md` y de 
 
 ## Pendientes
 - **021 y 028**: hechas (2026-11-08); falta terreno.
+- **Fotos del dueño (2026-11-25, rama `arreglo-escaner-etiquetas`)**: 20 etiquetas, 5 formatos
+  (Starken normal, Lion, «REFERENCIA» de terceros, Starken temporal y una de Falabella sin código de
+  Starken), 6 al revés o de costado. Los fixtures `etiqueta-referencia.txt`, `etiqueta-temporal.txt`
+  y `etiqueta-starken-tienda.txt` están **transcritos**: reemplazarlos por el texto de «Copiar
+  anonimizado» al leerlas en el teléfono. Las fotos no entran al repo. El cuadro a cuadro del escáner
+  en vivo está en `lectura/etiqueta/sesion-viva.ts`.
 - **005**: probar con ≥ 50 etiquetas reales (T030) y correr el quickstart
   (T031).
 - **022** (borrador): el ⚠ en el pedido y el aviso dos paradas antes. Hoy el ⚠ solo marca la OF

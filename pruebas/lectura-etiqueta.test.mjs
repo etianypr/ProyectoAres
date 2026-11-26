@@ -413,3 +413,105 @@ test("una OF impresa que se contradice no se usa (ni rechaza ni confirma la foto
   const b = leerEtiqueta("O.F. 200000082\nDESTINATARIO: ANA");
   assert.equal(combinarLecturas(a, b).lectura.ofImpresa, null);
 });
+
+// ------------------------------------------------------------------ fotos del dueño (2026-11-25)
+// Los formatos de 20 etiquetas reales que el dueño fotografió al cargar el auto. Los textos
+// están TRANSCRITOS con datos inventados, con el orden de renglones de los textos reales de ML
+// Kit: se reemplazan por los de «Copiar anonimizado» cuando se lean en el teléfono.
+
+test("«REFERENCIA» de terceros: nombre sin el teléfono de al lado, «(+56) 9…» y el remitente fuera", () => {
+  const texto = fixture("etiqueta-referencia.txt");
+  const e = leerEtiqueta(texto);
+  assert.equal(e.destinatario, "JUAN PEREZ");
+  assert.equal(e.telefono, "+56912345678", "nunca el «(+56) 569…» del remitente");
+  assert.equal(e.porPagar, false, "«CTA.CTE.:» con su número");
+  assert.deepEqual([e.bulto, e.bultosTotal], [1, 1]);
+  assert.equal(e.ofImpresa, "200000789", "la OF con puntos bajo «O.F.»");
+  assert.equal(e.direccion, "AVENIDA SANTA MARIA 1234 BLOCK 4 DEPTO 12, ARICA");
+  assert.ok(sinDudas(e), `dudosos: ${e.dudosos}`);
+  assert.equal(formatoEtiqueta(texto), "referencia");
+});
+
+test("«REFERENCIA» con el teléfono en su propio renglón: el mismo nombre", () => {
+  const e = leerEtiqueta("DESTINATARIO:\nJUAN PEREZ . .\n(+56) 912345678\nREMITENTE:\n(+56) 56987654321");
+  assert.equal(e.destinatario, "JUAN PEREZ");
+  assert.equal(e.telefono, "+56912345678");
+});
+
+test("el nombre se corta antes de «Tel.» o de un celular en el mismo renglón", () => {
+  assert.equal(leerEtiqueta("DESTINATARIO : ANA ROJAS Tel. 912345678\nCONTADO").destinatario, "ANA ROJAS");
+  assert.equal(leerEtiqueta("DESTINATARIO: ANA ROJAS +56 9 1234 5678\nCONTADO").destinatario, "ANA ROJAS");
+  assert.equal(leerEtiqueta("DESTINATARIO: ANA ROJAS 912345678\nCONTADO").destinatario, "ANA ROJAS");
+});
+
+test("Starken temporal: el teléfono detrás del RUT, el del remitente fuera y POR PAGAR sin monto", () => {
+  const e = leerEtiqueta(fixture("etiqueta-temporal.txt"));
+  assert.equal(e.destinatario, "ANA SOTO");
+  assert.equal(e.telefono, "+56912345678");
+  assert.equal(e.ofImpresa, "200000321");
+  assert.deepEqual([e.porPagar, e.montoPorPagar], [true, null], "nunca se supone $0");
+  assert.ok(e.dudosos.includes("montoPorPagar"));
+  assert.equal(e.sinMontoImpreso, true, "«Total Monto O.F.» impreso sin número");
+});
+
+test("POR PAGAR con monto, o sin «Total Monto O.F.» a la vista, no es «sin monto impreso»", () => {
+  assert.equal(leerEtiqueta("DESTINATARIO: ANA\nPOR PAGAR\nTotal Monto O.F.\n$9,260").sinMontoImpreso, undefined);
+  assert.equal(leerEtiqueta("DESTINATARIO: ANA\nPOR PAGAR").sinMontoImpreso, undefined);
+  assert.equal(leerEtiqueta("DESTINATARIO: ANA\nCONTADO\nTotal Monto O.F.").sinMontoImpreso, undefined, "solo con POR PAGAR");
+});
+
+test("Starken de una tienda: «TEL :» y «RUT :» con espacio, y la cuenta corriente del remitente", () => {
+  const texto = fixture("etiqueta-starken-tienda.txt");
+  const e = leerEtiqueta(texto);
+  assert.equal(e.destinatario, "JUAN PEREZ SOTO");
+  assert.equal(e.telefono, "+56912345678", "nunca el 999999990 del remitente");
+  assert.equal(e.porPagar, false);
+  assert.equal(e.ofImpresa, "200000555");
+  assert.ok(sinDudas(e), `dudosos: ${e.dudosos}`);
+  assert.equal(formatoEtiqueta(texto), "starken");
+});
+
+test("la OF impresa con puntos («282.295.910») se lee entera, en su renglón o en el de abajo", () => {
+  assert.equal(leerEtiqueta("O.F. 200.000.456\nDESTINATARIO: ANA").ofImpresa, "200000456");
+  assert.equal(leerEtiqueta("O.F.\n200.000.456\nDESTINATARIO: ANA").ofImpresa, "200000456");
+  assert.equal(leerEtiqueta("0.33 Kg Peso O.F.\n0.00 Kg Vol O.F.").ofImpresa, null, "un peso no es una OF");
+});
+
+test("Lion: el nombre partido en el borde con guion entre dos palabras lleva espacio", () => {
+  assert.equal(leerEtiqueta("DESTINATARIO: JUANA-\nPEREZ -\nCTA CTE: 123456-7").destinatario, "JUANA PEREZ");
+  assert.equal(leerEtiqueta("DESTINATARIO: LUISA-\nROJAS-\nCTA CTE: 123456-7").destinatario, "LUISA ROJAS");
+  // Partida en medio de la palabra: se junta (como «JUA-» + «NA SOTO»).
+  assert.equal(leerEtiqueta("DESTINATARIO: MA-\nRIA SOTO\nCTA CTE: 123456-7").destinatario, "MARIA SOTO");
+});
+
+test("el adhesivo del vendedor al lado de la etiqueta no cambia el nombre ni el teléfono", () => {
+  const etiqueta = "DESTINATARIO : JUAN PEREZ SOTO\nR.U.T. 11111111-1 Tel. 912345678\nOBSERVACIÓN: POR PAGAR $ 9,260\nPOR PAGAR\nTotal Monto O.F.\n$9,260";
+  const adhesivo = "Nombre: JUAN\nApellido: PEREZ\nSOTO\nRUT.\n: 11111111-1\nCELULAR: 912345678\nCORREO:\nJUAN@GMAIL.COM";
+  for (const texto of [`${etiqueta}\n${adhesivo}`, `${adhesivo}\n${etiqueta}`]) {
+    const e = leerEtiqueta(texto);
+    assert.equal(e.destinatario, "JUAN PEREZ SOTO");
+    assert.equal(e.telefono, "+56912345678");
+    assert.deepEqual([e.porPagar, e.montoPorPagar], [true, 9260]);
+    assert.ok(sinDudas(e), `dudosos: ${e.dudosos}`);
+  }
+  // Con otro celular en el adhesivo antes de la etiqueta, manda el de la zona del destinatario.
+  const otro = leerEtiqueta(`${adhesivo.replace("912345678", "998877665")}\n${etiqueta}`);
+  assert.equal(otro.telefono, "+56912345678");
+});
+
+// Dueño, 2026-11-26 (fotos reales en el escáner en vivo): en etiquetas POR PAGAR se anotaba
+// como monto la OF completa. «Total Monto O.F.» sin monto deja debajo la OF impresa, que con
+// sus puntos parece plata. Datos inventados.
+test("POR PAGAR: la OF debajo de «Total Monto O.F.» no es el monto", () => {
+  const conPuntos = leerEtiqueta("DESTINATARIO: ANA SOTO\nTel. 912345678\nPOR PAGAR\nTotal Monto O.F.\n200.000.789\nR15 ARICA DOMICILIO");
+  assert.equal(conPuntos.montoPorPagar, null, "200.000.789 es la OF");
+  assert.equal(conPuntos.sinMontoImpreso, true, "no hay monto impreso: no se espera uno");
+  const conComas = leerEtiqueta("DESTINATARIO: ANA SOTO\nTel. 912345678\nPOR PAGAR\nTotal Monto O.F. 200,000,789\nR15 ARICA DOMICILIO");
+  assert.equal(conComas.montoPorPagar, null, "en su mismo renglón tampoco");
+  const igualALaOf = leerEtiqueta("O.F. 456789\nDESTINATARIO: ANA SOTO\nTel. 912345678\nPOR PAGAR\nTotal Monto O.F.\n456789");
+  assert.equal(igualALaOf.montoPorPagar, null, "una OF corta impresa tampoco es plata");
+  const deVerdad = leerEtiqueta("O.F. 200000789\nDESTINATARIO: ANA SOTO\nTel. 912345678\nPOR PAGAR\nTotal Monto O.F. $ 12.990");
+  assert.equal(deVerdad.montoPorPagar, 12990, "el monto de verdad se sigue leyendo");
+  const abajo = leerEtiqueta("DESTINATARIO: ANA SOTO\nTel. 912345678\nPOR PAGAR\nTotal Monto O.F.\n$ 9.260");
+  assert.equal(abajo.montoPorPagar, 9260);
+});

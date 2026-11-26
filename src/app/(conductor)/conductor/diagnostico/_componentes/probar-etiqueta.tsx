@@ -30,6 +30,7 @@ const NOMBRES: Record<string, string> = {
 const FORMATOS: Record<FormatoEtiqueta, string> = {
   lion: "Lion × Starken",
   expres: "Starken EXPRES",
+  referencia: "Starken de terceros (REFERENCIA)",
   starken: "Starken",
   desconocido: "otro (no está en el diccionario)",
 };

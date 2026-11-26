@@ -19,6 +19,8 @@ const CABECERA = {
     { name: "iniciar", rtype: "promise" },
     { name: "detener", rtype: "promise" },
     { name: "marcar", rtype: "promise" },
+    { name: "capturar", rtype: "promise" },
+    { name: "girarTexto", rtype: "promise" },
     { name: "addListener", rtype: "callback" },
     { name: "removeListener", rtype: "promise" },
   ],
@@ -55,10 +57,12 @@ globalThis.localStorage = {
 };
 
 const {
+  capturarViva,
   cuadrosALaVez,
   elegirCuadrosALaVez,
   elegirEscanerClasico,
   escanerVivoDisponible,
+  girarTextoVivo,
   iniciarEscanerVivo,
   marcarEscanerVivo,
   pantallaDelCuadro,
@@ -171,6 +175,45 @@ test("una APK anterior no dice que trae flechas: queda en un cuadro a la vez y s
   delete respuestas.iniciar;
 });
 
+// ------------------------------------------------------- fotos del dueño (2026-11-25): APK 1.13.0
+
+test("la foto del paquete se pide del cuadro; la APK 1.13.0 lo dice y una anterior no", async () => {
+  respuestas.iniciar = { linterna: true, captura: true, cuadrosFijos: 0, visor: false, flechas: true, enVuelo: 1, fotoDelCuadro: true, giro: true };
+  const nueva = await iniciarEscanerVivo(() => {}, { foto: "cuadro" });
+  assert.deepEqual(llamadas.find((l) => l.metodo === "iniciar").opciones, { foto: "cuadro" });
+  assert.deepEqual([nueva.camara.captura, nueva.camara.fotoDelCuadro, nueva.camara.giro], [true, true, true]);
+  await nueva.apagar();
+  // Una anterior ignora `foto` y saca la foto en alta como siempre.
+  respuestas.iniciar = { linterna: true, captura: true, cuadrosFijos: 0, visor: false, flechas: true, enVuelo: 1 };
+  const anterior = await iniciarEscanerVivo(() => {}, { foto: "cuadro" });
+  assert.deepEqual([anterior.camara.captura, anterior.camara.fotoDelCuadro, anterior.camara.giro], [true, false, false]);
+  await anterior.apagar();
+  delete respuestas.iniciar;
+});
+
+test("girar el texto llega a la APK; si falla (una anterior no lo trae), no pasa nada", async () => {
+  girarTextoVivo(180);
+  await esperar();
+  assert.deepEqual(llamadas.at(-1), { plugin: "EscanerVivo", metodo: "girarTexto", opciones: { grados: 180 } });
+  const original = globalThis.Capacitor.nativePromise;
+  globalThis.Capacitor.nativePromise = async () => {
+    throw Object.assign(new Error("no implementado"), { code: "UNIMPLEMENTED" });
+  };
+  assert.doesNotThrow(() => girarTextoVivo(90));
+  await esperar();
+  globalThis.Capacitor.nativePromise = original;
+});
+
+test("la foto llega entera (base64 → JPEG) con sus códigos y su texto", async () => {
+  const bytes = [0xff, 0xd8, 0xff, 0x00, 0x7f, 0x80, 0xd9];
+  respuestas.capturar = { imagen: Buffer.from(bytes).toString("base64"), codigos: ["92000022560000200000002001"], texto: "O.F. 200000002" };
+  const foto = await capturarViva();
+  assert.deepEqual([...new Uint8Array(await foto.imagen.arrayBuffer())], bytes);
+  assert.equal(foto.imagen.type, "image/jpeg");
+  assert.deepEqual([foto.codigos, foto.texto], [["92000022560000200000002001"], "O.F. 200000002"]);
+  delete respuestas.capturar;
+});
+
 test("cuántos cuadros a la vez se elige en Diagnóstico: por defecto uno", () => {
   guardado.clear();
   assert.equal(cuadrosALaVez(), 1);
@@ -186,6 +229,8 @@ test("ni la puerta ni las pantallas del escáner mandan nada a la red", () => {
     "../src/lib/nativo/escaner-vivo.ts",
     "../src/app/(conductor)/conductor/diagnostico/_componentes/probar-escaner-vivo.tsx",
     "../src/app/(conductor)/conductor/encomiendas/_hooks/use-escaner-vivo.ts",
+    "../src/app/(conductor)/conductor/encomiendas/_hooks/use-camara-viva.ts",
+    "../src/app/(conductor)/conductor/encomiendas/_hooks/guardar-etiqueta-viva.ts",
     "../src/app/(conductor)/conductor/encomiendas/_componentes/escaner-vivo.tsx",
   ]) {
     const fuente = readFileSync(new URL(ruta, import.meta.url), "utf8");

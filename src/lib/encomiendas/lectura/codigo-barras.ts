@@ -27,14 +27,20 @@ const PREFIJO = "92";
  *  como OF: la OF solo sale del código de Starken o de lo que escribe el conductor,
  *  y un número cualquiera enlazaría otro paquete. */
 export function codigoEnLaFoto(codigos: string[]): CodigoEtiqueta | null {
+  return codigosEnLaFoto(codigos)[0] ?? null;
+}
+
+/** Todos los códigos de Starken distintos que ve la cámara (dos cajas en el cuadro), en el
+ *  orden en que llegaron. */
+export function codigosEnLaFoto(codigos: string[]): CodigoEtiqueta[] {
+  const salida: CodigoEtiqueta[] = [];
   for (const valor of codigos) {
     const d = valor.replace(/\D/g, "");
-    if (d.length === LARGO_CODIGO && d.startsWith(PREFIJO)) {
-      const codigo = leerCodigoEtiqueta(d);
-      if (codigo) return codigo;
-    }
+    if (d.length !== LARGO_CODIGO || !d.startsWith(PREFIJO)) continue;
+    const codigo = leerCodigoEtiqueta(d);
+    if (codigo && !salida.some((c) => c.of === codigo.of && c.bulto === codigo.bulto)) salida.push(codigo);
   }
-  return null;
+  return salida;
 }
 
 /** Lo que leyó el escáner (o escribió el conductor) → OF y bulto, o null si no

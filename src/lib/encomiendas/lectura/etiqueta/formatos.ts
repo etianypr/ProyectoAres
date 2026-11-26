@@ -5,13 +5,16 @@
 
 import { clave, palabra } from "./normalizar";
 
-export type FormatoEtiqueta = "lion" | "expres" | "starken" | "desconocido";
+export type FormatoEtiqueta = "lion" | "expres" | "referencia" | "starken" | "desconocido";
 
 /** En orden: manda la primera marca que aparece (una Lion también dice STARKEN).
- *  El formato no cambia cómo se lee: sirve para el diagnóstico y las pruebas. */
+ *  El formato no cambia cómo se lee: sirve para el diagnóstico y las pruebas.
+ *  «REFERENCIA»: la etiqueta de Starken que imprime la tienda (fotos del dueño,
+ *  2026-11-25), con el teléfono «(+56) 9…» al lado del nombre. */
 export const FORMATOS: { formato: Exclude<FormatoEtiqueta, "desconocido">; marca: RegExp }[] = [
   { formato: "lion", marca: palabra("LION") },
   { formato: "expres", marca: palabra("EXPRES", "EXPRESS") },
+  { formato: "referencia", marca: palabra("REFERENCIA") },
   { formato: "starken", marca: palabra("STARKEN") },
 ];
 
