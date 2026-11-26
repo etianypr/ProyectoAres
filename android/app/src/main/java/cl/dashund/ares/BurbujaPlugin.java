@@ -114,8 +114,26 @@ public class BurbujaPlugin extends Plugin {
             return;
         }
         JSObject respuesta = new JSObject();
-        respuesta.put("via", GoogleMaps.navegar(getContext(), ((Number) lat).doubleValue(), ((Number) lng).doubleValue()));
+        respuesta.put("via", GoogleMaps.navegar(getContext(), ((Number) lat).doubleValue(), ((Number) lng).doubleValue(), pasosDe(call)));
         call.resolve(respuesta);
+    }
+
+    /** Los puntos de paso antes del destino (APK 1.14.0), como "lat,lng". Lo que no
+     *  es un punto se salta: sin pasos, Google Maps va derecho al destino. */
+    private static java.util.List<String> pasosDe(PluginCall call) {
+        java.util.List<String> pasos = new java.util.ArrayList<>();
+        org.json.JSONArray lista = call.getData().optJSONArray("pasos");
+        if (lista == null) return pasos;
+        for (int i = 0; i < lista.length(); i++) {
+            org.json.JSONObject paso = lista.optJSONObject(i);
+            if (paso == null) continue;
+            Object lat = paso.opt("lat");
+            Object lng = paso.opt("lng");
+            if (lat instanceof Number && lng instanceof Number) {
+                pasos.add(((Number) lat).doubleValue() + "," + ((Number) lng).doubleValue());
+            }
+        }
+        return pasos;
     }
 
     private JSObject estadoPermiso() {

@@ -11,6 +11,7 @@
 // de ORS mide de punto a punto y no sabe con qué rumbo se llega. Pura, sin red.
 import { arcoValido, type Red } from "./grafo";
 import { buscar, crearBusqueda, llegada, salidasDe, type Llegada, type Reglas } from "./caminos";
+import { sentidosDePaso } from "./conexa";
 
 /** Un lugar pegado a la red (ver pegar.ts). `libre`: la central. */
 export type Lugar = { arista: number; fraccion: number; libre?: boolean };
@@ -36,8 +37,11 @@ export function* armarMatrizConRumbo(red: Red, lugares: Lugar[], reglas: Reglas 
   const lugarDe: number[] = [];
   const sentidoDe: number[] = [];
   const estadosDe: number[][] = lugares.map(() => []);
+  // Solo los sentidos de la parte conexa (conexa.ts): por el otro se entra a una trampa.
+  const sentidosValidos = (l: Lugar) =>
+    reglas.libre ? ([0, 1] as const).filter((s) => arcoValido(red, 2 * l.arista + s)) : sentidosDePaso(red, l.arista);
   lugares.forEach((l, i) => {
-    const sentidos = l.libre || reglas.libre ? [-1] : ([0, 1] as const).filter((s) => arcoValido(red, 2 * l.arista + s));
+    const sentidos = l.libre || reglas.libre ? [-1] : sentidosValidos(l);
     for (const s of sentidos) {
       estadosDe[i].push(lugarDe.length);
       lugarDe.push(i);
@@ -48,7 +52,6 @@ export function* armarMatrizConRumbo(red: Red, lugares: Lugar[], reglas: Reglas 
   const metros = new Float64Array(n * n).fill(Infinity);
   const segundos = new Float64Array(n * n).fill(Infinity);
   const b = crearBusqueda(red);
-  const sentidosValidos = (l: Lugar) => ([0, 1] as const).filter((s) => arcoValido(red, 2 * l.arista + s));
   const destinos = lugares.flatMap((l) => sentidosValidos(l).map((s) => 2 * l.arista + s));
 
   for (let desde = 0; desde < n; desde++) {

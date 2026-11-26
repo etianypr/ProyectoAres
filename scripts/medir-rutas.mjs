@@ -28,6 +28,7 @@ import { medirConRumbo, prepararRedDelDia } from "@/lib/encomiendas/local/genera
 import { METROS_POR_PARADA, TOLERANCIA_DESCARGA } from "@/lib/encomiendas/local/generar-ruta/bultos";
 import { cargarRed } from "@/lib/geo/red/grafo";
 import { rutaPorLaRed } from "@/lib/geo/ruta-por-calles";
+import { contarVueltasEnU } from "@/lib/geo/trazado";
 import { bultosAlAzar, DIA, ESCENARIOS, estrategiasDelEscenario, pedidosDelEscenario } from "../pruebas/038-escenarios-ruta.mjs";
 
 // Un argumento mal escrito no se adivina ni se ignora: una medición con otra
@@ -152,7 +153,7 @@ console.log(`${cuantas} paradas, mediana de ${corridas} corrida${corridas === 1 
 console.log(`orden de antes (sin rumbo, ${ms("sin rumbo a fondo (orden de antes)").toFixed(0)} ms): creía ${km(creia)}; con rumbo son ${km(antesConRumbo.metros)} ($${Math.round(antesConRumbo.pesos)})`);
 console.log(`  en el aire: ${km(antesConRumbo.metros - creia)} (+${((antesConRumbo.metros / creia - 1) * 100).toFixed(1)} %)`);
 console.log(`orden con rumbo (${msNuevo.toFixed(0)} ms): ${km(nuevoConRumbo.metros)} ($${Math.round(nuevoConRumbo.pesos)}), ${((1 - nuevoConRumbo.pesos / antesConRumbo.pesos) * 100).toFixed(2)} % menos plata que el de antes`);
-console.log(`trazado propio: ${km(trazado.distanciaM)} en ${(trazado.duracionS / 60).toFixed(0)} min, ${trazado.trazado.length} puntos (${ms("trazado propio").toFixed(0)} ms)`);
+console.log(`trazado propio: ${km(trazado.distanciaM)} en ${(trazado.duracionS / 60).toFixed(0)} min, ${trazado.trazado.length} puntos, ${contarVueltasEnU(trazado.trazado)} vueltas en U (${ms("trazado propio").toFixed(0)} ms)`);
 console.log(`armado entero: ${(ms("matriz con rumbo") + msNuevo + ms("trazado propio")).toFixed(0)} ms (matriz ${ms("matriz con rumbo").toFixed(0)} ms; cargar la red la 1ª vez, ${msCargarRed.toFixed(0)} ms aparte)`);
 console.log("");
 console.log("etapa".padEnd(48) + "tipo    " + "mediana".padStart(9) + "  mín–máx".padEnd(16) + "hash");

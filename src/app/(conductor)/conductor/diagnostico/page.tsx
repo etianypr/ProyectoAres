@@ -18,7 +18,8 @@ import { entrarAlModoPrueba, esApkDePrueba, salirDelModoPrueba, useModoPrueba } 
 import { fijarConfigGps, useConfigGps, VELOCIDADES } from "@/lib/encomiendas/local/gps-simulado";
 import { consultasOrsDeHoy, type ConsultasOrs } from "@/lib/geo/ors/cliente";
 import { apagarRed, cargarRed, redApagada } from "@/lib/geo/red/grafo";
-import { origenDelUltimoTrazado } from "@/lib/geo/ruta-por-calles";
+import { origenDelUltimoTrazado, vueltasDelUltimoTrazado } from "@/lib/geo/ruta-por-calles";
+import { elegirPuntoDePaso, navegarConPuntoDePaso } from "@/lib/nativo/mapas";
 import { ProbarBarridoNomina } from "./_componentes/probar-barrido-nomina";
 import { ProbarEscanerVivo } from "./_componentes/probar-escaner-vivo";
 import { ProbarEtiqueta } from "./_componentes/probar-etiqueta";
@@ -64,6 +65,7 @@ export default function DiagnosticoPage() {
   // armar la ruta con OpenRouteService si un día falla.
   const [fechaRed, setFechaRed] = useState<string | null>(null);
   const [rutaConOrs, setRutaConOrs] = useState(false);
+  const [conPuntoDePaso, setConPuntoDePaso] = useState(false);
   const [lectura, setLectura] = useState<string | null>(null);
   const [escaneando, setEscaneando] = useState(false);
   const modoPrueba = useModoPrueba();
@@ -90,6 +92,7 @@ export default function DiagnosticoPage() {
       });
       setOrs(consultasOrsDeHoy());
       setRutaConOrs(redApagada());
+      setConPuntoDePaso(navegarConPuntoDePaso());
       setFechaRed((await cargarRed())?.fecha ?? null);
     })();
   }, []);
@@ -143,8 +146,9 @@ export default function DiagnosticoPage() {
       <div className="space-y-1.5">
         <p className="text-xs text-muted">
           Mapa de calles propio: {rutaConOrs ? "apagado" : fechaRed ? <span className="font-mono">{fechaRed}</span> : "sin cargar"}.
-          {origenDelUltimoTrazado() === "red" ? " Última ruta trazada con el mapa propio." : null}
-          {origenDelUltimoTrazado() === "ors" ? " Última ruta trazada con OpenRouteService." : null}
+          {origenDelUltimoTrazado() === "red" ? " Última ruta trazada con el mapa propio" : null}
+          {origenDelUltimoTrazado() === "ors" ? " Última ruta trazada con OpenRouteService" : null}
+          {origenDelUltimoTrazado() ? <>, <span className="font-mono">{vueltasDelUltimoTrazado()}</span> vueltas en U.</> : null}
         </p>
         <label className="flex items-center gap-2 px-1 text-sm font-medium">
           <input
@@ -157,6 +161,18 @@ export default function DiagnosticoPage() {
             className="h-4 w-4 accent-[var(--brand)]"
           />
           Optimizar ruta con OpenRouteService
+        </label>
+        <label className="flex items-center gap-2 px-1 text-sm font-medium">
+          <input
+            type="checkbox"
+            checked={conPuntoDePaso}
+            onChange={(e) => {
+              elegirPuntoDePaso(e.target.checked);
+              setConPuntoDePaso(e.target.checked);
+            }}
+            className="h-4 w-4 accent-[var(--brand)]"
+          />
+          Navegar con punto de paso
         </label>
       </div>
 

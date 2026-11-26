@@ -143,7 +143,7 @@
     "desde": 28,
     "hasta": 116,
     "metros": 2046,
-    "segundos": 221,
+    "segundos": 233,
     "pedidoId": "@Prueba 22"
    },
    {
@@ -274,42 +274,42 @@
    },
    {
     "desde": 941,
-    "hasta": 994,
-    "metros": 2420,
-    "segundos": 212,
+    "hasta": 995,
+    "metros": 2371,
+    "segundos": 207,
     "pedidoId": "@Prueba 16"
    },
    {
-    "desde": 994,
-    "hasta": 1114,
-    "metros": 2851,
-    "segundos": 287,
+    "desde": 995,
+    "hasta": 1112,
+    "metros": 2901,
+    "segundos": 292,
     "pedidoId": "@Prueba 15"
    },
    {
-    "desde": 1114,
-    "hasta": 1140,
+    "desde": 1112,
+    "hasta": 1138,
     "metros": 1220,
     "segundos": 134,
     "pedidoId": "@Prueba 1"
    },
    {
-    "desde": 1140,
-    "hasta": 1163,
+    "desde": 1138,
+    "hasta": 1161,
     "metros": 1109,
     "segundos": 118,
     "pedidoId": "@Prueba 21"
    },
    {
-    "desde": 1163,
-    "hasta": 1219,
+    "desde": 1161,
+    "hasta": 1217,
     "metros": 2369,
     "segundos": 281,
     "pedidoId": null
    }
   ],
   "distanciaM": 39236,
-  "duracionS": 4624,
+  "duracionS": 4636,
   "sinUbicar": [],
   "sinTrazado": false,
   "motivoSinTrazado": null,
@@ -442,7 +442,7 @@
      }
     ],
     "metrosEstimados": 39236,
-    "costoEstimado": 12807,
+    "costoEstimado": 12827,
     "confirmados": 2,
     "pendientesDeContacto": 22,
     "bloquesCumplidos": 0,
@@ -455,8 +455,8 @@
   "lejanas": [],
   "advertencias": [],
   "trazado": {
-   "puntos": 1220,
-   "huella": "4d9f59b522c49e7f"
+   "puntos": 1218,
+   "huella": "4d4701f92cb1990b"
   }
  },
  "sin-bloques-0950": {
@@ -603,7 +603,7 @@
     "desde": 28,
     "hasta": 116,
     "metros": 2046,
-    "segundos": 221,
+    "segundos": 233,
     "pedidoId": "@Prueba 22"
    },
    {
@@ -734,42 +734,42 @@
    },
    {
     "desde": 941,
-    "hasta": 994,
-    "metros": 2420,
-    "segundos": 212,
+    "hasta": 995,
+    "metros": 2371,
+    "segundos": 207,
     "pedidoId": "@Prueba 16"
    },
    {
-    "desde": 994,
-    "hasta": 1114,
-    "metros": 2851,
-    "segundos": 287,
+    "desde": 995,
+    "hasta": 1112,
+    "metros": 2901,
+    "segundos": 292,
     "pedidoId": "@Prueba 15"
    },
    {
-    "desde": 1114,
-    "hasta": 1140,
+    "desde": 1112,
+    "hasta": 1138,
     "metros": 1220,
     "segundos": 134,
     "pedidoId": "@Prueba 1"
    },
    {
-    "desde": 1140,
-    "hasta": 1163,
+    "desde": 1138,
+    "hasta": 1161,
     "metros": 1109,
     "segundos": 118,
     "pedidoId": "@Prueba 21"
    },
    {
-    "desde": 1163,
-    "hasta": 1219,
+    "desde": 1161,
+    "hasta": 1217,
     "metros": 2369,
     "segundos": 281,
     "pedidoId": null
    }
   ],
   "distanciaM": 39236,
-  "duracionS": 4624,
+  "duracionS": 4636,
   "sinUbicar": [],
   "sinTrazado": false,
   "motivoSinTrazado": null,
@@ -902,7 +902,7 @@
      }
     ],
     "metrosEstimados": 39236,
-    "costoEstimado": 12807,
+    "costoEstimado": 12827,
     "confirmados": 2,
     "pendientesDeContacto": 22,
     "bloquesCumplidos": 0,
@@ -915,8 +915,8 @@
   "lejanas": [],
   "advertencias": [],
   "trazado": {
-   "puntos": 1220,
-   "huella": "4d9f59b522c49e7f"
+   "puntos": 1218,
+   "huella": "4d4701f92cb1990b"
   }
  },
  "bloque-vigente-0930": {
@@ -1084,7 +1084,7 @@
     "desde": 66,
     "hasta": 130,
     "metros": 2941,
-    "segundos": 395,
+    "segundos": 407,
     "pedidoId": "@Prueba 2"
    },
    {
@@ -1152,84 +1152,84 @@
    },
    {
     "desde": 593,
-    "hasta": 636,
-    "metros": 1578,
-    "segundos": 157,
+    "hasta": 630,
+    "metros": 1477,
+    "segundos": 158,
     "pedidoId": "@Prueba 15"
    },
    {
-    "desde": 636,
-    "hasta": 733,
+    "desde": 630,
+    "hasta": 727,
     "metros": 2643,
     "segundos": 281,
     "pedidoId": "@Prueba 16"
    },
    {
-    "desde": 733,
-    "hasta": 896,
+    "desde": 727,
+    "hasta": 890,
     "metros": 4262,
     "segundos": 420,
     "pedidoId": "@Prueba 6"
    },
    {
-    "desde": 896,
-    "hasta": 950,
+    "desde": 890,
+    "hasta": 944,
     "metros": 1517,
     "segundos": 162,
     "pedidoId": "@Prueba 3"
    },
    {
-    "desde": 950,
-    "hasta": 1002,
+    "desde": 944,
+    "hasta": 996,
     "metros": 1493,
     "segundos": 172,
     "pedidoId": "@Prueba 18"
    },
    {
-    "desde": 1002,
-    "hasta": 1069,
+    "desde": 996,
+    "hasta": 1063,
     "metros": 564,
     "segundos": 68,
     "pedidoId": "@Prueba 20"
    },
    {
-    "desde": 1069,
-    "hasta": 1126,
+    "desde": 1063,
+    "hasta": 1120,
     "metros": 1669,
     "segundos": 165,
     "pedidoId": "@Prueba 12"
    },
    {
-    "desde": 1126,
-    "hasta": 1196,
+    "desde": 1120,
+    "hasta": 1190,
     "metros": 2350,
     "segundos": 253,
     "pedidoId": "@Prueba 10"
    },
    {
-    "desde": 1196,
-    "hasta": 1223,
+    "desde": 1190,
+    "hasta": 1217,
     "metros": 761,
     "segundos": 98,
     "pedidoId": "@Prueba 7"
    },
    {
-    "desde": 1223,
-    "hasta": 1255,
+    "desde": 1217,
+    "hasta": 1249,
     "metros": 1201,
     "segundos": 149,
     "pedidoId": "@Prueba 5"
    },
    {
-    "desde": 1255,
-    "hasta": 1321,
+    "desde": 1249,
+    "hasta": 1315,
     "metros": 2272,
     "segundos": 248,
     "pedidoId": null
    }
   ],
-  "distanciaM": 41103,
-  "duracionS": 4870,
+  "distanciaM": 41002,
+  "duracionS": 4883,
   "sinUbicar": [],
   "sinTrazado": false,
   "motivoSinTrazado": null,
@@ -1361,8 +1361,8 @@
       "lng": -70.289301
      }
     ],
-    "metrosEstimados": 41103,
-    "costoEstimado": 13461,
+    "metrosEstimados": 41002,
+    "costoEstimado": 13469,
     "confirmados": 3,
     "pendientesDeContacto": 21,
     "bloquesCumplidos": 2,
@@ -1375,8 +1375,8 @@
   "lejanas": [],
   "advertencias": [],
   "trazado": {
-   "puntos": 1322,
-   "huella": "7149922de621ff7f"
+   "puntos": 1316,
+   "huella": "63fe40d9e8632b9c"
   }
  },
  "bloque-vigente-0950": {
@@ -1544,7 +1544,7 @@
     "desde": 66,
     "hasta": 130,
     "metros": 2941,
-    "segundos": 395,
+    "segundos": 407,
     "pedidoId": "@Prueba 2"
    },
    {
@@ -1612,84 +1612,84 @@
    },
    {
     "desde": 593,
-    "hasta": 636,
-    "metros": 1578,
-    "segundos": 157,
+    "hasta": 630,
+    "metros": 1477,
+    "segundos": 158,
     "pedidoId": "@Prueba 15"
    },
    {
-    "desde": 636,
-    "hasta": 733,
+    "desde": 630,
+    "hasta": 727,
     "metros": 2643,
     "segundos": 281,
     "pedidoId": "@Prueba 16"
    },
    {
-    "desde": 733,
-    "hasta": 896,
+    "desde": 727,
+    "hasta": 890,
     "metros": 4262,
     "segundos": 420,
     "pedidoId": "@Prueba 6"
    },
    {
-    "desde": 896,
-    "hasta": 950,
+    "desde": 890,
+    "hasta": 944,
     "metros": 1517,
     "segundos": 162,
     "pedidoId": "@Prueba 3"
    },
    {
-    "desde": 950,
-    "hasta": 1002,
+    "desde": 944,
+    "hasta": 996,
     "metros": 1493,
     "segundos": 172,
     "pedidoId": "@Prueba 18"
    },
    {
-    "desde": 1002,
-    "hasta": 1069,
+    "desde": 996,
+    "hasta": 1063,
     "metros": 564,
     "segundos": 68,
     "pedidoId": "@Prueba 20"
    },
    {
-    "desde": 1069,
-    "hasta": 1126,
+    "desde": 1063,
+    "hasta": 1120,
     "metros": 1669,
     "segundos": 165,
     "pedidoId": "@Prueba 12"
    },
    {
-    "desde": 1126,
-    "hasta": 1196,
+    "desde": 1120,
+    "hasta": 1190,
     "metros": 2350,
     "segundos": 253,
     "pedidoId": "@Prueba 10"
    },
    {
-    "desde": 1196,
-    "hasta": 1223,
+    "desde": 1190,
+    "hasta": 1217,
     "metros": 761,
     "segundos": 98,
     "pedidoId": "@Prueba 7"
    },
    {
-    "desde": 1223,
-    "hasta": 1255,
+    "desde": 1217,
+    "hasta": 1249,
     "metros": 1201,
     "segundos": 149,
     "pedidoId": "@Prueba 5"
    },
    {
-    "desde": 1255,
-    "hasta": 1321,
+    "desde": 1249,
+    "hasta": 1315,
     "metros": 2272,
     "segundos": 248,
     "pedidoId": null
    }
   ],
-  "distanciaM": 41103,
-  "duracionS": 4870,
+  "distanciaM": 41002,
+  "duracionS": 4883,
   "sinUbicar": [],
   "sinTrazado": false,
   "motivoSinTrazado": null,
@@ -1821,8 +1821,8 @@
       "lng": -70.289301
      }
     ],
-    "metrosEstimados": 41103,
-    "costoEstimado": 13461,
+    "metrosEstimados": 41002,
+    "costoEstimado": 13469,
     "confirmados": 3,
     "pendientesDeContacto": 21,
     "bloquesCumplidos": 2,
@@ -1835,8 +1835,8 @@
   "lejanas": [],
   "advertencias": [],
   "trazado": {
-   "puntos": 1322,
-   "huella": "7149922de621ff7f"
+   "puntos": 1316,
+   "huella": "63fe40d9e8632b9c"
   }
  },
  "bloque-cerrado-1500": {
@@ -1983,7 +1983,7 @@
     "desde": 28,
     "hasta": 116,
     "metros": 2046,
-    "segundos": 221,
+    "segundos": 233,
     "pedidoId": "@Prueba 22"
    },
    {
@@ -2114,42 +2114,42 @@
    },
    {
     "desde": 941,
-    "hasta": 994,
-    "metros": 2420,
-    "segundos": 212,
+    "hasta": 995,
+    "metros": 2371,
+    "segundos": 207,
     "pedidoId": "@Prueba 16"
    },
    {
-    "desde": 994,
-    "hasta": 1114,
-    "metros": 2851,
-    "segundos": 287,
+    "desde": 995,
+    "hasta": 1112,
+    "metros": 2901,
+    "segundos": 292,
     "pedidoId": "@Prueba 15"
    },
    {
-    "desde": 1114,
-    "hasta": 1140,
+    "desde": 1112,
+    "hasta": 1138,
     "metros": 1220,
     "segundos": 134,
     "pedidoId": "@Prueba 1"
    },
    {
-    "desde": 1140,
-    "hasta": 1163,
+    "desde": 1138,
+    "hasta": 1161,
     "metros": 1109,
     "segundos": 118,
     "pedidoId": "@Prueba 21"
    },
    {
-    "desde": 1163,
-    "hasta": 1219,
+    "desde": 1161,
+    "hasta": 1217,
     "metros": 2369,
     "segundos": 281,
     "pedidoId": null
    }
   ],
   "distanciaM": 39236,
-  "duracionS": 4624,
+  "duracionS": 4636,
   "sinUbicar": [],
   "sinTrazado": false,
   "motivoSinTrazado": null,
@@ -2282,7 +2282,7 @@
      }
     ],
     "metrosEstimados": 39236,
-    "costoEstimado": 12807,
+    "costoEstimado": 12827,
     "confirmados": 3,
     "pendientesDeContacto": 21,
     "bloquesCumplidos": 0,
@@ -2303,8 +2303,8 @@
    "Con este orden se llegaría fuera de horario a 2 clientes: Prueba 5, Prueba 12."
   ],
   "trazado": {
-   "puntos": 1220,
-   "huella": "4d9f59b522c49e7f"
+   "puntos": 1218,
+   "huella": "4d4701f92cb1990b"
   }
  },
  "ors-bloque-cerrado-1500": {
@@ -2830,56 +2830,56 @@
     },
     {
      "desde": 20,
-     "hasta": 118,
-     "metros": 2859,
-     "segundos": 304,
+     "hasta": 120,
+     "metros": 2868,
+     "segundos": 312,
      "pedidoId": "@Prueba 55"
     },
     {
-     "desde": 118,
-     "hasta": 146,
+     "desde": 120,
+     "hasta": 148,
      "metros": 862,
      "segundos": 133,
      "pedidoId": "@Prueba 59"
     },
     {
-     "desde": 146,
-     "hasta": 239,
+     "desde": 148,
+     "hasta": 241,
      "metros": 3285,
      "segundos": 285,
      "pedidoId": "@Prueba 58"
     },
     {
-     "desde": 239,
-     "hasta": 423,
+     "desde": 241,
+     "hasta": 425,
      "metros": 4377,
      "segundos": 476,
      "pedidoId": "@Prueba 53"
     },
     {
-     "desde": 423,
-     "hasta": 484,
+     "desde": 425,
+     "hasta": 486,
      "metros": 2654,
      "segundos": 263,
      "pedidoId": "@Prueba 57"
     },
     {
-     "desde": 484,
-     "hasta": 551,
+     "desde": 486,
+     "hasta": 553,
      "metros": 3038,
      "segundos": 257,
      "pedidoId": "@Prueba 56"
     },
     {
-     "desde": 551,
-     "hasta": 645,
+     "desde": 553,
+     "hasta": 647,
      "metros": 3644,
      "segundos": 324,
      "pedidoId": null
     }
    ],
-   "distanciaM": 21569,
-   "duracionS": 2138,
+   "distanciaM": 21578,
+   "duracionS": 2146,
    "sinUbicar": [
     {
      "nombre": "Prueba 60",
@@ -2932,8 +2932,8 @@
        "lng": -70.30274212360382
       }
      ],
-     "metrosEstimados": 21569,
-     "costoEstimado": 6367,
+     "metrosEstimados": 21578,
+     "costoEstimado": 6382,
      "confirmados": 0,
      "pendientesDeContacto": 7,
      "bloquesCumplidos": 0,
@@ -2961,8 +2961,8 @@
     "Calle inventada 5600, Arica queda a 2.4 km del resto y agrega 4.9 km a la ruta: revisa la dirección."
    ],
    "trazado": {
-    "puntos": 646,
-    "huella": "b52fa4cef552b545"
+    "puntos": 648,
+    "huella": "11cef20304129432"
    }
   },
   "guardados": [

@@ -29,6 +29,7 @@ import {
   ubicarConHorario,
   type PuntoDeRuta,
 } from "./planificar";
+import { pesosDeManejar } from "./generar-ruta/pesos";
 
 /** Una respuesta ya aplicada que puede mover la ruta. */
 export type RespuestaAplicada = { pedidoId: string; tipo: "manana" | "horario_indicado" };
@@ -99,7 +100,8 @@ export async function replanificarRuta(
       try {
         // Con la vuelta a la base, si la ruta la tiene (ver Ruta.partida).
         const vuelta = ruta.partida ? [ruta.partida] : [];
-        const calles = await rutaPorCalles(inicio ? [inicio, ...puntos, ...vuelta] : [...puntos, ...vuelta]);
+        // Con el mismo costo que el armado, como retrazarRuta (reubicar.ts).
+        const calles = await rutaPorCalles(inicio ? [inicio, ...puntos, ...vuelta] : [...puntos, ...vuelta], pesosDeManejar);
         // A qué pedido llega cada tramo (spec 020): los puntos, en el mismo orden.
         const ids = [...(inicio ? [null] : []), ...ubicados.map((p) => p.id), ...vuelta.map(() => null)];
         if (calles) await fijarTrazado(fecha, { ...calles, tramos: tramosConPedidos(calles.tramos, ids) });

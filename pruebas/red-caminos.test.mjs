@@ -17,7 +17,7 @@ import { arcoValido } from "@/lib/geo/red/grafo";
 import { pegarALaRed } from "@/lib/geo/red/pegar";
 import { matrizConRumbo } from "@/lib/geo/red/matriz-con-rumbo";
 import { MANIOBRA_REVERSA_S, MANIOBRA_U_S, PORTON_S } from "@/lib/geo/red/tiempos";
-import { CUADRA, en, grilla, PRIVADA, RESIDENCIAL, SECUNDARIA, SIN_PARADA, UN_SENTIDO } from "./red-de-juguete.mjs";
+import { CUADRA, en, grilla, PRIVADA, redDeJuguete, RESIDENCIAL, SECUNDARIA, SIN_PARADA, UN_SENTIDO } from "./red-de-juguete.mjs";
 
 const H = 105.46; // una cuadra de oeste a este, en metros
 const V = 111.19; // una cuadra de norte a sur
@@ -90,6 +90,42 @@ test("calle ancha de doble sentido: se gira en U pagando la maniobra", () => {
   const vuelta = medir(m, [0, 0], [1, 1]);
   cerca(vuelta.metros, H / 2);
   assert.ok(vuelta.segundos >= MANIOBRA_U_S && vuelta.segundos < MANIOBRA_U_S + 8, `${vuelta.segundos} s`);
+});
+
+test("bandejón: devolverse por la abertura cuesta como una U; doblar desde la calle que cruza, no", () => {
+  // Una avenida con bandejón: la calzada norte va al este (0 → 1 → 2), la sur al
+  // oeste (5 → 4 → 3), a ~33 m; aberturas en 0—3, 1—4 y 2—5, y una calle que
+  // cruza por 6 — 1 — 4 — 7.
+  const calzada = SECUNDARIA | UN_SENTIDO;
+  const red = redDeJuguete({
+    nodos: [en(0, 0), en(0, 1), en(0, 2), en(0.3, 0), en(0.3, 1), en(0.3, 2), en(-1, 1), en(1.3, 1)],
+    aristas: [
+      [0, 1, calzada],
+      [1, 2, calzada],
+      [5, 4, calzada],
+      [4, 3, calzada],
+      [3, 0],
+      [1, 4],
+      [2, 5],
+      [6, 1],
+      [4, 7],
+    ],
+  });
+  const conRegla = (lugares) => matrizConRumbo(red, lugares);
+  const libre = (lugares) => matrizConRumbo(red, lugares, { libre: true });
+  const segundos = (m) => m.segundos[m.estadosDe[0][0] * m.n + m.estadosDe[1][0]];
+  // De la calzada norte (0 → 1) a la sur (4 → 3): la vuelta por la abertura 1—4.
+  const vuelta = [
+    { arista: 0, fraccion: 0.5 },
+    { arista: 3, fraccion: 0.5 },
+  ];
+  cerca(segundos(conRegla(vuelta)) - segundos(libre(vuelta)), MANIOBRA_U_S, 0.01);
+  // Bajando por la calle que cruza (6 → 1) y doblando a la calzada sur: un giro cualquiera.
+  const doblar = [
+    { arista: 7, fraccion: 0.5 },
+    { arista: 3, fraccion: 0.5 },
+  ];
+  cerca(segundos(conRegla(doblar)) - segundos(libre(doblar)), 0, 0.01);
 });
 
 test("pasaje sin salida: se sale en reversa, pagando la maniobra", () => {

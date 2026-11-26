@@ -13,11 +13,15 @@ import { cargarRed, redCargada } from "./red/grafo";
 import { entregaEn } from "./red/entrada";
 import { pegarALaRed } from "./red/pegar";
 import { trazarPorLaRed } from "./red/trazado-propio";
+import { contarVueltasEnU } from "./trazado";
 
 /** Quién dibujó el último trazado (para Diagnóstico). */
 type OrigenDelTrazado = "red" | "ors" | null;
 let ultimoOrigen: OrigenDelTrazado = null;
 export const origenDelUltimoTrazado = (): OrigenDelTrazado => ultimoOrigen;
+/** Cuántas vueltas en U tiene el último trazado (dueño, 2026-11-25: «mucho giro en U»). */
+let ultimasVueltas = 0;
+export const vueltasDelUltimoTrazado = (): number => ultimasVueltas;
 
 /** El trazado por la red propia, o null si no se puede (red sin cargar, un punto
  *  sin calle cerca o un tramo sin camino). `costo`: ver trazarPorLaRed. */
@@ -72,9 +76,11 @@ export async function rutaPorCalles(
   const propia = await rutaPorLaRed(puntosOrdenados, costo).catch(() => null);
   if (propia) {
     ultimoOrigen = "red";
+    ultimasVueltas = contarVueltasEnU(propia.trazado);
     return propia;
   }
   const deOrs = await obtenerRutaCalles(puntosOrdenados);
   ultimoOrigen = deOrs ? "ors" : null;
+  ultimasVueltas = deOrs ? contarVueltasEnU(deOrs.trazado) : 0;
   return deOrs;
 }

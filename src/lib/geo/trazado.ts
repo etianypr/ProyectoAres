@@ -318,3 +318,48 @@ export function metrosRestantes(posicion: Coordenada, trazado: Trazado): number 
   }
   return Math.round(total);
 }
+
+/** Cuánto cambia el rumbo de `a` a `b`, de 0 a 180°. */
+export function giroEntre(a: number, b: number): number {
+  const d = Math.abs(a - b) % 360;
+  return d > 180 ? 360 - d : d;
+}
+
+/**
+ * Cuántas vueltas en U tiene una línea: el rumbo se da vuelta (más de `grados`) en
+ * menos de `metros`, en la misma calle o cruzando el bandejón de una avenida (dueño,
+ * 2026-11-25: «mucho giro en U»). Sirve para medir la ruta (npm run medir,
+ * Diagnóstico), no para dibujarla.
+ */
+export function contarVueltasEnU(trazado: Trazado, metros = 40, grados = 150): number {
+  const puntos = trazado.map(deLngLat);
+  // Los pedazos con rumbo (los de menos de 1 m no lo tienen) y dónde empieza y
+  // termina cada uno, en metros desde el principio de la línea.
+  const rumbos: number[] = [];
+  const inicio: number[] = [];
+  const fin: number[] = [];
+  let recorrido = 0;
+  for (let i = 0; i + 1 < puntos.length; i++) {
+    const largo = distanciaMetros(puntos[i], puntos[i + 1]);
+    if (largo >= 1) {
+      rumbos.push(rumboEntre(puntos[i], puntos[i + 1]));
+      inicio.push(recorrido);
+      fin.push(recorrido + largo);
+    }
+    recorrido += largo;
+  }
+  let vueltas = 0;
+  let i = 0;
+  while (i < rumbos.length) {
+    let siguiente = i + 1;
+    for (let j = i + 1; j < rumbos.length && inicio[j] - fin[i] <= metros; j++) {
+      if (giroEntre(rumbos[i], rumbos[j]) > grados) {
+        vueltas++;
+        siguiente = j;
+        break;
+      }
+    }
+    i = siguiente;
+  }
+  return vueltas;
+}

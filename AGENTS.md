@@ -367,6 +367,13 @@ y un agente no debe "corregir".
     red (`geo/ruta-por-calles.ts`).
     - Reglas: calle angosta (residencial, pasaje, servicio), sin giro en U; calle ancha de doble
       sentido, con maniobra; pasaje sin salida, en reversa; calle y portón privados, solo para llegar.
+      Devolverse por la abertura del bandejón de una avenida es una U y cuesta lo mismo (12 s;
+      dueño, 2026-11-25, `geo/red/bandejon.ts`). Medido en el día de prueba de 80 paradas: 25 → 20
+      vueltas en U, +0,9 % de km y el mismo costo.
+    - **Solo la parte conexa** (terreno 2026-11-23; `geo/red/conexa.ts`): una parada se pega a una calle
+      desde la que se puede volver al resto de la red con las reglas de giro (la componente fuerte
+      mayor, medida por arcos). Pegada a una calle sin salida real, la línea entera la dibujaba ORS
+      (con una U en cada parada) y la parada quedaba a ciegas en el orden.
     - **En un condominio, siempre por su entrada** (dueño, 2026-11-12; `geo/red/entrada.ts`): si la
       calle interna más cercana a la casa (privada, o un pasaje interno sin nombre) está tan cerca
       como la pública, la parada se entrega en la entrada del condominio (la más cercana por
@@ -395,6 +402,13 @@ y un agente no debe "corregir".
   - Al cerrar una parada, Google Maps arranca derecho a la siguiente: se abre limpiando su tarea,
     porque si no pregunta «¿Salir de la navegación?» y, sin respuesta, sigue a la parada cerrada
     (`GoogleMaps.java`, APK 1.6.1).
+  - **Punto de paso** (dueño, 2026-11-25: «la navegación de Google Maps no es congruente con la ruta
+    planeada por ARES»): con solo el destino, Google llegaba por donde quería y el auto quedaba
+    apuntando al revés del plan. Ahora va también un punto de la línea de ARES ~30 m antes de la
+    última esquina (`geo/punto-de-paso.ts`), y Google Maps navega con dos paradas. Sale de la línea
+    guardada, sin consultas; si la línea no calza con el orden (se está re-trazando), va solo el
+    destino. Con la APK 1.14.0 lo abre lo nativo con la misma limpieza de tarea; con una anterior, la
+    web. Diagnóstico → «Navegar con punto de paso» lo apaga (encendido por defecto).
   - **Llamadas.** Se marcan solas (con el permiso de llamadas; sin él, el marcador) y quedan de
     fondo: con la llamada en curso vuelve adelante ARES o, desde la burbuja, Google Maps
     (`TrasLlamar.java`, dueño 2026-11-09).

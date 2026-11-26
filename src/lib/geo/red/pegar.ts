@@ -4,6 +4,7 @@
 // cercana es la del lado de la casa. Con otro filtro sirve para buscar otras
 // aristas cercanas (las calles internas de un condominio, entrada.ts). Puro.
 import type { Coordenada } from "@/lib/geo/coordenada";
+import { aristaConexa } from "./conexa";
 import { SIN_PARADA, type Red } from "./grafo";
 
 type Pegado = {
@@ -30,8 +31,10 @@ const fila = (lat: number) => Math.floor((lat + 90) / CASILLA);
 const columna = (lng: number) => Math.floor((lng + 180) / CASILLA);
 
 /** Donde un auto se detiene a entregar: todo menos autopistas, enlaces, rotondas,
- *  pasajes internos de estacionamiento y entradas de auto (SIN_PARADA). */
-export const dondeSePara = (red: Red, k: number) => !(red.codigo[k] & SIN_PARADA);
+ *  pasajes internos de estacionamiento y entradas de auto (SIN_PARADA), y solo en
+ *  la parte conexa de la red: de una calle de la que no se sale, la ruta no tiene
+ *  camino (terreno 2026-11-23, conexa.ts). */
+export const dondeSePara = (red: Red, k: number) => !(red.codigo[k] & SIN_PARADA) && aristaConexa(red, k);
 
 /** Los puntos de todas las aristas, seguidos, y en qué casillas cae cada tramo. */
 function indiceDe(red: Red): Indice {
