@@ -14,7 +14,7 @@ fuera de la APK cae al comportamiento de hoy.
 | `terminarBurbuja()` | quita la burbuja y apaga el servicio | nada |
 | `burbujaEnAres(valor: boolean)` | `true` mientras ARES abre una pantalla suya (escáner, cámara): no aparece encima | nada |
 | `alTocarBurbuja(cb: (id: IdBoton) => void): () => void` | evento `toque` | nunca llama |
-| `navegarA(destino): Promise<"maps" \| "navegador">` | `Burbuja.navegar`: Google Maps navegando; sin Google Maps, el enlace en el navegador | `mapas.ts` (enlace en otra pestaña) |
+| `navegarA(destino, paso?): Promise<"maps" \| "navegador">` | `Burbuja.navegar`: Google Maps navegando, pasando por el punto de paso si lo hay y el interruptor de Diagnóstico está encendido; sin Google Maps, el enlace en el navegador. Con una APK anterior a la 1.14.0 y punto de paso, la web abre el enlace `maps/dir` ella misma | `mapas.ts` (enlace en otra pestaña, con `waypoints`) |
 
 `alRegistrarLlamada` y el evento `llamadaRegistrada` del plugin `Telefono` salieron el
 2026-11-06: ya no se lee el registro de llamadas (FR-007).
@@ -28,7 +28,7 @@ fuera de la APK cae al comportamiento de hoy.
 | `mostrar` | `{ vista: VistaBurbuja }` (ver data-model) | `{}`; la primera vez arranca `BurbujaServicio` |
 | `terminar` | — | `{}` |
 | `enAres` | `{ valor: boolean }` | `{}` |
-| `navegar` | `{ lat: number, lng: number }` | `{ via: "maps" \| "navegador" }` |
+| `navegar` | `{ lat: number, lng: number, pasos?: { lat, lng }[] }`. Con `pasos` (APK 1.14.0) abre `maps/dir` con `waypoints` y `dir_action=navigate`, con la misma limpieza de tarea; sin ellos, `google.navigation:` | `{ via: "maps" \| "navegador" }` |
 
 | Evento | Datos | Cuándo |
 |---|---|---|

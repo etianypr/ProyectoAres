@@ -6,12 +6,15 @@
 //   · calle angosta (residencial, pasaje, servicio): no se gira en U, ni a mitad
 //     de cuadra ni en la esquina;
 //   · calle ancha de doble sentido: sí, con el tiempo de la maniobra;
+//   · por una abertura del bandejón de una avenida: también, con el mismo tiempo
+//     (dueño, 2026-11-25; bandejon.ts);
 //   · fondo de saco: se sale en reversa, con el tiempo de la maniobra;
 //   · las restricciones de giro y las barreras de OpenStreetMap.
 // El camino que se busca es el más rápido, como el que guía Google Maps; de él se
 // anotan los metros y los segundos reales. Con `libre` se mide como una matriz de
 // ORS —sin reglas de giro y sin calles ni portones privados—: sirve para comparar
 // el motor contra ella. Puro.
+import { esVueltaPorElBandejon, puedeSerAbertura } from "./bandejon";
 import { arcoValido, cabeza, esAncha, nArcos, PRIVADA, UN_SENTIDO, type Red } from "./grafo";
 import { MANIOBRA_REVERSA_S, MANIOBRA_U_S, PORTON_S, segundosPorArista } from "./tiempos";
 
@@ -156,10 +159,19 @@ export function buscar(b: Busqueda, salidas: Salida[], reglas: Reglas = {}, dest
       if (--faltan === 0) break;
     }
     const nodo = cabeza(red, real);
+    // Por cuál arco se llegó a este (el de la salida si se partió de ahí): para ver
+    // si lo que sigue es dar la vuelta por el bandejón (bandejon.ts). La búsqueda
+    // guarda un solo camino por arco, así que si al tramo corto se llega mejor
+    // desde otra calle y la vuelta usaría la calzada, se cobra de más: es raro y
+    // conservador.
+    const antes = actual < total ? previo[actual] : -1;
+    const anterior = antes < 0 ? -1 : antes >= total ? salidas[antes - total].arco : antes;
+    const mirarBandejon = !reglas.libre && anterior >= 0 && puedeSerAbertura(red, real);
     for (let s = red.salenInicio[nodo]; s < red.salenInicio[nodo + 1]; s++) {
       const sale = red.salen[s];
-      const maniobra = giro(red, real, sale, reglas);
+      let maniobra = giro(red, real, sale, reglas);
       if (maniobra < 0) continue;
+      if (mirarBandejon && esVueltaPorElBandejon(red, anterior, real, sale)) maniobra += MANIOBRA_U_S;
       const k = sale >> 1;
       if (reglas.libre && red.codigo[k] & PRIVADA) continue;
       const nuevo = peso[actual] + maniobra + tiempos.peso[k];

@@ -11,6 +11,7 @@
 import type { Trazado } from "@/lib/geo/coordenada";
 import { arcoValido, formaDelArco, type Red } from "./grafo";
 import { buscar, caminoHasta, crearBusqueda, llegada, salidasDe, type Busqueda, type Llegada, type Reglas } from "./caminos";
+import { sentidosDePaso } from "./conexa";
 import type { Lugar } from "./matriz-con-rumbo";
 
 /** El camino entre dos puntos seguidos de la lista. */
@@ -84,8 +85,11 @@ export function trazarPorLaRed(
   if (lugares.length < 2) return [];
   const b = crearBusqueda(red);
   const ultimo = lugares.length - 1;
+  // Los sentidos de la parte conexa (conexa.ts), como en matriz-con-rumbo.ts.
+  const deLaCalle = (arista: number) =>
+    reglas.libre ? ([0, 1] as const).filter((s) => arcoValido(red, 2 * arista + s)) : sentidosDePaso(red, arista);
   const sentidosDe = (k: number): (0 | 1 | null)[] =>
-    k === 0 || k === ultimo || lugares[k].libre ? [null] : ([0, 1] as const).filter((s) => arcoValido(red, 2 * lugares[k].arista + s));
+    k === 0 || k === ultimo || lugares[k].libre ? [null] : deLaCalle(lugares[k].arista);
   // Por tramo: de cada sentido del punto k a cada sentido del k + 1, su camino.
   type Paso = { costo: number; tramo: TramoPropio } | null;
   const pasos: Paso[][][] = [];
@@ -93,15 +97,14 @@ export function trazarPorLaRed(
     const origen = lugares[k];
     const destino = lugares[k + 1];
     const llegan = sentidosDe(k + 1);
-    const destinos = ([0, 1] as const).filter((s) => arcoValido(red, 2 * destino.arista + s)).map((s) => 2 * destino.arista + s);
+    const destinos = deLaCalle(destino.arista).map((s) => 2 * destino.arista + s);
     pasos.push(
       sentidosDe(k).map((sale) => {
         buscar(b, salidasDe(red, origen.arista, origen.fraccion, sale, reglas), reglas, destinos);
         return llegan.map((llega): Paso => {
           let mejor: { l: Llegada; arco: number; fraccion: number } | null = null;
-          for (const s of llega === null ? ([0, 1] as const) : [llega]) {
+          for (const s of llega === null ? deLaCalle(destino.arista) : [llega]) {
             const arco = 2 * destino.arista + s;
-            if (!arcoValido(red, arco)) continue;
             const fraccion = s === 0 ? destino.fraccion : 1 - destino.fraccion;
             const l = llegada(b, arco, fraccion);
             if (l && (!mejor || l.peso < mejor.l.peso)) mejor = { l, arco, fraccion };

@@ -264,7 +264,12 @@ misma red. Una parada dentro de un condominio se entrega en su entrada (`entrega
 estacionamiento sin nombre de calle (un pasaje abierto con nombre, como Mosa, es calle)— está tan
 cerca como la pública; la entrada es el primer cruce con una calle pública,
 por dentro); `destinoParaNavegar` manda ahí a Google Maps. Medido: ruta real de 87 paradas, 42,1 km con el orden de antes y 41,4 con el nuevo; el
-armado entero, 2,5–3,5 s en el PC y sin red.
+armado entero, 2,5–3,5 s en el PC y sin red. Un lugar se pega solo a la parte conexa (`geo/red/conexa.ts`:
+`arcoConexo`, `aristaConexa`, `sentidosDePaso`, la componente fuerte mayor sobre arcos con las reglas de
+`giro`), y devolverse por el bandejón de una avenida cuesta como una U (`geo/red/bandejon.ts`, lo cobra
+`buscar` mirando el arco anterior). `geo/punto-de-paso.ts` saca de la línea guardada (`Ruta.trazado` y
+`tramos`) el punto de paso que va a Google Maps con el destino (`pasoHacia`), y `contarVueltasEnU`
+(`geo/trazado.ts`) mide la línea (Diagnóstico, `npm run medir`).
 
 **Sin reglas de barrio ni de sector** (spec 030, dueño 2026-11-12): el orden se decide con el costo
 solo (`matrizOrden = costo` en `generar-ruta/index.ts`). `zonas.ts` se borró (lo de abajo es historia). `geo/sectores-arica.ts` trae los siete sectores del plano municipal y `sectorDe(punto)`:

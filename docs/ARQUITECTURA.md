@@ -10,7 +10,7 @@ flowchart LR
   subgraph TEL["Teléfono · APK Android o navegador · /conductor"]
     UI["pantalla.tsx + hooks"] --> LOCAL["lib/encomiendas/local"] --> IDB[("IndexedDB<br/>pedidos · rutas · cola · dias · fotos · propuestas")]
     UI --> NAT["lib/nativo"] --> PLUG["android/ · plugin Telefono<br/>llamar · pantalla<br/>texto de fotos (ML Kit) · escáner de Google<br/>plugin Burbuja: la parada sobre Google Maps (spec 020)<br/>plugin EscanerVivo: cámara debajo de la WebView + ML Kit por cuadro (spec 028; LectorCuadros, uno o dos a la vez)<br/>y recuadros por encargo y flechas a lo que falta al barrer la nómina (MarcasEscaner, spec 036)"]
-    PLUG -- "intent: solo el punto" --> GMAPS["app Google Maps (guía)"]
+    PLUG -- "intent: el punto y su punto de paso" --> GMAPS["app Google Maps (guía)"]
     SW["sw.js · caché de /conductor"]
   end
   subgraph EXT["Proveedores"]

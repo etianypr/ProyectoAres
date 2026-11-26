@@ -27,11 +27,16 @@ import type { Parada } from "./dia-trabajo-tipos";
 import type { Fase } from "./fase-parada";
 import { atenderBoton, type AccionesParada, type ExtraBotones, type IdBoton } from "./botones-parada";
 import { destinoParaNavegar } from "@/lib/geo/ruta-por-calles";
+import { pasoHacia, type RutaParaNavegar } from "@/lib/geo/punto-de-paso";
 import { cargarRed } from "@/lib/geo/red/grafo";
 import { useRedDeCalles } from "./use-red-de-calles";
 import { aDondeNavegar, vistaDeBurbuja, type AvisoBurbuja } from "./vista-burbuja";
 import { useEvento } from "./use-evento";
 import { hacerMiniatura, miniaturaHecha } from "@/lib/encomiendas/local/miniatura-foto";
+
+/** Las paradas que faltan: el punto de paso compara solo esas (geo/punto-de-paso.ts). */
+const pendientesDe = (paradas: readonly Parada[]) =>
+  new Set(paradas.filter((p) => p.pedido.resultado === "pendiente").map((p) => p.pedido.id));
 
 /** El permiso se pide una vez por día: si el conductor no lo da, los km abren
  *  Google Maps sin burbuja y no se le vuelve a insistir (research R10). */
@@ -68,6 +73,7 @@ export function useBurbuja({
   paradas = [],
   onLlamarA,
   onEscanearA,
+  ruta = null,
 }: {
   fecha: string;
   activa: Parada | null;
@@ -98,6 +104,9 @@ export function useBurbuja({
   /** Llamar a OTRA parada, o escanear su etiqueta si no tiene teléfono (spec 046). */
   onLlamarA?: (parada: Parada) => void;
   onEscanearA?: (parada: Parada) => void;
+  /** La ruta guardada: de su línea sale el punto de paso para que Google Maps llegue
+   *  a la parada en el sentido que planeó ARES (geo/punto-de-paso.ts). */
+  ruta?: RutaParaNavegar | null;
 }) {
   const [enCurso, setEnCurso] = useState(false);
   // Si falta el permiso de mostrarse sobre otras apps (spec 033, burbuja-permiso):
@@ -169,8 +178,8 @@ export function useBurbuja({
       await mostrarBurbuja(vistaDeBurbuja(activa, fase, { whatsapp, aviso, nueva: true, extra, adelante: adelanteEnEstado, paradas, foto }));
     }
     setPermiso(permiso);
-    await navegarA(destino);
-  }, [activa, fecha, fase, whatsapp, aviso, extra, adelanteEnEstado, paradas, foto]);
+    await navegarA(destino, pasoHacia(ruta, activa.pedido.id, pendientesDe(paradas)));
+  }, [activa, fecha, fase, whatsapp, aviso, extra, adelanteEnEstado, paradas, foto, ruta]);
 
   // La vista de la burbuja, cada vez que cambia algo de la parada. El texto
   // resume la vista: se redibuja solo si cambió, no con cada lectura del GPS.
@@ -209,9 +218,10 @@ export function useBurbuja({
     navegada.current = activa.pedido.id;
     void cargarRed().then(() => {
       const destino = aDondeNavegar(true, null, activa);
-      if (destino) void navegarA(destino);
+      if (destino) void navegarA(destino, pasoHacia(ruta, activa.pedido.id, pendientesDe(paradas)));
     });
-  }, [enCurso, activa]);
+    // Con `ruta` en la lista no se navega dos veces: si la parada es la misma, aDondeNavegar da null.
+  }, [enCurso, activa, ruta, paradas]);
 
   useEffect(() => {
     if (enCurso) void burbujaEnAres(enAres);

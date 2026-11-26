@@ -257,6 +257,25 @@ Ruta con rumbo (2026-11-12, spec 031; todo medido sin consultas, salvo una a Ove
   50 s, 36 s con el adelanto; sin red, latencias simuladas). Lo que queda es la fila de Nominatim
   (1,2 s por consulta, su política) y lo que tarda Claude.
 
+- **Terreno tras el arreglo de la ruta trabada (2026-11-25/26, `arreglo-navegacion-rumbo`):** el
+  dueño vio «mucho giro en U» en la línea de ARES y Google Maps llegando al revés.
+  - **El orden no había cambiado:** el código de antes (`4da2f81`) y el de después, en 120 días de
+    15–79 paradas, dan el mismo orden, metros y pesos. Lo distinto fue la línea: una parada pegada a
+    una calle de la que no se sale (319 aristas así: 257 tras una calle de un sentido en el borde norte
+    de la descarga, islas de huellas al sur y ~7 trampas en la ciudad) dejaba sin camino a la red
+    propia, y la línea entera la dibujaba ORS, con una U en cada parada.
+  - **Arreglo:** las paradas se pegan solo a la componente fuerte mayor, medida por arcos con las
+    reglas de giro (`geo/red/conexa.ts`, 12 ms). El día de prueba da el mismo hash (`a9a319db9f`).
+  - **Bandejón:** devolverse por la abertura de una avenida costaba 0 s (399 lugares). Ahora cuesta
+    como una U (12 s). Día de prueba de 80 paradas: 25 → 20 vueltas en U, 62,09 → 62,63 km
+    (+0,9 %), 138 → 137 min y el mismo costo ($21.868 → $21.866). Las doradas 038 se regeneraron
+    por esto. Quedan 13 U en paradas de calles anchas, que el modelo paga.
+  - **Google Maps con punto de paso:** recibía solo el destino. Ahora también un punto de la línea de
+    ARES ~30 m antes de la última esquina (en el día de prueba, a 9–296 m de la parada, mediana 82).
+    Probado en el V2430: navega directo con dos paradas y, al cerrar una, pasa sola a la siguiente con
+    su punto; falta oír en terreno qué anuncia Google en el punto de paso. Entregar una parada fuera
+    de orden no lo apaga: se compara solo la parada pendiente anterior.
+
 ## Fuera de alcance
 
 Varios conductores o mandantes · seguir paquetes entre días · prueba de entrega con

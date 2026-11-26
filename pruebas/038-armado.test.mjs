@@ -4,6 +4,8 @@
 // Las pruebas DORADAS fijan lo que el código de antes de la 038 devolvía: los valores de
 // `fixtures/038-armado-propuestas.json` salieron de correr este mismo archivo en la copia
 // del código anterior (ARES_038_GENERAR=<fixture>), y acá se comparan campo por campo.
+// Regenerado el 2026-11-26 (arreglo-navegacion-rumbo): la vuelta por el bandejón
+// cuesta como una U (12 s; dueño, 2026-11-25) y la ruta cambia a propósito.
 // Cubren la propuesta sin bloques, con un bloque vigente y con uno que ya cerró (con la
 // red propia y con el respaldo de ORS), la propuesta que se repite al cambiar el cuarto
 // de hora, la calle por donde se llega a una parada pegada a una carretera y el reintento

@@ -31,6 +31,14 @@ ellos, y hay que avisar la diferencia.
   pasada y volver: salto de 2,2 km. No volver a proponer zonas ni sectores para el orden sin medir
   contra una ruta real.
 - **No se da la vuelta** en pasajes ni en calles residenciales (`sentido.ts`, `geo/ors/vuelta.ts`).
+  Devolverse por la abertura del bandejón de una avenida cuesta como una U (12 s; dueño, 2026-11-25,
+  `geo/red/bandejon.ts`): +0,9 % de km, 5 U menos de 25 y el mismo costo en el día de prueba.
+- **Solo la parte conexa** (terreno 2026-11-23): las paradas se pegan a la componente fuerte mayor
+  de la red, medida por ARCOS con las reglas de `giro` (`geo/red/conexa.ts`). Si la línea sale de ORS
+  (Diagnóstico: «Última ruta trazada con OpenRouteService») con la red encendida, mira primero ahí.
+- **Google Maps con punto de paso** (dueño, 2026-11-25): va un punto de la línea de ARES ~30 m antes
+  de la última esquina (`geo/punto-de-paso.ts`), para que llegue en el sentido planeado. Si la línea
+  cambia, el punto cambia: Google Maps sigue la línea guardada, no la matriz.
 - **Ruta con rumbo** (dueño, 2026-11-12, spec 031): el camino normal ya no pasa por ORS ni por
   `ordenarParadas`. Las distancias salen de la red propia (`geo/red/`), de estado a estado (el sentido
   de paso por la calle de cada parada), y `buscarConRumbo` elige orden y sentido juntos. `sentido.ts`,
@@ -85,7 +93,8 @@ ellos, y hay que avisar la diferencia.
 | Sin cupo de ORS ≠ sin señal; consultas del día (spec 024) | `geo/ors/cliente.ts` (`ultimaFallaOrs`, `consultasOrsDeHoy`), `generar-ruta/avisos.ts` |
 | Orden con horarios, sin congelar la pantalla | `orden-paradas/con-horarios.ts`, `sin-congelar.ts` |
 | Hora de llegada, replanificar, sumar a la ruta | `local/planificar.ts`, `replanificar.ts`, `sumar-a-ruta.ts` |
-| La red de calles propia y su motor (spec 031) | `src/lib/geo/red/` (`grafo`, `pegar`, `caminos`, `tiempos`, `matriz-con-rumbo`, `trazado-propio`, `medir`); el dato lo genera `scripts/generar-red.mjs` |
+| La red de calles propia y su motor (spec 031) | `src/lib/geo/red/` (`grafo`, `pegar`, `conexa`, `caminos`, `bandejon`, `tiempos`, `matriz-con-rumbo`, `trazado-propio`, `medir`); el dato lo genera `scripts/generar-red.mjs` |
+| Punto de paso para Google Maps y vueltas en U de la línea | `src/lib/geo/punto-de-paso.ts` (`pasoHacia`), `contarVueltasEnU` en `geo/trazado.ts`; `npm run medir` las cuenta |
 | Orden y sentido de paso juntos (spec 031) | `orden-paradas/con-rumbo.ts` (modelo, exacto), `con-rumbo-jugadas.ts`, `con-rumbo-busqueda.ts`, `descarga-con-rumbo.ts` |
 | La red en el armado, y la puerta al trazado (spec 031) | `generar-ruta/red-del-dia.ts`, `src/lib/geo/ruta-por-calles.ts` |
 | Matriz y trazado de ORS (respaldo) | `src/lib/geo/matriz.ts`, `trazado.ts`, `ors/` |

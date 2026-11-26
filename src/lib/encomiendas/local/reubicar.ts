@@ -27,6 +27,7 @@ import {
 } from "./almacen";
 import { lugarMasBarato, metrosEstimados, vueltaEstimada, type PuntoDeRuta } from "./planificar";
 import { replanificarRuta } from "./replanificar";
+import { pesosDeManejar } from "./generar-ruta/pesos";
 
 /** Más que esto entre el punto de antes y el nuevo es otro lugar: la parada se
  *  reubica. Menos es corregir la puerta en la misma cuadra. */
@@ -72,7 +73,10 @@ export async function retrazarRuta(fecha: string): Promise<boolean> {
     const ubicados = pedidosEnOrden(ruta, pedidos).filter(ubicado);
     const inicio = ruta.trazado?.[0] ? deLngLat(ruta.trazado[0]) : ubicados[0] ? coord(ubicados[0]) : null;
     if (!inicio || ubicados.length === 0) return false;
-    const calles = await rutaPorCalles([inicio, ...ubicados.map(coord), ...(ruta.partida ? [ruta.partida] : [])]);
+    // Con el mismo costo que el armado (km y tiempo en plata): si no, el sentido de cada
+    // parada sale por segundos y la línea (y el punto de paso de Google Maps) no es la
+    // que se planeó.
+    const calles = await rutaPorCalles([inicio, ...ubicados.map(coord), ...(ruta.partida ? [ruta.partida] : [])], pesosDeManejar);
     if (!calles) return false;
     // A qué pedido llega cada tramo (spec 020): la partida y la vuelta no son pedidos.
     const tramos = tramosConPedidos(calles.tramos, [null, ...ubicados.map((p) => p.id), null]);

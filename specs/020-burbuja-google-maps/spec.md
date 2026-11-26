@@ -148,7 +148,7 @@ muestra cartel de maniobras.
 - **FR-011**: Sin el permiso, ARES MUST llevar al ajuste de Android para darlo y abrir Google Maps igual; nunca deja al conductor sin navegar.
 - **FR-012**: ARES MUST NOT guiar: sin cartel de maniobras, sin voz de navegación y sin pedir rutas tramo a tramo. Muestra la línea del día, la posición, las paradas y los km a la activa medidos sobre el tramo de la línea del día que llega a ella (en línea recta si el auto no va por ese tramo).
 - **FR-013**: Si Google Maps no se puede abrir, ARES MUST abrir Google Maps en el navegador hacia la parada.
-- **FR-014**: A Google Maps MUST ir solo el punto de la parada; la OF, el nombre y la dirección se muestran en la burbuja, en el teléfono.
+- **FR-014**: A Google Maps MUST ir solo el punto de la parada y, desde 2026-11-26 (arreglo-navegacion-rumbo), un punto de paso de la línea de ARES antes de ella, para que llegue en el sentido planeado (`geo/punto-de-paso.ts`; se apaga en Diagnóstico); la OF, el nombre y la dirección se muestran en la burbuja, en el teléfono.
 - **FR-015**: La APK MUST quedar sin el kit de navegación de Google y sin su clave.
 - **FR-016**: ARES MUST NOT usar el GPS mientras está atrás (constitución: sin GPS permanente), con una
   sola excepción, que esta spec autoriza de forma explícita (el dueño, 2026-11-05): mientras la burbuja

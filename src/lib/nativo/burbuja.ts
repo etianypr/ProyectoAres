@@ -8,8 +8,9 @@
 // Google Maps como siempre (mapas.ts). Contrato: specs/020-burbuja-google-maps/
 // contracts/burbuja.md.
 import { registerPlugin } from "@capacitor/core";
-import { esApp } from "./entorno";
-import { abrirEnMapas } from "./mapas";
+import { esApp, versionInstalada } from "./entorno";
+import { abrirEnMapas, navegarConPuntoDePaso } from "./mapas";
+import { esMasVieja } from "./version";
 
 /** Lo mismo que IdBoton de botones-parada.ts; lib no importa de app. */
 type IdBotonBurbuja = string;
@@ -75,7 +76,8 @@ type PluginBurbuja = {
   mostrar(opciones: { vista: VistaBurbuja }): Promise<void>;
   terminar(): Promise<void>;
   enAres(opciones: { valor: boolean }): Promise<void>;
-  navegar(opciones: { lat: number; lng: number }): Promise<{ via: "maps" | "navegador" }>;
+  /** `pasos`: puntos de paso antes del destino (APK 1.14.0; una anterior los ignora). */
+  navegar(opciones: { lat: number; lng: number; pasos?: { lat: number; lng: number }[] }): Promise<{ via: "maps" | "navegador" }>;
   addListener(
     evento: "toque",
     cb: (datos: { id: IdBotonBurbuja }) => void,
@@ -146,19 +148,29 @@ export function alTocarBurbuja(cb: (id: IdBotonBurbuja) => void): () => void {
   return () => void escucha.then((e) => e?.remove());
 }
 
+/** La primera APK cuya burbuja abre Google Maps con punto de paso. */
+const APK_CON_PASOS = "1.14.0";
+
 /**
  * Google Maps navegando hasta el punto. En la APK lo abre lo nativo, así funciona
  * también con ARES atrás (desde la burbuja); sin Google Maps, el enlace en el
- * navegador. A Google va solo el punto. Nunca lanza.
+ * navegador. A Google va el punto y, con el interruptor de Diagnóstico, el punto
+ * de paso antes de él (geo/punto-de-paso.ts). Nunca lanza.
  */
-export async function navegarA(destino: { lat: number; lng: number }): Promise<"maps" | "navegador"> {
+export async function navegarA(destino: { lat: number; lng: number }, paso: { lat: number; lng: number } | null = null): Promise<"maps" | "navegador"> {
+  const pasos = paso && navegarConPuntoDePaso() ? [paso] : [];
   if (esApp()) {
-    try {
-      return (await Burbuja.navegar(destino)).via;
-    } catch {
-      // APK vieja: como antes.
+    // Una APK anterior a la 1.14.0 no sabe de pasos: con punto de paso se abre el
+    // enlace desde la web (para probarlo en el teléfono sin instalar nada).
+    const sinPasosNativos = pasos.length > 0 && esMasVieja(await versionInstalada(), APK_CON_PASOS);
+    if (!sinPasosNativos) {
+      try {
+        return (await Burbuja.navegar({ ...destino, ...(pasos.length > 0 ? { pasos } : {}) })).via;
+      } catch {
+        // APK vieja: como antes.
+      }
     }
   }
-  abrirEnMapas(destino);
+  abrirEnMapas(destino, pasos);
   return "navegador";
 }

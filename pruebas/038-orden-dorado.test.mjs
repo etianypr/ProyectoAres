@@ -71,6 +71,8 @@ after(() => {
     "Spec 038: lo que daba el optimizador ANTES de la 038, generado con 038-orden-dorado.test.mjs",
     "(ARES_DORADO_038=generar) sobre la copia del código de antes. Sin datos de nadie: puntos al azar",
     "del fixture de la spec 024 e ids inventados. No se regenera para arreglar una diferencia.",
+    "Regenerado el 2026-11-26 (arreglo-navegacion-rumbo): la vuelta por el bandejón cuesta como una U",
+    "(12 s; dueño, 2026-11-25), así que cambian las distancias de la red y con ellas la ruta, a propósito.",
   ];
   writeFileSync(RUTA, `{\n  "_lee_esto_primero": ${JSON.stringify(cabecera)},\n  "casos": {\n${lineas.join(",\n")}\n  }\n}\n`);
 });
