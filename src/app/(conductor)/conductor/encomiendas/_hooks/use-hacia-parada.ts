@@ -5,13 +5,19 @@
 // dónde mirar y si la señal del GPS quedó vieja. El aviso «Llámalo antes de bajar»
 // se fue (dueño, 2026-11-09: consejo obvio).
 //
-// ARES ya no guía: no hay cartel ni voz ni rutas tramo a tramo. Guía Google Maps,
-// con la burbuja de ARES encima (use-burbuja.ts). Todo se mide sobre el tramo de
-// la línea del día que llega a la parada (lib/geo/hacia-parada.ts).
+// Desde la spec 047 guía ARES (sin voz ni cartel): la línea naranja, el mapa
+// desde arriba que se acerca solo y, si el auto se sale de la línea, una nueva
+// desde el auto con la red propia (lib/geo/desvio.ts y red/desde-el-auto.ts).
+// Google Maps queda de respaldo (use-burbuja.ts). Todo se mide sobre el tramo de
+// la línea del día que llega a la parada, o sobre el del desvío
+// (lib/geo/hacia-parada.ts).
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { aLngLat } from "@/lib/geo/coordenada";
-import { haciaParada, tramoHacia, type LineaDelDia } from "@/lib/geo/hacia-parada";
+import { haciaParada, rumboAlLlegar, tramoHacia, type LineaDelDia, type TramoHacia } from "@/lib/geo/hacia-parada";
+import { hayQueRetrazar, SIN_DESVIO } from "@/lib/geo/desvio";
+import { redCargada } from "@/lib/geo/red/grafo";
+import { trazarDesdeElAuto } from "@/lib/geo/red/desde-el-auto";
 import type { Ubicacion } from "../_mapa/ruta-mapa";
 import type { Parada } from "./use-dia-trabajo";
 import { usePantallaEncendida } from "./use-pantalla-encendida";
@@ -26,6 +32,8 @@ const MS_UBICACION_VIEJA = 12_000;
 
 /** Precisión por encima de la cual el punto ya no ubica ni la manzana. */
 const PRECISION_DUDOSA_M = 40;
+
+const MS_RUMBO_FRESCO = 30_000;
 
 export function useHaciaParada({
   activa,
@@ -54,10 +62,14 @@ export function useHaciaParada({
   // El tramo que llega a la parada activa. Memorizado: usePuntoEnRuta compara la
   // línea por identidad, y un arreglo nuevo en cada lectura le borraría la memoria.
   const pedidoActivo = activa?.pedido.id ?? null;
-  const tramo = useMemo(
+  const tramoDelDia = useMemo(
     () => (pedidoActivo ? tramoHacia(ruta, pedidoActivo) : null),
     [ruta, pedidoActivo],
   );
+  // Si el auto se salió de la línea, la trazada desde él (spec 047). Vive solo en
+  // memoria: la ruta guardada no cambia. Vale para su parada.
+  const [desvio, setDesvio] = useState<{ pedidoId: string; tramo: TramoHacia } | null>(null);
+  const tramo = desvio && desvio.pedidoId === pedidoActivo ? desvio.tramo : tramoDelDia;
 
   // La pantalla apagada suspende el GPS: sin esto el punto se congela a los
   // treinta segundos de no tocar nada.
@@ -66,6 +78,31 @@ export function useHaciaParada({
   // La lectura cruda del GPS cae adentro de las manzanas. Mientras el auto vaya
   // por el tramo, el punto se dibuja SOBRE él.
   const pegado = usePuntoEnRuta(miUbicacion, tramo?.linea ?? null);
+
+  // ¿Trazar de nuevo desde el auto? Con cada lectura nueva, al dibujar (como el
+  // pegado): desvio.ts decide y la red propia traza, sin consultas. La hora es la
+  // de la lectura, no la del reloj: el dibujado queda puro.
+  const [estadoDesvio, setEstadoDesvio] = useState(SIN_DESVIO);
+  const [lecturaVista, setLecturaVista] = useState(miUbicacion);
+  if (miUbicacion !== lecturaVista) {
+    setLecturaVista(miUbicacion);
+    const parada = activa && activa.pedido.lat != null && activa.pedido.lng != null ? { lat: activa.pedido.lat, lng: activa.pedido.lng } : null;
+    if (miUbicacion && parada && pedidoActivo) {
+      const { retrazar, estado } = hayQueRetrazar(estadoDesvio, {
+        clave: pedidoActivo,
+        metrosALaLinea: pegado?.desvioM ?? null,
+        sinLinea: tramo == null,
+        precisionM: miUbicacion.precisionM,
+        ahora: miUbicacion.tomadaEn ?? 0,
+      });
+      setEstadoDesvio(estado);
+      // Un rumbo de hace más de 30 s (detenido) no dice hacia dónde sale el auto.
+      const fresco = miUbicacion.rumboEn == null || (miUbicacion.tomadaEn ?? 0) - miUbicacion.rumboEn < MS_RUMBO_FRESCO;
+      const red = retrazar ? redCargada() : null;
+      const camino = red && trazarDesdeElAuto(red, miUbicacion, fresco ? miUbicacion.heading : null, parada, rumboAlLlegar(tramoDelDia?.linea));
+      if (camino) setDesvio({ pedidoId: pedidoActivo, tramo: camino });
+    }
+  }
 
   const hacia = useMemo(
     () => (miUbicacion && destinoActivo ? haciaParada(miUbicacion, destinoActivo, tramo, pegado) : null),

@@ -45,3 +45,13 @@ test("lo que no se usa en 30 días vence; lo sin sello no (spec 033, G5)", () =>
   assert.equal(contexto.vencida("2026-10-14", "2026-11-13"), false, "30 días justos todavía no");
   assert.equal(contexto.vencida("2026-10-13", "2026-11-13"), true);
 });
+
+test("el worker del mapa va con red primero (spec 047): sin red, la copia", () => {
+  assert.equal(estrategia("/maplibre-gl-worker.mjs", "same-origin"), "red-primero");
+});
+
+test("al activarse no borra el mapa guardado (spec 047)", () => {
+  const codigo = readFileSync("public/sw.js", "utf8");
+  assert.match(codigo, /nombre !== CACHE && !nombre\.startsWith\(CACHE_MAPA\)/);
+  assert.match(codigo, /CACHE_MAPA = "ares-mapa-"/);
+});

@@ -14,6 +14,9 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { CENTRO_ARICA, distanciaMetros, rumboEntre, type Coordenada, type Trazado } from "@/lib/geo/coordenada";
 import { enModoPrueba, useModoPrueba } from "./modo-prueba";
+import { redCargada } from "@/lib/geo/red/grafo";
+import { aristaConexa } from "@/lib/geo/red/conexa";
+import { pegarALaRed } from "@/lib/geo/red/pegar";
 
 const CLAVE = "ares-gps-simulado";
 const EVENTO = "ares-gps-simulado";
@@ -115,6 +118,8 @@ let siguienteId = 1;
 let reloj: ReturnType<typeof setTimeout> | null = null;
 /** Cuándo avanzó por última vez: se avanza por el tiempo que pasó de verdad. */
 let ultimoAvance = 0;
+/** Tras un desvío simulado el punto espera aquí (ver pedirDesvio). */
+let quietoHasta = 0;
 
 function inicio(): Coordenada {
   try {
@@ -138,7 +143,9 @@ function avanzar(): void {
   const ahora = Date.now();
   const segundos = ultimoAvance ? (ahora - ultimoAvance) / 1000 : 0;
   ultimoAvance = ahora;
-  if (camino && camino.length > 1) {
+  if (ahora < quietoHasta) {
+    velocidad = 0;
+  } else if (camino && camino.length > 1) {
     const ritmo = METROS_POR_SEGUNDO * leerConfigGps().velocidad;
     recorrido += ritmo * segundos;
     const p = puntoEnCamino(camino, recorrido);
@@ -168,6 +175,38 @@ function seguirCamino(nuevo: Trazado | null): void {
   if (nuevo === camino) return;
   camino = nuevo && nuevo.length > 1 ? nuevo : null;
   recorrido = camino && posicion ? metrosHasta(camino, posicion) : 0;
+}
+
+/** Cuánto se corre el punto al simular un desvío: una cuadra de Arica y algo. */
+const METROS_DESVIO = 120;
+/** Lo que espera ahí: que la pantalla note el desvío (dos lecturas) y trace de nuevo. */
+const MS_QUIETO_DESVIO = 3_000;
+
+/** El punto `metros` más allá hacia `rumbo`. Pura. */
+export function desplazar(p: Coordenada, rumbo: number, metros: number): Coordenada {
+  const r = (rumbo * Math.PI) / 180;
+  const lat = p.lat + (Math.cos(r) * metros) / 111_195;
+  return { lat, lng: p.lng + (Math.sin(r) * metros) / (111_195 * Math.cos((p.lat * Math.PI) / 180)) };
+}
+
+/**
+ * Simula que el conductor tomó otra calle (spec 047): el punto salta una cuadra a
+ * la derecha, a la calle más cercana, y espera ahí 3 s con el mismo rumbo. La
+ * pantalla ve que se salió de la línea y traza una nueva desde él, que el punto
+ * sigue. false si no hay simulador andando.
+ */
+export function pedirDesvio(): boolean {
+  if (!posicion || oyentes.size === 0) return false;
+  const lado = desplazar(posicion, (rumbo ?? 0) + 90, METROS_DESVIO);
+  const red = redCargada();
+  posicion = (red && pegarALaRed(red, lado, 200, aristaConexa)?.punto) || lado;
+  camino = null;
+  recorrido = 0;
+  velocidad = 0;
+  quietoHasta = Date.now() + MS_QUIETO_DESVIO;
+  const l = lectura();
+  for (const avisar of oyentes.values()) avisar(l);
+  return true;
 }
 
 /** Imita navigator.geolocation. */

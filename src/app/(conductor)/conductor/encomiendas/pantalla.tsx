@@ -22,7 +22,7 @@ import { PantallaCargando, PantallaError } from "./_componentes/estado-pantalla"
 import { useUbicacionActual } from "./_hooks/use-ubicacion-actual";
 import { useEvento } from "./_hooks/use-evento";
 import { armarNotificaciones } from "./_componentes/notificaciones-pantalla";
-import { useHaciaParada } from "./_hooks/use-hacia-parada";
+import { useNavegacionAres } from "./_hooks/use-navegacion-ares";
 import { useBurbuja } from "./_hooks/use-burbuja";
 import { useBrujula } from "./_hooks/use-brujula";
 import { useCierreDia } from "./_hooks/use-cierre-dia";
@@ -156,15 +156,14 @@ export function PantallaEncomiendas({
 
   const hayRuta = paradas.length > 0;
 
-  // El camino a la parada activa (_hooks/use-hacia-parada.ts). ARES no guía (spec 020).
-  const { destinoActivo, faltan, rumbo, ubicacionMostrada, trazadoPorDelante, señalDebil } =
-    useHaciaParada({ activa, ruta: dia.ruta, miUbicacion, hayRuta });
-
   const enAres = ventanas.cargandoGuia;
   // Un pedido con ⚠ a una o dos paradas (spec 022): en la cabecera y en la burbuja.
   const adelante = avisoAdelante(paradas, activa?.pedido.id ?? null);
   const burbuja = useBurbuja({ fecha, activa, fase, whatsapp, deshacer, confirmacion, enAres, acciones, adelante: adelante && lineaAvisoAdelante(adelante),
     extra: enCurso.extra, onBoton: enCurso.onBoton, paradas, onLlamarA: onLlamar, onEscanearA: ventanas.escanearParada, ruta: dia.ruta });
+  // El camino a la parada activa: guía el mapa de ARES; los km abren Google Maps (spec 047).
+  const { destinoActivo, faltan, rumbo, ubicacionMostrada, trazadoPorDelante, señalDebil, navegar } = useNavegacionAres({
+    activa, ruta: dia.ruta, miUbicacion, hayRuta, burbuja });
 
   const ayer = useResumenAyer(fecha);
 
@@ -232,7 +231,7 @@ export function PantallaEncomiendas({
       parada={
         activa
           ? { activa, fase, whatsapp, guardando, faltan, onBoton: enCurso.onBoton, adelante, onLlamarA: onLlamar, onVer: setFormPedido,
-              onNavegar: destinoActivo ? () => void burbuja.navegar() : undefined, juntas: enCurso.juntas, extra: enCurso.extra,
+              onNavegar: navegar, juntas: enCurso.juntas, extra: enCurso.extra,
               moverActiva: reordenar.moverActiva ? { onMover: () => void reordenar.moverLaActiva(), onSeguir: reordenar.seguirConLaActiva } : null,
               onDarPermiso: burbuja.sinPermiso ? () => void burbuja.darPermiso() : undefined }
           : null

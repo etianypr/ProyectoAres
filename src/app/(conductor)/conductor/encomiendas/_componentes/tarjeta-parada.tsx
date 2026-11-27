@@ -34,7 +34,7 @@ export function TarjetaParada({
   /** El renglón de lo que contestó el receptor (lo arma la pantalla). */
   estado: ReactNode;
   /** Navegar con Google Maps y la burbuja de ARES (spec 020): los km de la parada
-   *  son el botón, y sin distancia aparece igual. */
+   *  son el botón, y sin distancia aparece igual. En ARES guía su mapa (spec 047). */
   onNavegar?: () => void;
 }) {
   const referencia = textoReferencia(pedido.referencia);
