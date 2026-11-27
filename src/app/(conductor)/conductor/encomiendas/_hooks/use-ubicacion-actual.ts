@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { distanciaMetros, rumboEntre } from "@/lib/geo/coordenada";
+import { aceptarLectura } from "@/lib/geo/lectura-gps";
 import { alIrAlFondo, alVolverAPrimerPlano } from "@/lib/nativo/entorno";
 import { fuenteUbicacion, gpsSimulado, useGpsSimulado } from "@/lib/encomiendas/local/gps-simulado";
 import type { Ubicacion } from "../_mapa/ruta-mapa";
@@ -11,24 +12,7 @@ import type { Ubicacion } from "../_mapa/ruta-mapa";
 // girando sola sin sentido.
 const DISTANCIA_MINIMA_RUMBO_M = 8;
 
-// ----------------------------------------------------------------------------
-// Qué lecturas se tiran
-// ----------------------------------------------------------------------------
-// El GPS no avisa "esta no la sé": manda igual una posición, con un radio de
-// error de 150 metros. Ese es el punto que aparece adentro de una manzana o
-// sobre el mar. Mientras hay ruta activa se corrige pegándolo al camino (ver
-// ajustarATrazado), pero sin ruta —antes de generarla, o con el día terminado—
-// no hay a qué pegarlo, así que la única defensa es no dibujarlo.
-//
-// 60 m es el corte: por debajo, una lectura sirve para ubicar la cuadra; por
-// encima no ubica ni la manzana. La PRIMERA lectura entra igual aunque sea
-// mala, porque dejar el mapa clavado en el centro de Arica esperando una buena
-// es peor que un punto impreciso que después se afina.
-const PRECISION_MAXIMA_M = 60;
 
-// Más rápido que esto entre dos lecturas no es un auto: es el GPS rebotando
-// entre edificios o reenganchando satélites. 55 m/s son ~200 km/h.
-const VELOCIDAD_IMPOSIBLE_MS = 55;
 
 // Debajo de esta velocidad el aparato está detenido y el rumbo entre dos
 // lecturas es ruido. Solo se usa cuando el GPS informa velocidad — iOS muchas
@@ -38,7 +22,8 @@ const VELOCIDAD_MINIMA_RUMBO_MS = 1;
 // Sin ninguna lectura en este tiempo, el seguimiento se da por muerto y se arma
 // de nuevo (spec 017, N7). Pasa al volver de una llamada o de otra app: el
 // WebView deja el seguimiento colgado sin avisar con un error.
-const MS_SIN_LECTURAS_PARA_REARMAR = 30_000;
+// Con ARES guiando (spec 047), 10 s y no 30: un punto quieto deja la navegación inútil.
+const MS_SIN_LECTURAS_PARA_REARMAR = 10_000;
 
 // Sin ubicación no hay NADA del modo navegación (ni flecha, ni giro del mapa,
 // ni instrucciones): antes los errores se descartaban en silencio, así que
@@ -106,21 +91,7 @@ export function useUbicacionActual(activo: boolean): EstadoUbicacion {
     // la próxima puede venir bien. Se descarta en silencio y el punto se queda
     // en la última buena; que quedó vieja se ve en la pantalla por otro lado
     // (ver el aviso de "GPS débil" en carril-superior.tsx).
-    if (anterior) {
-      // La primera lectura entra aunque sea mala, y antes eso la dejaba de
-      // referencia: las buenas que venían después "saltaban" más rápido de lo
-      // posible desde ella y se tiraban todas (spec 017, N8). Si la que hay es
-      // mala, cualquier lectura más precisa la reemplaza, sin freno de velocidad.
-      const anteriorBuena = anterior.precisionM == null || anterior.precisionM <= PRECISION_MAXIMA_M;
-      if (precisionM != null && precisionM > PRECISION_MAXIMA_M) {
-        if (anteriorBuena || precisionM >= (anterior.precisionM ?? Infinity)) return;
-      }
-
-      const segundos = Math.max(0.001, (tomadaEn - anterior.tomadaEn) / 1000);
-      // El simulado a ×10 o ×20 va "imposiblemente" rápido a propósito: el filtro
-      // es para los saltos falsos del GPS de verdad.
-      if (anteriorBuena && !gpsSimulado() && distanciaMetros(anterior, actual) / segundos > VELOCIDAD_IMPOSIBLE_MS) return;
-    }
+    if (!aceptarLectura(anterior, { ...actual, tomadaEn, precisionM }, gpsSimulado())) return;
 
     let heading = pos.coords.heading;
     const velocidad = pos.coords.speed;
