@@ -439,6 +439,11 @@ y un agente no debe "corregir".
     numeración; lo demás es referencia. Para ubicar el pedido se usa solo la calle con su número
     (los buscadores y también la IA de la spec 018), y la referencia queda en el pedido para el
     conductor (en Notas, «Ref.: …»; `geocoding/referencias.ts`, spec 035).
+  - **Dos calles** («LINDEROS CON NEGHME 2480»; spec 048, dueño 2026-11-27: «la gente pone de
+    distintas formas la dirección»): el número puede ser de cualquiera de las dos. Se le pregunta
+    a Google también por la otra con el mismo número (1 consulta más): vale la que lo tiene; si lo
+    tienen las dos a más de una cuadra, ⚠ y elige el conductor; ninguna, como antes y la IA (que
+    ya no supone que es la del número) (`geocoding/dos-calles.ts`).
   - **Calles repetidas** («Pasaje 1», «Calle 2»; spec 035): la app lleva cada lugar de esos nombres
     (`lugares-calles.ts`, OSM) y las poblaciones del Plano de Poblaciones municipal
     (`poblaciones-arica.ts`). La población o la calle que cruza, escritas en la guía, eligen el lugar

@@ -67,6 +67,7 @@ No hay framework de pruebas: `node:test` viene con Node.
 | `migracion-v3.test.mjs` | La migración de la base del teléfono a v3 (specs 009 y 011): nada se pierde al abrir con la app nueva. |
 | `planificar.test.mjs` · `replanificar.test.mjs` | Llegada estimada y lugar de un pedido con horario; la ruta en curso se reordena con las respuestas. |
 | `sw.test.mjs` | `public/sw.js` (spec 015): qué se guarda para abrir sin señal y qué pasa siempre por la red (`/api`, Supabase, los proveedores, POST). |
+| `048-dos-calles.test.mjs` | Spec 048: con dos calles («X CON Y 2480») vale la que tiene el número; las dos lejos, elige el conductor; con Google y OSM simulados, una sola consulta de más. |
 | `nativo-version.test.mjs` | La APK (spec 015): cuándo avisar que hay una APK nueva. |
 | `arquitectura.test.mjs` | Las reglas A1–A10 de `specs/002-reestructuracion-codigo/contracts/estructura-modulos.md`: capas, `server-only`, tamaño, vocabulario y proveedores en `docs/PRIVACIDAD.md`. Una excepción que sobra también falla. |
 | `privacidad.test.mjs` | Spec 007: al cerrar el día o la sesión no queda ningún dato de destinatarios en el teléfono (solo el resumen y la cola); ninguna tabla `encomienda_*` tiene columnas de personas; las rutas de API no escriben en el log. Spec 021: `/api/lectura` rechaza la etiqueta antes de mirar la clave. |
