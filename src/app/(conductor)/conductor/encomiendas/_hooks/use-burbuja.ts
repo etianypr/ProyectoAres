@@ -33,6 +33,7 @@ import { useRedDeCalles } from "./use-red-de-calles";
 import { aDondeNavegar, vistaDeBurbuja, type AvisoBurbuja } from "./vista-burbuja";
 import { useEvento } from "./use-evento";
 import { hacerMiniatura, miniaturaHecha } from "@/lib/encomiendas/local/miniatura-foto";
+import { alIrAlFondo, alVolverAPrimerPlano } from "@/lib/nativo/entorno";
 
 /** Las paradas que faltan: el punto de paso compara solo esas (geo/punto-de-paso.ts). */
 const pendientesDe = (paradas: readonly Parada[]) =>
@@ -213,9 +214,28 @@ export function useBurbuja({
   // Cambió la parada activa: Google Maps va a la nueva. Se marca antes de esperar
   // al mapa de calles (si no, otro dibujado la mandaría dos veces) y el destino se
   // calcula después, para que en un condominio sea su entrada (spec 031).
+  //
+  // Salvo con ARES adelante (spec 047): si el conductor cerró la parada en ARES y
+  // no desde la burbuja, sigue guiando ARES; Google Maps no se vuelve a abrir y la
+  // burbuja se va. Guía Google Maps mientras se esté en Google Maps.
+  // En la APK, `document.visibilityState` sigue en "visible" con Google Maps
+  // adelante (visto en el V2430): lo dicen el pause y el resume de la app.
+  const adelanteRef = useRef(true);
+  useEffect(() => {
+    const alFondo = alIrAlFondo(() => (adelanteRef.current = false));
+    const alVolver = alVolverAPrimerPlano(() => (adelanteRef.current = true));
+    return () => {
+      alFondo();
+      alVolver();
+    };
+  }, []);
   useEffect(() => {
     if (!aDondeNavegar(enCurso, navegada.current, activa) || !activa) return;
     navegada.current = activa.pedido.id;
+    if (adelanteRef.current) {
+      void terminarBurbuja().then(() => setEnCurso(false));
+      return;
+    }
     void cargarRed().then(() => {
       const destino = aDondeNavegar(true, null, activa);
       if (destino) void navegarA(destino, pasoHacia(ruta, activa.pedido.id, pendientesDe(paradas)));
@@ -252,5 +272,8 @@ export function useBurbuja({
   // flotando sin nadie que la atienda.
   useEffect(() => () => void terminarBurbuja(), []);
 
-  return { navegar, enCurso, sinPermiso: permiso === "falta", darPermiso };
+  /** «Navegar» en ARES (spec 047): si la burbuja quedó de antes, se va. */
+  const terminar = useCallback(() => setEnCurso(false), []);
+
+  return { navegar, terminar, enCurso, sinPermiso: permiso === "falta", darPermiso };
 }

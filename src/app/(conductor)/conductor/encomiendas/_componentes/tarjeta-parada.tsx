@@ -33,8 +33,9 @@ export function TarjetaParada({
   faltan: { metros: number; segundos: number | null; llegada: number | null } | null;
   /** El renglón de lo que contestó el receptor (lo arma la pantalla). */
   estado: ReactNode;
-  /** Navegar con Google Maps y la burbuja de ARES (spec 020): los km de la parada
-   *  son el botón, y sin distancia aparece igual. */
+  /** Navegar (spec 047): los km de la parada son el botón y ponen a ARES a guiar
+   *  (antes abrían Google Maps, spec 020; ahora va en «Abrir en Google Maps»). Sin
+   *  distancia aparece igual. */
   onNavegar?: () => void;
 }) {
   const referencia = textoReferencia(pedido.referencia);
@@ -61,7 +62,7 @@ export function TarjetaParada({
               type="button"
               disabled={!onNavegar}
               onClick={onNavegar}
-              aria-label="Navegar con Google Maps"
+              aria-label="Navegar"
               className="flex items-center gap-1 rounded-full bg-brand-soft px-2.5 py-1 text-xs font-semibold tabular-nums text-brand active:scale-[0.97] disabled:active:scale-100"
             >
               {onNavegar ? <Navigation className="h-3 w-3 shrink-0" /> : null}

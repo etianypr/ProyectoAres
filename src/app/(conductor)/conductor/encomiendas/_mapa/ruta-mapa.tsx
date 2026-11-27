@@ -7,10 +7,11 @@
 // arrastre y el zoom).
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AttributionControl, LngLatBounds, Map as MapaGL, Popup, setWorkerUrl, type GeoJSONSource, type Marker } from "maplibre-gl";
+import { LngLatBounds, Map as MapaGL, Popup, type GeoJSONSource, type Marker } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { CENTRO_ARICA, aLngLat, type Trazado } from "@/lib/geo/coordenada";
-import { ESTILO, FUENTE_DIA, FUENTE_NAV, FUENTE_PREVIA, URL_WORKER, agregarLineas, linea, soportaWebGL, ajustarEstilo } from "./estilo";
+import type { Trazado } from "@/lib/geo/coordenada";
+import { FUENTE_DIA, FUENTE_NAV, FUENTE_PREVIA, agregarLineas, agrandarNombresDeCalles, linea, soportaWebGL, ajustarEstilo } from "./estilo";
+import { crearMapa } from "./crear-mapa";
 import { agruparPorLugar, contenidoGlobo, type LugarMapa } from "./marcadores-dom";
 import { agregarParadas, datosParadas, fuentesDelTema, lugarTocado, ponerParadas } from "./capa-paradas";
 import type { PreviaRuta, PuntoMapa, Ubicacion } from "./tipos";
@@ -65,8 +66,9 @@ export function RutaMapa({
   /** Trazado de la ruta completa del día ([lng, lat]): apagado, de referencia. */
   trazado?: Trazado | null;
   /** Trazado desde la posición actual hasta la parada activa (ver
-   *  useNavegacion): esta es la línea que el conductor tiene que seguir ahora,
-   *  así que va destacada por encima de la anterior. */
+   *  use-hacia-parada.ts): esta es la línea que el conductor tiene que seguir
+   *  ahora, así que va destacada por encima de la anterior. La cámara la encuadra
+   *  (spec 047). */
   geometriaNavegacion?: Trazado | null;
   /** Ruta propuesta a la vista (PreviaRuta): reemplaza los marcadores del día. */
   previa?: PreviaRuta | null;
@@ -138,28 +140,13 @@ export function RutaMapa({
     const cuadro = cuadroMarcadorRef;
     if (!contenedor || mapaRef.current || !soportaMapa) return;
 
-    // MapLibre busca su worker al lado de su archivo, que al empaquetar deja de
-    // existir: se sirve desde public/ (scripts/copiar-worker-mapa.mjs).
-    setWorkerUrl(URL_WORKER);
-    const mapa = new MapaGL({
-      container: contenedor,
-      style: ESTILO,
-      // Respaldo hasta que haya paradas o GPS.
-      center: aLngLat(CENTRO_ARICA),
-      zoom: 13,
-      // Los controles por defecto no se montan: en el celular se hace zoom
-      // con los dedos, y la esquina de arriba a la izquierda la ocupan el
-      // botón "Inicio" y el cartel de navegación.
-      attributionControl: false,
-    });
+    // El worker, el mapa guardado sin conexión y el respaldo sin estilo (crear-mapa.ts).
+    const mapa = crearMapa(contenedor);
     mapaRef.current = mapa;
-
-    // La atribución es obligatoria por licencia, pero compacta: abajo a la
-    // derecha ocupa lo mínimo y no tapa el botón de centrar.
-    mapa.addControl(new AttributionControl({ compact: true }), "bottom-right");
 
     mapa.on("load", () => {
       ajustarEstilo(mapa);
+      agrandarNombresDeCalles(mapa);
 
       agregarLineas(mapa);
       agregarParadas(mapa);
@@ -344,6 +331,7 @@ export function RutaMapa({
     destino,
     siguiendo,
     encuadre,
+    porDelante: geometriaNavegacion,
     refs: { entroModoNavegacionRef, claveOrientadaRef, usuarioMovioRef, gestoRef, zoomManualRef },
   });
   useMarcadorConductor({

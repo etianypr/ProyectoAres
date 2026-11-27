@@ -5,7 +5,20 @@
 // botones grandes que ocupaban la hoja en pleno reparto.
 
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { ExternalLink, Plus } from "lucide-react";
+
+/** Guía ARES (spec 047); Google Maps queda a un toque para una calle cortada o un
+ *  taco, con la burbuja como siempre. Arriba de la hoja, sin bajar por la lista. */
+export function EnlaceGoogleMaps({ onAbrir }: { onAbrir: () => void }) {
+  return (
+    <div className="mb-3 flex justify-center">
+      <button type="button" onClick={onAbrir} className="flex items-center gap-1 px-1 py-1.5 text-xs font-semibold text-brand active:opacity-60">
+        <ExternalLink className="h-3.5 w-3.5" />
+        Abrir en Google Maps
+      </button>
+    </div>
+  );
+}
 
 export function EnlacesHoja({
   onAgregar,

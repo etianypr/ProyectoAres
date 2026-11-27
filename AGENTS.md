@@ -32,8 +32,9 @@ Es lo más importante del proyecto: todo cambio en la app del conductor se mide 
    va («PARADA n de N»), y la etiqueta completa el nombre, el teléfono y el POR PAGAR. Los ⚠ del
    escaneo se resuelven ahí mismo. La ruta es la misma con la que se carga el auto.
 5. **Recorrer.** Con el auto cargado, cada pedido tiene todos sus datos para subir el éxito por
-   parada. Google Maps guía con la burbuja de ARES encima; al acercarse a un pendiente, se llama
-   con un toque, y cada parada se cierra como entregada o no entregada.
+   parada. Guía ARES con su mapa (Google Maps queda de respaldo, con la burbuja de ARES encima); al
+   acercarse a un pendiente, se llama con un toque, y cada parada se cierra como entregada o no
+   entregada.
 6. **Cerrar el día.** Se muestra la lista de no entregados, se borran los datos del día y al jefe
    le llegan los conteos.
 
@@ -377,7 +378,7 @@ y un agente no debe "corregir".
     - **En un condominio, siempre por su entrada** (dueño, 2026-11-12; `geo/red/entrada.ts`): si la
       calle interna más cercana a la casa (privada, o un pasaje interno sin nombre) está tan cerca
       como la pública, la parada se entrega en la entrada del condominio (la más cercana por
-      dentro): la ruta llega ahí y «Navegar» lleva a Google Maps ahí (`destinoParaNavegar`). El
+      dentro): la ruta llega ahí, y ahí apuntan «Navegar» y Google Maps (`destinoParaNavegar`). El
       número de la parada queda en el edificio. Sin esto, una parada quedó pegada a un camino de
       tierra detrás de su condominio y la ruta dio la vuelta al Centro Ecuestre (+2,2 km). Un pasaje
       abierto con nombre de calle (como Mosa) no es condominio: se para frente a la casa.
@@ -393,12 +394,22 @@ y un agente no debe "corregir".
   - El conductor puede hacer la propuesta al revés («Invertir orden de ruta», spec 024). Al revés
     suele medir más (sentidos únicos): la pantalla dice cuánto, y no se vuelve a optimizar.
   - Antes de tocar la ruta: skill `rutas-ares` (qué se midió, dónde está cada cosa, cómo medir).
-- **Navegación (spec 020).** ARES muestra la ruta y maneja las paradas, pero **no guía**. En cada
-  parada muestra las que quedan cerca, por si hay un pedido pendiente o una entrega agendada que la
-  app no sabe (spec 023): «N cerca», al lado de «Centrar», con las pendientes a ≤ 300 m en
-  línea recta, sin las 2 que siguen y hasta 3, marcadas en el mapa; «Ahora» deja una como la próxima. Guía la
-  app Google Maps, con la burbuja de ARES encima, ligada al pedido abierto y siempre con el botón
-  "Navegar". El Navigation SDK y la navegación propia de ARES (cartel y voz) se fueron.
+- **Navegación (specs 020 y 047).** Desde la 047 (dueño, 2026-11-26) **guía ARES, sin voz ni
+  cartel**: «Navegar» (los km de la parada) pone el mapa desde arriba, girado al camino, con el auto
+  y ~800 m de línea naranja por delante, y se acerca solo hasta la cuadra (zoom 15 a 17,
+  `_mapa/camara.ts`). Los nombres de calle van encima de la línea.
+  - Si el auto se sale de la línea (> 40 m en 2 lecturas), se traza otra desde él con la red propia,
+    con su rumbo y sin consultas (`geo/desvio.ts`, `geo/red/desde-el-auto.ts`); vive en memoria.
+  - El mapa de Arica (una caja fija, 98 teselas, ~2 MB) se guarda una vez al día con conexión y ruta
+    (`geo/mapa-guardado/`, Cache Storage `ares-mapa-v1`); sin copia ni conexión, la ruta y las
+    paradas se ven sobre fondo liso. Diagnóstico → «Descargar mapa de Arica».
+  - Google Maps queda de respaldo (calle cortada, taco): «Abrir en Google Maps» arriba en la hoja,
+    con la burbuja como siempre. Cerrando desde la burbuja, Google Maps sigue a la siguiente; cerrando
+    en ARES (ARES adelante: `pause`/`resume`, no `visibilityState`), la burbuja se va y sigue ARES.
+  - En cada parada muestra las que quedan cerca, por si hay un pedido pendiente o una entrega
+    agendada que la app no sabe (spec 023): «N cerca», al lado de «Centrar», con las pendientes a
+    ≤ 300 m en línea recta, sin las 2 que siguen y hasta 3, marcadas en el mapa; «Ahora» deja una
+    como la próxima. El Navigation SDK y la voz se fueron (spec 020) y no vuelven.
   - Al cerrar una parada, Google Maps arranca derecho a la siguiente: se abre limpiando su tarea,
     porque si no pregunta «¿Salir de la navegación?» y, sin respuesta, sigue a la parada cerrada
     (`GoogleMaps.java`, APK 1.6.1).

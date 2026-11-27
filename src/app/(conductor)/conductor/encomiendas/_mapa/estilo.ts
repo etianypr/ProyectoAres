@@ -35,35 +35,62 @@ function agregarLinea(
   fuente: string,
   pintura: { color: string; ancho: number; opacidad: number },
   casco: number | null,
+  debajoDe: string | undefined,
 ): void {
   mapa.addSource(fuente, { type: "geojson", data: linea() });
   const forma = { "line-join": "round", "line-cap": "round" } as const;
   if (casco != null) {
-    mapa.addLayer({
-      id: `${fuente}-casco`,
+    mapa.addLayer(
+      {
+        id: `${fuente}-casco`,
+        type: "line",
+        source: fuente,
+        layout: forma,
+        paint: { "line-color": "#fdfbf9", "line-width": casco, "line-opacity": 0.95 },
+      },
+      debajoDe,
+    );
+  }
+  mapa.addLayer(
+    {
+      id: fuente,
       type: "line",
       source: fuente,
       layout: forma,
-      paint: { "line-color": "#fdfbf9", "line-width": casco, "line-opacity": 0.95 },
-    });
-  }
-  mapa.addLayer({
-    id: fuente,
-    type: "line",
-    source: fuente,
-    layout: forma,
-    paint: { "line-color": pintura.color, "line-width": pintura.ancho, "line-opacity": pintura.opacidad },
-  });
+      paint: { "line-color": pintura.color, "line-width": pintura.ancho, "line-opacity": pintura.opacidad },
+    },
+    debajoDe,
+  );
+}
+
+/** La primera capa de textos e íconos del mapa base: las líneas van debajo de ella. */
+function primeraCapaDeTextos(mapa: maplibregl.Map): string | undefined {
+  return mapa.getStyle()?.layers?.find((c) => c.type === "symbol")?.id;
 }
 
 /** Las tres líneas, en el orden en que se apilan: la del día abajo y apagada
  *  (gris cálido); encima la de navegación y, encima de todo, la propuesta —
  *  cuando hay una, es lo único que hay que mirar—, las dos en el naranja de
- *  Dashund (tema-dashund.css). */
+ *  Dashund (tema-dashund.css). Todas DEBAJO de los nombres de las calles (spec
+ *  047): manejando con ARES, la línea naranja tapaba el nombre de la calle por
+ *  la que se va. Las paradas se agregan después y quedan encima de todo. */
 export function agregarLineas(mapa: maplibregl.Map): void {
-  agregarLinea(mapa, FUENTE_DIA, { color: "#8a7d74", ancho: 3, opacidad: 0.55 }, null);
-  agregarLinea(mapa, FUENTE_NAV, { color: "#d4531a", ancho: 6, opacidad: 0.95 }, 9);
-  agregarLinea(mapa, FUENTE_PREVIA, { color: "#d4531a", ancho: 5, opacidad: 1 }, 8.5);
+  const debajoDe = primeraCapaDeTextos(mapa);
+  agregarLinea(mapa, FUENTE_DIA, { color: "#8a7d74", ancho: 3, opacidad: 0.55 }, null, debajoDe);
+  agregarLinea(mapa, FUENTE_NAV, { color: "#d4531a", ancho: 6, opacidad: 0.95 }, 9, debajoDe);
+  agregarLinea(mapa, FUENTE_PREVIA, { color: "#d4531a", ancho: 5, opacidad: 1 }, 8.5, debajoDe);
+}
+
+/** Los nombres de las calles de Liberty (2026-11-26); si OpenFreeMap renombra una
+ *  capa, queda como viene. */
+const NOMBRES_DE_CALLES = ["highway-name-path", "highway-name-minor", "highway-name-major"];
+
+/** Manejando se miran de lejos (spec 047): un 20 % más grandes que en Liberty
+ *  (13 px a zoom 14), y más a medida que se acerca. Solo en el mapa del conductor. */
+export function agrandarNombresDeCalles(mapa: maplibregl.Map): void {
+  for (const id of NOMBRES_DE_CALLES) {
+    if (mapa.getLayer(id)) mapa.setLayoutProperty(id, "text-size", ["interpolate", ["linear"], ["zoom"], 13, 13, 15, 16, 17, 18]);
+  }
 }
 
 type LineaGeoJSON = {

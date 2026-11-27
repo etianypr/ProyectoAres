@@ -19,7 +19,7 @@
 ## Alcance
 1. «Navegar» (los km de la parada) se queda en ARES; «Abrir en Google Maps» abre Google Maps con la
    burbuja, como hoy.
-2. Cámara desde arriba: el auto y ~1,2 km de línea por delante, girada al camino y acercándose sola
+2. Cámara desde arriba: el auto y ~800 m de línea por delante, girada al camino y acercándose sola
    (zoom 15 a 17).
 3. Si el auto se sale de la línea, se traza de nuevo desde el auto con la red propia, sin consultas.
 4. El mapa de Arica queda guardado en el teléfono para verse sin conexión.
