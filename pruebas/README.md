@@ -69,6 +69,8 @@ No hay framework de pruebas: `node:test` viene con Node.
 | `sw.test.mjs` | `public/sw.js` (spec 015): qué se guarda para abrir sin señal y qué pasa siempre por la red (`/api`, Supabase, los proveedores, POST); el worker del mapa y no borrar `ares-mapa-*` (spec 047). |
 | `047-navegacion-ares.test.mjs` | Spec 047: el encuadre de la cámara (~800 m por delante, zoom 15–17, el auto a la vista), cuándo trazar de nuevo (`hayQueRetrazar`) y la línea desde el auto (`trazarDesdeElAuto`, en grillas de juguete y en la red de Arica, con su tiempo). |
 | `047-mapa-guardado.test.mjs` | Spec 047: el protocolo `ares-mapa://`, copia primero o red primero, sin conexión, 204, la caja de Arica y la descarga diaria (Cache Storage y `fetch` falsos). |
+| `sw.test.mjs` | `public/sw.js` (spec 015): qué se guarda para abrir sin señal y qué pasa siempre por la red (`/api`, Supabase, los proveedores, POST). |
+| `048-dos-calles.test.mjs` | Spec 048: con dos calles («X CON Y 2480») vale la que tiene el número; las dos lejos, elige el conductor; con Google y OSM simulados, una sola consulta de más. |
 | `nativo-version.test.mjs` | La APK (spec 015): cuándo avisar que hay una APK nueva. |
 | `arquitectura.test.mjs` | Las reglas A1–A10 de `specs/002-reestructuracion-codigo/contracts/estructura-modulos.md`: capas, `server-only`, tamaño, vocabulario y proveedores en `docs/PRIVACIDAD.md`. Una excepción que sobra también falla. |
 | `privacidad.test.mjs` | Spec 007: al cerrar el día o la sesión no queda ningún dato de destinatarios en el teléfono (solo el resumen y la cola); ninguna tabla `encomienda_*` tiene columnas de personas; las rutas de API no escriben en el log. Spec 021: `/api/lectura` rechaza la etiqueta antes de mirar la clave. |
