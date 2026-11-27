@@ -161,9 +161,9 @@ export function PantallaEncomiendas({
   const adelante = avisoAdelante(paradas, activa?.pedido.id ?? null);
   const burbuja = useBurbuja({ fecha, activa, fase, whatsapp, deshacer, confirmacion, enAres, acciones, adelante: adelante && lineaAvisoAdelante(adelante),
     extra: enCurso.extra, onBoton: enCurso.onBoton, paradas, onLlamarA: onLlamar, onEscanearA: ventanas.escanearParada, ruta: dia.ruta });
-  // El camino a la parada activa y «Navegar»: guía ARES, Google Maps de respaldo (spec 047).
-  const { destinoActivo, faltan, rumbo, ubicacionMostrada, trazadoPorDelante, señalDebil, navegar, abrirGoogleMaps } = useNavegacionAres({
-    activa, ruta: dia.ruta, miUbicacion, hayRuta, burbuja, onSeguir: () => { setSiguiendo(true); pedirUbicacion(); } });
+  // El camino a la parada activa: guía el mapa de ARES; los km abren Google Maps (spec 047).
+  const { destinoActivo, faltan, rumbo, ubicacionMostrada, trazadoPorDelante, señalDebil, navegar } = useNavegacionAres({
+    activa, ruta: dia.ruta, miUbicacion, hayRuta, burbuja });
 
   const ayer = useResumenAyer(fecha);
 
@@ -379,7 +379,6 @@ export function PantallaEncomiendas({
             onAgregar={() => nuevoPedido()}
             onPropuesta={setPropuesta}
             onResolver={() => resolver.empezar(conProblema)}
-            onGoogleMaps={abrirGoogleMaps}
           />
         </BottomSheet>
       </div>

@@ -272,8 +272,5 @@ export function useBurbuja({
   // flotando sin nadie que la atienda.
   useEffect(() => () => void terminarBurbuja(), []);
 
-  /** «Navegar» en ARES (spec 047): si la burbuja quedó de antes, se va. */
-  const terminar = useCallback(() => setEnCurso(false), []);
-
-  return { navegar, terminar, enCurso, sinPermiso: permiso === "falta", darPermiso };
+  return { navegar, enCurso, sinPermiso: permiso === "falta", darPermiso };
 }

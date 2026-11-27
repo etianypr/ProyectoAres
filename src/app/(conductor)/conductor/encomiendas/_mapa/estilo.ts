@@ -81,16 +81,49 @@ export function agregarLineas(mapa: maplibregl.Map): void {
   agregarLinea(mapa, FUENTE_PREVIA, { color: "#d4531a", ancho: 5, opacidad: 1 }, 8.5, debajoDe);
 }
 
-/** Los nombres de las calles de Liberty (2026-11-26); si OpenFreeMap renombra una
- *  capa, queda como viene. */
-const NOMBRES_DE_CALLES = ["highway-name-path", "highway-name-minor", "highway-name-major"];
+/** Las capas de Liberty (2026-11-26) que se tocan; si OpenFreeMap renombra una,
+ *  queda como viene. */
+const NOMBRES_DE_CALLES = ["highway-name-minor", "highway-name-major"];
+const NOMBRES_DE_PASAJES = "highway-name-path";
+const CALLES_CHICAS = "road_minor";
+const BORDES_DE_CALLES_CHICAS = ["road_minor_casing", "road_service_track_casing"];
 
-/** Manejando se miran de lejos (spec 047): un 20 % más grandes que en Liberty
- *  (13 px a zoom 14), y más a medida que se acerca. Solo en el mapa del conductor. */
-export function agrandarNombresDeCalles(mapa: maplibregl.Map): void {
+const siEsta = (mapa: maplibregl.Map, id: string, hacer: () => void) => {
+  if (mapa.getLayer(id)) hacer();
+};
+
+/**
+ * Las calles y sus nombres resaltados, solo en el mapa del conductor (spec 047):
+ * manejando se miran de lejos. Liberty pinta los nombres en gris claro con un halo
+ * transparente, así que sobre la línea naranja de la ruta no se leían (dueño,
+ * 2026-11-27: «la línea está superpuesta sobre lo que dice la calle»). Ahora van
+ * en negrita, casi negros y con borde blanco, como en Google Maps: se leen encima
+ * de la línea. Las calles chicas, un poco más anchas y con el borde más oscuro,
+ * para que se distingan del fondo.
+ */
+export function resaltarCalles(mapa: maplibregl.Map): void {
   for (const id of NOMBRES_DE_CALLES) {
-    if (mapa.getLayer(id)) mapa.setLayoutProperty(id, "text-size", ["interpolate", ["linear"], ["zoom"], 13, 13, 15, 16, 17, 18]);
+    siEsta(mapa, id, () => {
+      mapa.setLayoutProperty(id, "text-font", ["Noto Sans Bold"]);
+      mapa.setLayoutProperty(id, "text-size", ["interpolate", ["linear"], ["zoom"], 13, 12, 15, 14, 17, 16]);
+      mapa.setPaintProperty(id, "text-color", "#2a211c");
+      mapa.setPaintProperty(id, "text-halo-color", "#ffffff");
+      mapa.setPaintProperty(id, "text-halo-width", 2);
+      mapa.setPaintProperty(id, "text-halo-blur", 0);
+    });
   }
+  siEsta(mapa, NOMBRES_DE_PASAJES, () => {
+    mapa.setPaintProperty(NOMBRES_DE_PASAJES, "text-color", "#5c5048");
+    mapa.setPaintProperty(NOMBRES_DE_PASAJES, "text-halo-color", "#ffffff");
+    mapa.setPaintProperty(NOMBRES_DE_PASAJES, "text-halo-width", 1.5);
+  });
+  siEsta(mapa, CALLES_CHICAS, () =>
+    mapa.setPaintProperty(CALLES_CHICAS, "line-width", ["interpolate", ["exponential", 1.2], ["zoom"], 13.5, 0, 14, 3.2, 20, 23]),
+  );
+  for (const id of BORDES_DE_CALLES_CHICAS) siEsta(mapa, id, () => mapa.setPaintProperty(id, "line-color", "#b3aaa1"));
+  siEsta(mapa, "road_minor_casing", () =>
+    mapa.setPaintProperty("road_minor_casing", "line-width", ["interpolate", ["exponential", 1.2], ["zoom"], 12, 0.5, 13, 1, 14, 5, 20, 25]),
+  );
 }
 
 type LineaGeoJSON = {

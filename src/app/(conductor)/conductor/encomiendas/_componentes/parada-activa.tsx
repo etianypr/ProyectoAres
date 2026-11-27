@@ -68,7 +68,7 @@ export function ParadaActiva({
   guardando: boolean;
   /** Lo que falta hasta la parada (use-hacia-parada.ts). */
   faltan: { metros: number; segundos: number | null; llegada: number | null } | null;
-  /** Navegar con ARES (spec 047; antes Google Maps, spec 020); sin punto, no hay. */
+  /** Navegar con Google Maps y la burbuja (spec 020); sin punto, no hay. */
   onNavegar?: () => void;
   onBoton: (id: IdBoton) => void;
   /** Un pedido con ⚠ a una o dos paradas (spec 022, US2). */

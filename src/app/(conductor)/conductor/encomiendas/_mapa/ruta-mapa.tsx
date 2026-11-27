@@ -10,7 +10,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { LngLatBounds, Map as MapaGL, Popup, type GeoJSONSource, type Marker } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { Trazado } from "@/lib/geo/coordenada";
-import { FUENTE_DIA, FUENTE_NAV, FUENTE_PREVIA, agregarLineas, agrandarNombresDeCalles, linea, soportaWebGL, ajustarEstilo } from "./estilo";
+import { FUENTE_DIA, FUENTE_NAV, FUENTE_PREVIA, agregarLineas, resaltarCalles, linea, soportaWebGL, ajustarEstilo } from "./estilo";
 import { crearMapa } from "./crear-mapa";
 import { agruparPorLugar, contenidoGlobo, type LugarMapa } from "./marcadores-dom";
 import { agregarParadas, datosParadas, fuentesDelTema, lugarTocado, ponerParadas } from "./capa-paradas";
@@ -146,7 +146,7 @@ export function RutaMapa({
 
     mapa.on("load", () => {
       ajustarEstilo(mapa);
-      agrandarNombresDeCalles(mapa);
+      resaltarCalles(mapa);
 
       agregarLineas(mapa);
       agregarParadas(mapa);

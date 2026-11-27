@@ -66,8 +66,8 @@ const SECCIONES: { titulo: string; pasos: string[] }[] = [
   {
     titulo: "Navegar",
     pasos: [
-      "Toca los km de la parada: ARES guía con el mapa desde arriba, que se acerca a medida que avanzas. Si tomas otra calle, la línea se recalcula desde tu posición. El mapa de Arica queda guardado para verse sin conexión.",
-      "Calle cortada o taco: «Abrir en Google Maps» (arriba en la hoja) guía con Google Maps y encima queda la burbuja de ARES minimizada. Tócala para ver los botones de la parada. Al cerrar una parada en ARES, sigue guiando ARES.",
+      "Repartiendo, ARES guía con el mapa desde arriba, que se acerca a medida que avanzas; ⌖ lo vuelve a centrar. Si tomas otra calle, la línea se recalcula desde tu posición. El mapa de Arica queda guardado para verse sin conexión.",
+      "Toca los km de la parada: Google Maps guía y encima queda la burbuja de ARES minimizada. Tócala para ver los botones de la parada. Al cerrar una parada en ARES, sigue guiando ARES.",
       "En la burbuja: «Navegar» vuelve a Google Maps, «Volver a ARES» abre ARES y «Achicar» la reduce a un círculo sobre la velocidad de Google Maps; tócalo para abrirla.",
       "La primera vez, permite a ARES «Mostrar sobre otras apps» (en vivo: «Ventanas flotantes»); si indica «Sin burbuja», «Conceder permiso» lo solicita de nuevo. Si la burbuja se cierra sola, en Batería permite a ARES el «Consumo alto en segundo plano».",
     ],

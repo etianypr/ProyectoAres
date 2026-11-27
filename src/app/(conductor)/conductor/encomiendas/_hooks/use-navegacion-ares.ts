@@ -1,10 +1,11 @@
 "use client";
 
-// Navegar con ARES (spec 047, dueño 2026-11-26): los km de la parada ya no abren
-// Google Maps, ponen el mapa de ARES a guiar —desde arriba, la línea naranja por
-// delante y acercándose solo (_mapa/camara.ts)—. Google Maps queda de respaldo con
-// «Abrir en Google Maps» al pie de la hoja (una calle cortada, un taco: ARES no
-// sabe de tráfico), con la burbuja como siempre (use-burbuja.ts).
+// Navegar con ARES (spec 047, dueño 2026-11-26): en reparto el mapa de ARES guía
+// —desde arriba, la línea naranja por delante y acercándose solo (_mapa/camara.ts)—,
+// y «Centrar» lo vuelve a poner a guiar. Los km de la parada siguen abriendo Google
+// Maps con la burbuja (use-burbuja.ts), de respaldo para una calle cortada o un taco:
+// ARES no sabe de tráfico. Un enlace aparte «Abrir en Google Maps» repetía los km y
+// salió (dueño, 2026-11-27).
 //
 // Además, con la ruta armada y conexión, una vez al día se baja el mapa de Arica
 // para que se vea sin conexión (lib/geo/mapa-guardado).
@@ -18,12 +19,9 @@ const MS_ANTES_DE_DESCARGAR = 15_000;
 
 export function useNavegacionAres({
   burbuja,
-  onSeguir,
   ...camino
 }: Parameters<typeof useHaciaParada>[0] & {
-  burbuja: { navegar: () => Promise<void>; terminar: () => void };
-  /** Poner el mapa a seguir al auto (lo mismo que «Centrar»). */
-  onSeguir: () => void;
+  burbuja: { navegar: () => Promise<void> };
 }) {
   const hacia = useHaciaParada(camino);
   const { hayRuta } = camino;
@@ -40,16 +38,9 @@ export function useNavegacionAres({
     };
   }, [hayRuta]);
 
-  const hayDestino = hacia.destinoActivo != null;
   return {
     ...hacia,
-    /** Los km de la parada: guía ARES; si la burbuja quedó abierta, se va. */
-    navegar: hayDestino
-      ? () => {
-          burbuja.terminar();
-          onSeguir();
-        }
-      : undefined,
-    abrirGoogleMaps: hayDestino ? () => void burbuja.navegar() : undefined,
+    /** Los km de la parada: Google Maps con la burbuja (spec 020). */
+    navegar: hacia.destinoActivo != null ? () => void burbuja.navegar() : undefined,
   };
 }

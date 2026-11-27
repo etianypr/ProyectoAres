@@ -395,17 +395,20 @@ y un agente no debe "corregir".
     suele medir más (sentidos únicos): la pantalla dice cuánto, y no se vuelve a optimizar.
   - Antes de tocar la ruta: skill `rutas-ares` (qué se midió, dónde está cada cosa, cómo medir).
 - **Navegación (specs 020 y 047).** Desde la 047 (dueño, 2026-11-26) **guía ARES, sin voz ni
-  cartel**: «Navegar» (los km de la parada) pone el mapa desde arriba, girado al camino, con el auto
+  cartel**: repartiendo (y con «Centrar»), el mapa va desde arriba, girado al camino, con el auto
   y ~800 m de línea naranja por delante, y se acerca solo hasta la cuadra (zoom 15 a 17,
-  `_mapa/camara.ts`). Los nombres de calle van encima de la línea.
+  `_mapa/camara.ts`). Los nombres de calle van encima de la línea, en negrita, casi negros y con
+  borde blanco (Liberty los trae grises con halo transparente: sobre la línea no se leían; dueño,
+  2026-11-27, `resaltarCalles`).
   - Si el auto se sale de la línea (> 40 m en 2 lecturas), se traza otra desde él con la red propia,
     con su rumbo y sin consultas (`geo/desvio.ts`, `geo/red/desde-el-auto.ts`); vive en memoria.
   - El mapa de Arica (una caja fija, 98 teselas, ~2 MB) se guarda una vez al día con conexión y ruta
     (`geo/mapa-guardado/`, Cache Storage `ares-mapa-v1`); sin copia ni conexión, la ruta y las
     paradas se ven sobre fondo liso. Diagnóstico → «Descargar mapa de Arica».
-  - Google Maps queda de respaldo (calle cortada, taco): «Abrir en Google Maps» arriba en la hoja,
-    con la burbuja como siempre. Cerrando desde la burbuja, Google Maps sigue a la siguiente; cerrando
-    en ARES (ARES adelante: `pause`/`resume`, no `visibilityState`), la burbuja se va y sigue ARES.
+  - Google Maps queda de respaldo (calle cortada, taco): los km de la parada lo abren con la
+    burbuja, como en la spec 020 (un enlace aparte «Abrir en Google Maps» los repetía y salió, dueño
+    2026-11-27). Cerrando desde la burbuja, Google Maps sigue a la siguiente; cerrando en ARES (ARES
+    adelante: `pause`/`resume`, no `visibilityState`), la burbuja se va y sigue ARES.
   - En cada parada muestra las que quedan cerca, por si hay un pedido pendiente o una entrega
     agendada que la app no sabe (spec 023): «N cerca», al lado de «Centrar», con las pendientes a
     ≤ 300 m en línea recta, sin las 2 que siguen y hasta 3, marcadas en el mapa; «Ahora» deja una

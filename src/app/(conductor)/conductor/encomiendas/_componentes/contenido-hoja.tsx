@@ -16,7 +16,7 @@ import type { FaltaEscanear } from "../_hooks/use-carga-auto";
 import { AdvertenciasRuta } from "./advertencias-ruta";
 import { AyerHoja } from "./ayer-hoja";
 import { BorrarPedidos } from "./borrar-pedidos";
-import { EnlaceGoogleMaps, EnlacesHoja } from "./enlaces-hoja";
+import { EnlacesHoja } from "./enlaces-hoja";
 import { FaltanEscanear } from "./faltan-escanear";
 import { GenerarRutaLocal } from "./generar-ruta-local";
 import { ListaNoEntregados } from "./lista-no-entregados";
@@ -50,7 +50,6 @@ export function ContenidoHoja({
   onAgregar,
   onPropuesta,
   onResolver,
-  onGoogleMaps,
 }: {
   paso: Paso;
   dia: DiaEnCurso;
@@ -80,8 +79,6 @@ export function ContenidoHoja({
   onPropuesta: (propuesta: PropuestaRuta | null) => void;
   /** Abre de a uno los pedidos pendientes con ⚠. */
   onResolver: () => void;
-  /** Google Maps con la burbuja, de respaldo (spec 047); sin parada con punto, no está. */
-  onGoogleMaps?: () => void;
 }) {
   const { paradas, activa, pedidos } = dia;
 
@@ -266,7 +263,6 @@ export function ContenidoHoja({
   // Recorriendo: la parada activa está en la cabecera (spec 020).
   return (
     <>
-      {onGoogleMaps ? <EnlaceGoogleMaps onAbrir={onGoogleMaps} /> : null}
       {activa?.pedido.notas ? (
         <div className="mb-4 rounded-2xl bg-warn-bg px-3.5 py-3 text-sm text-warn">{activa.pedido.notas}</div>
       ) : null}
