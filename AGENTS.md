@@ -411,7 +411,10 @@ y un agente no debe "corregir".
     web. Diagnóstico → «Navegar con punto de paso» lo apaga (encendido por defecto).
   - **Llamadas.** Se marcan solas (con el permiso de llamadas; sin él, el marcador) y quedan de
     fondo: con la llamada en curso vuelve adelante ARES o, desde la burbuja, Google Maps
-    (`TrasLlamar.java`, dueño 2026-11-09).
+    (`TrasLlamar.java`, dueño 2026-11-09). Desde la APK 1.15.0 vigila 9 s y vuelve a traerla cada
+    vez que la pantalla de la llamada la tapa (en el V2430 aparece hasta 3 s después de marcar), y
+    «desde ARES» es que ARES se ve al tocar «Llamar», no que tenga el foco (tras aceptar el permiso
+    no lo tiene; dueño, 2026-11-27: «hay veces que no se llama en segundo plano»).
 - **Plata.** El dueño no puede pagar sorpresas.
   - Mapbox sale entero y no se vuelve a proponer.
   - Todo servicio de pago lleva una cuota que lo deje en US$0. Google Geocoding tiene tope diario,

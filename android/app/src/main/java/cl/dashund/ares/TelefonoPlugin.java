@@ -39,12 +39,21 @@ import com.google.mlkit.vision.text.latin.TextRecognizerOptions;
 )
 public class TelefonoPlugin extends Plugin {
 
+    /** Si ARES se veía al tocar «Llamar»: se mira ANTES del diálogo del permiso, que en
+     *  algunos teléfonos tapa a ARES entero. */
+    private boolean desdeAres = false;
+
     @PluginMethod
     public void llamar(PluginCall call) {
         if (call.getString("numero", "").isEmpty()) {
             call.reject("numero_vacio");
             return;
         }
+        // Llamando desde ARES, ARES vuelve adelante y la llamada queda de fondo (dueño,
+        // 2026-11-09). Desde la burbuja ARES está atrás: vuelve Google Maps (BurbujaServicio).
+        // «Desde ARES» es que ARES se ve, no que tenga el foco: justo después de aceptar el
+        // permiso el foco aún no vuelve y la llamada quedaba adelante (V2430, 2026-11-27).
+        desdeAres = MainActivity.visible;
         if (getPermissionState("llamadas") != PermissionState.GRANTED) {
             requestPermissionForAlias("llamadas", call, "trasPermisoLlamar");
             return;
@@ -69,12 +78,9 @@ public class TelefonoPlugin extends Plugin {
         if (Boolean.TRUE.equals(call.getBoolean("altavoz", false))) {
             intent.putExtra(TelecomManager.EXTRA_START_CALL_WITH_SPEAKERPHONE, true);
         }
-        // Llamando desde ARES, ARES vuelve adelante y la llamada queda de fondo (dueño,
-        // 2026-11-09). Desde la burbuja ARES está atrás: vuelve Google Maps (BurbujaServicio).
-        boolean desdeAres = getActivity() != null && getActivity().hasWindowFocus();
         try {
             getContext().startActivity(intent);
-            if (desdeAres) TrasLlamar.alFrente(getContext(), TrasLlamar.ares(getContext()));
+            if (desdeAres) TrasLlamar.alFrente(getContext(), TrasLlamar.ares(getContext()), () -> MainActivity.adelante);
             call.resolve();
         } catch (Exception e) {
             call.reject("sin_soporte");
