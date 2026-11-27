@@ -4,7 +4,8 @@
 // Muchas líneas traen, además de la calle con su número, la población antes («LINDEROS
 // PROVIDENCI CALLE 2 901») o una referencia después («… 1450 CON CALLE 5», «… FRENTE A LA
 // SEDE»). La calle de la casa es la que va junto al número (dueño, 2026-11-15): eso se busca, y
-// lo demás es referencia. Con una calle que está en varios lugares de Arica («Pasaje 1»), la
+// lo demás es referencia. Con dos calles («X CON Y 2480») el número puede ser de cualquiera: se
+// pregunta también por la otra y vale la que lo tiene (spec 048, dos-calles.ts). Con una calle que está en varios lugares de Arica («Pasaje 1»), la
 // referencia es lo que dice cuál es: la población escrita o la calle que cruza.
 //
 // Todo puro y sin red, salvo los catálogos que viajan en el código.
@@ -101,6 +102,21 @@ export function separarReferencias(texto: string): Referencias {
     }
   }
   return { consulta: consulta || t, referencia: [antes, cruceAntes, despues].filter(Boolean).join(" · "), cruces };
+}
+
+/**
+ * «LINDEROS CON NEGHME 2480» → «LINDEROS 2480»: la calle que cruza, con el mismo número (spec 048).
+ * La gente escribe la esquina de distintas formas y el número puede ser de cualquiera de las dos
+ * (dueño, 2026-11-27): ubicar.ts pregunta también por esta. null sin exactamente una calle que
+ * cruce («entre X y Y» no) o sin número.
+ */
+export function otraCalleConElNumero(texto: string): string | null {
+  const ref = separarReferencias(texto);
+  if (ref.cruces.length !== 1) return null;
+  const { numero } = calleYNumero(ref.consulta);
+  const cruce = ref.cruces[0].trim();
+  if (!numero || cruce.replace(/[^\p{L}]/gu, "").length < 3) return null;
+  return `${cruce} ${numero}`;
 }
 
 /** Pedidos del día ya ubicados: con menos que esto todavía no hay ruta que mire. */

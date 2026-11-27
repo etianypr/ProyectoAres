@@ -58,7 +58,8 @@ Solo sobreviven conteos (asignados, entregados, no entregados).
 No reciben datos de destinatarios: Supabase (solo actividad y fichas de conductores),
 OpenFreeMap (el mapa del conductor desde la spec 019: recibe solo los pedidos de los trozos de
 mapa de la zona que se mira y, al armar la ruta, de la zona de cada parada —unos 2 km, para ver
-qué calles tiene alrededor—, sin puntos, nombres ni direcciones). Mapbox ya no recibe nada: salió
+qué calles tiene alrededor—, sin puntos, nombres ni direcciones; desde la spec 047, una vez al día, la
+misma caja fija de Arica para verse sin conexión, sin nada de la ruta). Mapbox ya no recibe nada: salió
 en la spec 019 (2026-11-06), el escáner de Google de la APK (ML Kit: lee la
 etiqueta en el teléfono; según Google, la imagen no sale de ahí) y el lector de texto de la APK
 (ML Kit con el modelo dentro de la APK: la foto de la guía y de la etiqueta se lee sin red). El WhatsApp propio del conductor se incluye en

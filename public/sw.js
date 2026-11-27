@@ -10,6 +10,12 @@
 // ningún lado; si no responde, la copia guardada. Estáticos de Next: caché
 // primero (llevan hash en el nombre, no cambian).
 const CACHE = "ares-conductor-v1";
+// El mapa guardado para verse sin conexión (spec 047, lib/geo/mapa-guardado): lo
+// maneja la página, no este service worker, y no se borra al activarse uno nuevo.
+const CACHE_MAPA = "ares-mapa-";
+// El worker de MapLibre se sirve desde public/ (no lleva hash): sin él el mapa no
+// arranca, así que sin red se usa la copia (spec 047).
+const WORKER_MAPA = "/maplibre-gl-worker.mjs";
 // Adonde lleva /conductor. Sin red no se puede seguir esa redirección, así que
 // cualquier pantalla del conductor cae a esta copia.
 const INICIO = "/conductor/encomiendas";
@@ -44,6 +50,7 @@ function estrategiaPara(url, modo, metodo) {
   if (url.origin !== self.location.origin) return "red";
   if (url.pathname.startsWith("/api/")) return "red";
   if (url.pathname.startsWith("/_next/static/")) return "cache-primero";
+  if (url.pathname === WORKER_MAPA) return "red-primero";
   const delConductor = url.pathname === "/conductor" || url.pathname.startsWith("/conductor/");
   if (modo === "navigate" && delConductor) return "red-primero";
   return "red";
@@ -55,7 +62,7 @@ self.addEventListener("activate", (evento) => {
   evento.waitUntil(
     (async () => {
       for (const nombre of await caches.keys()) {
-        if (nombre !== CACHE) await caches.delete(nombre);
+        if (nombre !== CACHE && !nombre.startsWith(CACHE_MAPA)) await caches.delete(nombre);
       }
       await self.clients.claim();
       await limpiar();
@@ -136,7 +143,9 @@ async function redPrimero(pedido) {
   } catch {
     // Sin red: se sigue con la copia.
   }
-  const guardada = (await cache.match(pedido, { ignoreSearch: true })) ?? (await cache.match(INICIO));
+  // La página de inicio reemplaza solo a otra página, nunca a un archivo (el worker del mapa).
+  const guardada =
+    (await cache.match(pedido, { ignoreSearch: true })) ?? (pedido.mode === "navigate" ? await cache.match(INICIO) : undefined);
   if (guardada) return guardada;
   // Sin copia: se espera a la red aunque tarde; si falla, la APK muestra su
   // página de "sin señal" (server.errorPath).

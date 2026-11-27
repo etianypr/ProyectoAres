@@ -24,6 +24,7 @@ import { ProbarBarridoNomina } from "./_componentes/probar-barrido-nomina";
 import { ProbarEscanerVivo } from "./_componentes/probar-escaner-vivo";
 import { ProbarEtiqueta } from "./_componentes/probar-etiqueta";
 import { Tiempos } from "./_componentes/tiempos";
+import { MapaSinConexion } from "./_componentes/mapa-sin-conexion";
 import { CintaModoPrueba } from "../encomiendas/_componentes/cinta-modo-prueba";
 import { BOTON_PRINCIPAL } from "../encomiendas/_componentes/botones";
 
@@ -175,6 +176,8 @@ export default function DiagnosticoPage() {
           Navegar con punto de paso
         </label>
       </div>
+
+      <MapaSinConexion />
 
       <Tiempos />
 

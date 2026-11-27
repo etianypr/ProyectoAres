@@ -1,7 +1,7 @@
 // Cuánto falta hasta la parada activa, sin pedir ninguna ruta (spec 020).
 //
-// ARES ya no guía —guía Google Maps—, pero la tarjeta sigue mostrando los km y la
-// hora de llegada, el mapa la línea de lo que falta y el auto pegado a la calle.
+// La tarjeta muestra los km y la hora de llegada, el mapa la línea de lo que falta
+// y el auto pegado a la calle (desde la spec 047, ARES guía con esto).
 // Todo eso sale del TRAMO de la línea del día que llega a la parada (Ruta.tramos):
 // la línea del día ya se pidió al armar la ruta, así que medir sobre ella es
 // gratis. Si el auto no va por ese tramo (se desvió, el orden cambió con "Dejar
@@ -10,7 +10,7 @@
 //
 // Puro: el pegado (con su memoria del último vértice) lo hace usePuntoEnRuta.
 
-import { distanciaMetros, type Coordenada, type Trazado } from "./coordenada";
+import { distanciaMetros, rumboEntre, type Coordenada, type Trazado } from "./coordenada";
 import { metrosRestantes, recortarTrazado, rumboDelCamino, type PosicionPegada } from "./trazado";
 
 /** Lo que se guarda de la línea del día (ver Ruta en almacen/tipos.ts). */
@@ -19,8 +19,21 @@ export type LineaDelDia = {
   tramos?: { pedidoId: string | null; desde: number; hasta: number; metros: number; segundos: number }[] | null;
 };
 
-/** El pedazo de la línea del día que llega a una parada. */
-type TramoHacia = { linea: Trazado; metros: number; segundos: number };
+/** El pedazo de la línea del día que llega a una parada (o la trazada desde el
+ *  auto si se salió de ella, spec 047). */
+export type TramoHacia = { linea: Trazado; metros: number; segundos: number };
+
+/** Con qué rumbo llega la línea a su final: el de sus últimos ~20 m. null si es
+ *  muy corta. Puro. */
+export function rumboAlLlegar(linea: Trazado | null | undefined, metros = 20): number | null {
+  if (!linea || linea.length < 2) return null;
+  const fin = { lng: linea[linea.length - 1][0], lat: linea[linea.length - 1][1] };
+  for (let k = linea.length - 2; k >= 0; k--) {
+    const p = { lng: linea[k][0], lat: linea[k][1] };
+    if (distanciaMetros(p, fin) >= metros || k === 0) return distanciaMetros(p, fin) > 3 ? rumboEntre(p, fin) : null;
+  }
+  return null;
+}
 
 /** El tramo que llega a `pedidoId`, o null si la ruta no lo tiene (o sus índices
  *  no calzan con el trazado, que es lo mismo que no tenerlo). */

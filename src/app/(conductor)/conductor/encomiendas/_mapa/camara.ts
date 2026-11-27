@@ -58,17 +58,104 @@ export function zoomDeSeguimiento(velocidad: number | null | undefined, llegando
 }
 
 // ----------------------------------------------------------------------------
-// En ruta: el auto y la parada a la vez (dueño, 2026-11-16, como Spoke)
+// En ruta: el auto y el camino por delante (dueño, 2026-11-16 y 2026-11-26)
 // ----------------------------------------------------------------------------
 // Con una parada activa, «Centrar» no se pega al auto: encuadra el auto y la
-// parada que sigue, y lo sigue haciendo con cada lectura del GPS, así que al
-// acercarse el mapa se va acercando solo. Sin inclinación: con perspectiva el
-// encuadre no calza y lo de arriba se achica. Guía Google Maps (spec 020); esto
-// es para mirar dónde queda la parada.
+// línea que viene, girada al camino y sin inclinación (con perspectiva el
+// encuadre no calza y lo de arriba se achica). Desde la spec 047 ARES guía: el
+// dueño quiere «una vista general desde arriba, pudiendo distinguir calles, y que
+// se vaya acercando a medida que avanza». Antes se encuadraban el auto y la
+// parada: a 3 km el mapa quedaba a nivel ciudad y no se leían las calles. Ahora,
+// lejos, se ven ~800 m de línea por delante (zoom ~15,2 a 360 px: más lejos
+// Liberty ya no nombra las calles chicas); más cerca que eso, el
+// encuadre se achica solo hasta la cuadra.
 /** Tope de zoom del encuadre: con el auto encima de la parada, la cuadra. */
 export const ZOOM_MAXIMO_ENCUADRE = 17;
+/** Piso: de ahí para abajo Liberty ya no nombra las calles chicas (minzoom 15). */
+export const ZOOM_PISO_NAVEGACION = 15;
+/** Cuánta línea por delante se encuadra. */
+export const METROS_ADELANTE = 800;
 /** Margen a los lados del encuadre (arriba y abajo los pone la pantalla). */
 export const RELLENO_LADOS_ENCUADRE = 48;
+/** Cambios de zoom del encuadre más chicos que esto no se aplican (el GPS oscila). */
+export const ZOOM_MINIMO_ENCUADRE = 0.1;
+/** Si el camino no cabe, el auto queda a esta altura de lo visible (de arriba abajo). */
+const AUTO_ABAJO = 0.8;
+/** Metros por pixel a zoom 0 en el ecuador (MapLibre: teselas de 512 px). */
+const MPP_ZOOM_0 = 78_271.517;
+const M_POR_GRADO = 111_195;
+
+type Punto = { lat: number; lng: number };
+
+/** El auto y la línea por delante hasta `metros` (la línea empieza en el auto; ver
+ *  hacia-parada.ts). Sin línea, la recta hacia el destino con el mismo tope. Pura. */
+export function puntosDelEncuadre(auto: Punto, porDelante: [number, number][] | null, destino: Punto | null, metros = METROS_ADELANTE): Punto[] {
+  const puntos: Punto[] = [auto];
+  const camino: Punto[] =
+    porDelante && porDelante.length > 1 ? porDelante.map(([lng, lat]) => ({ lat, lng })) : destino ? [auto, destino] : [];
+  const cos = Math.cos((auto.lat * Math.PI) / 180);
+  let falta = metros;
+  for (let k = 1; k < camino.length && falta > 0; k++) {
+    const [a, b] = [camino[k - 1], camino[k]];
+    const largo = Math.hypot((b.lat - a.lat) * M_POR_GRADO, (b.lng - a.lng) * M_POR_GRADO * cos);
+    if (largo >= falta) {
+      const t = largo > 0 ? falta / largo : 0;
+      puntos.push({ lat: a.lat + (b.lat - a.lat) * t, lng: a.lng + (b.lng - a.lng) * t });
+      return puntos;
+    }
+    puntos.push(b);
+    falta -= largo;
+  }
+  return puntos;
+}
+
+/**
+ * La cámara que encuadra `puntos` con el mapa girado a `rumbo` (lo que está hacia
+ * `rumbo` queda arriba) en una vista de `ancho` × `alto` px menos los rellenos.
+ * Devuelve el centro (con esos rellenos puestos) y el zoom, entre el piso y el
+ * tope. Si no cabe, el auto (el primer punto) queda abajo y a la vista. Pura.
+ */
+export function encuadreGirado(
+  puntos: Punto[],
+  rumbo: number,
+  vista: { ancho: number; alto: number; arriba: number; abajo: number; lados: number },
+  zoomMin = ZOOM_PISO_NAVEGACION,
+  zoomMax = ZOOM_MAXIMO_ENCUADRE,
+): { centro: Punto; zoom: number } {
+  const origen = puntos[0];
+  const cos = Math.cos((origen.lat * Math.PI) / 180);
+  const r = (rumbo * Math.PI) / 180;
+  // Ejes de la pantalla en metros (x al este, y al norte): «arriba» es el rumbo.
+  const enPantalla = (p: Punto) => {
+    const x = (p.lng - origen.lng) * M_POR_GRADO * cos;
+    const y = (p.lat - origen.lat) * M_POR_GRADO;
+    return { u: x * Math.cos(r) - y * Math.sin(r), v: x * Math.sin(r) + y * Math.cos(r) };
+  };
+  const enMetros = puntos.map(enPantalla);
+  const minU = Math.min(...enMetros.map((p) => p.u));
+  const maxU = Math.max(...enMetros.map((p) => p.u));
+  const minV = Math.min(...enMetros.map((p) => p.v));
+  const maxV = Math.max(...enMetros.map((p) => p.v));
+  const anchoPx = Math.max(40, vista.ancho - 2 * vista.lados);
+  const altoPx = Math.max(40, vista.alto - vista.arriba - vista.abajo);
+  // De alto, el camino entero y además el auto no más abajo que AUTO_ABAJO: pegado
+  // al borde quedaría bajo los botones del mapa.
+  const altoM = Math.max(maxV - minV, maxV / AUTO_ABAJO);
+  const mpp = Math.max((maxU - minU) / anchoPx, altoM / altoPx, 1e-6);
+  const zoom = Math.min(zoomMax, Math.max(zoomMin, Math.log2((MPP_ZOOM_0 * cos) / mpp)));
+  // Con el zoom ya topado, lo que se ve de verdad. El auto (u = v = 0) queda entre
+  // el 20 % y el 80 % de lo visible, cabido o no el camino.
+  const mppReal = (MPP_ZOOM_0 * cos) / 2 ** zoom;
+  const medioAncho = (anchoPx * mppReal) / 2;
+  const medioAlto = (altoPx * mppReal) / 2;
+  const holguraV = medioAlto * (2 * AUTO_ABAJO - 1);
+  const cu = Math.min(medioAncho * AUTO_ABAJO, Math.max(-medioAncho * AUTO_ABAJO, (minU + maxU) / 2));
+  const cv = Math.min(holguraV, Math.max(-holguraV, (minV + maxV) / 2));
+  // De vuelta a metros al este y al norte, y a grados.
+  const x = cu * Math.cos(r) + cv * Math.sin(r);
+  const y = -cu * Math.sin(r) + cv * Math.cos(r);
+  return { centro: { lat: origen.lat + y / M_POR_GRADO, lng: origen.lng + x / (M_POR_GRADO * cos) }, zoom };
+}
 
 // ----------------------------------------------------------------------------
 // Dónde queda el punto del conductor en la pantalla

@@ -32,8 +32,9 @@ Es lo más importante del proyecto: todo cambio en la app del conductor se mide 
    va («PARADA n de N»), y la etiqueta completa el nombre, el teléfono y el POR PAGAR. Los ⚠ del
    escaneo se resuelven ahí mismo. La ruta es la misma con la que se carga el auto.
 5. **Recorrer.** Con el auto cargado, cada pedido tiene todos sus datos para subir el éxito por
-   parada. Google Maps guía con la burbuja de ARES encima; al acercarse a un pendiente, se llama
-   con un toque, y cada parada se cierra como entregada o no entregada.
+   parada. Guía ARES con su mapa (Google Maps queda de respaldo, con la burbuja de ARES encima); al
+   acercarse a un pendiente, se llama con un toque, y cada parada se cierra como entregada o no
+   entregada.
 6. **Cerrar el día.** Se muestra la lista de no entregados, se borran los datos del día y al jefe
    le llegan los conteos.
 
@@ -377,7 +378,7 @@ y un agente no debe "corregir".
     - **En un condominio, siempre por su entrada** (dueño, 2026-11-12; `geo/red/entrada.ts`): si la
       calle interna más cercana a la casa (privada, o un pasaje interno sin nombre) está tan cerca
       como la pública, la parada se entrega en la entrada del condominio (la más cercana por
-      dentro): la ruta llega ahí y «Navegar» lleva a Google Maps ahí (`destinoParaNavegar`). El
+      dentro): la ruta llega ahí, y ahí apuntan «Navegar» y Google Maps (`destinoParaNavegar`). El
       número de la parada queda en el edificio. Sin esto, una parada quedó pegada a un camino de
       tierra detrás de su condominio y la ruta dio la vuelta al Centro Ecuestre (+2,2 km). Un pasaje
       abierto con nombre de calle (como Mosa) no es condominio: se para frente a la casa.
@@ -393,12 +394,25 @@ y un agente no debe "corregir".
   - El conductor puede hacer la propuesta al revés («Invertir orden de ruta», spec 024). Al revés
     suele medir más (sentidos únicos): la pantalla dice cuánto, y no se vuelve a optimizar.
   - Antes de tocar la ruta: skill `rutas-ares` (qué se midió, dónde está cada cosa, cómo medir).
-- **Navegación (spec 020).** ARES muestra la ruta y maneja las paradas, pero **no guía**. En cada
-  parada muestra las que quedan cerca, por si hay un pedido pendiente o una entrega agendada que la
-  app no sabe (spec 023): «N cerca», al lado de «Centrar», con las pendientes a ≤ 300 m en
-  línea recta, sin las 2 que siguen y hasta 3, marcadas en el mapa; «Ahora» deja una como la próxima. Guía la
-  app Google Maps, con la burbuja de ARES encima, ligada al pedido abierto y siempre con el botón
-  "Navegar". El Navigation SDK y la navegación propia de ARES (cartel y voz) se fueron.
+- **Navegación (specs 020 y 047).** Desde la 047 (dueño, 2026-11-26) **guía ARES, sin voz ni
+  cartel**: repartiendo (y con «Centrar»), el mapa va desde arriba, girado al camino, con el auto
+  y ~800 m de línea naranja por delante, y se acerca solo hasta la cuadra (zoom 15 a 17,
+  `_mapa/camara.ts`). Los nombres de calle van encima de la línea, en negrita, casi negros y con
+  borde blanco (Liberty los trae grises con halo transparente: sobre la línea no se leían; dueño,
+  2026-11-27, `resaltarCalles`).
+  - Si el auto se sale de la línea (> 40 m en 2 lecturas), se traza otra desde él con la red propia,
+    con su rumbo y sin consultas (`geo/desvio.ts`, `geo/red/desde-el-auto.ts`); vive en memoria.
+  - El mapa de Arica (una caja fija, 98 teselas, ~2 MB) se guarda una vez al día con conexión y ruta
+    (`geo/mapa-guardado/`, Cache Storage `ares-mapa-v1`); sin copia ni conexión, la ruta y las
+    paradas se ven sobre fondo liso. Diagnóstico → «Descargar mapa de Arica».
+  - Google Maps queda de respaldo (calle cortada, taco): los km de la parada lo abren con la
+    burbuja, como en la spec 020 (un enlace aparte «Abrir en Google Maps» los repetía y salió, dueño
+    2026-11-27). Cerrando desde la burbuja, Google Maps sigue a la siguiente; cerrando en ARES (ARES
+    adelante: `pause`/`resume`, no `visibilityState`), la burbuja se va y sigue ARES.
+  - En cada parada muestra las que quedan cerca, por si hay un pedido pendiente o una entrega
+    agendada que la app no sabe (spec 023): «N cerca», al lado de «Centrar», con las pendientes a
+    ≤ 300 m en línea recta, sin las 2 que siguen y hasta 3, marcadas en el mapa; «Ahora» deja una
+    como la próxima. El Navigation SDK y la voz se fueron (spec 020) y no vuelven.
   - Al cerrar una parada, Google Maps arranca derecho a la siguiente: se abre limpiando su tarea,
     porque si no pregunta «¿Salir de la navegación?» y, sin respuesta, sigue a la parada cerrada
     (`GoogleMaps.java`, APK 1.6.1).
@@ -411,7 +425,10 @@ y un agente no debe "corregir".
     web. Diagnóstico → «Navegar con punto de paso» lo apaga (encendido por defecto).
   - **Llamadas.** Se marcan solas (con el permiso de llamadas; sin él, el marcador) y quedan de
     fondo: con la llamada en curso vuelve adelante ARES o, desde la burbuja, Google Maps
-    (`TrasLlamar.java`, dueño 2026-11-09).
+    (`TrasLlamar.java`, dueño 2026-11-09). Desde la APK 1.15.0 vigila 9 s y vuelve a traerla cada
+    vez que la pantalla de la llamada la tapa (en el V2430 aparece hasta 3 s después de marcar), y
+    «desde ARES» es que ARES se ve al tocar «Llamar», no que tenga el foco (tras aceptar el permiso
+    no lo tiene; dueño, 2026-11-27: «hay veces que no se llama en segundo plano»).
 - **Plata.** El dueño no puede pagar sorpresas.
   - Mapbox sale entero y no se vuelve a proponer.
   - Todo servicio de pago lleva una cuota que lo deje en US$0. Google Geocoding tiene tope diario,
@@ -439,6 +456,11 @@ y un agente no debe "corregir".
     numeración; lo demás es referencia. Para ubicar el pedido se usa solo la calle con su número
     (los buscadores y también la IA de la spec 018), y la referencia queda en el pedido para el
     conductor (en Notas, «Ref.: …»; `geocoding/referencias.ts`, spec 035).
+  - **Dos calles** («LINDEROS CON NEGHME 2480»; spec 048, dueño 2026-11-27: «la gente pone de
+    distintas formas la dirección»): el número puede ser de cualquiera de las dos. Se le pregunta
+    a Google también por la otra con el mismo número (1 consulta más): vale la que lo tiene; si lo
+    tienen las dos a más de una cuadra, ⚠ y elige el conductor; ninguna, como antes y la IA (que
+    ya no supone que es la del número) (`geocoding/dos-calles.ts`).
   - **Calles repetidas** («Pasaje 1», «Calle 2»; spec 035): la app lleva cada lugar de esos nombres
     (`lugares-calles.ts`, OSM) y las poblaciones del Plano de Poblaciones municipal
     (`poblaciones-arica.ts`). La población o la calle que cruza, escritas en la guía, eligen el lugar

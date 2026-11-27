@@ -17,7 +17,8 @@ import {
 import { preguntarAGoogle } from "./google";
 import { lugaresDeCalle } from "./lugares";
 import { preguntarANominatim } from "./nominatim";
-import { calleYNumero, separarReferencias, type Referencias } from "./referencias";
+import { calleYNumero, otraCalleConElNumero, separarReferencias, type Referencias } from "./referencias";
+import { decidirDosCalles } from "./dos-calles";
 import type { SugerenciaDireccion, TipoUbicacion } from "./tipos";
 
 // Dos coincidencias más separadas que esto son lugares DISTINTOS, no dos formas
@@ -107,6 +108,16 @@ export async function ubicarDireccion(direccion: string, senal?: AbortSignal): P
   const candidatos = aplicarPuertas(primeraVuelta, completadas);
 
   const r = await clasificar(q, completadas, candidatos, osm === null && (google === null || google.length === 0));
+
+  // Dos calles («LINDEROS CON NEGHME 2480»): el número puede ser de cualquiera de las dos (spec
+  // 048). Se le pregunta a Google por la otra con el mismo número y vale la que lo tiene; si son
+  // las dos, elige el conductor (dos-calles.ts). Una consulta más, solo en estas direcciones.
+  const otra = sinNadie ? null : otraCalleConElNumero(direccion);
+  if (otra) {
+    const qOtra = conCalleAprendida(await corregirConCatalogo(normalizarConsulta(otra)));
+    const decidido = qOtra ? decidirDosCalles(r, await preguntarAGoogle(qOtra, senal)) : null;
+    if (decidido) return decidido;
+  }
 
   // Una calle que está en varios lugares de Arica (spec 035): cada lugar es una opción con su
   // población y su sector, y la referencia de la guía elige. Sin red también: los lugares viajan

@@ -70,6 +70,7 @@ final class GoogleMaps {
             .addCategory(Intent.CATEGORY_LAUNCHER)
             .setPackage(PAQUETE)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
-        TrasLlamar.alFrente(contexto, maps);
+        // Si Google Maps está adelante no se puede saber: se trae a ratos (TrasLlamar).
+        TrasLlamar.alFrente(contexto, maps, null);
     }
 }

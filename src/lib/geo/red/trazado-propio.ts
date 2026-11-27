@@ -52,8 +52,9 @@ function pegar(linea: Trazado, mas: Trazado): void {
   }
 }
 
-/** La línea del camino que la última búsqueda encontró hasta ese punto del arco. */
-function lineaHasta(b: Busqueda, arco: number, fraccion: number, l: Llegada): Trazado {
+/** La línea del camino que la última búsqueda encontró hasta ese punto del arco.
+ *  La usa también el trazado desde el auto (desde-el-auto.ts, spec 047). */
+export function lineaHasta(b: Busqueda, arco: number, fraccion: number, l: Llegada): Trazado {
   const { red } = b;
   const dondeSale = (salida: number) => {
     const s = b.salidas[salida];
